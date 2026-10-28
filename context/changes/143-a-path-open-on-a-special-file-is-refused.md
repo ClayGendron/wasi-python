@@ -4,7 +4,7 @@
 
 ### Security
 
-- A guest's open of a FIFO, socket or device file in a granted folder is refused with `ENXIO` before wasmtime opens it, so it can no longer hold a call past its deadline and `cancel`, or `Session.close()`; with `O_DIRECTORY` it answers `ENOTDIR`, and a write-open of one on a read-only grant answers `ENXIO`, or `ENOTDIR` with `O_DIRECTORY`, where wasmtime answered `EPERM`.
+- **A FIFO or device in a grant no longer stalls a call.** The guest's open of such a file is refused with `ENXIO` before the host opens it, so a deadline, `cancel` and `Session.close()` stop the call as they stop any other. [Grant a folder](https://claygendron.github.io/wasi-python/how-to/grants/#grant-a-folder)
 
 ## Package rows
 

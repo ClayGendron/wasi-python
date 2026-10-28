@@ -2,7 +2,7 @@
 
 ## Changelog
 
-### Added
+### New
 
 - **Other engines can start every call from a starting image.** The snapshot binary exports `prepare`, which runs your setup code once and leaves memory ready to copy into each new instance. [Embed from other languages](https://claygendron.github.io/wasi-python/how-to/embed-from-other-languages/#start-each-call-from-a-starting-image)
 

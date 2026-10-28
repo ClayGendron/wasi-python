@@ -2,10 +2,10 @@
 `uv run pytest tests/lint`.
 
 These hold how the documents and the code's prose are written: the specifications' shape, the one-
-line paragraphs, the labels of an executed write-up, the README's badge, and the rule that code
-names no document of the knowledge tree. They gate a change but are not goal checks: no area, no
-ratchet, no acceptance, and the fast tier does not collect them (`norecursedirs`), so a document
-being written never colours the product's verdict.
+line paragraphs, the labels of an executed write-up, the README's badge, the rule that code
+names no document of the knowledge tree, and the same rule for the release's notes. They gate a
+change but are not goal checks: no area, no ratchet, no acceptance, and the fast tier does not
+collect them (`norecursedirs`), so a document being written never colours the product's verdict.
 """
 
 from __future__ import annotations
@@ -167,6 +167,9 @@ STRING_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
     ("tests/unit/test_scan.py", "build review", FIXTURE),
     ("tests/unit/test_scan.py", "Confirmation's M5", FIXTURE),
     ("tests/unit/test_scan.py", "Confirmation's", FIXTURE),
+    ("tests/unit/test_scan.py", "spec 131", FIXTURE),
+    ("tests/unit/test_scan.py", "spec 144", FIXTURE),
+    ("tests/unit/test_scan.py", "spec 999", FIXTURE),
     ("tests/unit/test_landing_lane.py", "memo", FIXTURE),
     ("tests/unit/test_shards.py", "spec 001", GAP_DATA),
     ("tests/unit/test_shards.py", "spec 065", GAP_DATA),
@@ -193,6 +196,17 @@ def test_no_string_names_a_context_document() -> None:
             else:
                 hits.append(f"{where}:{line}: {rule}: {phrase}")
     hits += [f"{path}: allowed '{phrase}' is no longer there" for path, phrase in allowed - used]
+    assert not hits, scan.report(hits)
+
+
+def test_release_notes_name_no_context_document() -> None:
+    """The release's notes are a public page, on GitHub, on the site and behind PyPI's link, so
+    they meet the public pages' rule: every news file's entries, the changelog's header and its
+    sections written for the reader name no specification, constitution section, write-up,
+    review, numbered question, path under the knowledge tree or finding, by the same regexes the
+    README and the site are read with, and no reserved embedder name. The sections published
+    before the reader's notes began are not read."""
+    hits = scan.release_note_hits(paths.REPO)
     assert not hits, scan.report(hits)
 
 
@@ -286,3 +300,63 @@ def test_src_names_no_context_document() -> None:
     `context/` path or finding ID in any comment or docstring of any `.py` under `src/`."""
     hits = _citation_hits(paths.REPO / "src")
     assert not hits, scan.report(hits)
+
+
+# The documentation site's address, as `mkdocs.yml` names it. A pointer from the code or from a
+# page read outside the site is a full URL, since the wheel carries no `docs/` folder.
+SITE = "https://claygendron.github.io/wasi-python/"
+SITE_LINK = re.compile(re.escape(SITE) + r"([A-Za-z0-9_./-]*)")
+
+
+def _src_text(path: Path) -> list[tuple[int, str]]:
+    """(line, text) of every comment and every string literal's text in one Python file."""
+    import io
+    import tokenize
+
+    kinds = {tokenize.COMMENT, tokenize.STRING}
+    kinds |= {getattr(tokenize, "FSTRING_MIDDLE", tokenize.STRING)}
+    kinds |= {getattr(tokenize, "TSTRING_MIDDLE", tokenize.STRING)}
+    source = io.StringIO(path.read_text(encoding="utf-8")).readline
+    return [(t.start[0], t.string) for t in tokenize.generate_tokens(source) if t.type in kinds]
+
+
+def _page_of(link: str) -> Path:
+    """The Markdown file under `docs/` that a path on the site is built from; a full stop that
+    ends the sentence the link closes is not part of the path."""
+    rel = link.split("#", 1)[0].rstrip(".").strip("/")
+    if not rel:
+        return paths.REPO / "docs" / "index.md"
+    page = paths.REPO / "docs" / f"{rel}.md"
+    return page if page.is_file() else paths.REPO / "docs" / rel / "index.md"
+
+
+def test_src_points_at_the_site_not_the_readme() -> None:
+    """The runner's comments, docstrings and messages point a reader at the documentation site,
+    not at a section of the README, which is short and keeps no reference sections; and every
+    link to the site from `src/`, the README or the security policy names a page the site has, so
+    a page that moves or goes turns this red before a reader meets the dead link."""
+    site_url = re.search(r"^site_url:\s*(\S+)", (paths.REPO / "mkdocs.yml").read_text(), re.M)
+    hits = [] if site_url and site_url[1] == SITE else [f"mkdocs.yml: site_url is not {SITE}"]
+    sources = sorted(p for p in scan.files_under(paths.REPO / "src", ".") if p.suffix == ".py")
+    texts = [(p, line, text) for p in sources for line, text in _src_text(p)]
+    for page in (paths.README, paths.REPO / "SECURITY.md"):
+        texts += [(page, n, text) for n, text in enumerate(page.read_text().splitlines(), 1)]
+    for path, line, text in texts:
+        name = scan.rel(path, paths.REPO)
+        if path.suffix == ".py":
+            for m in re.finditer("README", text):
+                at = line + text[: m.start()].count("\n")
+                hits.append(f"{name}:{at}: names the README; name the site's page instead")
+        for m in SITE_LINK.finditer(text):
+            if not _page_of(m[1]).is_file():
+                at = line + text[: m.start()].count("\n")
+                hits.append(f"{name}:{at}: {m[0]} is no page under docs/")
+    assert not hits, scan.report(hits)
+
+
+def test_a_site_link_that_ends_a_sentence_names_its_page() -> None:
+    """A link written at the end of a sentence carries the full stop into the match; the page it
+    names is the one before the stop."""
+    building = paths.REPO / "docs" / "contributing" / "building.md"
+    assert _page_of("contributing/building/.") == building
+    assert _page_of("contributing/building/#build-the-artifacts") == building

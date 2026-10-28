@@ -58,9 +58,10 @@ def test_carried_patches_follow_the_rules() -> None:
 
 
 def test_no_embedder_name_in_code() -> None:
-    """The code and the public pages (the README and the site) name no embedder."""
+    """The code and the public pages (the README, the security policy and the site) name no
+    embedder."""
     hits = scan.embedder_hits(
-        paths.REPO, (*CODE_DIRS, "README.md"), scan.read_names(paths.EMBEDDERS)
+        paths.REPO, (*CODE_DIRS, *scan.PUBLIC_FILES), scan.read_names(paths.EMBEDDERS)
     )
     assert not hits, scan.report(hits)
 
@@ -93,7 +94,7 @@ def test_no_test_reads_a_clock() -> None:
 def _ruff(*args: str) -> subprocess.CompletedProcess:
     ruff = Path(sys.executable).parent / "ruff"
     return subprocess.run(
-        [str(ruff), *args, "src", "tests", "recipes/guest"],
+        [str(ruff), *args, "src", "tests", "recipes/guest", "scripts", "release"],
         cwd=paths.REPO,
         capture_output=True,
         text=True,
@@ -266,6 +267,17 @@ def test_a_release_has_its_structural_review() -> None:
     version = _release_version_module()
     current = version.read_version(version.INIT.read_text())
     errors = scan.structural_review_errors(current, paths.CONTEXT / "reviews")
+    assert not errors, scan.report(errors)
+
+
+def test_a_release_has_its_release_notes_review() -> None:
+    """A released version whose notes are written for the reader (above 0.1.1) has a review of
+    those notes by someone who wrote none of them, read as an embedder would, ending with its
+    verdict. A prerelease needs none from the judge: its string is what the tree carries all
+    cycle."""
+    version = _release_version_module()
+    current = version.read_version(version.INIT.read_text())
+    errors = scan.release_notes_review_errors(current, paths.CONTEXT / "reviews")
     assert not errors, scan.report(errors)
 
 
@@ -491,18 +503,29 @@ def test_the_version_is_released_by_the_book() -> None:
 
 
 def test_the_news_files_have_their_shape() -> None:
-    """Every news file in the changes folder reads: its changelog lines under the CHANGELOG's
-    headings, its package rows, and one claim block in the claims' shape; the release assembles
-    them and the acceptance from CI takes its reasons from them."""
+    """Every news file in the changes folder reads: its entries in the reader's shape under the
+    six headings, its package rows, and one claim block in the claims' shape; the release
+    assembles them and the acceptance from CI takes its reasons from them. Every link to the
+    documentation site, in a news file or in a section of the changelog written for the reader,
+    leads to a page under docs/, so a page a published note links keeps its path."""
     folder = paths.REPO / news.CHANGES
+    docs = paths.REPO / "docs"
     errors = []
     for f in sorted(folder.glob("*.md")) if folder.is_dir() else []:
         if f.name == "README.md":
             continue
         try:
-            news.load(f)
+            n = news.load(f)
         except news.NewsError as e:
             errors.append(str(e))
+            continue
+        entries = [line for lines in n.changelog.values() for line in lines]
+        errors += [f"{f.name}: {e}" for e in news.link_errors(entries, docs)]
+    changelog = (paths.REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    for s in news.reader_sections(changelog):
+        entries = [line for line in s.body.splitlines() if line.startswith("- ")]
+        where = f"CHANGELOG.md's section for {s.version}" if s.version else "CHANGELOG.md's header"
+        errors += [f"{where}: {e}" for e in news.link_errors(entries, docs)]
     assert not errors, scan.report(errors)
 
 
@@ -521,9 +544,31 @@ def test_the_release_signs_and_publishes_what_build_made() -> None:
     """Every job that checks, signs or publishes reads the build's files through the one local
     action, which downloads them by an id it has guarded and checks them against the SHA-256 of
     SHA256SUMS the build job handed on, and acts on nothing else; the publish jobs name their
-    environments, setup-uv runs with no cache, and each job holds only the permissions it uses."""
+    environments, setup-uv runs with no cache, and each job holds only the permissions it uses;
+    in a job that can write, the token reaches only steps that run gh and no repository code,
+    and PyPI's upload runs the pinned uv through trusted publishing alone, with no container and
+    no env."""
     errors = scan.release_binding_errors(RELEASE_WORKFLOW.read_text(), ASSETS_ACTION.read_text())
     assert not errors, scan.report(errors)
+
+
+def test_a_pull_request_is_judged_again_when_its_base_or_description_changes() -> None:
+    """An edit of a pull request starts its check again: a new base runs the selection again, so
+    a pull request retargeted to main is judged in the release's shape, and a new title or
+    description has its refusals read anew. The plan learns which from its step's variables."""
+    text = RELEASE_WORKFLOW.read_text()
+    assert scan.pull_request_types(text) == {
+        "opened",
+        "synchronize",
+        "reopened",
+        "labeled",
+        "edited",
+    }
+    plan = scan.workflow_jobs(scan.without_comments(text))["plan"]
+    fields = [scan.step_fields(s) for s in scan.workflow_steps(plan)]
+    env = next((f.get("env", {}) for f in fields if f.get("name") == "The plan"), {})
+    assert env.get("PLAN_ACTION") == "${{ github.event.action }}", env
+    assert env.get("PLAN_OLD_BASE") == "${{ github.event.changes.base.ref.from }}", env
 
 
 def test_every_action_is_pinned_by_commit() -> None:

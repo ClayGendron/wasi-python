@@ -19,6 +19,12 @@ A change's CHANGELOG lines and package rows are written in its news file (`CHANG
 CHANGELOG.md by hand. `bump` assembles them into the new version's section (joining an
 unreleased section already written for it), puts each package row into the packages page's table,
 and removes the news files; the reader of their shape is the judge's own, loaded by its path.
+
+From 0.1.2 a version's section is its release's notes for an embedder who did not follow the
+work: a summary paragraph, then the entries under the reader's six headings. The preparation
+writes the summary into the section between `bump` and `date`; it and the rewrites the notes'
+reader asks for are the only hand edits of the section. `date` refuses a section out of that
+shape, and `check` reports one for every dated section.
 """
 
 from __future__ import annotations
@@ -165,7 +171,7 @@ def _joined(body: str, news: list) -> str:
     for n in sorted(news, key=lambda n: n.name):
         for heading, lines in n.changelog.items():
             blocks.setdefault(heading, []).extend(lines)
-    order = ["Added", "Changed", "Fixed", "Security"]
+    order = list(_reader().HEADINGS)
     headings = [h for h in order if h in blocks] + [h for h in blocks if h not in order]
     parts = ["\n".join(preamble).strip("\n")] if "".join(preamble).strip() else []
     parts += [f"### {h}\n\n" + "\n".join(blocks[h]) for h in headings]
@@ -249,12 +255,25 @@ def check_errors(
         errors.append("pyproject.toml's [tool.hatch.version] does not read src/wasi_python")
     if version != "0.0.0" and version not in sections(changelog):
         errors.append(f"CHANGELOG.md has no section for {version}")
+    errors += reader_errors(changelog)
     if tag is not None:
         if tag != f"v{version}":
             errors.append(f"the tag {tag} is not v{version}, the version it points to")
         elif sections(changelog).get(version) == "unreleased":
             errors.append(f"CHANGELOG.md's section for {version} is still unreleased")
     return errors
+
+
+def reader_errors(changelog: str) -> list[str]:
+    """Each dated section written for the reader that is out of the reader's shape, one line per
+    fault; an unreleased one waits for its summary, which comes between bump and date."""
+    reader = _reader()
+    return [
+        f"CHANGELOG.md's section for {s.version}: {e}"
+        for s in reader.reader_sections(changelog)
+        if s.version and s.date != "unreleased"
+        for e in reader.section_errors(s.body)
+    ]
 
 
 def git(*args: str, strip: bool = True) -> str:
@@ -394,6 +413,13 @@ def _date(a: argparse.Namespace) -> int:
     changelog = CHANGELOG.read_text()
     if news:
         changelog = add_section(changelog, version, news)
+    reader = _reader()
+    if reader.is_reader_version(str(version)) and str(version) in sections(changelog):
+        faults = reader.section_errors(notes(changelog, str(version)))
+        if faults:
+            raise ReleaseError(
+                f"{version}'s section is not the reader's notes: " + "; ".join(faults)
+            )
     changelog = date_section(changelog, version, day)
     rows = [row for n in sorted(news, key=lambda n: n.name) for row in n.rows]
     page = add_rows(PACKAGES.read_text(), rows) if rows else None
@@ -453,7 +479,9 @@ def verify_note(version: str, repository: str = REPOSITORY) -> str:
     """How a user checks this release's assets: appended to the release's notes, not to the tag's
     message. The command is the one the release's attest job runs before it publishes."""
     return (
-        "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
+        "\n**Verify a download** (`gh` logged in; see "
+        "[Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/)):"
+        "\n\n"
         "```\n"
         f"gh attestation verify <asset> --repo {repository} \\\n"
         "  --signer-workflow "

@@ -1,25 +1,26 @@
-"""News files: one per change, its CHANGELOG lines, its package rows and its claim block, read
-by the release's changelog assembly, the gather's growth listing and the acceptance from CI."""
+"""News files: one per change, its release-note entries, its package rows and its claim block,
+read by the release's changelog assembly, the gather's growth listing and the acceptance from CI."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 
-from harness import news
+from harness import news, paths
 
 GOOD = """# 999: a change
 
 ## Changelog
 
-### Changed
+### New
 
-- **A thing moved**: it moved.
+- **A thing you can do now.** It is new. [Install](https://claygendron.github.io/wasi-python/get-started/install/)
 
 ### Fixed
 
-- **A thing broke**: it is fixed.
+- **A thing that broke works again.** It is fixed. [Sessions](https://claygendron.github.io/wasi-python/how-to/sessions/#know-how-a-session-ends)
 
 ## Package rows
 
@@ -46,13 +47,27 @@ units = 3
 """
 
 
+NEW_ENTRY = next(line for line in GOOD.splitlines() if line.startswith("- **A thing you can"))
+FIXED_ENTRY = next(line for line in GOOD.splitlines() if line.startswith("- **A thing that"))
+# Forty words of fact and a link whose text is twenty-five words: sixty-nine words in all.
+LONG_LINK_TEXT = (
+    "- **A long link.** "
+    + " ".join(["word"] * 40)
+    + " ["
+    + " ".join(["page"] * 25)
+    + "](https://claygendron.github.io/wasi-python/get-started/install/)"
+)
+SIXTY_ONE = (
+    "- **A long one.** "
+    + " ".join(["word"] * 56)
+    + " [Install](https://claygendron.github.io/wasi-python/get-started/install/)"
+)
+
+
 def test_a_news_file_reads_its_three_sections() -> None:
     n = news.parse("999-a-change.md", GOOD)
     assert n.name == "999-a-change" and n.spec == "999"
-    assert n.changelog == {
-        "Changed": ["- **A thing moved**: it moved."],
-        "Fixed": ["- **A thing broke**: it is fixed."],
-    }
+    assert n.changelog == {"New": [NEW_ENTRY], "Fixed": [FIXED_ENTRY]}
     assert n.rows == ["| numpy | 2.5.2 | Built in. |"]
     (c,) = n.claims
     assert c.spec == "999" and c.units == 3 and c.growth == "the tool table is larger"
@@ -79,12 +94,12 @@ BROKEN = {
     ),
     "a heading with no line": (
         "999-a-change.md",
-        GOOD.replace("- **A thing broke**: it is fixed.\n", ""),
+        GOOD.replace(FIXED_ENTRY + "\n", ""),
         "Fixed",
     ),
     "prose under a heading": (
         "999-a-change.md",
-        GOOD.replace("- **A thing moved**: it moved.", "It moved."),
+        GOOD.replace(NEW_ENTRY, "It moved."),
         "a line",
     ),
     "a row of two cells": (
@@ -122,6 +137,39 @@ BROKEN = {
         GOOD.replace('spec = "999"', 'spec = "998"'),
         "998",
     ),
+    "a heading of the old four": (
+        "999-a-change.md",
+        GOOD.replace("### Fixed", "### Changed"),
+        "New, Faster, Security, Fixed, Upgrading, For contributors",
+    ),
+    "an entry with no bold lead": (
+        "999-a-change.md",
+        GOOD.replace("- **A thing that broke works again.**", "- A thing that broke works again."),
+        "bold lead",
+    ),
+    "a lead of thirteen words": (
+        "999-a-change.md",
+        GOOD.replace("**A thing that broke works again.**", "**" + " ".join(["word"] * 13) + ".**"),
+        "lead of 13 words",
+    ),
+    "an entry of sixty-one words": (
+        "999-a-change.md",
+        GOOD.replace(FIXED_ENTRY, SIXTY_ONE),
+        "61 words",
+    ),
+    "an entry past sixty words only through its link's text": (
+        "999-a-change.md",
+        GOOD.replace(FIXED_ENTRY, LONG_LINK_TEXT),
+        "69 words",
+    ),
+    "an entry that does not end with a link to the site": (
+        "999-a-change.md",
+        GOOD.replace(
+            "[Sessions](https://claygendron.github.io/wasi-python/how-to/sessions/#know-how-a-session-ends)",
+            "[Elsewhere](https://example.org/)",
+        ),
+        "end with a link",
+    ),
 }
 
 
@@ -130,6 +178,79 @@ def test_each_broken_news_file_is_refused_with_its_reason(case) -> None:
     name, text, words = BROKEN[case]
     with pytest.raises(news.NewsError, match=words.replace("[", r"\[").replace("*", r"\*")):
         news.parse(name, text)
+
+
+def test_sixty_words_is_the_bound() -> None:
+    """The word count drops every link's address; sixty words pass and sixty-one do not."""
+    sixty = SIXTY_ONE.replace("word word ", "word ", 1)
+    assert news.entry_errors(sixty) == []
+    assert news.entry_errors(SIXTY_ONE) == ["the entry is 61 words; at most 60"]
+
+
+def test_the_site_is_the_documentations_own_address() -> None:
+    mkdocs = (paths.REPO / "mkdocs.yml").read_text(encoding="utf-8")
+    site_url = re.search(r"^site_url:\s*(\S+)\s*$", mkdocs, re.M)
+    assert site_url is not None and news.SITE == site_url[1]
+
+
+def test_each_site_link_leads_to_a_page(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    (docs / "how-to").mkdir(parents=True)
+    (docs / "reference" / "deep").mkdir(parents=True)
+    (docs / "index.md").write_text("# Home\n")
+    (docs / "how-to" / "sessions.md").write_text("# Sessions\n")
+    (docs / "reference" / "deep" / "index.md").write_text("# Deep\n")
+    entries = [
+        FIXED_ENTRY,
+        f"- **Home.** It is home. [Home]({news.SITE})",
+        f"- **Deep.** It is deep. [Deep]({news.SITE}reference/deep/)",
+        f"- **Gone.** It moved away. [Gone]({news.SITE}reference/gone/#where)",
+        "- **Elsewhere.** It is elsewhere. [Advisory](https://example.org/x)",
+    ]
+    assert news.link_errors(entries, docs) == [
+        f"{news.SITE}reference/gone/#where: no page docs/reference/gone.md or "
+        "docs/reference/gone/index.md"
+    ]
+
+
+@pytest.mark.parametrize(
+    "text, want",
+    [("0.1.2a1", True), ("0.1.2", True), ("0.2.0", True), ("1.0.0rc1", True),
+     ("0.1.1", False), ("0.1.0a7", False), ("0.1.0", False), ("", False)],
+)  # fmt: skip
+def test_which_versions_carry_the_readers_notes(text, want) -> None:
+    assert news.is_reader_version(text) is want
+
+
+LOG = """# Changelog
+
+The header.
+
+## 0.1.2 — unreleased
+
+A summary.
+
+## 0.1.2a1 — 2026-11-01
+
+Another.
+
+## 0.1.1 — 2026-10-27
+
+### Changed
+
+- an old line
+"""
+
+
+def test_the_reader_sections_are_the_header_and_the_versions_above_0_1_1() -> None:
+    got = [(s.version, s.date, s.body.strip(), s.line) for s in news.reader_sections(LOG)]
+    assert got == [
+        ("", "", "# Changelog\n\nThe header.", 1),
+        ("0.1.2", "unreleased", "A summary.", 6),
+        ("0.1.2a1", "2026-11-01", "Another.", 10),
+    ]
+    only_old = "# Changelog\n\n## 0.1.0a1 — unreleased\n\n- first\n"
+    assert [s.version for s in news.reader_sections(only_old)] == [""]
 
 
 def test_a_folder_holds_news_files_and_its_readme(tmp_path: Path) -> None:

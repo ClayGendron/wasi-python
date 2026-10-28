@@ -19,7 +19,7 @@ import warnings
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from harness import history, paths
+from harness import history, news, paths
 
 SKIP_PARTS = {"__pycache__", ".venv", ".pytest_cache", ".ruff_cache"}
 
@@ -447,6 +447,24 @@ def structural_review_errors(version: str, reviews: Path) -> list[str]:
             if not re.search(rf"\b{tag}\b", text) or row.lower() not in text.lower():
                 errors.append(f"{p.name}: does not score {tag} ({row})")
     return errors
+
+
+def release_notes_review_errors(version: str, reviews: Path) -> list[str]:
+    """A released version whose notes are written for the reader has a review of those notes by
+    someone who wrote none of them, `<version>-release-notes-review-YYYY-MM-DD.md`, ending with
+    its verdict. A prerelease needs none from the judge: its string is what the tree carries all
+    cycle; nor does a version whose notes were published in the older shape."""
+    if not RELEASE_VERSION.match(version) or not news.is_reader_version(version):
+        return []
+    name = re.compile(rf"^{re.escape(version)}-release-notes-review-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
+    found = sorted(p for p in reviews.glob("*.md") if name.match(p.name))
+    if not found:
+        return [f"{version} is a release; reviews/ has no {version}-release-notes-review-<date>.md"]
+    return [
+        f"{p.name}: has no ## Verdict section"
+        for p in found
+        if not re.search(r"^## Verdict\s*$", p.read_text(encoding="utf-8"), re.M)
+    ]
 
 
 KIND_LINE = re.compile(r"^- \*\*Kind:\*\*(.*?)(?=^- \*\*|^## )", re.M | re.S)
@@ -1531,15 +1549,133 @@ def assets_action_errors(text: str) -> list[str]:
     return errors
 
 
+# A step's command words that run code of the repository or a package: uv, Python or pip as a
+# word of their own (a path to one counts; `wasi-python` in a title does not), or a path under
+# release/, `./release/` among them (never release-assets/ or release.yml).
+CODE_WORDS = re.compile(r"(?<![\w.-])(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w-])release/")
+UV_WORD = re.compile(r"(?<![\w.-])uvx?\b")
+TOKEN = re.compile(r"github\.token|secrets\.")
+UV_PUBLISH_BANNED = ("--token", "-t", "--username", "-u", "--password", "-p", "--publish-url",
+                     "--index", "--check-url")  # fmt: skip
+PYPI_USES = re.compile(r"(actions/checkout|astral-sh/setup-uv)@[0-9a-f]{40}")
+
+
+def _job_block(lines: list[str], key: str) -> list[str]:
+    """A job-level block's lines (`env:`), its keys indented six spaces."""
+    out, inside = [], False
+    for line in lines:
+        if re.fullmatch(rf"    {key}:\s*(.*)", line):
+            inside = True
+            out.append(line)
+            continue
+        if inside:
+            if line.startswith("      ") or not line.strip():
+                out.append(line)
+            else:
+                break
+    return out
+
+
+def _writes(lines: list[str]) -> bool:
+    perms = _permission_set(lines)
+    return _job_field(lines, "permissions") == "write-all" or any(
+        p.endswith(": write") for p in perms or ()
+    )
+
+
+def token_scope_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
+    """Rule 19: in a job that can write, the token reaches only steps that run gh and no code of
+    the repository or a package: no job-level env names it, a step whose env names it runs gh and
+    none of CODE_WORDS, and publish names it on one step alone, the one that creates the release.
+    The steps of a job share a runner, so this keeps the token out of the environment uv, Python
+    and the release scripts see, which closes an accidental read."""
+    errors = []
+    for name, lines in jobs.items():
+        if not _writes(lines):
+            continue
+        if TOKEN.search("\n".join(_job_block(lines, "env"))):
+            errors.append(f"rule 19: {name}'s job-level env: names the token or a secret")
+        holders = []
+        for _, f in steps.get(name, []):
+            named = [*(f.get("env") or {}).values(), f.get("run", "")]  # inline counts too
+            if not any(TOKEN.search(str(v)) for v in named):
+                continue
+            holders.append(f)
+            run = str(f.get("run", ""))
+            if not re.search(r"\bgh\s", run) or CODE_WORDS.search(run):
+                errors.append(
+                    f"rule 19: {name}'s step {f.get('name', '(unnamed)')!r} holds the token and "
+                    "runs something other than gh"
+                )
+        if name == "publish" and (
+            len(holders) != 1 or "gh release create" not in str(holders[0].get("run", ""))
+        ):
+            errors.append("rule 19: publish names the token on more than the one step that runs "
+                          "gh release create")  # fmt: skip
+    return errors
+
+
+def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
+    """Rule 20: PyPI's upload runs the pinned uv through trusted publishing alone. pypi uses only
+    the checkout, setup-uv at the workflow's UV_VERSION with no cache, and the local action; one
+    step runs `uv publish --no-config --trusted-publishing always` on files under dist/ with no
+    credential or index of its own; pypi sets no env: anywhere and writes neither GITHUB_ENV nor
+    GITHUB_PATH, since a variable such as UV_CONFIG_FILE is read before --no-config; and no job
+    of the workflow runs in a container or beside a service, whose image is named by a tag."""
+    errors = []
+    for name, lines in jobs.items():
+        if _job_field(lines, "container") is not None or _job_field(lines, "services") is not None:
+            errors.append(f"rule 20: {name} runs in a container or beside a service")
+    pypi = steps.get("pypi", [])
+    for _, f in pypi:
+        uses = f.get("uses")
+        if uses is None:
+            continue
+        if uses != ASSETS_ACTION and not PYPI_USES.fullmatch(uses):
+            errors.append(f"rule 20: pypi uses {uses}")
+        if (
+            uses.startswith("astral-sh/setup-uv@")
+            and (f.get("with") or {}).get("version") != "${{ env.UV_VERSION }}"
+        ):
+            errors.append("rule 20: pypi's setup-uv is not the workflow's UV_VERSION")
+    if _job_block(jobs.get("pypi", []), "env") or any("env" in f for _, f in pypi):
+        errors.append("rule 20: pypi sets env:")
+    if any(re.search(r"GITHUB_(ENV|PATH)", str(f.get("run", ""))) for _, f in pypi):
+        errors.append("rule 20: pypi writes GITHUB_ENV or GITHUB_PATH")
+    # Every step that runs uv counts, however its words are ordered (`uv --no-config publish`).
+    uploads = [str(f.get("run", "")) for _, f in pypi if UV_WORD.search(str(f.get("run", "")))]
+    words = uploads[0].replace("\\\n", " ").split() if len(uploads) == 1 else []
+    if "publish" not in words:
+        return [*errors, "rule 20: pypi does not run uv publish in exactly one step"]
+    at = next((k for k, w in enumerate(words) if UV_WORD.fullmatch(w)), None)
+    if at is None:  # `/usr/bin/uv`: a path that may name any binary, so the scan names it
+        return [*errors, "rule 20: pypi runs uv by a path, not as the word uv"]
+    args = [w for w in words[at + 1 :] if w != "publish"]
+    files = [a for k, a in enumerate(args) if not a.startswith("-")
+             and (k == 0 or args[k - 1] != "--trusted-publishing")]  # fmt: skip
+    if "--no-config" not in args:
+        errors.append("rule 20: uv publish runs without --no-config")
+    if "--trusted-publishing" not in args or args[args.index("--trusted-publishing") + 1 :][:1] != [
+        "always"
+    ]:
+        errors.append("rule 20: uv publish runs without --trusted-publishing always")
+    if any(a.split("=")[0] in UV_PUBLISH_BANNED for a in args):
+        errors.append("rule 20: uv publish names a credential or an index of its own")
+    if not files or any(not f.startswith("dist/") for f in files):
+        errors.append("rule 20: uv publish uploads files outside dist/")
+    return errors
+
+
 def release_binding_errors(text: str, action: str) -> list[str]:
-    """Every rule that ties what the release signs to what it built (rules 1 to 18), one line per
+    """Every rule that ties what the release signs to what it built (rules 1 to 20), one line per
     breach, each starting with its rule's number, on the workflow (and the local action
     `action`, the text of ASSETS_ACTION_FILE) without their comments: every reader of the
     build's files reads them through the action, which downloads them by an id it has guarded,
     checks them against the SHA-256 of SHA256SUMS the build job handed on, and acts on nothing
     else; nothing carries on past a failure; PyPI waits on publish and a pushed tag; the publish
     jobs name their environments, run setup-uv with no cache, and hold only the permissions they
-    use."""
+    use; the token of a job that can write reaches only gh (rule 19); and PyPI's upload runs the
+    pinned uv through trusted publishing alone, with no container and no env (rule 20)."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     steps = {
@@ -1751,7 +1887,30 @@ def release_binding_errors(text: str, action: str) -> list[str]:
     pypi = jobs.get("pypi", [])
     if _job_field(pypi, "if") != PYPI_IF or "publish" not in _needs(pypi):
         errors.append(f"rule 18: pypi's if: is not {PYPI_IF!r}, or it does not need publish")
+    errors += token_scope_errors(jobs, steps)
+    errors += pypi_upload_errors(jobs, steps)
     return errors
+
+
+def pull_request_types(text: str) -> set[str]:
+    """The `types:` of the workflow's `pull_request` trigger, read from its `on:` block; empty when
+    it names none."""
+    inside_on = inside_pr = False
+    for line in without_comments(text).splitlines():
+        if re.fullmatch(r"on:\s*", line):
+            inside_on = True
+            continue
+        if inside_on and line and not line.startswith(" "):
+            break
+        if not inside_on:
+            continue
+        if re.fullmatch(r"  [A-Za-z_]+:.*", line):
+            inside_pr = line.strip().startswith("pull_request:")
+            continue
+        m = re.fullmatch(r"    types:\s*\[(.*)\]\s*", line)
+        if inside_pr and m:
+            return {w.strip() for w in m[1].split(",") if w.strip()}
+    return set()
 
 
 # ---------------------------------------------------------------------------------------------
@@ -3340,6 +3499,9 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
     tops = set(tops)
     patches, drafts = root / "recipes" / "patches", root / "context" / "upstream" / "patches"
     changelog = (root / "CHANGELOG.md").read_text() if (root / "CHANGELOG.md").is_file() else ""
+    # A pull request that carries a patch names it in its news file, which reaches the changelog
+    # only at the release; the news files' entries count as the changelog's own.
+    changelog += "".join("\n" + text for _, _, text in news_changelogs(root))
     errors, count, made = [], 0, set()
     folders = sorted(p for p in patches.iterdir()) if patches.is_dir() else []
     for d in folders:
@@ -3366,7 +3528,7 @@ def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
             count += 1
             made.add((d.name, f.stem))
             if where not in changelog:
-                errors.append(f"{where}: not named in CHANGELOG.md")
+                errors.append(f"{where}: not named in CHANGELOG.md or in a news file")
             shape, touched = patch_shape_errors(f.read_text(errors="replace"), where)
             errors += shape
             draft = drafts / d.name / f"{f.stem}.md"
@@ -4191,7 +4353,7 @@ def context_citation_hits(path: Path) -> list[tuple[int, str, str]]:
 def context_citation_files(root: Path) -> list[Path]:
     """The files the citation rule reads: every Python, shell, TOML and YAML file under `tests/`
     and `.github/workflows/`, every text file under `scripts/` and `release/`, and the public
-    pages: the README and every Markdown page under `docs/`."""
+    pages: the README, the security policy and every Markdown page under `docs/`."""
     picked = [
         p for p in files_under(root, "tests", ".github/workflows") if p.suffix in CITATION_SUFFIXES
     ]
@@ -4199,10 +4361,58 @@ def context_citation_files(root: Path) -> list[Path]:
     return picked + public_pages(root)
 
 
+def news_changelogs(root: Path) -> list[tuple[Path, int, str]]:
+    """(file, first line, text) of every news file's `## Changelog` section, read as text so a
+    broken news file is still read; its shape is the news files' own check."""
+    folder = root / news.CHANGES
+    out = []
+    for p in sorted(folder.glob("*.md")) if folder.is_dir() else []:
+        if not news.NAME.fullmatch(p.name):
+            continue
+        lines = p.read_text(encoding="utf-8").splitlines()
+        start = next((i for i, line in enumerate(lines) if line.strip() == "## Changelog"), None)
+        if start is None:
+            continue
+        end = next(
+            (i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines)
+        )
+        out.append((p, start + 2, "\n".join(lines[start + 1 : end])))
+    return out
+
+
+def release_note_hits(root: Path) -> list[str]:
+    """Each citation of a project document, by the public pages' rules, and each reserved
+    embedder name in the release's notes: every news file's entries, and the changelog's header
+    and its sections written for the reader. The sections published before are not read."""
+    names_file = root / "context" / "embedders.txt"
+    names = read_names(names_file) if names_file.is_file() else []
+    blocks = [(rel(p, root), line, text) for p, line, text in news_changelogs(root)]
+    changelog = root / "CHANGELOG.md"
+    if changelog.is_file():
+        blocks += [
+            ("CHANGELOG.md", s.line, s.body)
+            for s in news.reader_sections(changelog.read_text(encoding="utf-8"))
+        ]
+    hits = set()
+    for where, first, text in blocks:
+        for rule, pattern in CITATION_RULES:
+            for m in pattern.finditer(text):
+                line = first + text[: m.start()].count("\n")
+                hits.add((where, line, rule, " ".join(m[0].split())))
+        for n, line_text in enumerate(text.splitlines()):
+            hits.update((where, first + n, "embedder", x) for x in names if x in line_text.lower())
+    return [f"{w}:{n}: {rule}: {phrase}" for w, n, rule, phrase in sorted(hits)]
+
+
+# The root's pages a user reads: the README, which is also the wheel's description, and the
+# security policy, which GitHub shows to everyone who reports a problem.
+PUBLIC_FILES = ("README.md", "SECURITY.md")
+
+
 def public_pages(root: Path) -> list[Path]:
-    """The pages a user reads: the README, which is also the wheel's description, and the
-    documentation site's Markdown pages."""
-    return files_under(root, "README.md") + [
+    """The pages a user reads: the root's public files and the documentation site's Markdown
+    pages."""
+    return files_under(root, *PUBLIC_FILES) + [
         p for p in files_under(root, "docs") if p.suffix == ".md"
     ]
 

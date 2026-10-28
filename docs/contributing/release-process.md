@@ -16,11 +16,15 @@ uv run python release/version.py release --push  # on main's tip: tag v<version>
 
 `bump` also assembles the changelog. Each change's lines wait in its news file until the release. `bump` puts each line under its heading in the new version's section, puts each package row into the packages page, and removes the news files. `date` does the same for any news file merged after `bump`, so a late fix still reaches the release notes.
 
+From 0.1.2 a version's section is its release's notes for a reader who did not follow the work. Between `bump` and `date`, the preparation writes the section's summary: one paragraph of two to five sentences, 30 to 120 words, on what the release gives, naming any change under Upgrading. `date` refuses a section without one, or with an entry out of shape, and `check` refuses a dated one. Once `date` has run, someone who wrote none of the notes reads `uv run python release/version.py notes <version>` as a user would and writes a review file named `<version>-release-notes-review-YYYY-MM-DD.md` beside the release's other reviews, ending with its verdict; the tests refuse a release without it. The summary and that reader's rewrites are the only edits of the section by hand, made in the preparation pull request alone.
+
 A change that moves a test of the release tier also adds its reason to the project's list of release-tier claims, since the run after its merge judges the normal tier alone. `date` moves that list's entries under the version, and the release pull request reads them as the reasons for what changed in the release tier.
 
 ## The release pull request
 
 Changes collect on `dev`. A release is a pull request from `dev` to `main`, titled with the version. Its branch is `dev` itself: a fix for the release is a pull request into `dev` like any other, and the release pull request runs again on the new tip.
+
+Editing the release pull request's title or description re-uses its newest run when that run is green on the same commit; changing its base starts the whole run again.
 
 1. **The preparation lands first.** A fresh reviewer checks the release against the threat model, and another scores the runner's structure. Their two review files, the new version (`version.py bump`) and the dated CHANGELOG section (`version.py date`) merge into `dev` by one pull request, so the release pull request's head carries them. That pull request changes only the version line outside the documentation, and its change to the list of release-tier claims must be exactly what `date` moves, so its check runs `quick` alone and asks for no news file: the release pull request judges all of it.
 2. **The release pull request runs the whole workflow** on the exact commit `main` will receive. It builds its own set on arm64 macOS and never reuses a cached one. It rebuilds the set on arm64 Linux and on x86_64 Linux and requires the same bytes. It runs every normal-tier shard on three systems, the release tier, the build shard, the fresh install on three systems and `quick`. The gather judges every goal: the newest result recorded on `dev` must be on this run's set, made on a clean tree, and whole. The build job also checks that the version's CHANGELOG section is dated, that its tag does not exist yet, and that `main`'s tip is in the head's history. The gather lists each release-tier result that changed since the last release with its reason, and the result is not recorded while one has none. A test that passed before and fails now is red.
@@ -41,6 +45,8 @@ The workflow runs these stages, in order:
 4. **Gather.** A job named `gather` reads every shard's record. Nothing is signed or published unless every shard ran exactly its share on the release's bytes and nothing failed.
 5. **Attest.** An `attest` job signs build provenance for every asset and verifies it strictly.
 6. **Publish.** The workflow publishes a GitHub release with the wheel, the artifact set as `.tar.xz`, and their `SHA256SUMS`. It uploads the wheel to PyPI as `wasi-python` through PyPI's trusted publishing. A version with an `a`, `b` or `rc` suffix is published as a pre-release.
+
+The upload to PyPI runs the workflow's pinned uv, through trusted publishing alone. If it fails in its own step, re-running it runs the same tagged workflow and cannot help. The fix merges into `dev`, and the wheel reaches PyPI with the next patch release; the GitHub release stands.
 
 ## Two tiers of tests
 

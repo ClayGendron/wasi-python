@@ -311,6 +311,75 @@ def test_a_release_has_its_structural_review(work) -> None:
     ]
 
 
+def test_a_release_has_its_release_notes_review(work) -> None:
+    reviews = work / "reviews"
+    reviews.mkdir()
+    assert scan.release_notes_review_errors("0.1.2a1", reviews) == []  # a prerelease: never
+    assert scan.release_notes_review_errors("0.1.1", reviews) == []  # before the reader's notes
+    assert scan.release_notes_review_errors("0.1.2", reviews) == [
+        "0.1.2 is a release; reviews/ has no 0.1.2-release-notes-review-<date>.md"
+    ]
+    write(reviews, "0.1.2-structural-review-2026-11-02.md", "## Verdict\n\nReads.\n")
+    assert len(scan.release_notes_review_errors("0.1.2", reviews)) == 1  # the twin does not count
+    write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Findings\n\nNone.\n")
+    assert scan.release_notes_review_errors("0.1.2", reviews) == [
+        "0.1.2-release-notes-review-2026-11-02.md: has no ## Verdict section"
+    ]
+    write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Verdict\n\nReads.\n")
+    assert scan.release_notes_review_errors("0.1.2", reviews) == []
+    assert len(scan.release_notes_review_errors("0.2.0", reviews)) == 1  # another version's file
+
+
+NOTES_NEWS = """# 300: a change
+
+## Changelog
+
+### Fixed
+
+- **It works again.** As spec 144 says, for acme. [Home](https://claygendron.github.io/wasi-python/)
+
+## Claims
+
+```toml
+[[claim]]
+spec = "300"
+```
+"""
+NOTES_LOG = """# Changelog
+
+The header names context/specifications/x.md.
+
+## 0.1.2 — unreleased
+
+A summary for acme.
+
+### Fixed
+
+- **It works again.** As spec 144 says. [Home](https://claygendron.github.io/wasi-python/)
+
+## 0.1.1 — 2026-10-27
+
+- **Published.** As spec 131 says, for acme, in context/specifications/y.md.
+"""
+
+
+def test_the_release_notes_name_no_project_document(work) -> None:
+    """The reader's notes meet the public pages' rule: the news files' entries, the changelog's
+    header and its sections from 0.1.2 on name no project document and no reserved name; the
+    published sections are not read."""
+    write(work, "context/embedders.txt", "# reserved\nacme\n")
+    write(work, "context/changes/300-a-change.md", NOTES_NEWS)
+    write(work, "context/changes/README.md", "The folder names spec 999.\n")
+    write(work, "CHANGELOG.md", NOTES_LOG)
+    assert scan.release_note_hits(work) == [
+        "CHANGELOG.md:3: context path: context/specifications",
+        "CHANGELOG.md:7: embedder: acme",
+        "CHANGELOG.md:11: specification: spec 144",
+        "context/changes/300-a-change.md:7: embedder: acme",
+        "context/changes/300-a-change.md:7: specification: spec 144",
+    ]
+
+
 STRUCTURAL = SPEC.replace(
     "- **Kind:** feature", "- **Kind:** parallel-safe;\n  **structural**: it adds a lock"
 )
@@ -729,6 +798,11 @@ USE_ACTION = """      - name: The build's files
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
 """
 READ_ASSETS = CHECKOUT + USE_ACTION
+SETUP_UV = f"""      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
+        with:
+          version: ${{{{ env.UV_VERSION }}}}
+          enable-cache: false
+"""
 # The local action the scans read beside the workflow: the real one.
 ACTION = (paths.REPO / scan.ASSETS_ACTION_FILE).read_text()
 
@@ -868,7 +942,16 @@ jobs:
     steps:
 """
     + READ_ASSETS
-    + """  attest:
+    + """  weekly-issue:
+    permissions:
+      issues: write
+    steps:
+      - name: Open the issue, or comment on the open one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "$title" --body "$body"
+  attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, gather]
     permissions:
@@ -894,8 +977,14 @@ jobs:
     steps:
 """
     + READ_ASSETS
-    + """      - name: Create the release
-        run: gh release create "$GITHUB_REF_NAME" release-assets/*
+    + """      - name: Write the release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          uv run --no-project python release/version.py notes "$version" > notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release-assets/* --notes-file notes.md
   pypi:
     if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: [build, publish]
@@ -905,7 +994,14 @@ jobs:
       id-token: write
     steps:
 """
-    + READ_ASSETS
+    + CHECKOUT
+    + SETUP_UV
+    + USE_ACTION
+    + """      - name: Only the wheel goes to PyPI
+        run: mkdir dist && mv release-assets/*.whl dist/
+      - name: Upload the wheel through trusted publishing
+        run: uv publish --no-config --trusted-publishing always dist/*.whl
+"""
 )
 
 
@@ -936,6 +1032,8 @@ def test_the_release_workflow_passes_every_release_scan() -> None:
 REBUILD_GUARD_LOOP = '"$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"'
 ARM_SUMS = "artifact-ids: ${{ needs.build-shard.outputs.sums-id }}"
 FIRST_REBUILD_PATH = "          path: rebuilds/ubuntu-24.04-arm\n"
+
+UPLOAD = "      - name: Upload the wheel through trusted publishing\n"
 
 # (job, old, new) -> the rules named, one variant per rule and per mutation of the reviews.
 BAD_BINDINGS = [
@@ -970,7 +1068,8 @@ BAD_BINDINGS = [
         {7},
     ),
     (("verify", CHECKOUT, ""), {7}),
-    (("pypi", "uses: ./.github/actions/verify-artifact", "uses: ./.github/actions/other"), {7}),
+    # Another local action in pypi: not the one that reads the build's files, nor one it may use.
+    (("pypi", "uses: ./.github/actions/verify-artifact", "uses: ./.github/actions/other"), {7, 20}),
     # A copy of the action's check in a job.
     (
         (
@@ -1071,6 +1170,94 @@ BAD_BINDINGS = [
         ),
         {17},
     ),
+    # The release token in no environment but the step that creates the release, in every job
+    # that can write.
+    (
+        (
+            "publish",
+            "run: gh release create",
+            "run: uv run python release/version.py notes 0 > notes.md; gh release create",
+        ),
+        {19},
+    ),
+    (
+        (
+            "publish",
+            "    environment: release\n",
+            "    environment: release\n    env:\n      GH_TOKEN: ${{ github.token }}\n",
+        ),
+        {19},
+    ),
+    (
+        (
+            "publish",
+            "      - name: Create the release\n",
+            "      - name: Look first\n        env:\n"
+            "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n"
+            "        run: gh release view x\n      - name: Create the release\n",
+        ),
+        {19},
+    ),
+    (("weekly-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
+    # PyPI's upload: the pinned uv, trusted publishing alone, no container, no env.
+    (
+        (
+            "pypi",
+            UPLOAD + "        run: uv publish --no-config --trusted-publishing always dist/*.whl\n",
+            f"      - uses: pypa/gh-action-pypi-publish@{PIN} # v1.14.2\n",
+        ),
+        {20},
+    ),
+    (("pypi", "    environment: pypi\n", "    environment: pypi\n    container: python:3\n"), {20}),
+    (
+        (
+            "verify",
+            "    needs: build\n",
+            "    needs: build\n    services:\n      cache:\n        image: redis\n",
+        ),
+        {20},
+    ),
+    (("pypi", "--trusted-publishing always", "--trusted-publishing automatic"), {20}),
+    (("pypi", "uv publish --no-config ", "uv publish "), {20}),
+    (("pypi", "always dist/*.whl", "always --token x dist/*.whl"), {20}),
+    (
+        ("pypi", UPLOAD, UPLOAD + "        env:\n          UV_PUBLISH_URL: https://example.org/\n"),
+        {20},
+    ),
+    (("pypi", UPLOAD, UPLOAD + "        env:\n          UV_CONFIG_FILE: x.toml\n"), {20}),
+    (("pypi", "version: ${{ env.UV_VERSION }}", "version: 0.9.22"), {20}),
+    (("pypi", "always dist/*.whl", "always release-assets/*"), {20}),
+    # uv run by a path: named, never a scan that stops on it.
+    (("pypi", "run: uv publish --no-config", "run: /usr/bin/uv publish --no-config"), {20}),
+    # The token named inline in a run: text, and a path to the release scripts beside gh.
+    (
+        (
+            "publish",
+            '          uv run --no-project python release/version.py notes "$version" > notes.md',
+            "          GH_TOKEN=${{ github.token }} uv run --no-project python "
+            'release/version.py notes "$version" > notes.md',
+        ),
+        {11, 19},  # an expression in a run: is rule 11's too
+    ),
+    (
+        (
+            "publish",
+            "run: gh release create",
+            "run: ./release/version.py notes 0 > notes.md; gh release create",
+        ),
+        {19},
+    ),
+    # A second step of pypi that runs uv with its words in another order.
+    (
+        (
+            "pypi",
+            "        run: mkdir dist && mv release-assets/*.whl dist/\n",
+            "        run: mkdir dist && mv release-assets/*.whl dist/\n"
+            "      - name: Again\n"
+            "        run: uv --no-config publish --trusted-publishing automatic release-assets/*\n",
+        ),
+        {20},
+    ),
 ]
 
 
@@ -1084,6 +1271,30 @@ def _rules(errors: list[str]) -> set[int]:
 def test_release_binding_scan_names_each_breach(change, rules) -> None:
     errors = _binding(_in_job(RELEASE_WORKFLOW, *change))
     assert _rules(errors) == rules, errors
+
+
+ON_BLOCK = """on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened, labeled, edited]
+  push:
+    branches: [dev]
+"""
+
+
+def test_the_pull_request_types_are_read_from_the_on_block() -> None:
+    assert scan.pull_request_types(ON_BLOCK) == {
+        "opened",
+        "synchronize",
+        "reopened",
+        "labeled",
+        "edited",
+    }
+
+
+def test_a_pull_request_trigger_without_edited_lacks_it() -> None:
+    types = scan.pull_request_types(ON_BLOCK.replace(", edited", ""))
+    assert "edited" not in types and "opened" in types
 
 
 GUARD_LINE = 'case "$ASSETS_ID" in'
@@ -2746,12 +2957,20 @@ def test_the_citation_rule_reads_its_four_trees(work) -> None:
 
 
 def test_the_citation_rule_reads_the_public_pages_whole(work) -> None:
-    """The README and every Markdown page under `docs/` are read: a page has no comment to set
-    apart, since every word of it is what a user reads. The string rule leaves them to it."""
-    for rel_path in ("README.md", "docs/a.md", "docs/sub/b.md", "docs/c.css", "notes.md"):
+    """The README, the security policy and every Markdown page under `docs/` are read: a page has
+    no comment to set apart, since every word of it is what a user reads. The string rule leaves
+    them to it."""
+    for rel_path in (
+        "README.md",
+        "SECURITY.md",
+        "docs/a.md",
+        "docs/sub/b.md",
+        "docs/c.css",
+        "notes.md",
+    ):
         write(work, rel_path, "x\n")
     picked = [scan.rel(p, work) for p in scan.context_citation_files(work)]
-    assert picked == ["README.md", "docs/a.md", "docs/sub/b.md"]
+    assert picked == ["README.md", "SECURITY.md", "docs/a.md", "docs/sub/b.md"]
     assert scan.string_citation_files(work) == []
     page = write(work, "docs/d.md", f"# A page\n\nAs `{SPEC_WORD} 025` says, see {DOC_TREE}x.\n")
     assert scan.context_citation_hits(page) == [

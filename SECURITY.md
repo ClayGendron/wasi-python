@@ -17,7 +17,7 @@ Only the newest release is supported; a fix goes into the next release, and olde
 - **The sandbox boundary.** A guest program that reaches a host file outside the folders it was given, the network, a host process, or host memory. The same for any way out through the WASI calls or the host door (`host::call`).
 - **The limits.** A guest that runs past its deadline, fuel, memory or output cap, or a call that keeps host resources after it ends.
 - **The runner.** Anything a guest does that makes `wasi_python.run` raise, crash the host process, or return another call's result. The same for an argument that silently removes a limit or changes what the guest sees.
-- **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. The README's "Verifying a download" section shows how to check one.
+- **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or that fails attestation. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/) shows how to check one.
 
 ## Upstream advisories
 
@@ -26,6 +26,8 @@ The runner uses wasmtime-py 50.0.1, which bundles wasmtime 50.0.0. That wasmtime
 - **GHSA-m9f7-9w4p-gv38** (high, fixed in wasmtime 49.0.3, carried by wasmtime 50.0.0): on macOS and FreeBSD, a guest with a writable grant or root could rename a symbolic link that points out with a trailing slash and so move a host folder into its sandbox. wasmtime's own `path_rename` now needs a source that is a folder when either path ends in a slash, judged without following its own link.
 - **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime 49.0.2, carried by wasmtime 50.0.0): `fd_readdir` copied up to three bytes of host memory per entry into the guest. wasmtime now writes them as zeros.
 - **GHSA-m63x-6p34-q65x** (medium, fixed in wasmtime 49.0.1, carried by wasmtime 50.0.0): the fuel cap and `fuel_used` under-counted work a guest does inside a C++ call that ends in a caught exception or a `longjmp`. An embedder that runs the artifact set with fuel on wasmtime 49.0.0, or 47.0.0 to 48.0.2, still meets it.
+
+wasmtime's advisories of 2026-10-19, fixed in wasmtime 49.0.4, do not reach the runner. GHSA-mghf-wjfp-p5xm (critical) is a wrong jump on aarch64 for a `br_table` with more than about 256,000 targets, in a module the attacker writes. wasmtime 50.0.0 is outside its vulnerable range, and the largest `br_table` in `python.wasm` and in the snapshot has 3,203 targets. GHSA-r8xh-cgf7-392j, GHSA-jxcf-8qw5-5c33, GHSA-9prg-84vf-g5fc and GHSA-9pvw-hwfg-92h5 are in `wasi-http` and the component model, which the runner does not use.
 
 ## Out of scope
 

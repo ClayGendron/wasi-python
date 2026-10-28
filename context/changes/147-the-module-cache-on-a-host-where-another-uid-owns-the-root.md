@@ -2,9 +2,9 @@
 
 ## Changelog
 
-### Fixed
+### Faster
 
-- **The module cache works on a host where another uid owns `/`**, as on Cloudflare Containers, where every start compiled for about five minutes: the owner of `/` is trusted on the way to the cache as root is, on `/`'s own file system, since it can already replace any folder there, and the mode rule is unchanged; when `/` itself is open to other writers the warning says no folder can help, and to close `/` or pass `cache_dir=False`, instead of pointing at `$WASI_PYTHON_CACHE`; the cache's owner test is the effective uid, as the runner's other folders' is; a folder made on the way between the check and the runner's `mkdir` is judged; `$WASI_PYTHON_CACHE` is read once, when the call is made, and a `..` after a link in it or in `cache_dir` means what the system means (spec 147).
+- **Starts are fast again in containers where root does not own `/`.** In 0.1.1 the module cache was refused when another user owned `/`, so every start compiled the module first. The cache now trusts the owner of `/` as it trusts root, since that owner can already replace any file. [Where the compiled module is kept](https://claygendron.github.io/wasi-python/get-started/install/#where-the-compiled-module-is-kept)
 
 ## Package rows
 

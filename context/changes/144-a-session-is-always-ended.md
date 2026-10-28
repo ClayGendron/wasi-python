@@ -4,7 +4,11 @@
 
 ### Fixed
 
-- **A session is always ended** (spec 144): a `close()` from a host function or a provider during a `run_async` turn no longer deadlocks, a queued turn cancelled after a `close()` is ended by a closer, a closer that cannot start runs where it was started, and a turn still queued at exit releases its claim. A `close()` from the event loop's thread during a `run_async` turn now waits for the ending, as the docstring says; a dropped session left marked by an abandoned turn is ended at once instead of at exit; a write the output capture could not keep marks its stream truncated; and the default pool a resize replaces is let go once its futures are done.
+- **`close()` inside a tool no longer hangs, and every session ends.** A `close()` from a tool or a mount's provider during `run_async` used to deadlock; it now returns at once and the session ends with its turn. A turn cancelled while queued, or still queued at exit, no longer leaves its session open. [Know how a session ends](https://claygendron.github.io/wasi-python/how-to/sessions/#know-how-a-session-ends)
+
+### Upgrading
+
+- **`close()` on the event loop's thread now waits for the ending.** During a `run_async` turn, a `close()` called from the loop's own thread used to return at once; it now blocks until the session has ended. Await the turn first, or close from another thread. [Close it, and write files within a turn](https://claygendron.github.io/wasi-python/how-to/sessions/#close-it-and-write-files-within-a-turn)
 
 ## Package rows
 

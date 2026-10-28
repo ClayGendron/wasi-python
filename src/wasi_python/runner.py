@@ -154,8 +154,9 @@ def run(
     Every argument is checked before any work. A call that names no limit has the ones
     `defaults()` returns, read once, when the call is made. Nothing a guest does, and no
     `Exception` a provider, a tool or a gate raises, makes `run` raise: a provider's `OSError`
-    may be its answer (the README's *Mounts*), and the rest are recorded in the result. A new
-    failure is raised as one of the types below, or a subclass of one; messages may change.
+    may be its answer (the documentation's *Serve files from your own code*, under *Raise an
+    OSError instead*), and the rest are recorded in the result. A new failure is raised as one
+    of the types below, or a subclass of one; messages may change.
 
     Args:
         argv: The guest's arguments after the program's name, as for `python`: `["-c", code]`,
@@ -163,9 +164,8 @@ def run(
         root: The host folder the guest sees as /, writable, made if missing. `False` or
             `None` (the default) gives no / and nothing writable; `True` gives a fresh private
             folder, removed after the call.
-        grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only
-            unless it says `writable=True`. The stdlib zip is always granted, read-only, at
-            /usr/local/lib.
+        grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless
+            it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
         mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
             served from your code, read-only unless it says `writable=True`.
         import_path: Guest paths put on the guest's `sys.path` after the stdlib zip, in order:

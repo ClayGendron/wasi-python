@@ -222,7 +222,7 @@ NEWS = """# {n}: a change
 
 ### {heading}
 
-- **Change {n}**: it moved.
+- **Change {n} works now.** It moved. [Sessions](https://claygendron.github.io/wasi-python/how-to/sessions/)
 
 ## Package rows
 
@@ -237,25 +237,37 @@ spec = "{n}"
 """
 
 
+def entry(n: str) -> str:
+    """The one entry the news file `NEWS` writes for change `n`."""
+    return next(
+        line for line in NEWS.format(n=n, heading="New", rows="").splitlines() if "**" in line
+    )
+
+
 def test_bump_assembles_the_news_files_into_the_changelog_and_the_rows(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Each news file's lines go under their heading in the new version's section, in the
-    CHANGELOG's heading order and the files' name order; each package row replaces the row of its
-    package or joins the table's end; the news files are removed."""
+    """Each news file's entries go under their heading in the new version's section, in the
+    reader's heading order whatever the files' names, and the files' name order under one
+    heading; each package row replaces the row of its package or joins the table's end; the news
+    files are removed."""
     init, log, changes, packages = _bump_files(tmp_path, monkeypatch)
     init.write_text(INIT)
     log.write_text(LOG)
     (changes / "README.md").write_text("# the folder\n")
     rows = "| numpy | 2.6.0 | Built in, newer. |\n| regex | 2026.9.29 | Fuzzy matching. |"
-    (changes / "201-second.md").write_text(NEWS.format(n="201", heading="Fixed", rows="None."))
-    (changes / "200-first.md").write_text(NEWS.format(n="200", heading="Fixed", rows=rows))
-    (changes / "202-third.md").write_text(NEWS.format(n="202", heading="Added", rows="None."))
+    (changes / "201-second.md").write_text(NEWS.format(n="201", heading="Security", rows="None."))
+    (changes / "200-first.md").write_text(
+        NEWS.format(n="200", heading="For contributors", rows=rows)
+    )
+    (changes / "203-fourth.md").write_text(NEWS.format(n="203", heading="Security", rows="None."))
+    (changes / "202-third.md").write_text(NEWS.format(n="202", heading="New", rows="None."))
     assert version.main(["bump"]) == 0
     section = version.notes(log.read_text(), "0.1.0a2")
     assert section == (
-        "### Added\n\n- **Change 202**: it moved.\n\n"
-        "### Fixed\n\n- **Change 200**: it moved.\n- **Change 201**: it moved.\n"
+        f"### New\n\n{entry('202')}\n\n"
+        f"### Security\n\n{entry('201')}\n{entry('203')}\n\n"
+        f"### For contributors\n\n{entry('200')}\n"
     )
     assert packages.read_text() == PACKAGES.replace(
         "| numpy | 2.5.2 | Built in. |", "| numpy | 2.6.0 | Built in, newer. |"
@@ -275,9 +287,7 @@ def test_bump_joins_the_news_to_an_unreleased_section_already_written(
     log.write_text(LOG.replace("## 0.1.0a1 —", written))
     (changes / "200-first.md").write_text(NEWS.format(n="200", heading="Fixed", rows="None."))
     assert version.main(["bump"]) == 0
-    assert version.notes(log.read_text(), "0.1.0a2") == (
-        "### Fixed\n\n- by hand\n- **Change 200**: it moved.\n"
-    )
+    assert version.notes(log.read_text(), "0.1.0a2") == f"### Fixed\n\n- by hand\n{entry('200')}\n"
 
 
 def test_bump_refuses_a_broken_news_file_and_writes_nothing(tmp_path: Path, monkeypatch) -> None:
@@ -292,6 +302,8 @@ def test_bump_refuses_a_broken_news_file_and_writes_nothing(tmp_path: Path, monk
 
 def test_the_release_notes_say_how_to_verify_this_version() -> None:
     note = version.verify_note("0.1.0a2")
+    assert "(https://claygendron.github.io/wasi-python/how-to/verify-a-download/)" in note
+    assert "README" not in note  # the README no longer carries the steps; the site's page does
     assert "--source-ref refs/tags/v0.1.0a2" in note
     assert "--signer-workflow ClayGendron/wasi-python/.github/workflows/release.yml" in note
     assert "--deny-self-hosted-runners" in note
@@ -435,6 +447,92 @@ def test_date_assembles_a_news_file_merged_after_bump(tmp_path: Path, monkeypatc
     (changes / "203-late.md").write_text(NEWS.format(n="203", heading="Fixed", rows="None."))
     assert version.main(["date", "--day", "2026-10-26"]) == 0
     assert version.sections(log.read_text())["0.1.0a1"] == "2026-10-26"
-    assert "- **Change 203**: it moved." in version.notes(log.read_text(), "0.1.0a1")
+    assert entry("203") in version.notes(log.read_text(), "0.1.0a1")
     assert "- first" in version.notes(log.read_text(), "0.1.0a1")
     assert not (changes / "203-late.md").exists()
+
+
+# ---------------------------------------------------------------------------------------------
+# From 0.1.2 a section is the reader's notes: a summary, then entries under the six headings
+
+SUMMARY = (
+    "This release is for embedders who keep many guests running. Every session ends, however it "
+    "is closed, and tool calls have bounds you can read. One change may need action: a tool call "
+    "that nothing else bounds now ends after an hour."
+)
+INIT_012 = INIT.replace("0.1.0a1", "0.1.2")
+OLD_011 = "## 0.1.1 — 2026-10-27\n\n### Changed\n\n- **A thing moved** (a line in the old shape).\n"
+
+
+def reader_log(body: str, day: str = "unreleased") -> str:
+    return f"# Changelog\n\nThe header.\n\n## 0.1.2 — {day}\n\n{body}\n\n{OLD_011}"
+
+
+def _dated_files(tmp_path: Path, monkeypatch, changelog: str) -> Path:
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    init.write_text(INIT_012)
+    log.write_text(changelog)
+    monkeypatch.setattr(version, "INIT", init)
+    monkeypatch.setattr(version, "CHANGELOG", log)
+    return log
+
+
+def test_date_refuses_a_readers_section_without_its_summary(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    """A section from 0.1.2 on is dated only with its summary: without one `date` names the fault
+    and writes nothing; with one of 30 to 120 words it dates the section."""
+    bare = reader_log(f"### Fixed\n\n{entry('200')}")
+    log = _dated_files(tmp_path, monkeypatch, bare)
+    assert version.main(["date", "--day", "2026-11-02"]) == 1
+    assert "no summary" in capsys.readouterr().err
+    assert log.read_text() == bare
+    log.write_text(reader_log(f"{SUMMARY}\n\n### Fixed\n\n{entry('200')}"))
+    assert version.main(["date", "--day", "2026-11-02"]) == 0
+    assert version.sections(log.read_text())["0.1.2"] == "2026-11-02"
+
+
+def test_check_names_a_dated_readers_section_out_of_shape() -> None:
+    """Every dated section from 0.1.2 on is held to the reader's shape; the published 0.1.1 in
+    the old shape is not read."""
+    good = reader_log(f"{SUMMARY}\n\n### Fixed\n\n{entry('200')}", "2026-11-02")
+    assert version.check_errors(INIT_012, PYPROJECT, good) == []
+    no_summary = reader_log(f"### Fixed\n\n{entry('200')}", "2026-11-02")
+    old_heading = reader_log(f"{SUMMARY}\n\n### Changed\n\n{entry('200')}", "2026-11-02")
+    bad_entry = reader_log(f"{SUMMARY}\n\n### Fixed\n\n- **Change 200**: it moved.", "2026-11-02")
+    for log, words in [
+        (no_summary, "no summary"),
+        (old_heading, "'Changed' is not one of New, Faster"),
+        (bad_entry, "end with a link"),
+    ]:
+        errors = version.check_errors(INIT_012, PYPROJECT, log)
+        assert errors and all(e.startswith("CHANGELOG.md's section for 0.1.2: ") for e in errors)
+        assert any(words in e for e in errors), errors
+    # Not yet dated: the summary is written between bump and date, so nothing is asked yet.
+    assert (
+        version.check_errors(INIT_012, PYPROJECT, reader_log(f"### Fixed\n\n{entry('200')}")) == []
+    )
+
+
+def test_the_notes_open_with_the_summary_then_the_headings_then_the_verify_note(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    """The release's whole path for a reader's version: bump assembles the news files under the
+    headings in the reader's order, the summary is written in, date dates it, and notes prints
+    the summary first, the headings in order and the verify note last."""
+    init, log, changes, _ = _bump_files(tmp_path, monkeypatch)
+    init.write_text(INIT.replace("0.1.0a1", "0.1.1"))
+    log.write_text("# Changelog\n\nThe header.\n\n" + OLD_011)
+    (changes / "200-first.md").write_text(NEWS.format(n="200", heading="Fixed", rows="None."))
+    (changes / "201-second.md").write_text(NEWS.format(n="201", heading="New", rows="None."))
+    assert version.main(["bump", "--to", "0.1.2"]) == 0
+    text = log.read_text()
+    log.write_text(
+        text.replace("## 0.1.2 — unreleased\n\n", f"## 0.1.2 — unreleased\n\n{SUMMARY}\n\n")
+    )
+    assert version.main(["date", "--day", "2026-11-02"]) == 0
+    capsys.readouterr()
+    assert version.main(["notes", "0.1.2"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith(SUMMARY + "\n\n### New\n\n" + entry("201") + "\n\n### Fixed\n\n")
+    assert out.index(entry("200")) < out.index("**Verify a download**")

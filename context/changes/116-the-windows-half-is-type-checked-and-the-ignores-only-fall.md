@@ -2,9 +2,9 @@
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **The runner's Windows-only code is now type-checked as Windows sees it on every run**, each platform's class is checked against the interface it must provide, and the runner's type-checker suppressions fell from 25 to 3; a rise is refused unless a change explains it (spec 116).
+- **The runner's Windows code is type-checked on every run.** A second pass checks it as Windows sees it, each platform's class is checked against its interface, and the type checker's suppressions fell from 25 to 3; a rise needs a reason. [How structure is judged](https://claygendron.github.io/wasi-python/contributing/review-and-landing/#how-structure-is-judged)
 
 ## Package rows
 

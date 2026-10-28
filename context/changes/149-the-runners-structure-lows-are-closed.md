@@ -4,7 +4,8 @@
 
 ### Fixed
 
-- **Two calls that start at the same moment no longer trip over a C library call the runner resolves once** (spec 149): on macOS `run()` no longer raises `KeyError` when the module cache's folder has an access list, and no call is refused for an unreadable stack; and a read of a guest's output pipe that fails and is retried no longer names the stream in `truncated`.
+- **Calls that start together no longer fail on macOS.** Two calls starting at the same moment could raise `KeyError` from `run()` when the module cache's folder has an access list, or refuse a call for an unreadable stack; they now start as they would one at a time. [Where the compiled module is kept](https://claygendron.github.io/wasi-python/get-started/install/#where-the-compiled-module-is-kept)
+- **A retried read of a guest's output no longer marks it cut.** A read of the output pipe that failed and was retried named its stream in `truncated`, though no byte was lost. [`truncated`: cut output](https://claygendron.github.io/wasi-python/reference/results-and-errors/#truncated-cut-output)
 
 ## Package rows
 
