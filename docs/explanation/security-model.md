@@ -64,6 +64,8 @@ The pinned wasmtime-py bundles wasmtime 50.0.0. Three advisories fixed in wasmti
 - **GHSA-96f6-r43r-8c24** (fixed in wasmtime 49.0.2): directory listings copied up to three bytes of host memory into the guest. wasmtime writes zeros.
 - **GHSA-m63x-6p34-q65x** (fixed in wasmtime 49.0.1): fuel did not count work inside a C++ call that ends in a caught exception, so a guest could run past its fuel cap. wasmtime counts it.
 
+wasmtime's advisories of 2026-10-19, fixed in wasmtime 49.0.4, do not reach the runner: wasmtime 50.0.0 is outside the critical GHSA-mghf-wjfp-p5xm's range, and the rest are in parts of wasmtime the runner does not use.
+
 These fixes live in the engine, not in the artifact set. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them all.
 
 ## What is not protected

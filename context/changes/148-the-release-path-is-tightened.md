@@ -5,7 +5,7 @@
 ### Security
 
 - **The release's write token reaches only the step that publishes.** Only the step that creates the GitHub release holds it, and the wheel goes to PyPI through the workflow's pinned uv instead of a third-party container. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/)
-- **The security policy names wasmtime's advisories of 2026-10-19.** None of them reaches the wasmtime this release runs, 50.0.0. [Security model](https://claygendron.github.io/wasi-python/explanation/security-model/)
+- **The security policy names wasmtime's advisories of 2026-10-19.** None of them reaches the wasmtime this release runs, 50.0.0, the critical [GHSA-mghf-wjfp-p5xm](https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-mghf-wjfp-p5xm) included. [Three wasmtime fixes, in wasmtime itself](https://claygendron.github.io/wasi-python/explanation/security-model/#three-wasmtime-fixes-in-wasmtime-itself)
 
 ### Fixed
 
