@@ -21,7 +21,7 @@ A *limit* here is a bound the runner enforces on one guest: memory, time, output
 | session shutdown | 5 | seconds for Python's shutdown | not offered | `shutdown_s=` | not offered |
 | `run_async` workers | the CPU count, at most 8 | guests run at once on the runner's pool | not offered (see below) | not offered | not offered |
 | tool wait | 3,600, or the session's lifetime | seconds a tool call with no `timeout_s` waits in a run or turn with no deadline | not offered | not offered | not offered |
-| abandoned tool threads | 64 | tool threads in the process still running after their call was answered | not offered | not offered | not offered |
+| abandoned tool threads | 64 | tool threads in the process still running after their call was answered; a tool call already running may still time out, so the count can pass 64 by the tool calls running at that moment | not offered | not offered | not offered |
 
 "Per turn" means `Session.run()` and `Session.run_async()` take `fuel=`, `deadline_s=` and `output_bytes=` of their own, which override the session's for that turn.
 

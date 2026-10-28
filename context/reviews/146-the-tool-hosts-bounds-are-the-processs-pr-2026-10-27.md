@@ -52,11 +52,11 @@ Structure (4a): no row scored down. The new counter is `_Process` state under th
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Windows legs box —
-2. Tools page, a session with no lifetime —
-3. Process cap reads as exact —
-4. Stale Status line —
-5. Process rows reset a shared counter —
+1. Windows legs box — answered after the run on the commit that fills this section: the box is ticked by `gh pr edit 29 --body-file`, with one line of what the Windows shards showed, once that run's Windows legs are readable.
+2. Tools page, a session with no lifetime — fixed in the commit that fills this section, with the reviewer's text (`docs/how-to/tools.md`).
+3. Process cap reads as exact — fixed in the same commit: the reviewer's sentence on the tools page, and the same words in the defaults table's row for abandoned tool threads (`docs/reference/defaults-and-limits.md`).
+4. Stale Status line — fixed in the same commit: the Status line names pull request #29 and this review; the last landing paragraph names the first run, `40629373339`, and says the run on this commit decides criteria 2, 3 and 6, its id written at the landing.
+5. Process rows reset a shared counter — fixed in the same commit: both process rows assert at their start that no `wasi-python-tool-` thread is alive, so no earlier row's abandoned thread can end during them and move the count.
 6. Memo evidence line — written in by the reviewer in `f5b23f83`.
 
 ## Verdict

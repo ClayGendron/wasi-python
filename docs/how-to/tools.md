@@ -119,11 +119,11 @@ A tool call ends at the first of:
 - the run's `cancel`, or the `run_async` task's cancellation;
 - Ctrl-C.
 
-A tool with no `timeout_s`, in a run with no deadline, still has an end. It waits at most the session's lifetime, or one hour (3,600 s) in a plain `run`.
+A tool with no `timeout_s`, in a run with no deadline, still has an end. It waits at most the session's lifetime, or one hour (3,600 s) when there is none, as in a plain `run`.
 
 A timeout raises `ToolTimeout`, also a `TimeoutError`, in the guest, which runs on. Fuel counts only the guest's instructions: time spent in a tool adds none.
 
-A sync function cannot be stopped. A tool whose call timed out runs on to its end, unseen; its result is dropped, and its outcome says `abandoned=True`, because its effect may still land. So a call the guest retries after `ToolTimeout` may act twice. One run may hold 4 abandoned tool threads. While it does, its next tool call is answered `timeout` at once. The whole process may hold 64, across every run and session. While it does, every run's next tool call is answered `timeout` at once, until one of them returns. A tool that can hang must bound itself, for example with a timeout on its own network call.
+A sync function cannot be stopped. A tool whose call timed out runs on to its end, unseen; its result is dropped, and its outcome says `abandoned=True`, because its effect may still land. So a call the guest retries after `ToolTimeout` may act twice. One run may hold 4 abandoned tool threads. While it does, its next tool call is answered `timeout` at once. The whole process may hold 64, across every run and session. A tool call already running then may still time out, so the count can pass 64 by the tool calls running at that moment. While the process holds 64, every run's next tool call is answered `timeout` at once, until one of them returns. A tool that can hang must bound itself, for example with a timeout on its own network call.
 
 ## Write an async tool
 

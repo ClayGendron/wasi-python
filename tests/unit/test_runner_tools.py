@@ -587,6 +587,13 @@ def _abandoning(clock: _StepClock, held: list) -> T.Tool:
     return slow
 
 
+def _no_tool_thread_alive() -> None:
+    """No tool thread of an earlier row is still running, so none can end during this row and
+    move the process's count under it."""
+    alive = [t.name for t in threading.enumerate() if t.name.startswith("wasi-python-tool-")]
+    assert not alive, alive
+
+
 def _bound(clock: _StepClock) -> Any:
     """One call's bound, counted against the process as the runner's are."""
     return H._Bounded(tick_s=0.001, clock=clock, abandoned=_call._count_abandoned)
@@ -619,6 +626,7 @@ def quick() -> int:
 def test_abandoned_tool_threads_are_capped_per_process(monkeypatch) -> None:
     """Sixteen calls may each leave four tool threads running; the seventeenth call's first
     tool call is refused before its tool starts, with the process's bound in its message."""
+    _no_tool_thread_alive()
     monkeypatch.setattr(process(), "tool_threads_abandoned", 0, raising=False)
     clock, held = _StepClock(), []
     try:
@@ -641,6 +649,7 @@ def test_abandoned_tool_threads_are_capped_per_process(monkeypatch) -> None:
 def test_the_process_count_falls_as_an_abandoned_thread_returns(monkeypatch) -> None:
     """When one of the 64 abandoned threads returns, the count falls by one and the next call's
     tool call runs."""
+    _no_tool_thread_alive()
     monkeypatch.setattr(process(), "tool_threads_abandoned", 0, raising=False)
     clock, held = _StepClock(), []
     try:
