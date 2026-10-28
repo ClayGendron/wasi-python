@@ -79,7 +79,7 @@ except (FileNotFoundError, SnapshotMismatch):
     snap.save(path)
 ```
 
-Keep saved snapshots where no guest is granted writing, as you keep your own code. A call in this process refuses a writable grant or root that holds the folder of a snapshot it saved or loaded. Another process cannot know the file, so the rule there is yours.
+Keep saved snapshots where no guest is granted writing, as you keep your own code. In this process the runner keeps the two apart both ways. A call refuses a writable grant or root that holds the folder of a snapshot this process saved or loaded. `save` and `load` raise `PermissionError` for a folder that a call or session running now may write. Another process cannot know the file, so the rule there is yours.
 
 ## Start a session from it
 

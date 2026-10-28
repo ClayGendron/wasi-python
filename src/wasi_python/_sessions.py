@@ -632,8 +632,7 @@ def _release_session(state: _State) -> None:
         steps.append(state.capture.close)
     if state.table is not None:
         steps.append(state.table.release)
-    for w in state.walked:
-        steps.append(w.close)
+    steps += [*(w.close for w in state.walked), lambda: _places._let_go(state.walked)]
     if state.scratch is not None:
         steps.append(state.scratch.remove)
     if (home := state.home) is not None:

@@ -1330,7 +1330,7 @@ LONG_FUNCTIONS = {
     # The engine instance's assembly: the linker, the store and the imports, one builder each.
     "_call.py:_instance": 157,
     # The process object's fields, one line each; a dataclass would make them declarations.
-    "_process.py:_Process.__init__": 82,
+    "_process.py:_Process.__init__": 83,
 }
 
 

@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn
 
-from . import _artifacts, _platform
+from . import _artifacts, _places, _platform
 from ._artifacts import Artifacts, ArtifactsMissing
 from ._process import process
 
@@ -189,6 +189,7 @@ class Snapshot:
             OSError: The file could not be written.
         """
         target = Path(_path("path", path)).absolute()
+        _places._refuse_live_writable(target.parent)  # no running guest may rewrite it
         fd, temp = tempfile.mkstemp(prefix=".wasi-python-", suffix=".tmp", dir=target.parent)
         try:
             with os.fdopen(fd, "wb") as f:
@@ -225,6 +226,7 @@ class Snapshot:
             OSError: The file could not be read.
         """
         where = Path(_path("path", path))
+        _places._refuse_live_writable(where.absolute().parent)
         fd = _platform.PLATFORM.open_owned(where)
         with os.fdopen(fd, "rb") as f:
             image, origin = _read(f, where)
@@ -307,15 +309,6 @@ def _remember(folder: Path) -> None:
         p.snapshot_folders.add(str(folder))
 
 
-def _folders() -> list[Path]:
-    """The folders of the snapshot files this process saved or loaded, copied out of the lock,
-    which stays a leaf: the walk that judges them runs after it is released."""
-    p = process()
-    with p.cache_lock:
-        held = sorted(p.snapshot_folders)
-    return [Path(f) for f in held]
-
-
 # ---------------------------------------------------------------------------------------------
 # The file: the first line, one line of JSON (the format, the codec and the origin, keys
 # sorted), then the image as one zlib stream.
@@ -376,6 +369,8 @@ def _header_origin(header: Any, where: Path) -> SnapshotOrigin:
         if not ok:
             raise SnapshotMismatch(f"{where} has a damaged header: {field.name} {value!r}")
         values[field.name] = value
+    if values["home"] != IMAGE_HOME:  # format 1 has one HOME, which every call preopens
+        raise SnapshotMismatch(f"{where} has a damaged header: home {values['home']!r}")
     size = values["image_bytes"]
     if size <= 0 or size % PAGE or size > MAX_IMAGE_BYTES:
         raise SnapshotMismatch(
