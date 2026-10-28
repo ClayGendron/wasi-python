@@ -376,7 +376,9 @@ def gather(i: Inputs) -> Verdict:
                     f"{where}: blocked by {c.get('need')!r}, which does not block on {system}"
                 )
     # G5: the lane's acceptance holds. First, every metric the lane accepted for a passing check,
-    # on every system, each a finite number.
+    # on every system, each a finite number. A metric a check stops recording is a growth a news
+    # file's `grows` claim gives its reason for, as the ratchet below reads it, so a check the
+    # claim names is not red here: the ratchet lists it with that reason. With no claim, it is.
     # Values off darwin are not compared (Decision 9).
     for (system, shard), r in v.records.items():
         for node, c in sorted(r.get("checks", {}).items()):
@@ -388,7 +390,10 @@ def gather(i: Inputs) -> Verdict:
                 continue
             acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
             want = set(acc.get("darwin-arm64", {})) - {"wasmtime"}
-            for name in sorted(want - set(have)):
+            dropped = sorted(want - set(have))
+            if dropped and news.reason(i.claims, "grows", node) is not None:
+                dropped = []  # claimed, and listed by the ratchet with its reason
+            for name in dropped:
                 red.append(f"G5 {system}/{shard}: {node} records no {name} (accepted.json has it)")
             for name, value in sorted(have.items()):
                 if not _number(value):

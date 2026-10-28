@@ -1406,6 +1406,28 @@ def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) 
     assert f"G5 linux/own-a: lost {DESC}" in case.run().red
 
 
+def test_a_dropped_metric_a_news_file_claims_is_listed_not_red(tmp_path) -> None:
+    """A check that stops recording its fuel on every system, with a news file's claim naming
+    it, is listed for the acceptance with the claim's reason, as the ratchet reads the same
+    claim; with no claim, every system's record that drops it stays red."""
+    own = [("macos", "own-a"), ("linux", "own-a"), ("windows", "own-a")]
+    claim = news.Claim(spec="999", grows=[PROBE], growth="the probe's fuel is a fact now")
+    case = _post_merge(tmp_path)
+    for key in own:
+        case.records[key]["checks"][PROBE]["metrics"] = {}
+    v = _claiming(case, [claim]).run()
+    assert v.red == [], v.red
+    row = f"G5 macos/own-a: grew {PROBE}: fuel is no longer recorded"
+    assert v.growth == [row], v.growth
+    assert f"  {row} · 999: the probe's fuel is a fact now" in v.lines
+    case = _post_merge(tmp_path / "unclaimed")
+    for key in own:
+        case.records[key]["checks"][PROBE]["metrics"] = {}
+    red = case.run().red
+    for system, shard in own:
+        assert f"G5 {system}/{shard}: {PROBE} records no fuel (accepted.json has it)" in red, red
+
+
 def test_a_claimed_growth_is_listed_with_its_news_files_reason(tmp_path) -> None:
     case = PRCase(tmp_path)
     case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
