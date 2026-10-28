@@ -8,7 +8,10 @@ mismatch deletes the download and exits non-zero. Nothing is unpacked or run her
 `uv run python tests/upstream/fetch.py --shard NAME` does nothing for a shard without upstream
 groups. For one with groups it fetches the kit, then every upstream package's source tarball to
 `downloads/<name>`: the URL from its `get` line in `scripts/00_download.sh`, the hash from
-`downloads/SHA256SUMS`, renamed only after the match. It unpacks each into `build/` with tarfile's
+`downloads/SHA256SUMS`, renamed only after the match. A line may name a mirror after the file's
+name, a copy of the same bytes the project keeps: it is asked first and the line's own URL second,
+and either is kept only when its SHA-256 is the pin's, so the pin is what is trusted, not the
+host. It unpacks each into `build/` with tarfile's
 `data` filter and applies the tree's carried patches with `scripts/steps/apply_patches.sh`, the
 applier the build runs. Every tree of each family whose group the shard runs, not only the
 group's own: the guest's fuel depends on the whole stage. numpy and pandas
@@ -44,7 +47,7 @@ DOWNLOAD_SCRIPT = REPO / "scripts" / "00_download.sh"
 APPLIER = REPO / "scripts" / "steps" / "apply_patches.sh"
 PATCHES = REPO / "recipes" / "patches"
 ATTEMPTS, PAUSE = 3, 10  # tries per file, and seconds between them
-GET_LINE = re.compile(r"^\s*(?:get|tests) (https://\S+) (\S+)\s*$", re.M)
+GET_LINE = re.compile(r"^\s*(?:get|tests) (https://\S+) (\S+)(?: (https://\S+))?\s*$", re.M)
 
 
 def kit_lines(text: str) -> list[tuple[str, str]]:
@@ -88,9 +91,32 @@ def fetch(sha: str, url: str, wheels: Path, name: str = "") -> str | None:
     got = sha256_file(part)
     if got != sha:
         part.unlink()
-        return f"{dest.name}: SHA-256 {got}, kit.txt says {sha}"
+        return f"{dest.name}: SHA-256 {got}, the pin says {sha}"
     part.replace(dest)
+    print(f"fetched {dest.name} from {url}")
     return None
+
+
+def fetch_first(sha: str, urls: tuple[str, ...], wheels: Path, name: str = "") -> str | None:
+    """`fetch` from each URL in turn, a line's mirror before its origin, until one serves the
+    pinned bytes; None then. A mirror the origin covers is said on stderr. With one URL the error
+    is `fetch`'s own; with two it names each URL and why it failed."""
+    name = name or urls[0].rsplit("/", 1)[1]
+    why = []
+    for url in urls:
+        e = fetch(sha, url, wheels, name)
+        if e is None:
+            if why:
+                print(
+                    f"{name}: the mirror did not serve the pinned bytes ({why[0]}); "
+                    "fetched from the origin",
+                    file=sys.stderr,
+                )
+            return None
+        why.append(e.split(": ", 1)[1])
+    if len(urls) == 1:
+        return f"{name}: {why[0]}"
+    return f"{name}: " + "; ".join(f"{url}: {w}" for url, w in zip(urls, why, strict=True))
 
 
 def fetch_kit() -> list[str]:
@@ -98,9 +124,10 @@ def fetch_kit() -> list[str]:
     return [e for sha, url in kit_lines(KIT.read_text()) if (e := fetch(sha, url, WHEELS))]
 
 
-def get_urls(script_text: str) -> dict[str, str]:
-    """{file name: URL} from the download script's `get <url> <name>` lines."""
-    return {m[2]: m[1] for m in GET_LINE.finditer(script_text)}
+def get_urls(script_text: str) -> dict[str, tuple[str, ...]]:
+    """{file name: its URLs in the order to try} from the download script's `get <url> <name>
+    [<mirror>]` lines: the mirror first when the line names one, then the line's URL."""
+    return {m[2]: (m[3], m[1]) if m[3] else (m[1],) for m in GET_LINE.finditer(script_text)}
 
 
 def pins(text: str) -> dict[str, str]:
@@ -166,7 +193,7 @@ def fetch_trees(
     if errors:
         return errors
     for name in names:
-        e = fetch(pinned[name], urls[name], downloads, name)
+        e = fetch_first(pinned[name], urls[name], downloads, name)
         if e:
             return [e]
     for name in names:
@@ -231,7 +258,7 @@ def fetch_files(wheels: list[str], extras: list[str]) -> list[str]:
     for w in wheels:
         if w not in urls or w not in pinned:
             errors.append(f"{w}: no get line or no pin")
-        elif e := fetch(pinned[w], urls[w], DOWNLOADS, w):
+        elif e := fetch_first(pinned[w], urls[w], DOWNLOADS, w):
             errors.append(e)
     entries = {
         packages.extra_name(f): (sha, url)
