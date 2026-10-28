@@ -307,8 +307,9 @@ def _src_text(path: Path) -> list[tuple[int, str]]:
 
 
 def _page_of(link: str) -> Path:
-    """The Markdown file under `docs/` that a path on the site is built from."""
-    rel = link.split("#", 1)[0].strip("/")
+    """The Markdown file under `docs/` that a path on the site is built from; a full stop that
+    ends the sentence the link closes is not part of the path."""
+    rel = link.split("#", 1)[0].rstrip(".").strip("/")
     if not rel:
         return paths.REPO / "docs" / "index.md"
     page = paths.REPO / "docs" / f"{rel}.md"
@@ -337,3 +338,11 @@ def test_src_points_at_the_site_not_the_readme() -> None:
                 at = line + text[: m.start()].count("\n")
                 hits.append(f"{name}:{at}: {m[0]} is no page under docs/")
     assert not hits, scan.report(hits)
+
+
+def test_a_site_link_that_ends_a_sentence_names_its_page() -> None:
+    """A link written at the end of a sentence carries the full stop into the match; the page it
+    names is the one before the stop."""
+    building = paths.REPO / "docs" / "contributing" / "building.md"
+    assert _page_of("contributing/building/.") == building
+    assert _page_of("contributing/building/#build-the-artifacts") == building

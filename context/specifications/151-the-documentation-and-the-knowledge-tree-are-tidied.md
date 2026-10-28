@@ -183,4 +183,6 @@ Measured on the branch's tip (EXECUTED):
 
 The news file claims `units = -1`: the unit suite gains one row and loses two (`test_a_description_the_parser_no_longer_has_fails_the_render`, `test_an_option_described_twice_fails_the_render`), and `sameness.py` reads `units` as the suite's net change (`tests/harness/sameness.py:412-414`).
 
+The review, `../reviews/151-the-documentation-and-the-knowledge-tree-are-tidied-pr-2026-10-28.md`, found six Lows and no more. The reviewer fixed two in `context/` (`d46343ee`, the roadmap keeps the packages 0.1.0's default profile left out; `bb3f28b8`, a Retired line for the archive). The author fixed Low 6 (a site link that ends a sentence read its full stop as part of the path): `_page_of` strips the stop, and `test_a_site_link_that_ends_a_sentence_names_its_page` holds it, seen failing first. Low 4's text is for the release's preparation pull request, Low 5's hand-off goes to 152 through the orchestrator, and Low 1 is the Windows box, ticked once the run's Windows legs are read; the review's Disposition says so line by line.
+
 Left to others, as the specification says: `release/version.py:456`'s pointer to 152; `SECURITY.md`'s advisory paragraph to 148; the gaps' "README" wording to the closer of 109's leftovers; the two build scripts' findings to the next build-class change under `scripts/`.
