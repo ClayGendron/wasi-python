@@ -49,9 +49,11 @@ RUNNER_FILES = (
     "_places.py",
     "_home.py",
     "_outputs.py",
+    "_snapshot.py",
     "_call.py",
     "_sessions.py",
     "runner.py",
+    "_snapshot_make.py",
 )
 # The tool protocol's machinery behind its public module: the schema rules and the host side.
 TOOL_FILES = ("_tool_schema.py", "_tool_host.py")
@@ -78,9 +80,11 @@ DEFINING = (
     "__init__.py",
     "_artifacts.py",
     "_places.py",
+    "_snapshot.py",
     "_call.py",
     "_sessions.py",
     "runner.py",
+    "_snapshot_make.py",
     "mounts.py",
     "tools.py",
 )
@@ -273,6 +277,9 @@ def _members(cls: type) -> list[dict[str, Any]]:
             )
         elif inspect.isfunction(value):
             out.append(_function(name, value, method=True))
+        elif isinstance(value, classmethod):  # listed as one, without `cls`: called on the class
+            item = _function(name, value.__func__, method=True)
+            out.append({**item, "kind": "classmethod", "params": item["params"][1:]})
     return out
 
 
@@ -964,6 +971,11 @@ def _reference_item(modname: str, item: dict[str, Any], mod_doc: str) -> list[st
         for m in item["members"]:
             if m["kind"] == "property":
                 lines += ["    @property", f"    def {m['name']}(self) -> {m['returns']}"]
+            elif m["kind"] == "classmethod":
+                with_cls = {**m, "kind": "def", "params": [{"name": "cls", "kind": "positional",
+                                                            "annotation": None, "default": None},
+                                                           *m["params"]]}  # fmt: skip
+                lines += ["    @classmethod", *_signature(with_cls, prefix="    ")]
             else:
                 with_self = {**m, "params": [{"name": "self", "kind": "positional",
                                               "annotation": None, "default": None},

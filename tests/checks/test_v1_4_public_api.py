@@ -37,11 +37,17 @@ TOP = [
     "RefusedWrite",
     "Session",  # bounded sessions
     "SessionEnded",
+    "Snapshot",  # starting images
+    "SnapshotFailed",
+    "SnapshotMismatch",
+    "SnapshotOrigin",
     "Stat",
     "WritableFileProvider",
     "artifact_dir",
     "artifacts",
     "defaults",
+    "make_package_snapshot",
+    "make_snapshot",
     "run",
     "run_async",
     "set_defaults",

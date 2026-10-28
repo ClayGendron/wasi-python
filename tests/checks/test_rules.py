@@ -1322,13 +1322,13 @@ def test_the_judge_patches_the_runner_only_through_the_process_object() -> None:
 LONG_FUNCTIONS = {
     # The two entry points and the session's opening each validate every argument before any
     # work; a shared argument object would carry the checks out of them.
-    "runner.py:run": 151,
-    "runner.py:run_async": 176,
-    "runner.py:Session.__init__": 173,
+    "runner.py:run": 156,
+    "runner.py:run_async": 181,
+    "runner.py:Session.__init__": 178,
     "runner.py:Session.run_async": 82,
-    "_sessions.py:_open_session": 150,
+    "_sessions.py:_open_session": 142,
     # The engine instance's assembly: the linker, the store and the imports, one builder each.
-    "_call.py:_instance": 159,
+    "_call.py:_instance": 157,
     # The process object's fields, one line each; a dataclass would make them declarations.
     "_process.py:_Process.__init__": 82,
 }

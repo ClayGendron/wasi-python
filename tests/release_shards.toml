@@ -100,6 +100,7 @@ files = [
   "tests/checks/test_v1_3_scipy.py",
   "tests/checks/test_v1_4_sessions.py",
   "tests/checks/test_v1_4_prepare.py",
+  "tests/checks/test_v1_4_starting_image.py",
   "tests/checks/test_v1_2_portable_and_sealed.py",
   "tests/checks/test_v1_4_public_api.py",
   "tests/unit/test_runner_mounts.py",
@@ -133,6 +134,7 @@ files = [
   "tests/unit/test_runner_sweep.py",
   "tests/unit/test_runner_tools.py",
   "tests/unit/test_runner_waits.py",
+  "tests/unit/test_snapshot.py",
 ]
 systems = ["macos", "linux", "windows"]
 
