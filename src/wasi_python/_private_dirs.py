@@ -12,7 +12,7 @@ import tempfile
 import warnings
 from pathlib import Path
 
-from . import _platform, _platform_common
+from . import _platform
 from ._process import process
 
 # Private folders and the sweep. Each private root and stdin folder has a
@@ -91,7 +91,7 @@ class _Private:
             try:
                 gone = not os.path.lexists(self.path)
                 if gone:
-                    _platform_common._unlink_quietly(self.lock_path)
+                    _platform._unlink_quietly(self.lock_path)
             finally:
                 _drop(self.name)
         if not gone:
@@ -152,7 +152,7 @@ def _sweep_once() -> None:
 def _owned(st: os.stat_result) -> bool:
     """This user's, by the platform's one owner test: on Windows, the user's own temporary
     folder is the owner check."""
-    return _platform_common._this_users(st)
+    return _platform._this_users(st)
 
 
 def _sweep_entry(temp: str, entry: str, identity: str) -> bool:

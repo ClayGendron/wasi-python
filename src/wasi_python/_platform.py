@@ -5,7 +5,8 @@ any other POSIX host, bound by `_select`, the only place in the package that ask
 interpreter which system this is. Every caller writes `from . import _platform` and reads
 `_platform.PLATFORM` at the call, so a check that binds another platform for its duration is
 seen by every caller. The Windows class lives in `_platform_windows.py`, and what both families
-run in `_platform_common.py`, below both.
+run in `_platform_common.py`, below both; no other module imports either, and what a caller needs
+of the shared half is re-exported here.
 
 What differs, and why each difference exists:
 
@@ -59,6 +60,9 @@ from typing import Any, Protocol
 from . import _platform_common
 from ._platform_common import _REMOVE_BATCH, _Opened, _Removal
 from ._platform_common import Identity as Identity
+from ._platform_common import _rewritten as _rewritten
+from ._platform_common import _this_users as _this_users
+from ._platform_common import _unlink_quietly as _unlink_quietly
 from ._platform_common import _Walked as _Walked
 from ._platform_windows import _Windows
 from ._process import process
