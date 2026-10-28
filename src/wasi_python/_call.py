@@ -128,7 +128,7 @@ def _run_checked(
     c: _CheckedCall,
     host: Host | None,
     snapshot: bool,
-    cache_dir: str | os.PathLike[str] | None | bool,
+    chosen: _engines._Cache,
     artifacts: Artifacts | None,
     loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
@@ -144,7 +144,7 @@ def _run_checked(
             "predates the tool protocol, so its guest cannot `from host import "
             "tools`; tools= needs a set built with the guest package"
         )
-    cache = _engines._cache_dir(cache_dir)
+    cache = chosen.folder
     root = c.root
     walked_root, walked = _places._walk_grants(
         root,
@@ -153,7 +153,7 @@ def _run_checked(
         cache,
         c.import_path,
         c.import_serving,
-        others=_engines._caches(cache),
+        others=_engines._caches(chosen),
     )
     preopens: list[_Preopen] = []
     private = None

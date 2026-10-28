@@ -4,13 +4,13 @@ another user could change is not used.
 A `.cwasm` is native code that wasmtime runs as it finds it. On POSIX the runner opens the
 cache folder and the file by descriptor, checks what it opened, and hands wasmtime that
 descriptor's name, so a file swapped in at the path after the check is never what is loaded.
-Every folder on the way to the cache must be this user's or root's and closed to other
-writers (a sticky folder such as `/tmp` aside), as `sshd` asks of the way to a key, or the
-cache is not used, with a warning, and the call still runs. A folder or file with an access
-list is not used either. On Windows the file is held open from its check to its load. A
-module is compiled from the bytes it was hashed from, so a `.cwasm` under a digest holds that
-digest's code. An empty `cache_dir` is refused, and a relative one is the folder it names when
-the call is made.
+Every folder on the way to the cache must be this user's, root's or, on `/`'s own device, the
+owner of `/`'s, and closed to other writers (a sticky folder such as `/tmp` aside), as `sshd`
+asks of the way to a key, or the cache is not used, with a warning, and the call still runs.
+A folder or file with an access list is not used either. On Windows the file is held open from
+its check to its load. A module is compiled from the bytes it was hashed from, so a `.cwasm`
+under a digest holds that digest's code. An empty `cache_dir` is refused, and a relative one is
+the folder it names when the call is made.
 
 Each verdict is a count from `stats()`, a module's exports, a warning or a refusal; the stand-ins
 are parameters of the functions they stand in for."""
@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import errno
 import hashlib
+import inspect
 import os
 import shutil
 import stat
@@ -28,6 +29,7 @@ import sys
 import types
 import warnings
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -76,7 +78,9 @@ def _miss(
     with warnings.catch_warnings(record=True) as seen:
         warnings.simplefilter("always")
         engine = _engines._engine(False)
-        mod = _engines._module_miss(stand_in, engine, False, binary, cache, digest, **seams)
+        mod = _engines._module_miss(
+            stand_in, engine, False, binary, cache, digest, held=None, **seams
+        )
     counts = {k: process().counts[k] - before[k] for k in ("compiled", "loaded", "written")}
     return counts, [str(w.message) for w in seen], mod
 
@@ -212,6 +216,230 @@ def test_an_ancestor_another_user_owns_or_can_write_is_not_used(work, mode, owne
     assert counts == {"compiled": 1, "loaded": 0, "written": 0}, (counts, seen)
     assert len(seen) == 1 and real_above in seen[0], seen
     assert not (above / "cache").exists() or list((above / "cache").iterdir()) == []
+
+
+# The way's owners: root, this user, and the owner of `/` on its own file system.
+
+WALK_SKIP = "Windows has no ancestor rule; the grant rule guards it"
+ROOT_ADVICE = (
+    "no folder can hold the cache while it is, so have its owner run chmod go-w /, or pass "
+    "cache_dir=False to compile in memory without this warning"
+)
+FOLDER_ADVICE = "set $WASI_PYTHON_CACHE to a folder of yours"
+OVERFLOW = 65534  # the kernel's default overflow uid: an owner a user namespace does not map
+
+
+def _other() -> int:
+    """A uid that is not this process's, nor root's, nor the overflow uid, and whose successor
+    is none of them either: the owner of `/` on a container host that maps its own ids."""
+    uid = 2346
+    while os.geteuid() in (uid, uid + 1):
+        uid += 2
+    return uid
+
+
+def _seen_as(changes: dict[Path | str, dict[str, int]]) -> Callable[[str], object]:
+    """The walk's `lstat`, reporting the named folders with some fields changed (an owner, a
+    mode, a device) and every other folder as it is."""
+    changed = {os.path.realpath(k): v for k, v in changes.items()}
+
+    def lstat(path: str) -> object:
+        st = os.lstat(path)
+        fields = {"st_mode": st.st_mode, "st_uid": st.st_uid, "st_dev": st.st_dev}
+        fields.update(changed.get(path, {}))
+        return types.SimpleNamespace(**fields)
+
+    return lstat
+
+
+def _above(work: Path, mode: int = 0o755) -> Path:
+    """The folder that holds the cache, a real folder at `mode` (set after the `mkdir`, whose
+    mode the umask masks)."""
+    above = work / "above"
+    above.mkdir()
+    above.chmod(mode)
+    return above
+
+
+def _not_used(counts: dict[str, int], seen: list[str], where: Path | str, why: str) -> str:
+    """The cache was not used: compiled in memory, nothing written, one warning that names the
+    folder that failed and why. The warning, for the caller to read further."""
+    assert counts == {"compiled": 1, "loaded": 0, "written": 0}, (counts, seen)
+    assert len(seen) == 1, seen
+    assert f"{os.path.realpath(where)}, on the way to it, {why}" in seen[0], seen
+    return seen[0]
+
+
+def _used(counts: dict[str, int], seen: list[str]) -> None:
+    assert counts == {"compiled": 1, "loaded": 0, "written": 1}, (counts, seen)
+    assert seen == []
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize("case", ["root", "root-and-above", "above-another", "above-elsewhere"])
+def test_the_owner_of_root_is_trusted_on_the_way_as_root_is(work, case) -> None:
+    """`/` belongs to a uid of its own, as on a container host that maps ids. Whoever owns `/`
+    can already rename every folder on its file system, so the cache under `/` is used, and so
+    is one under a folder of that owner's on `/`'s device. A folder another uid owns is refused
+    as before, and so is a folder of `/`'s owner on another device: past a mount point that
+    owner cannot rename the way, so owning a folder there is owning it, nothing more."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    owner, device = _other(), os.lstat("/").st_dev
+    changes: dict[Path | str, dict[str, int]] = {"/": {"st_uid": owner}}
+    if case == "root-and-above":
+        changes[above] = {"st_uid": owner, "st_dev": device}
+    elif case == "above-another":
+        changes[above] = {"st_uid": owner + 1, "st_dev": device}
+    elif case == "above-elsewhere":
+        changes[above] = {"st_uid": owner, "st_dev": device + 1}
+    counts, seen, _ = _miss(binary, above / "cache", digest, lstat=_seen_as(changes))
+    if case in ("root", "root-and-above"):
+        _used(counts, seen)
+        return
+    uid = owner + 1 if case == "above-another" else owner
+    _not_used(counts, seen, above, f"is another user's (uid {uid})")
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize(
+    ("mode", "owner", "used"),
+    [
+        (0o777, "other", False),
+        (0o775, "other", False),
+        (0o1777, "other", True),
+        (0o777, "root", False),
+    ],
+    ids=["0777-other", "0775-other", "1777-other", "0777-root"],
+)
+def test_a_root_others_may_write_still_refuses(work, mode, owner, used) -> None:
+    """The mode rule holds for `/` as for every folder, whoever owns it: one its group or anyone
+    may write, without the sticky bit, is refused for its mode; a sticky one passes, as `/tmp`
+    does, since no one else may rename what is in it."""
+    binary, digest = _tiny(work)
+    uid = _other() if owner == "other" else 0
+    changes = {"/": {"st_mode": stat.S_IFDIR | mode, "st_uid": uid}}
+    counts, seen, _ = _miss(binary, work / "cache", digest, lstat=_seen_as(changes))
+    if used:
+        _used(counts, seen)
+        return
+    _not_used(counts, seen, "/", f"may be written by others (mode {mode:o}) and is not sticky")
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize("failing", ["root", "above"])
+def test_when_root_fails_the_warning_says_no_folder_can_hold_the_cache(work, failing) -> None:
+    """Every cache folder is below `/`, so when `/` is what fails, another folder cannot help:
+    the warning says to close `/` or to keep no cache. A folder below `/` that fails still says
+    to choose a folder of yours."""
+    binary, digest = _tiny(work)
+    above = _above(work, 0o755 if failing == "root" else 0o777)
+    try:
+        if failing == "root":
+            changes = {"/": {"st_mode": stat.S_IFDIR | 0o777, "st_uid": 0}}
+            counts, seen, _ = _miss(binary, above / "cache", digest, lstat=_seen_as(changes))
+        else:
+            counts, seen, _ = _miss(binary, above / "cache", digest)
+    finally:
+        above.chmod(0o755)
+    where = "/" if failing == "root" else above
+    warned = _not_used(counts, seen, where, "may be written by others (mode 777)")
+    if failing == "root":
+        assert warned.endswith(ROOT_ADVICE), warned
+        assert "$WASI_PYTHON_CACHE" not in warned, warned
+    else:
+        assert warned.endswith(FOLDER_ADVICE), warned
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize("above_too", [False, True])
+def test_an_overflow_owner_of_root_is_trusted_on_root_alone(work, above_too) -> None:
+    """A `/` whose owner a user namespace does not map shows the overflow uid. No one in the
+    namespace has its owner's rights, so `/` passes; but below `/` the same number is also the
+    namespace's own `nobody`, so a folder showing it is another user's, as before."""
+    if os.geteuid() == OVERFLOW:
+        pytest.skip("this process runs as the overflow uid")
+    binary, digest = _tiny(work)
+    above = _above(work)
+    changes: dict[Path | str, dict[str, int]] = {"/": {"st_uid": OVERFLOW}}
+    if above_too:
+        changes[above] = {"st_uid": OVERFLOW, "st_dev": os.lstat("/").st_dev}
+    counts, seen, _ = _miss(binary, above / "cache", digest, lstat=_seen_as(changes))
+    if not above_too:
+        _used(counts, seen)
+        return
+    _not_used(counts, seen, above, f"is another user's (uid {OVERFLOW})")
+
+
+def _owned_by_another(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
+    """The observers' owner for `path`'s inode is another uid; every other file keeps its own."""
+    st = os.lstat(path)
+    mine = (st.st_dev, st.st_ino)
+    monkeypatch.setattr(
+        process().observers,
+        "owner_of",
+        lambda s: os.geteuid() + 1 if (s.st_dev, s.st_ino) == mine else s.st_uid,
+    )
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+@pytest.mark.parametrize("whose", ["above", "folder", "cwasm"])
+def test_the_cache_asks_the_one_owner_test(work, monkeypatch, whose) -> None:
+    """The cache's owner test is the one the runner's other folders pass: the effective uid,
+    the one a made file is owned by, compared with the owner the observers may stand in for.
+    A folder on the way that another uid owns is refused; a cache folder or a `.cwasm` that
+    another uid owns is not used, and the `.cwasm` is compiled around and replaced."""
+    binary, digest = _tiny(work)
+    above = _above(work)
+    cache = above / "cache"
+    cwasm = _cached(cache, digest) if whose == "cwasm" else None
+    if whose == "folder":
+        cache.mkdir(mode=0o700)
+    _owned_by_another(monkeypatch, {"above": above, "folder": cache, "cwasm": cwasm}[whose])
+    counts, seen, _ = _miss(binary, cache, digest)
+    if whose == "above":
+        _not_used(counts, seen, above, f"is another user's (uid {os.geteuid() + 1})")
+    elif whose == "folder":
+        assert counts == {"compiled": 1, "loaded": 0, "written": 0}, (counts, seen)
+        assert len(seen) == 1 and "must be a directory owned by this user" in seen[0], seen
+    else:
+        assert counts == {"compiled": 1, "loaded": 0, "written": 1}, (counts, seen)
+        assert len(seen) == 1 and "must be a file owned by this user" in seen[0], seen
+
+
+@pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
+def test_a_folder_made_on_the_way_after_the_walk_is_judged(work) -> None:
+    """The folder that would hold the cache is missing when the way is walked; another user
+    makes it, open to all, before the runner's `mkdir`, which finds it there. It is judged as a
+    folder found on the way is: refused for its mode, and the cache not used."""
+    binary, digest = _tiny(work)
+    made = work / "made"
+    target = os.path.realpath(made)
+    looked: list[str] = []
+
+    def lstat(path: str) -> os.stat_result:
+        if path == target and not looked:
+            looked.append(path)
+            made.mkdir()
+            made.chmod(0o777)  # a `mkdir`'s mode is masked by the umask
+            raise FileNotFoundError(errno.ENOENT, "not there yet", path)
+        return os.lstat(path)
+
+    try:
+        counts, seen, _ = _miss(binary, made / "cache", digest, lstat=lstat)
+    finally:
+        if made.exists():
+            made.chmod(0o755)
+    assert looked, "the walk never looked at the missing folder"
+    _not_used(counts, seen, made, "may be written by others (mode 777) and is not sticky")
+
+
+def test_module_miss_requires_held() -> None:
+    """What the digest of a module is (the set's checked digest, the binary's hash, or a key the
+    caller names) is said at every call: a caller that forgot it would compile what it reads
+    without comparing it with the digest it files the module under."""
+    held = inspect.signature(_engines._module_miss).parameters["held"]
+    assert held.default is inspect.Parameter.empty, held
 
 
 # Row 3: access lists.

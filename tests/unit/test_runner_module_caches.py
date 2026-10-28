@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import errno
 import hashlib
 import json
 import os
@@ -335,7 +336,7 @@ def _miss(binary: Path, cache: Path, digest: str) -> tuple[dict[str, int], list[
     before = dict(process().counts)
     with warnings.catch_warnings(record=True) as seen:
         warnings.simplefilter("always")
-        _engines._module_miss(wt, _engines._engine(False), False, binary, cache, digest)
+        _engines._module_miss(wt, _engines._engine(False), False, binary, cache, digest, held=None)
     counts = {k: process().counts[k] - before[k] for k in ("compiled", "loaded", "written")}
     return counts, [str(w.message) for w in seen]
 
@@ -429,12 +430,19 @@ def test_a_cwasm_with_a_second_name_is_never_loaded(work) -> None:
     assert real.read_bytes() == _serialized()
 
 
+@pytest.mark.skipif(
+    not POSIX,
+    reason="Windows holds the file open from its check to its load: "
+    "test_on_windows_the_cwasm_is_held_open_from_its_check_to_its_load",
+)
 def test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded(work) -> None:
-    """wasmtime-py opens a `.cwasm` by its path, after the runner has checked the file at that
-    path. A stand-in for wasmtime-py, handed to the cache miss as its own, puts another file
-    there between the two (a compiled module at 0644, as a guest would make it) and then loads:
-    the module loaded is discarded, the binary is compiled, and the runner's own file replaces
-    the one swapped in."""
+    """Where wasmtime is given the path, because the system names no descriptor of the checked
+    file that opens (no `/proc` in a sandbox, say), wasmtime-py opens the `.cwasm` by its path
+    after the runner has checked the file there. A stand-in for wasmtime-py, handed to the cache
+    miss as its own, puts another file at that path between the two (a compiled module at 0644,
+    as a guest would make it) and then loads: the name's stamp checked again after the load
+    discards the module loaded, the binary is compiled, and the runner's own file replaces the
+    one swapped in."""
     binary, digest = _tiny(work)
     cache = work / "cache"
     cache.mkdir(mode=0o700)
@@ -444,22 +452,36 @@ def test_a_cwasm_swapped_between_its_check_and_its_load_is_discarded(work) -> No
     swapped_in = work / "swapped-in.cwasm"
     swapped_in.write_bytes(_serialized())
     swapped_in.chmod(0o644)
+    given: list[str] = []
 
     class Module(wt.Module):
         @classmethod
         def deserialize_file(cls, engine, path):
+            given.append(path)
             os.replace(swapped_in, path)
             return wt.Module.deserialize_file(engine, path)
+
+    def no_names(name: str, flags: int, *args: object, **kwargs: object) -> int:
+        raise OSError(errno.ENOENT, "no descriptor names here", name)
 
     stand_in = types.SimpleNamespace(Module=Module, WasmtimeError=wt.WasmtimeError)
     before = dict(process().counts)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        _engines._module_miss(stand_in, _engines._engine(False), False, binary, cache, digest)
+        _engines._module_miss(
+            stand_in,
+            _engines._engine(False),
+            False,
+            binary,
+            cache,
+            digest,
+            held=None,
+            reopen=no_names,
+        )
     counts = {k: process().counts[k] - before[k] for k in ("compiled", "loaded", "written")}
+    assert given == [str(checked)], given
     assert counts == {"compiled": 1, "loaded": 0, "written": 1}, counts
-    if POSIX:
-        assert stat.S_IMODE(checked.stat().st_mode) == 0o600
+    assert stat.S_IMODE(checked.stat().st_mode) == 0o600
 
 
 def test_a_folder_at_a_cwasm_name_is_skipped_not_raised(work) -> None:
@@ -494,3 +516,91 @@ def test_a_cache_folder_that_is_a_link_is_not_used(work) -> None:
     counts, _ = _miss(binary, cache, digest)
     assert counts == {"compiled": 1, "loaded": 0, "written": 0}, counts
     assert sorted(p.name for p in real.iterdir()) == [planted.name]
+
+
+# `$WASI_PYTHON_CACHE` is read once, when the call is made, in the form the system reads it.
+
+
+def test_a_relative_cache_variable_is_the_folder_it_named_at_the_call(work, monkeypatch) -> None:
+    """A relative `$WASI_PYTHON_CACHE` names a folder under the working folder of the moment the
+    call is made. The working folder then moves before the grants are judged: the other caches
+    the call keeps from its guest still name the folder the variable named at the call, by an
+    absolute path, and nothing under the new working folder."""
+    first, then = work / "first", work / "then"
+    first.mkdir()
+    then.mkdir()
+    monkeypatch.chdir(first)
+    monkeypatch.setenv(_engines.CACHE_ENV, "rel")
+    chosen = _engines._cache_given(str(work / "own"))
+    monkeypatch.chdir(then)
+    named = [path for _, path in _engines._caches(chosen)]
+    assert all(path.is_absolute() for path in named), named
+    real = [os.path.realpath(path) for path in named]
+    assert os.path.realpath(first / "rel") in real, named
+    assert not any(path.startswith(os.path.realpath(then)) for path in real), named
+
+
+def test_a_cache_variable_set_after_the_call_is_not_read_by_it(work, monkeypatch) -> None:
+    """`$WASI_PYTHON_CACHE` is unset when the call is made and set before its folders are
+    resolved: the call keeps its module in the platform's default folder, and the folder the
+    variable names later is not among the caches it judges."""
+    home = work / "home"
+    home.mkdir()
+    for name in (_engines.CACHE_ENV, "XDG_CACHE_HOME", "LOCALAPPDATA"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    chosen = _engines._cache_given(None)
+    late = work / "late"
+    monkeypatch.setenv(_engines.CACHE_ENV, str(late))
+    assert chosen.folder == _platform.PLATFORM.default_cache_dir(home), chosen
+    named = [path for _, path in _engines._caches(chosen)]
+    assert not any(late == path or late in path.parents for path in named), named
+
+
+WIN_CWD = {"": "C:\\work", "C:": "C:\\work", "D:": "D:\\elsewhere"}
+
+
+@pytest.mark.parametrize(
+    ("spelled", "absolute"),
+    [
+        ("rel\\link\\..\\c", "C:\\work\\rel\\link\\..\\c"),
+        ("D:rel\\..\\x", "D:\\elsewhere\\rel\\..\\x"),
+        ("\\top\\..\\x", "C:\\top\\..\\x"),
+        ("C:\\a\\link\\..\\b", "C:\\a\\link\\..\\b"),
+        ("\\\\server\\share\\a\\..\\b", "\\\\server\\share\\a\\..\\b"),
+    ],
+    ids=["relative", "drive-relative", "rooted", "absolute", "share"],
+)
+def test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot(
+    monkeypatch, spelled, absolute
+) -> None:
+    """On Windows a relative cache folder joins the current folder of its drive, a
+    drive-relative one that drive's own, and a rooted one takes the current drive; every `..`
+    is kept, so the judge's walk takes it after the link before it, as the guest's open would.
+    The current folders are the observers' stand-ins, so the case runs on every system."""
+    monkeypatch.setattr(process().observers, "drive_folder", lambda drive: WIN_CWD[drive.upper()])
+    assert _platform_windows._Windows().absolute(spelled) == absolute
+
+
+@pytest.mark.skipif(
+    not POSIX,
+    reason="a link on Windows needs the symbolic-link privilege; the Windows form is pinned by "
+    "test_on_windows_a_cache_folder_is_made_absolute_keeping_every_dotdot",
+)
+def test_a_dotdot_after_a_link_in_cache_dir_means_what_the_system_means(work) -> None:
+    """`cache_dir` climbs with `..` after a link: the system climbs from where the link leads,
+    not from the link's own folder, so the folder made absolute keeps the `..`, and the module
+    is cached where the system resolves the path."""
+    granted, target = work / "granted", work / "x" / "y"
+    granted.mkdir()
+    target.mkdir(parents=True)
+    (granted / "link").symlink_to(target, target_is_directory=True)
+    spelled = os.path.join(str(granted / "link"), "..", "c")
+    chosen = _engines._cache_given(spelled)
+    assert chosen.folder is not None and ".." in chosen.folder.parts, chosen
+    binary, digest = _tiny(work)
+    counts, seen = _miss(binary, chosen.folder, digest)
+    assert counts == {"compiled": 1, "loaded": 0, "written": 1}, (counts, seen)
+    assert len(list((work / "x" / "c").glob("*.cwasm"))) == 1
+    assert not (granted / "c").exists()

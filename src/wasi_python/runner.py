@@ -268,8 +268,8 @@ def run(
         import_path=import_path,
         max_open_files=max_open_files,
     )
-    cache_dir = _engines._cache_given(cache_dir)
-    return _run_checked_flushed(wt, checked, host, snapshot, cache_dir, artifacts, None)
+    cache = _engines._cache_given(cache_dir)
+    return _run_checked_flushed(wt, checked, host, snapshot, cache, artifacts, None)
 
 
 def _run_checked_flushed(
@@ -277,13 +277,13 @@ def _run_checked_flushed(
     checked: _CheckedCall,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None,
     snapshot: bool,
-    cache_dir: str | os.PathLike[str] | None | bool,
+    cache: _engines._Cache,
     artifacts: Artifacts | None,
     loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
     """`_run_checked`, then the warnings its removals queued, outside every lock."""
     try:
-        return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
+        return _call._run_checked(wt, checked, host, snapshot, cache, artifacts, loop)
     finally:
         _private_dirs._flush_warnings()
 
@@ -440,7 +440,7 @@ async def run_async(
         import_path=import_path,
         max_open_files=max_open_files,
     )
-    cache_dir = _engines._cache_given(cache_dir)
+    cache = _engines._cache_given(cache_dir)
     _check_executor(executor)
     loop = asyncio.get_running_loop()  # async tools await here
     wt = _engines._wasmtime()
@@ -452,7 +452,7 @@ async def run_async(
         p.live[event] = None
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
-        args = (_run_checked_flushed, wt, checked, host, snapshot, cache_dir, artifacts, loop)
+        args = (_run_checked_flushed, wt, checked, host, snapshot, cache, artifacts, loop)
         future = _submit(executor, work, *args)
         try:
             return await asyncio.wrap_future(future)
@@ -981,7 +981,7 @@ class Session:
             max_open_files=max_open_files,
             limits=limits,
         )
-        cache_dir = _engines._cache_given(cache_dir)
+        cache = _engines._cache_given(cache_dir)
         state = _State(c, wt)
         state.idle_s = _limits._seconds_limit(
             "idle_s", limits.session_idle_s if idle_s is _UNSET else idle_s
@@ -998,7 +998,7 @@ class Session:
         state.context = contextvars.copy_context()
         self._state = state
         try:
-            _sessions._open_session(wt, c, host, snapshot, cache_dir, artifacts, state)
+            _sessions._open_session(wt, c, host, snapshot, cache, artifacts, state)
         finally:
             _private_dirs._flush_warnings()  # the sweep's, or a failed opening's
         p = process()

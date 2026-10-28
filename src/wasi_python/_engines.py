@@ -12,7 +12,7 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import _artifacts, _platform
 from ._artifacts import ArtifactsMissing
@@ -75,54 +75,58 @@ def _home() -> Path | None:
         return None
 
 
-def _cache_given(given: str | os.PathLike[str] | None | bool) -> str | bool | None:
-    """`cache_dir` as the call names it, checked when the call is made. An empty string names
-    no folder (an unset variable read as empty, say) and is refused. A folder, and the one
-    `$WASI_PYTHON_CACHE` names when `None` or `True` defers to it, is made absolute against the
-    working folder of this moment, so the folder judged is the folder used whatever a later
-    `chdir` does."""
-    if given is None or given is True:
-        named = os.environ.get(CACHE_ENV)
-        return os.path.abspath(named) if named else given
+class _Cache(NamedTuple):
+    """The module cache as a call names it, resolved once when the call is made: `folder`, the
+    one this call uses, or None for none; `named`, the one `$WASI_PYTHON_CACHE` names, or None
+    when it is unset or empty. Both are absolute, made so against the working folder of that
+    moment, so the folder judged is the folder used and the folders kept from the guest are as
+    the variable stood, whatever a later `chdir` or change of the variable does."""
+
+    folder: Path | None
+    named: Path | None
+
+
+def _cache_given(given: str | os.PathLike[str] | None | bool) -> _Cache:
+    """`cache_dir` as the call names it, checked and resolved when the call is made. An empty
+    string names no folder (an unset variable read as empty, say) and is refused. `None` and
+    `True` defer to `$WASI_PYTHON_CACHE`, else to the platform's default under the home folder,
+    else to no cache; `False` keeps none. A relative folder is made absolute as the system
+    reads it, so a `..` after a link climbs from where the link leads."""
+    value = os.environ.get(CACHE_ENV)
+    named = Path(_platform.PLATFORM.absolute(value)) if value else None
     if given is False:
-        return False
+        return _Cache(None, named)
+    if given is None or given is True:
+        if named is not None:
+            return _Cache(named, named)
+        home = _home()
+        return _Cache(None if home is None else _platform.PLATFORM.default_cache_dir(home), named)
     path = os.fspath(given)
     if path == "":
         raise ValueError(
             "cache_dir must be a folder, True, False or None; an empty string names none"
         )
-    return os.path.abspath(path)
+    return _Cache(Path(_platform.PLATFORM.absolute(path)), named)
 
 
-def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
-    if given is False:
-        return None
-    if given is not None and given is not True:
-        return Path(given)
-    if os.environ.get(CACHE_ENV):
-        return Path(os.path.abspath(os.environ[CACHE_ENV]))
-    home = _home()
-    return None if home is None else _platform.PLATFORM.default_cache_dir(home)
-
-
-def _caches(own: Path | None) -> tuple[tuple[str, Path], ...]:
+def _caches(chosen: _Cache) -> tuple[tuple[str, Path], ...]:
     """Every other module cache a call or process of this user could use, whatever this call's
-    own: the folder `$WASI_PYTHON_CACHE` names and every platform default, each with the name
-    the judge's refusal gives it. A call that keeps no cache, or its own elsewhere, must still
-    give its guest no way to write where the next call loads native code from. Each name begins
-    "the module cache"; `own` and repeats are left out."""
+    own: the folder `$WASI_PYTHON_CACHE` named when the call was made and every platform default,
+    each with the name the judge's refusal gives it. A call that keeps no cache, or its own
+    elsewhere, must still give its guest no way to write where the next call loads native code
+    from. Each name begins "the module cache"; the call's own folder and repeats are left out,
+    a repeat only when spelled the same, since two spellings may name two folders."""
     found: list[tuple[str, Path]] = []
-    if os.environ.get(CACHE_ENV):
-        path = Path(os.environ[CACHE_ENV])
-        found.append((f"the module cache ${CACHE_ENV} names ({path})", path))
+    if chosen.named is not None:
+        found.append((f"the module cache ${CACHE_ENV} names ({chosen.named})", chosen.named))
     home = _home()
     for path in () if home is None else _platform.PLATFORM.default_cache_dirs(home):
         found.append((f"the module cache in the platform's default folder ({path})", path))
-    seen = set() if own is None else {os.path.abspath(own)}
+    seen = set() if chosen.folder is None else {chosen.folder}
     caches = []
     for name, path in found:
-        if os.path.abspath(path) not in seen:
-            seen.add(os.path.abspath(path))
+        if path not in seen:
+            seen.add(path)
             caches.append((name, path))
     return tuple(caches)
 
@@ -192,7 +196,7 @@ def _module_miss(
     binary: Path,
     cache: Path | None,
     digest: str,
-    held: bool | None = None,
+    held: bool | None,
     *,
     lstat: Callable[[str], os.stat_result] = os.lstat,
     reopen: Callable[..., int] = os.open,
@@ -231,8 +235,9 @@ def _compile(
     wt: Any, engine: wasmtime.Engine, binary: Path, digest: str, held: bool | None
 ) -> wasmtime.Module:
     """The module compiled from one read of `binary`, whose bytes must hash to `digest` unless
-    `held` is None: a file changed between its hash and its compile is never compiled, so it is
-    never cached under a digest it does not have. wasmtime-py's own `from_file` reads the whole
+    `held` is None, a key the caller names itself, never the binary's: a file changed between
+    its hash and its compile is never compiled, so it is never cached under a digest it does not
+    have. wasmtime-py's own `from_file` reads the whole
     file too; the hash is one pass over bytes already in memory."""
     data = binary.read_bytes()
     if held is not None and hashlib.sha256(data).hexdigest() != digest:
