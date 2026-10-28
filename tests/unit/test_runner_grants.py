@@ -1567,3 +1567,206 @@ def test_the_write_parity_asserts_each_systems_grant(system) -> None:
         assert not files.answer_matches(listing, [n for n in mount if n != "e"])
     with pytest.raises(KeyError):
         files.write_by_system("sorted listing", "freebsd")
+
+
+# A special file in a grant: an open of a FIFO waits in the host for its other end, beyond the
+# deadline and cancel, so the runner looks at the target first and refuses anything that is not
+# a regular file, a folder or a link the open will not follow.
+
+ENXIO, ELOOP, ENOTDIR, EEXIST = 60, 32, 54, 20
+FOLLOW = 1  # the lookup flag wasi-libc's open sets unless O_NOFOLLOW
+WRITE_ONLY = files.RIGHTS_ALL & ~files.FD_READ  # an open for writing alone, as "wb" asks
+FAIL_SAFE_S = 120  # never a timing: a red run waits here, then its open is released
+
+
+def _released(call, fifo: Path):
+    """call() on a daemon thread; if it has not returned after the fail-safe, the FIFO's other
+    end is opened so the waiting open returns, and the row fails. An exception call() raised
+    is raised here."""
+    import threading
+
+    box: list = []
+
+    def work() -> None:
+        try:
+            box.append(("value", call()))
+        except BaseException as e:
+            box.append(("raised", e))
+
+    worker = threading.Thread(target=work, daemon=True)
+    worker.start()
+    worker.join(FAIL_SAFE_S)
+    if not box:
+        end = os.open(fifo, os.O_RDWR | os.O_NONBLOCK)
+        try:
+            worker.join(FAIL_SAFE_S)
+        finally:
+            os.close(end)
+        pytest.fail(f"the open waited on the FIFO until its other end was opened: {box}")
+    kind, value = box[0]
+    if kind == "raised":
+        raise value
+    return value
+
+
+def _special_grant(tmp_path: Path) -> Path:
+    """A grant folder holding a FIFO, a link to it, a regular file and a folder; 0600 each."""
+    folder = tmp_path / "g"
+    folder.mkdir()
+    os.mkfifo(folder / "fifo", 0o600)
+    (folder / "link").symlink_to("fifo")
+    (folder / "file").write_bytes(b"x")
+    (folder / "dir").mkdir()
+    return folder
+
+
+SPECIAL_OPENS = {
+    # name: (writable grant, path, oflags, rights, dirflags, the answer)
+    "read on a read-only grant": (False, "fifo", 0, files.READ_RIGHTS, FOLLOW, ENXIO),
+    "O_CREAT write on a writable grant": (True, "fifo", files.O_CREAT, WRITE_ONLY, FOLLOW, ENXIO),
+    "a link to it, followed": (True, "link", 0, files.READ_RIGHTS, FOLLOW, ENXIO),
+    "the link, not followed": (True, "link", 0, files.READ_RIGHTS, 0, ELOOP),
+    "O_DIRECTORY": (False, "fifo", files.O_DIRECTORY, files.READ_RIGHTS, FOLLOW, ENOTDIR),
+    "O_CREAT | O_EXCL": (
+        True, "fifo", files.O_CREAT | files.O_EXCL, files.RIGHTS_ALL, FOLLOW, EEXIST,
+    ),
+    # Kept differences: wasmtime answers EPERM from its permission check, before its host open;
+    # the runner does not record which grant a held folder came from, and both refuse.
+    "write on a read-only grant": (False, "fifo", 0, files.RIGHTS_ALL, FOLLOW, ENXIO),
+    "O_DIRECTORY with write on a read-only grant": (
+        False, "fifo", files.O_DIRECTORY, files.RIGHTS_ALL, FOLLOW, ENOTDIR,
+    ),
+}  # fmt: skip
+
+
+@pytest.mark.skipif(not POSIX, reason="no FIFOs on Windows")
+@pytest.mark.parametrize("case", list(SPECIAL_OPENS))
+def test_an_open_of_a_fifo_in_a_grant_is_refused(tmp_path, case) -> None:
+    """An open of a FIFO in a grant answers ENXIO (ENOTDIR under O_DIRECTORY) without waiting,
+    a followed link to it too; a link the open does not follow is wasmtime's ELOOP, and
+    O_CREAT | O_EXCL is the host's EEXIST, neither of which opens anything."""
+    writable, path, oflags, rights, dirflags, want = SPECIAL_OPENS[case]
+    folder = _special_grant(tmp_path)
+    g = files.Counted([(folder, "/g", writable)])
+    got = _released(lambda: g.raw.open(3, path, oflags, rights, 0, dirflags), folder / "fifo")
+    assert got == (want, None), case
+
+
+@pytest.mark.skipif(not POSIX, reason="no FIFOs on Windows")
+def test_an_open_of_a_socket_in_a_grant_is_refused(tmp_path, monkeypatch) -> None:
+    """A Unix socket in a grant answers ENXIO on every POSIX host. It is bound by a relative
+    name, so macOS's 104-byte limit on a socket's path is not met."""
+    import socket
+
+    folder = _special_grant(tmp_path)
+    monkeypatch.chdir(folder)
+    with socket.socket(socket.AF_UNIX) as s:
+        s.bind("sock")
+        g = files.Counted([(folder, "/g", False)])
+        got = _released(
+            lambda: g.raw.open(3, "sock", 0, files.READ_RIGHTS, 0, FOLLOW), folder / "fifo"
+        )
+    assert got == (ENXIO, None)
+
+
+@pytest.mark.skipif(not POSIX, reason="no FIFOs on Windows")
+def test_an_open_of_a_fifo_in_a_grant_beside_a_mount_is_refused(tmp_path) -> None:
+    """A call with mounts forwards a grant's opens through the same branch: the look holds."""
+    folder = _special_grant(tmp_path)
+    placeholder = tmp_path / "placeholder"
+    placeholder.mkdir()
+    m = files.Mounted(files.MemoryProvider(), placeholder, folders=[(folder, "/g", False)])
+    got = _released(lambda: m.raw.open(4, "fifo", 0, files.READ_RIGHTS, 0, FOLLOW), folder / "fifo")
+    assert got == (ENXIO, None)
+
+
+def _plain_grant(tmp_path: Path) -> Path:
+    folder = tmp_path / "g"
+    folder.mkdir()
+    (folder / "file").write_bytes(b"x")
+    (folder / "dir").mkdir()
+    return folder
+
+
+def test_a_file_and_a_folder_open_through_the_look_as_before(tmp_path) -> None:
+    """The look lets a regular file and a folder through to wasmtime's open, on every host."""
+    g = files.Counted([(_plain_grant(tmp_path), "/g", False)])
+    errno, fd = g.raw.open(3, "file", 0, files.READ_RIGHTS, 0, FOLLOW)
+    assert errno == 0 and fd is not None
+    assert g.raw.read(fd, [1])[:2] == (0, 1)
+    assert g.raw.open(3, "dir", files.O_DIRECTORY, files.READ_RIGHTS, 0, FOLLOW)[0] == 0
+    assert g.raw.open(3, "missing", 0, files.READ_RIGHTS, 0, FOLLOW) == (44, None)
+
+
+def test_the_look_leaves_the_guests_memory_as_it_was(tmp_path) -> None:
+    """The look's answer is written over the guest's bytes 0 to 63, which are put back before
+    the open: a path that lies there opens the right file, and the bytes are the same after."""
+    g = files.Counted([(_plain_grant(tmp_path), "/g", False)])
+    pattern = b"file" + bytes(range(4, 64))
+    g.raw.put(0, pattern)
+    args = (3, FOLLOW, 0, 4, 0, files.READ_RIGHTS, files.READ_RIGHTS, 0, files.RESULT)
+    assert g.raw("path_open", *args) == 0
+    assert g.raw.get(0, 64) == pattern
+    fd = g.raw.u32(files.RESULT)
+    assert g.raw.read(fd, [1]) == (0, 1, b"x")
+
+
+def test_a_path_past_memory_ends_the_run_as_wasmtime_ends_it(tmp_path) -> None:
+    """No look is made for a path the memory does not hold: the open is wasmtime's, which ends
+    the run, as a plain grant's does."""
+    folder = _plain_grant(tmp_path)
+    args = (3, FOLLOW, files.MEMORY_END - 2, 4, 0, files.READ_RIGHTS, files.READ_RIGHTS, 0)
+    ends = []
+    for raw in (
+        files.Counted([(folder, "/g", False)]).raw,
+        files.grant_raw([(folder, "/g", False)]),
+    ):
+        with pytest.raises(files.Ends) as e:
+            raw("path_open", *args, files.RESULT)
+        ends.append(e.value.message)
+    assert ends[0] == ends[1], ends
+
+
+@pytest.mark.parametrize("filetype", range(8))
+@pytest.mark.parametrize("oflags", [0, files.O_DIRECTORY], ids=["open", "O_DIRECTORY"])
+def test_the_looks_answer_by_filetype(filetype, oflags) -> None:
+    """A folder, a regular file and a link (seen only when the open does not follow) are
+    forwarded; anything else is refused, ENOTDIR under O_DIRECTORY, else ENXIO."""
+    from wasi_python import _fs_paths
+
+    if filetype in (3, 4, 7):
+        want = 0
+    else:
+        want = ENOTDIR if oflags else ENXIO
+    assert _fs_paths._refusal(filetype, oflags) == want
+
+
+class _CrossesTheEpoch:
+    """A stand-in for the call's cap on open files whose comparison, made just before the look,
+    moves the engine's epoch on, so the look's trampoline meets the epoch callback while the
+    guest's own entry did not."""
+
+    def __init__(self, engine) -> None:
+        self.engine = engine
+
+    def __le__(self, other: object) -> bool:
+        self.engine.increment_epoch()
+        return False
+
+
+def test_a_look_that_meets_the_deadline_answers_and_the_next_call_ends(tmp_path) -> None:
+    """A look whose trampoline is entered after the call's deadline has passed ends in the
+    epoch callback's error: the look answers ENXIO without recording a stop of its own, the
+    callback has named the end "deadline", and the guest's next call ends the run."""
+    from wasi_python import _call
+
+    g = files.Counted([(_plain_grant(tmp_path), "/g", False)])
+    _call._watch(g.store)
+    g.call.stop_at = 0  # the ticker has passed it: the callback answers "deadline"
+    g.table.open_files = _CrossesTheEpoch(g.engine)
+    g.store.set_epoch_deadline(1)
+    assert g.raw.open(3, "file", 0, files.READ_RIGHTS, 0, FOLLOW) == (ENXIO, None)
+    assert g.call.ended == "deadline"
+    assert g.table.stop_fuel is None
+    with pytest.raises(files.Ends):
+        g.raw.path_filestat(3, "file", FOLLOW)
