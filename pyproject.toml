@@ -83,13 +83,16 @@ artifacts = ["src/wasi_python/artifacts"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# The guest package (recipes/guest/, spec 031) is linted and formatted like src/; it stays
-# compatible with Python 3.11, since the unit checks load it on the host's Python. The rest of
-# recipes/ is other projects' shapes (stand-ins, shims, patches) and is left alone; its files are
-# named one by one, since ruff's `recipes/*.py` would also match inside recipes/guest/. The judge
-# lints `src tests recipes/guest` (tests/checks/test_rules.py), so a new top-level recipe .py is
-# linted only by a bare `ruff check`.
-src = ["src", "tests", "recipes/guest"]
+# Linted and formatted: src/, tests/, the guest package (recipes/guest/), scripts/ and release/,
+# as tests/checks/test_rules.py runs ruff over them. The guest package stays compatible with
+# Python 3.11, since the unit checks load it on the host's Python. The rest of recipes/ is other
+# projects' shapes (stand-ins, shims, patches) and is left alone; its files are named one by one,
+# since ruff's `recipes/*.py` would also match inside recipes/guest/. Four scripts are left out
+# for good: two measurements of native speed and the two tools that regenerate the OpenBLAS
+# patch, each run by hand, never by the build. Two build scripts are left out until a change to
+# the build edits them: an edit to any file under scripts/ moves MANIFEST's recipe lines, so it
+# is not made for style alone.
+src = ["src", "tests", "recipes/guest", "scripts", "release"]
 extend-exclude = [
     "recipes/mmap_stub.py",
     "recipes/numpy_host_shim.py",
@@ -97,7 +100,12 @@ extend-exclude = [
     "recipes/ctypes_stand_in",
     "recipes/patches",
     "fixtures",
-    "scripts",
+    "scripts/bench_native.py",
+    "scripts/bench_native_pandas.py",
+    "scripts/openblas_make_void.py",
+    "scripts/audit_openblas_void.py",
+    "scripts/assemble_artifacts.py",
+    "scripts/make_stdlib_zip.py",
     "build",
     "downloads",
     "context",
