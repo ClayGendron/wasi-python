@@ -437,6 +437,32 @@ class _Windows:
             return None
         return _Opened(fd, str(cwasm), by_path=True)
 
+    # A saved snapshot.
+
+    def open_owned(self, path: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat) -> int:
+        """A saved snapshot open for reading: a regular file with one name and no link or
+        junction, the same file by its identity when opened as when checked, and held open, as a
+        `.cwasm` is, sharing reading and writing but not deletion, so the name cannot be renamed
+        or replaced until the caller has read it. Windows has no mode bits, so who wrote it
+        cannot be told here; the grant rule keeps guests from its folder. PermissionError names
+        what fails; `lstat` is the POSIX one's, unused here."""
+        rule = "a snapshot is loaded only from a regular file, as save() makes it"
+        st = os.lstat(path)
+        link = getattr(st, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        if link or stat.S_ISLNK(st.st_mode):
+            raise PermissionError(13, f"{path} is a link or junction; {rule}")
+        flags = os.O_RDONLY | getattr(os, "O_NOINHERIT", 0) | getattr(os, "O_BINARY", 0)
+        fd = os.open(path, flags)
+        try:
+            opened = os.fstat(fd)
+            same = (opened.st_dev, opened.st_ino) == (st.st_dev, st.st_ino)
+            if not (same and _platform_common._one_file(opened)):
+                raise PermissionError(13, f"{path} is not a regular file with one name; {rule}")
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
+
     # The guest's output.
 
     def output_channel(self) -> tuple[str, int, int] | None:

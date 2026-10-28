@@ -124,6 +124,12 @@ _CACHE_DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC")
 _CACHE_FILE_OPEN = _flags("O_RDONLY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
 _FD_NAMES = ("/dev/fd", "/proc/self/fd")
 _ACL_TYPE_EXTENDED = 0x100
+_CACHE_HINT = "set $WASI_PYTHON_CACHE to a folder of yours"
+# A saved snapshot is held to the same rule.
+_OWNED_RULE = (
+    "a snapshot is loaded only from a file only you can write, as save() makes it (mode 600)"
+)
+_OWNED_HINT = "keep snapshot files in a folder only you can change"
 
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
 # (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
@@ -187,6 +193,9 @@ class _Platform(Protocol):
     def open_cached(
         self, cwasm: Path, *, reopen: Callable[..., int] = os.open
     ) -> _Opened | None: ...
+    def open_owned(
+        self, path: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat
+    ) -> int: ...
     def output_channel(self) -> tuple[str, int, int] | None: ...
 
 
@@ -548,6 +557,49 @@ class _Posix:
             return None
         return _Opened(fd, name or str(cwasm), by_path=name is None)
 
+    # A saved snapshot.
+
+    def open_owned(self, path: Path, *, lstat: Callable[[str], os.stat_result] = os.lstat) -> int:
+        """A saved snapshot open for reading, held to the rule of a `.cwasm`: a regular file
+        with one name and no access list, this user's, that no one else may read or write, on a
+        way of folders each this user's or root's and closed to other writers unless sticky. It
+        is opened inside its folder's descriptor without following a link and checked through
+        the descriptor it is read from, so what was checked is what is read. An image is code
+        the embedder trusts: whoever could rewrite the file would run code in every call made
+        from it. PermissionError names what fails; `lstat` is the way's walk."""
+        folder = Path(os.path.realpath(path.parent))
+        if _way(folder, lstat, hint=_OWNED_HINT):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(path))
+        at = os.open in os.supports_dir_fd  # else by path, below a folder just checked
+        dir_fd = os.open(folder, _CACHE_DIR_OPEN)
+        try:
+            name = path.name if at else str(folder / path.name)
+            fd = os.open(name, _CACHE_FILE_OPEN, dir_fd=dir_fd if at else None)
+        except OSError as e:
+            if e.errno != errno.ELOOP:
+                raise
+            raise PermissionError(errno.EACCES, f"{path} is a link; {_OWNED_RULE}") from None
+        finally:
+            os.close(dir_fd)
+        try:
+            st = os.fstat(fd)
+            why = None
+            if not _platform_common._one_file(st):
+                why = "is not a regular file with one name"
+            elif st.st_uid != os.getuid():
+                why = f"is another user's (uid {st.st_uid})"
+            elif st.st_mode & 0o077:
+                who = "written" if st.st_mode & 0o022 else "read"
+                why = f"may be {who} by others (mode {stat.S_IMODE(st.st_mode):o})"
+            elif self._access_list(fd, is_dir=False):
+                why = "has an access list"
+            if why is not None:
+                raise PermissionError(errno.EACCES, f"{path} {why}; {_OWNED_RULE}")
+        except BaseException:
+            os.close(fd)
+            raise
+        return fd
+
     # The guest's output.
 
     def output_channel(self) -> tuple[str, int, int] | None:
@@ -559,10 +611,12 @@ class _Posix:
         return f"/dev/fd/{w}", r, w
 
 
-def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
+def _way(
+    folder: Path, lstat: Callable[[str], os.stat_result], *, hint: str = _CACHE_HINT
+) -> list[Path]:
     """The folders from `/` down to `folder` that do not exist yet, for the caller to make; each
     one that exists is a folder of this user's or root's that no one else may write, or that is
-    sticky. PermissionError names the first that is not."""
+    sticky. PermissionError names the first that is not, and ends with `hint`."""
     missing = []
     for here in [*reversed(folder.parents), folder]:
         try:
@@ -580,7 +634,7 @@ def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
         if why is not None:
             raise PermissionError(
                 errno.EACCES,
-                f"{here}, on the way to it, {why}; set $WASI_PYTHON_CACHE to a folder of yours",
+                f"{here}, on the way to it, {why}; {hint}",
             )
     return missing
 
