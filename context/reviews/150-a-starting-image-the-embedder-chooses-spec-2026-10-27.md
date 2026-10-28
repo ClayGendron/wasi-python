@@ -100,7 +100,23 @@ Which rows move: R2 goes from Strong to Adequate as drafted, and back once Findi
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. to 15. — open, the author's.
+1. The making's import path in a call — fixed: 157's Decision 3 restores `sys.path` and the importer caches after the prelude on every path; here Decision 9, step 5, says so, Decision 14 gains `test_a_call_does_not_keep_the_makings_import_path`, and the how-to says that a program importing more of the code's modules passes `import_path` again; R2's reason names it.
+2. A making on a set without `prepare` — fixed: Decision 4's refusal with `ArtifactsMissing` and its message; a unit row against a stand-in set.
+3. The folders of saved files by identity — fixed: Decision 8's third bullet as written (paths kept, walked as `_runtime_folders` walks the caches, refused by identity at or above, allowed inside, a gone folder skipped), with where the rule differs from the caches'.
+4. Distribution names in the helper — fixed, on 157's one `x-snapshot-package` line per distribution: Decision 5's "Given names" as written; a unit row for each form; the slow row makes `make_package_snapshot(["scikit-learn"])`.
+5. HOME's promise — fixed: `test_home_is_the_images_and_each_calls_own`.
+6. The code's functions and the program's names — fixed by the orchestrating session's choice of the option recorded for 157: a prepared instance's program runs in the image's own `__main__` (157, Decision 3); here Decision 9, step 5, the how-to's sentence "your program runs after the snapshot's code, in the same namespace", and `test_a_program_shares_the_codes_namespace`.
+7. A file saved where it cannot be loaded, and a stale file — fixed: `save` checks the destination's folder by the way rule first (Decision 7); `Snapshot.check(artifacts=None)` added as a public method (Decisions 2 and 6, R1); the load-or-make recipe is in Decision 7 and the how-to; unit rows for both.
+8. The bool in the shared record — fixed, as the orchestrating session decided: Decision 3 and Decision 9, step 1 (`_CheckedCall.binary` and `.start`; the positional `snapshot` leaves four signatures); the Kind line holds `run`, `run_async` and `Session.__init__` at or below today's lengths, and criterion 5 claims only `_open_session` and `_instance`.
+9. A fork and the folder set — fixed: Decision 8 and R4, `reset_after_fork` keeps it; a unit row.
+10. The pointer after the grow, and a short image — fixed: Decision 9, step 4; a unit row for the short image.
+11. What the code reads — fixed: Decision 8's second bullet as written, and the how-to's list of what to avoid.
+12. The private marker reaches a public parameter — kept, with the reason the fix text allows for: Decision 4 (a private keyword of `Session.__init__` would add a line to a listed function and a name to a public signature; the marker grants nothing but a HOME at the fixed path); R6 names it.
+13. `root=True`'s constitution sentence — fixed: Decision 5's last bullet as written.
+14. The news file's entry in 152's shape — fixed: Decision 15, under `### New`, 47 words, with an absolute link and no measured figure; `### Added` if 152 has not landed.
+15. (Note) The helper's `repr` — taken: `repr` adds the count of the code's other lines (Decision 6).
+
+The developer's three wishes this review records are in: distribution names (Finding 4), the load-or-make recipe with `check` (Finding 7), and the namespace sentence (Finding 6).
 
 ## Verdict
 
