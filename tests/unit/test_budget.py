@@ -62,6 +62,18 @@ def test_a_family_with_fuel_and_no_cap_is_a_finding_and_a_cap_for_none_is_stale(
     ]
 
 
+def test_a_cap_for_a_new_check_file_waits_for_its_first_acceptance() -> None:
+    """A check file no accepted check comes from is new: its family's cap is not stale before
+    its first acceptance, and a file with accepted checks has no such allowance."""
+    accepted = {"checks": {A: entry(1), U: entry(1)}}
+    files = ["tests/checks/test_v1_2_hostile_guest.py", "tests/checks/test_v1_9_new.py"]
+    assert budget.new_families(accepted, files) == {"test_v1_9_new"}
+    with_new = caps(test_v1_9_new=10, test_v1_8_old=10)
+    assert budget.stale_caps(accepted, with_new, family, {"test_v1_9_new"}) == [
+        "the cap for test_v1_8_old names no family with fuel"
+    ]
+
+
 def _junit(*cases: tuple[str, str, float]) -> str:
     rows = "".join(f'<testcase classname="{c}" name="{n}" time="{t}"/>' for c, n, t in cases)
     return f'<testsuites><testsuite name="pytest">{rows}</testsuite></testsuites>'
