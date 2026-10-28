@@ -32,9 +32,9 @@ What differs, and why each difference exists:
   process of this user could compute, with or without the override variable each platform
   reads; on POSIX the owner, the mode, the number of names and any access list are checked,
   through the descriptor wasmtime is then given, and every folder on the way must be this
-  user's or root's and closed to other writers; Windows, which has no mode bits and no name for
-  a descriptor, checks the kind of file and that it is no link, and holds the file open from
-  its check to its load.
+  user's, root's or, on `/`'s own device, the owner of `/`'s, and closed to other writers;
+  Windows, which has no mode bits and no name for a descriptor, checks the kind of file and
+  that it is no link, and holds the file open from its check to its load.
 - A file a running guest holds open cannot be replaced on Windows, so a copy of the zip or a
   data file that is already right is left in place there.
 - The guest's output: on POSIX wasmtime writes each stream into a pipe it opens by a `/dev/fd`
@@ -124,6 +124,15 @@ _CACHE_DIR_OPEN = _flags("O_RDONLY", "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC")
 _CACHE_FILE_OPEN = _flags("O_RDONLY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK")
 _FD_NAMES = ("/dev/fd", "/proc/self/fd")
 _ACL_TYPE_EXTENDED = 0x100
+# Under a user namespace a file whose owner the namespace does not map shows the kernel's overflow
+# uid, 65534 by default, the same number as the namespace's own `nobody`. On `/` it is trusted as
+# any owner of `/` is; below `/` the number could be either owner, so it is not.
+_OVERFLOW_UID = 65534
+# Every cache folder is below `/`, so when `/` fails no other folder can help.
+_ROOT_ADVICE = (
+    "no folder can hold the cache while it is, so have its owner run chmod go-w /, or pass "
+    "cache_dir=False to compile in memory without this warning"
+)
 
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
 # (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
@@ -499,10 +508,11 @@ class _Posix:
     ) -> Path | None:
         """The cache folder to use, its missing folders made at 0700, or None when it is not as
         the runner makes it (with a warning). The way to it, its links resolved, must hold no
-        folder another user could change: each is this user's or root's, and no one else may
-        write it unless it is sticky, as `/tmp` is, where no one else may rename what is in it.
-        Else whoever could would put another folder at the cache's name between the check and
-        the load. OSError names the folder that fails. `lstat` is the walk's."""
+        folder another user could change: each is this user's, root's or, on `/`'s own device,
+        the owner of `/`'s, and no one else may write it unless it is sticky, as `/tmp` is,
+        where no one else may rename what is in it. Else whoever could would put another folder
+        at the cache's name between the check and the load. OSError names the folder that
+        fails. `lstat` is the walk's."""
         folder = Path(os.path.realpath(cache.parent)) / cache.name
         for missing in _way(folder.parent, lstat):
             try:
@@ -561,28 +571,47 @@ class _Posix:
 
 def _way(folder: Path, lstat: Callable[[str], os.stat_result]) -> list[Path]:
     """The folders from `/` down to `folder` that do not exist yet, for the caller to make; each
-    one that exists is a folder of this user's or root's that no one else may write, or that is
-    sticky. PermissionError names the first that is not."""
+    one that exists is a folder that no one else may write, or that is sticky, and is this
+    user's, root's, or, on `/`'s own device, the owner of `/`'s. Whoever owns `/` can already
+    rename every folder on its file system, so trusting it there adds no one; past a mount
+    point it cannot rename the way, and the overflow uid could stand for another owner below
+    `/`. PermissionError names the first folder that fails."""
     missing = []
+    top: os.stat_result | None = None
     for here in [*reversed(folder.parents), folder]:
         try:
             st = lstat(str(here))
         except FileNotFoundError:
             missing.append(here)
             continue
+        root = here == here.parent
+        if root:
+            top = st
         why = None
         if not stat.S_ISDIR(st.st_mode):
             why = "is not a folder"
-        elif st.st_uid not in (0, os.getuid()):
-            why = f"is another user's (uid {st.st_uid})"
+        elif not root and not _owner_trusted(st, top):
+            why = f"is another user's (uid {_platform_common._owner(st)})"
         elif st.st_mode & 0o022 and not st.st_mode & stat.S_ISVTX:
             why = f"may be written by others (mode {stat.S_IMODE(st.st_mode):o}) and is not sticky"
         if why is not None:
-            raise PermissionError(
-                errno.EACCES,
-                f"{here}, on the way to it, {why}; set $WASI_PYTHON_CACHE to a folder of yours",
-            )
+            advice = _ROOT_ADVICE if root else "set $WASI_PYTHON_CACHE to a folder of yours"
+            raise PermissionError(errno.EACCES, f"{here}, on the way to it, {why}; {advice}")
     return missing
+
+
+def _owner_trusted(st: os.stat_result, top: os.stat_result | None) -> bool:
+    """Whether a folder below `/` belongs to this user, to root, or to the owner of `/` on `/`'s
+    own device. The device is read only once the owner matched `/`'s."""
+    if _platform_common._this_users(st):
+        return True
+    owner = _platform_common._owner(st)
+    if owner == 0:
+        return True
+    if top is None:
+        return False
+    root_owner = _platform_common._owner(top)
+    return owner == root_owner != _OVERFLOW_UID and st.st_dev == top.st_dev
 
 
 def _fd_name(fd: int, reopen: Callable[..., int]) -> str | None:

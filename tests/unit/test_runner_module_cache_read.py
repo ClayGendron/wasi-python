@@ -4,13 +4,13 @@ another user could change is not used.
 A `.cwasm` is native code that wasmtime runs as it finds it. On POSIX the runner opens the
 cache folder and the file by descriptor, checks what it opened, and hands wasmtime that
 descriptor's name, so a file swapped in at the path after the check is never what is loaded.
-Every folder on the way to the cache must be this user's or root's and closed to other
-writers (a sticky folder such as `/tmp` aside), as `sshd` asks of the way to a key, or the
-cache is not used, with a warning, and the call still runs. A folder or file with an access
-list is not used either. On Windows the file is held open from its check to its load. A
-module is compiled from the bytes it was hashed from, so a `.cwasm` under a digest holds that
-digest's code. An empty `cache_dir` is refused, and a relative one is the folder it names when
-the call is made.
+Every folder on the way to the cache must be this user's, root's or, on `/`'s own device, the
+owner of `/`'s, and closed to other writers (a sticky folder such as `/tmp` aside), as `sshd`
+asks of the way to a key, or the cache is not used, with a warning, and the call still runs.
+A folder or file with an access list is not used either. On Windows the file is held open from
+its check to its load. A module is compiled from the bytes it was hashed from, so a `.cwasm`
+under a digest holds that digest's code. An empty `cache_dir` is refused, and a relative one is
+the folder it names when the call is made.
 
 Each verdict is a count from `stats()`, a module's exports, a warning or a refusal; the stand-ins
 are parameters of the functions they stand in for."""

@@ -178,6 +178,13 @@ def _not_used(path: Path, must_be: str) -> None:
     )
 
 
+def _owner(st: os.stat_result) -> int:
+    """The owner the runner compares for the file `st` describes: its `st_uid`, or what the
+    observers' `owner_of` names when set."""
+    owner_of = process().observers.owner_of
+    return st.st_uid if owner_of is None else owner_of(st)
+
+
 def _this_users(st: os.stat_result) -> bool:
     """Whether the file `st` describes is this user's: owned by the effective uid, the one a file
     or folder this process makes is owned by. Windows has no uid, so there every file is, and no
@@ -185,8 +192,7 @@ def _this_users(st: os.stat_result) -> bool:
     geteuid: Callable[[], int] | None = getattr(os, "geteuid", None)
     if geteuid is None:
         return True
-    owner_of = process().observers.owner_of
-    return (st.st_uid if owner_of is None else owner_of(st)) == geteuid()
+    return _owner(st) == geteuid()
 
 
 def _refuse_another_users(where: str, path: str, st: os.stat_result) -> None:
