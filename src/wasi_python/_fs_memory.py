@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol, cast
 
 # The 29 preview1 calls that act on a descriptor and are not forward-safe, with their raw
 # parameters (the result is one i32): every call the guest's file traffic can name a provider
@@ -148,6 +148,12 @@ def trampoline_wat() -> str:
     return "\n".join(lines)
 
 
+class _AbiMarked(Protocol):
+    """An error marked as an ABI refusal, the mark the handler reads back."""
+
+    abi: bool
+
+
 def _ends(message: str) -> BaseException:
     """What wasmtime gives a guest that passes an argument its ABI cannot carry (a flag or enum
     value it does not define, an integer out of its type's range, a misaligned pointer): an
@@ -155,7 +161,7 @@ def _ends(message: str) -> BaseException:
     import wasmtime
 
     error = wasmtime.WasmtimeError(message)
-    error.abi = True  # type: ignore[attr-defined]
+    cast(_AbiMarked, error).abi = True
     return error
 
 

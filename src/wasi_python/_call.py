@@ -13,7 +13,7 @@ import secrets
 import struct
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
@@ -582,7 +582,7 @@ def _drive(
     module: Any,
     call: _Call,
     fuel: int | None,
-    preopens: list[_Preopen] = (),  # type: ignore[assignment]
+    preopens: Sequence[_Preopen] = (),
     check: Any = None,
     plain: Any = None,
 ) -> _Driven:

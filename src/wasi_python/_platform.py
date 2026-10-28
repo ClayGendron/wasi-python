@@ -54,7 +54,7 @@ import stat
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from . import _platform_common
 from ._platform_common import _REMOVE_BATCH, _Opened, _Removal
@@ -1064,3 +1064,11 @@ def _select() -> _Platform:
 
 
 PLATFORM: _Platform = _select()
+
+
+if TYPE_CHECKING:
+    # The checker reads `_select` as Linux's and skips the other branches, so the macOS and plain
+    # POSIX classes are held to the protocol here: a member the protocol gains and one of them
+    # lacks is an error. Never called. The Windows class is held in its own module's pass.
+    def _conforms(darwin: _Darwin, posix: _Posix) -> tuple[_Platform, _Platform]:
+        return darwin, posix

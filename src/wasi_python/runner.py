@@ -27,7 +27,7 @@ import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
 
 from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions
 from ._artifacts import Artifacts
@@ -45,6 +45,12 @@ if TYPE_CHECKING:
     import concurrent.futures
 
     from .tools import Tool, ToolCall
+
+
+class _ExitFlag(Protocol):
+    """A finalizer's exit flag, which the stubs give no setter."""
+
+    atexit: bool
 
 
 @dataclass(frozen=True)
@@ -1012,7 +1018,7 @@ class Session:
         self._finalizer = weakref.finalize(self, _sessions._collected, state)
         # The exit hook ends sessions; `atexit` is a property on a slotted class, so
         # the write works where the checker sees only the slots.
-        self._finalizer.atexit = False  # type: ignore[misc]
+        cast(_ExitFlag, self._finalizer).atexit = False
         _sessions._ensure_reaper()
         _sessions._wake_reaper()
 
