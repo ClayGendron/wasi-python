@@ -1,6 +1,6 @@
 # 145: A mount's names work the same on every host
 
-- **Status:** **built 2026-10-27** on `spec/145-a-mounts-names-work-the-same-on-every-host`, rebased onto `ee72523e`; Decision 3's set-times answer amended by the owner on 2026-10-27 and built as amended; in a pull request into `dev`, not yet reviewed. Before: drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§3); not yet built; the owner asked for it to be built on 2026-10-27 with the 0.1.2 scope (`../roadmap.md`).
+- **Status:** **built 2026-10-27** on `spec/145-a-mounts-names-work-the-same-on-every-host`, rebased onto `86fab037`; Decision 3's set-times answer amended by the owner on 2026-10-27 and built as amended; in a pull request into `dev`, not yet reviewed. Before: drafted 2026-10-27 from `../research/2026-10-27-a-code-review-of-the-runner-for-production-use.md` (§3); not yet built; the owner asked for it to be built on 2026-10-27 with the 0.1.2 scope (`../roadmap.md`).
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**: `src/wasi_python/_fs_paths.py` (`_resolve`, the `O_DIRECTORY` open, `path_filestat_set_times`; 578 lines, about 15 added), `src/wasi_python/_fs_descriptors.py` (`fd_pread`'s slice; 442 lines, one line), rows in `tests/unit/test_runner_mounts.py` and `tests/checks/test_v1_2_hostile_guest.py`, two paragraphs in `docs/how-to/mounts.md` and one in `docs/reference/guest-filesystem.md`. It changes four answers of the guest's filesystem on a mount and nothing on a grant, no import or export of the guest, no artifact, no recipe. No change to `tests/public_api.txt`.
@@ -66,7 +66,7 @@ In: the above. Out:
 
 Built 2026-10-27 by an agent (Claude Opus 5.5), the builder of this specification, a sub-agent of the orchestrating session, in the worktree `../wasi_python-wt/spec-145`, on `spec/145-a-mounts-names-work-the-same-on-every-host` from `898bc091`, rebased onto `ee72523e` (`dev`'s tip with this specification, pull request #26) before these notes. Guest checks ran on the published 0.1.1 artifact set, read-only. Labels: EXECUTED means I ran it, READ means I read the file cited, INFERRED means my reasoning.
 
-The commits, in order: `2029cd15` the rows, seen failing; `bb5904d4` the resolver and two of the three answers; `90cc0d79` the docs, the docstring and the news file; `cb8557e9` these notes, with the set-times answer given back to the owner; then, after the owner's decision, `7ee67c03` the set-times rows, the flagged one seen failing; `3fde54cc` set-times as amended; and one commit for the docs, the news file and this section's update.
+The commits, in order: `57a19710` the rows, seen failing; `a66f9a76` the resolver and two of the three answers; `e69ff02a` the docs, the docstring and the news file; `0194a8de` these notes, with the set-times answer given back to the owner; then, after the owner's decision, `e02fba5b` the set-times rows, the flagged one seen failing; `50429ed7` set-times as amended; `396a38e6` the docs, the news file and this section's update; and one commit for these ids. All after the rebase onto `86fab037` (`dev`'s tip, which added only `context/` files since `ee72523e`).
 
 The rows seen failing first, on the unchanged code (EXECUTED, `build/145/rows-unit-before.log`, `build/145/row-hostile-before.log`, not committed):
 
@@ -74,7 +74,7 @@ The rows seen failing first, on the unchanged code (EXECUTED, `build/145/rows-un
 - `test_pread_writes_no_more_than_it_judged`: `(0, 65600)` bytes read where `(0, 65536)` is wanted.
 - `test_a_folder_open_of_a_file_is_refused_before_any_listing`: a file opened with `O_DIRECTORY` over a lenient provider answered 0 where 54 (`ENOTDIR`) is wanted.
 - `test_a_mount_refuses_a_name_a_host_could_reinterpret` (hostile guest): `a\..\..\x` and `C:x` answered 44 to read and were created (`opened`) to write, where 28 is wanted for all four.
-- `test_set_times_on_a_missing_path_answers_as_a_linux_grant` (`build/145/rows-set-times-before.log`, on `cb8557e9`'s code): `{'missing, a time flag': 0, ...}` where 44 is wanted. Its guard, `test_set_times_with_no_time_flag_looks_nothing_up`, is green before and after, as the owner's rule asks.
+- `test_set_times_on_a_missing_path_answers_as_a_linux_grant` (`build/145/rows-set-times-before.log`, on `0194a8de`'s code): `{'missing, a time flag': 0, ...}` where 44 is wanted. Its guard, `test_set_times_with_no_time_flag_looks_nothing_up`, is green before and after, as the owner's rule asks.
 
 After (EXECUTED): all seven green; `tests/unit/test_runner_mounts.py` 72 passed with the artifact set; the mount-related selection of `test_runner_grants.py`, `test_runner_waits.py`, `test_runner_mounts.py`, `test_v1_4_sessions.py`, `test_v1_4_embedding.py` and `test_v1_2_hostile_guest.py`, slow rows included, 170 passed, 2 skipped (`build/145/mount-related-2.log`).
 
