@@ -250,11 +250,12 @@ def _reads(
     # As Linux answers a grant (the reference): an offset past i64, or a read
     # whose end would pass it, is EINVAL (the kernel's rw_verify_area). fd_pread reads
     # through wasmtime's stream, which asks for at most MAX_READ_SIZE_ALLOC (64 KiB) at a
-    # time (crates/wasi/src/lib.rs:31), so only that much counts there.
+    # time (crates/wasi/src/lib.rs:31), so only that much counts there, and only that much
+    # is read.
     count = size if offset is None else min(size, PREAD_CHUNK)
     if at >= 2**63 or at + count > 2**63 - 1:
         return EINVAL
-    data = entry.data[at : at + size]
+    data = entry.data[at : at + count]
     memory.write(buf, data)
     if offset is None:
         entry.position = at + len(data)

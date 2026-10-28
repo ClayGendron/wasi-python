@@ -64,7 +64,9 @@ def _resolve(base: _Open, text: str) -> tuple[str, bool] | int:
         return ENOENT
     if text.startswith("/"):
         return EPERM
-    if "\0" in text:
+    if "\0" in text or "\\" in text or ":" in text:
+        # A backslash or a colon is a separator or a drive to some host's path logic: refused
+        # on every host, so a provider never sees a name a host could read another way.
         return EINVAL
     parts = text.split("/")
     if any(len(part.encode()) > MAX_NAME for part in parts):
@@ -148,11 +150,9 @@ def _path_open(
             return opened
         opened.append, opened.nonblock = bool(fdflags & APPEND), bool(fdflags & NONBLOCK)
     elif oflags & O_DIRECTORY:
-        ino = files.context.ino_of(path)
-        errno, listing, held = files._list(caller, mount, path, ino)
-        if errno:
-            return errno
-        opened = _Open(mount, path, "dir", listing=listing, fresh=True, held=held)
+        opened = _open_folder(files, caller, mount, path)
+        if isinstance(opened, int):
+            return opened
     else:
         errno, data = files._read(caller, mount, path)
         if errno:
@@ -167,6 +167,20 @@ def _path_open(
     number = files._take(opened)
     memory.write(out & MASK32, struct.pack("<I", number))
     return 0
+
+
+def _open_folder(files: _Files, caller: Any, mount: _Mounted, path: str) -> _Open | int:
+    """An `O_DIRECTORY` open to read: the path is asked `stat` first, so a file answers ENOTDIR
+    as on a grant and a lenient provider is never asked to list it; then the listing is made.
+    The mount itself is a folder, and is listed with no `stat`."""
+    if path != "/":
+        errno, kind, _, _ = files._stat(caller, mount, path)
+        if errno or kind != "dir":
+            return errno or ENOTDIR
+    errno, listing, held = files._list(caller, mount, path, files.context.ino_of(path))
+    if errno:
+        return errno
+    return _Open(mount, path, "dir", listing=listing, fresh=True, held=held)
 
 
 def _open_writing(
@@ -422,8 +436,16 @@ def _path_filestat_set_times(
     if isinstance(texts, int):
         return texts
     resolved = _resolve(entry, texts[0])
-    # Times are the provider's: accepted and ignored, with no provider call.
-    return resolved if isinstance(resolved, int) else 0
+    if isinstance(resolved, int):
+        return resolved
+    if not fst or resolved[0] == "/":
+        # No time to set is nothing to do: Linux's utimensat answers 0 before it looks the path
+        # up, and the reference grant with it. The mount itself is always there.
+        return 0
+    # Times are the provider's: accepted and ignored once the path is found, as a grant answers;
+    # a file named as a folder is not found.
+    errno, kind, _, _ = files._stat(caller, entry.mount, resolved[0])
+    return errno or (ENOTDIR if resolved[1] and kind != "dir" else 0)
 
 
 def _path_symlink(

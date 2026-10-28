@@ -2038,7 +2038,8 @@ def _mount_host(provider):
 
 @BINARY
 def test_a_mount_serves_reads(guest_workdir, which) -> None:
-    """A read makes one `read`, a listing one `list`, a stat one `stat`;
+    """A read makes one `read`, a listing of the mount one `list` and of a folder in it one
+    `stat` then one `list`, a stat one `stat`;
     the bytes are the provider's; a mount's file has a number from 2**30 that os.read,
     select.poll and selectors accept and select.select refuses (Decision 6); the record's
     counts are the provider's own; a grant beside the mount reads as before."""
@@ -2071,7 +2072,7 @@ def test_a_mount_serves_reads(guest_workdir, which) -> None:
     assert steps == [
         ["read", "hello, mount\n", no | {"read": 1}],
         ["listdir", ["a.txt", "b.txt", "d", "e"], no | {"list": 1}],
-        ["scandir", [["x.txt", False]], no | {"list": 1}],
+        ["scandir", [["x.txt", False]], no | {"stat": 1, "list": 1}],  # a folder is asked first
         ["stat", [13, True], no | {"stat": 2}],  # os.stat and os.path.isdir: one each
         ["fileno", True, no],
         ["os.read", "b\n", no],
@@ -2084,7 +2085,7 @@ def test_a_mount_serves_reads(guest_workdir, which) -> None:
     # The counts writable mounts add, all zero here.
     write_half = {"write": 0, "mkdir": 0, "remove": 0, "rmdir": 0, "rename": 0}
     assert (
-        dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2} | write_half
+        dict(done.files.calls) == provider.calls == {"stat": 3, "list": 2, "read": 2} | write_half
     )
     assert done.files.faults == ()
 
@@ -4559,8 +4560,9 @@ print(json.dumps(out))
 def test_links_and_times_in_a_writable_mount(guest_workdir) -> None:
     """`os.link` and `os.symlink` within a writable mount are ENOTSUP,
     `os.link` to a writable grant EXDEV and to a read-only grant EPERM, each with no provider
-    call; `os.utime` of a file and of the mount's own path succeeds with no call, and `os.stat`
-    then shows the provider's `mtime_ns`; `shutil.copy2` within the mount succeeds."""
+    call; `os.utime` of a file succeeds after one `stat`, which finds it as a grant would, and of
+    the mount's own path with no call; `os.stat` then shows the provider's `mtime_ns`;
+    `shutil.copy2` within the mount succeeds."""
     from harness.files import MemoryProvider
     from wasi_python import Grant, Mount, Stat
 
@@ -4587,7 +4589,7 @@ def test_links_and_times_in_a_writable_mount(guest_workdir) -> None:
         "symlink within": [["errno", 58], 0],
         "link to a writable grant": [["errno", 75], 0],
         "link to a read-only grant": [["errno", 63], 0],
-        "utime of a file": [None, 0],
+        "utime of a file": [None, 1],
         "utime of the mount": [None, 0],
         "stat after": 7,
     }, out

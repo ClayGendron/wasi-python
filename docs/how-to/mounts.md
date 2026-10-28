@@ -44,7 +44,7 @@ Each method gets a normalized absolute path, where `/` is the mount itself. Each
 
 `Errno` holds WASI's own error numbers, such as `ENOENT`, `EACCES`, `EISDIR` and `ENOSPC`. The guest sees each as the `OSError` of that `errno`. The runner knows nothing about permissions: it calls your provider for every access and passes its answer through.
 
-An open makes at most one provider call: one `read`, or one `list` for a folder. `os.stat` makes one `stat`, and `os.fstat` of an open file makes none. Nothing is cached between opens; your provider may cache.
+An open of a file makes one `read`. A listing, such as `os.listdir` or `os.scandir`, makes one `stat` and then one `list`; a listing of the mount itself makes only the `list`. A file asked for as a folder answers `ENOTDIR` after the `stat`, and your `list` is never called for it. `os.stat` makes one `stat`, and `os.fstat` of an open file makes none. Nothing is cached between opens; your provider may cache.
 
 ## Raise an OSError instead
 
@@ -58,10 +58,12 @@ A mapped raise leaves no fault in the record: it is an answer. So a bug in your 
 
 ## Treat a path as a name, not a host path
 
-A component may hold any character but `/` and NUL, including `\` and `:`, and may be a Windows device name such as `CON`. A provider that maps paths onto a host folder must not join them blindly: on Windows, `/..\..\secret` climbs out of the base. Refuse `\`, `:` and device names, or resolve the joined path and check that it stays inside the base:
+Each path your provider gets is `/` and then components joined by `/`. Each component is a name. It is never empty, `.` or `..`, and it never holds `/`, `\`, `:` or NUL. The runner answers `EINVAL` itself for a component with `\` or `:`, on every host, before your provider is called. So no host can read a component as a separator or a drive. A name your `list` returns with `\` or `:` is still listed, but the guest cannot open it.
+
+A provider that stores on a host folder joins the components one at a time. It never hands the whole path to a host path function. A component may still be a Windows device name such as `CON`, so refuse those on Windows, or resolve the joined path and check that it stays inside the base:
 
 ```python
-target = (base / path.lstrip("/")).resolve()
+target = base.joinpath(*[p for p in path.split("/") if p]).resolve()
 if not target.is_relative_to(base.resolve()):
     return Errno.EACCES
 ```
@@ -146,7 +148,7 @@ A writable mount differs from a writable grant in a few more ways:
 - Unflushed writes are seen only through the descriptor that made them, until its close or `fsync`. Two descriptors on one path have two buffers, and the later write-back wins.
 - A rename between a mount and another writable folder is `EXDEV`; `shutil.move` then copies and removes.
 - `os.link` and `os.symlink` are `ENOTSUP`: the protocol has no links.
-- `os.utime` succeeds and changes nothing. Times are your provider's.
+- `os.utime` of a name below the mount makes one `stat`. On a path that is there it succeeds and changes nothing; on a missing path it raises `FileNotFoundError`. Times are your provider's.
 - sqlite3 over a mount is not supported. It needs ranged writes and locking.
 
 **Cost.** Every write-half call, create and write-back counts toward `max_file_calls`. Each close or `fsync` of a changed file hands you the whole file. So a guest that loops "write one byte, `fsync`" can make many large write-backs. A provider that persists every write should limit its writes and answer `EDQUOT`.

@@ -126,6 +126,7 @@ def test_a_path_is_normalized_before_the_provider_sees_it(placeholder) -> None:
     assert provider.paths == [
         ("stat", "/d/x.txt"),
         ("stat", "/a.txt"),
+        ("stat", "/d"),  # a folder open asks before it lists
         ("list", "/d"),
     ]
 
@@ -460,7 +461,7 @@ def test_a_listing_is_kept_and_listed_again_from_cookie_zero(placeholder) -> Non
     assert r.readdir(d) == first and provider.calls["list"] == 2
     e = r.open(3, "d")[1]
     assert provider.calls == {
-        "stat": 0,
+        "stat": 1,  # the folder open's, before its listing
         "list": 2,
         "read": 1,
         "write": 0,
@@ -1736,3 +1737,102 @@ def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> No
     r = m.raw
     assert [r.open(3, "a.txt")[0] for _ in range(4)] == [0, 0, EMFILE, EMFILE]
     assert m.table.total == 2 and m.call.ended is None
+
+
+# A mount's names mean the same on every host: a component a host's path logic could read as a
+# separator or a drive is refused before the provider sees it.
+
+HOST_SPELLINGS = ["a\\..\\..\\x", "C:x", "d\\x.txt", "d/C:", "e/..\\a.txt", "c:\\x"]
+
+
+@pytest.mark.parametrize("writable", [False, True], ids=["read-only", "writable"])
+def test_a_backslash_or_a_colon_in_a_component_is_refused(placeholder, writable) -> None:
+    """A component with a backslash or a colon is EINVAL on every host, on a read-only and on a
+    writable mount, for every path call, and the provider sees no call: a provider that joins
+    the path onto a host folder never meets a name a host could reinterpret."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=writable).raw
+    before = provider.total()
+    rows = {}
+    for path in HOST_SPELLINGS:
+        rows[(path, "stat")] = r.path_filestat(3, path)[0]
+        rows[(path, "open")] = r.open(3, path)[0]
+        rows[(path, "open a folder")] = r.open(3, path, files.O_DIRECTORY)[0]
+        rows[(path, "readlink")] = r.readlink(3, path)[0]
+        if writable:
+            rows[(path, "create")] = r.open(3, path, files.O_CREAT, ALL)[0]
+            rows[(path, "mkdir")] = r.path_call("path_create_directory", 3, path)
+            rows[(path, "remove")] = r.path_call("path_unlink_file", 3, path)
+            rows[(path, "rmdir")] = r.path_call("path_remove_directory", 3, path)
+            rows[(path, "rename from")] = r.rename(3, path, 3, "q")
+            rows[(path, "rename to")] = r.rename(3, "a.txt", 3, path)
+            rows[(path, "set-times")] = r.path_set_times(3, path, 0)
+    assert rows == dict.fromkeys(rows, EINVAL), rows
+    assert provider.total() == before == 0
+
+
+def test_pread_writes_no_more_than_it_judged(placeholder) -> None:
+    """`fd_pread` reads at most one chunk, as wasmtime's stream does on a grant: past the
+    chunk it writes exactly the chunk's bytes, and the guest's buffer beyond is untouched."""
+    chunk = _fs_memory.PREAD_CHUNK
+    data = bytes(range(256)) * (chunk // 256 + 8)
+    provider = MemoryProvider({"/big": data})
+    r = Mounted(provider, placeholder).raw
+    f = r.open(3, "big")[1]
+    assert f is not None
+    errno, n, buffer = r.pread(f, [chunk + 64], 0)
+    assert (errno, n) == (0, chunk)
+    assert buffer == data[:chunk] + bytes(64)
+
+
+def test_a_folder_open_of_a_file_is_refused_before_any_listing(placeholder) -> None:
+    """An `O_DIRECTORY` open asks `stat` first and answers ENOTDIR itself for a file, so a
+    lenient provider that would list a file is never asked to; a missing name answers the
+    provider's errno, again with no listing."""
+    provider = MemoryProvider()
+    provider.answers[("list", "/a.txt")] = []  # a lenient provider lists anything
+    r = Mounted(provider, placeholder).raw
+    rows = {
+        "a file": r.open(3, "a.txt", files.O_DIRECTORY)[0],
+        "a file named as a folder": r.open(3, "a.txt/", files.O_DIRECTORY)[0],
+        "a missing name": r.open(3, "missing", files.O_DIRECTORY)[0],
+    }
+    assert rows == {"a file": 54, "a file named as a folder": 54, "a missing name": 44}, rows
+    assert provider.calls["list"] == 0
+
+
+def test_set_times_on_a_missing_path_answers_as_a_linux_grant(placeholder) -> None:
+    """`path_filestat_set_times` on a writable mount answers as a Linux grant does: with a time
+    flag set it asks the provider `stat` once and answers its errno for a missing path, and a
+    path that is there succeeds with its times left to the provider; with no time flag it is
+    nothing to do, 0 with no lookup, as Linux's `utimensat` answers before it reads the path."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    now = _fs_memory.ATIM_NOW | _fs_memory.MTIM_NOW
+    rows = {
+        "missing, a time flag": r.path_set_times(3, "missing", now),
+        "there, a time flag": r.path_set_times(3, "a.txt", _fs_memory.MTIM),
+    }
+    assert rows == {"missing, a time flag": 44, "there, a time flag": 0}, rows
+    assert provider.paths == [("stat", "/missing"), ("stat", "/a.txt")]
+
+
+def test_set_times_with_no_time_flag_looks_nothing_up(placeholder) -> None:
+    """With no time flag, set-times of a missing path answers 0 and the provider sees no call."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    assert r.path_set_times(3, "missing", 0) == 0
+    assert provider.total() == 0
+
+
+def test_set_times_on_a_file_named_as_a_folder_answers_enotdir(placeholder) -> None:
+    """With a time flag, set-times of a file named with a trailing `/` answers ENOTDIR after its
+    one `stat`, as a Linux grant does once it looks the path up; a folder so named succeeds."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    rows = {
+        "a file as a folder": r.path_set_times(3, "a.txt/", _fs_memory.MTIM_NOW),
+        "a folder as a folder": r.path_set_times(3, "d/", _fs_memory.MTIM_NOW),
+    }
+    assert rows == {"a file as a folder": 54, "a folder as a folder": 0}, rows
+    assert provider.paths == [("stat", "/a.txt"), ("stat", "/d")]
