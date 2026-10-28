@@ -2,9 +2,9 @@
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **A pinned download may name a copy the project keeps, and it is asked first**: the download script and the upstream test fetcher read a file from its mirror, an asset of a GitHub release of this repository, and from its original host second, and keep it only if its SHA-256 is the pinned one, so the hash is what is trusted, not the host; every fetch says which URL served it. openpyxl's and et-xmlfile's test archives, whose host now answers automated downloads with a challenge page, are the first two files with such a copy, so a contributor's `scripts/00_download.sh --tests` and the judge's runs of their tests work again (spec 158).
+- **Upstream test archives download even when their host refuses robots.** A pinned file may name a copy the project keeps, asked first, and either copy is kept only if its SHA-256 is the pinned one, so the hash is what is trusted. [Pins and recipe files](https://claygendron.github.io/wasi-python/contributing/building/#pins-and-recipe-files)
 
 ## Package rows
 

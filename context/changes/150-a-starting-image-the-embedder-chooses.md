@@ -2,7 +2,7 @@
 
 ## Changelog
 
-### Added
+### New
 
 - **Start every call from your own snapshot.** Run your setup code once, imports, data and functions, with `make_snapshot`, or import every package with `make_package_snapshot()`, then pass `snapshot=` to `run` or `Session`: each call is still a fresh, sealed instance, and skips the seconds its imports took. [Snapshots](https://claygendron.github.io/wasi-python/how-to/snapshots/)
 

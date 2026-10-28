@@ -4,14 +4,20 @@
 
 ### Security
 
-- **The release's write token reaches only the step that creates the GitHub release, and the wheel goes to PyPI through the workflow's pinned uv** (`uv publish --trusted-publishing always`) instead of a third-party container named by a tag (spec 148). The wheel on PyPI no longer carries a PyPI-side provenance object; its GitHub attestation, which the verify page documents, is unchanged.
-- **`SECURITY.md` names wasmtime's advisories of 2026-10-19**, none of which reaches the runner's wasmtime 50.0.0 (spec 148).
+- **The release's write token reaches only the step that publishes.** Only the step that creates the GitHub release holds it, and the wheel goes to PyPI through the workflow's pinned uv instead of a third-party container. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/)
+- **The security policy names wasmtime's advisories of 2026-10-19.** None of them reaches the wasmtime this release runs, 50.0.0. [Security model](https://claygendron.github.io/wasi-python/explanation/security-model/)
 
-### Changed
+### Fixed
 
-- **A change to the agents' settings or instructions (`.claude/`, `.agents/`, `AGENTS.md`, `CLAUDE.md`, at any depth) is no longer documentation only**: it runs the quick check alone, and carries a news file and a review (spec 148).
-- **A pull request's check refuses GitHub's `skip-checks: true` trailer** beside the skip words, reads a path git would quote by its real name, judges a pull request again when its base is edited, and re-reads an edited title or description, re-using the run before it when that run is green on the same head (spec 148).
-- **The install page says what a umask of `077` changes** for the compiled-module cache, and the reviewer's checklist reads every change to the workflow and the plan as code (spec 148).
+- **The install page says what a umask of `077` changes.** It now says how that umask affects the compiled module's cache folder. [Where the compiled module is kept](https://claygendron.github.io/wasi-python/get-started/install/#where-the-compiled-module-is-kept)
+
+### Upgrading
+
+- **The wheel on PyPI no longer carries PyPI's own provenance.** Check a download by its GitHub attestation, which is unchanged. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/)
+
+### For contributors
+
+- **Changes to the agents' settings are reviewed like code.** A change to `.claude/`, `.agents/`, `AGENTS.md` or `CLAUDE.md` needs a news file and a review, and a pull request's check refuses GitHub's `skip-checks: true` trailer and judges an edited base or description again. [What a pull request runs](https://claygendron.github.io/wasi-python/contributing/review-and-landing/#what-a-pull-request-runs)
 
 ## Package rows
 
