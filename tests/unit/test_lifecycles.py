@@ -26,10 +26,10 @@ from wasi_python._sessions import _Phase as P
 
 
 def test_a_checked_call_is_frozen_with_every_field_required() -> None:
-    """Nineteen fields, each required: a construction that leaves one out is a `TypeError` at
+    """Twenty-one fields, each required: a construction that leaves one out is a `TypeError` at
     the construction; a write after it is refused; the stand-in's copy refuses an unknown name."""
     names = [f.name for f in dataclasses.fields(_call._CheckedCall)]
-    assert len(names) == 19 and all(
+    assert len(names) == 21 and all(
         f.default is dataclasses.MISSING for f in dataclasses.fields(_call._CheckedCall)
     )
     given = {name: getattr(calls.BASE_CALL, name) for name in names}
