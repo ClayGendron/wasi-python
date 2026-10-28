@@ -3,7 +3,7 @@
 - **Date:** 2026-10-28
 - **Reviewer:** an agent (Claude Opus 5.5), a fresh sub-agent of https://claude.ai/code/session_01ThzDEU6oHaVS4VRYYiC1im; not the author
 - **Reviewed:** `git diff 6f5ba427..f1301a36` on `spec/141-the-access-lists-on-the-way-to-the-cache-are-read` (stacked on group A's head `6f5ba427`, pull request #44): the specification with its landing notes and "Differences from the text", its pre-build review (M1, L1 to L6), the rows `a41ce742`, the code `9034ca26`, the page, news file and resolve-once row `3342378d`, row 1's generic-write case `ba887657`, and the Lows' answer `f1301a36`; with 147's `_way` and `_owner_trusted`, 149's resolve-once rule and row, 150's `open_owned`, and the SDK's `sys/acl.h` and `sys/kauth.h`
-- **Run:** not yet run; the pull request opens after group A (#44) merges
+- **Run:** 40715519918 on `d08f1d16` (pull request #45, the branch rebased onto `dev` at `bd8dcaee`, group A's merge; the ids in this file are those before the rebase, and the landing notes map them), read once with `gh run view` (`build/141/review-run.txt`): green, `ci-status` included; `quick` and `verify` green; the judge's own shards green on ubuntu-24.04 and macos-15 (own-embedding, own-embedding-a, own-guest, own-hostile, own-runner, own-rest) and on windows-2025 (own-embedding, own-embedding-a, own-guest, own-hostile, own-runner); the cached set; the rebuild, fresh-build and release-tier jobs not chosen by the plan
 - **Re-ran** (macOS, Darwin 25.5.0, arm64, the 0.1.1 set through `WASI_PYTHON_ARTIFACTS`, 516 GiB free; logs `build/141/review-*.txt`):
   - `uv sync`; `ruff check src tests`, `ruff format --check src tests`, `mypy` → clean, 193 files formatted, 29 source files. EXECUTED.
   - `uv run pytest tests/lint -q -p no:cacheprovider` → 9 passed. `tests/checks/test_rules.py` → 122 passed, 1 skipped. EXECUTED.
@@ -75,4 +75,6 @@ No High, no Medium.
 
 ## Verdict
 
-Lands once the pull request's run is green: the macOS reading, the rule and the words are Decisions 1, 2 and 6 as amended by the pre-build review, the walk keeps 147's and 135's judgments, and the two Lows are write-ins with their fix text.
+Lands: run 40715519918 is green on Linux, macOS and Windows (2026-10-28), on head `ea4ed268`, and the review stands as signed below.
+
+Signed earlier on 2026-10-28, on `f1301a36` (`3cc9135a` after the rebase): Lands once the pull request's run is green: the macOS reading, the rule and the words are Decisions 1, 2 and 6 as amended by the pre-build review, the walk keeps 147's and 135's judgments, and the two Lows are write-ins with their fix text.
