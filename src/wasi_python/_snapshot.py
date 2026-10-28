@@ -304,19 +304,23 @@ def _origin_of(
 
 def _publish_and_check(folder: Path) -> None:
     """Keep a saved or loaded file's folder from every later call's writable grants, then refuse
-    it if a call or session running now may write it, forgetting it again if it was new. Each
-    side publishes before it checks, as a starting call registers its writable grants before it
-    judges these folders, so of a call and a save at once, one always sees the other."""
+    it if a call or session running now may write it. Each side publishes before it checks, as a
+    starting call registers its writable grants before it judges these folders, so of a call and
+    a save at once, one always sees the other. The folder is counted once per publication, and a
+    refusal takes back its own count alone: another save that used the folder meanwhile keeps
+    it remembered."""
     p, key = process(), str(folder)
     with p.cache_lock:
-        new = key not in p.snapshot_folders
-        p.snapshot_folders.add(key)
+        p.snapshot_folders[key] = p.snapshot_folders.get(key, 0) + 1
     try:
         _places._refuse_live_writable(folder)
     except PermissionError:
-        if new:
-            with p.cache_lock:
-                p.snapshot_folders.discard(key)
+        with p.cache_lock:
+            left = p.snapshot_folders.get(key, 1) - 1
+            if left:
+                p.snapshot_folders[key] = left
+            else:
+                p.snapshot_folders.pop(key, None)
         raise
 
 

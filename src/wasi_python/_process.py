@@ -154,7 +154,7 @@ class _Process:
         self.modules: dict[tuple[bool, str], wasmtime.Module] = {}
         self.compiling: dict[tuple[bool, str], threading.Lock] = {}
         self.counts: dict[str, int] = dict.fromkeys(COUNTS, 0)  # what `stats()` reports
-        self.snapshot_folders: set[str] = set()  # each saved or loaded snapshot file's folder
+        self.snapshot_folders: dict[str, int] = {}  # saved and loaded files' folders, counted
         self.live_writable: dict[Any, str] = {}  # live calls' writable walks, and their names
         self.epoch_callback: Any | None = None  # the one C callback, made on first use
         self.epoch_callback_lock = threading.Lock()
