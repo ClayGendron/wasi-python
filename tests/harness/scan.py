@@ -2934,6 +2934,41 @@ def long_function_hits(files: Iterable[Path], root: Path, allowed: dict[str, int
 
 
 # ---------------------------------------------------------------------------------------------
+# The type checker's escapes. Every comment that holds `type: ignore`, bare or coded, any
+# spacing, after other comment text or not, is counted; strings and docstrings are not comments.
+# One that stays reads `# type: ignore[<code>, ...]  # <reason>`: its codes, so no other error
+# on the line hides behind it, and a second comment saying why the checker is wrong there.
+
+TYPE_IGNORE = re.compile(r"type:\s*ignore")
+TYPE_IGNORE_SHAPE = re.compile(r"type:\s*ignore\[[a-z-]+(?:,\s*[a-z-]+)*\]\s*#\s*\w")
+
+
+def _type_ignore_comments(files: Iterable[Path], root: Path) -> list[tuple[str, int, str]]:
+    """(the file, the line, the comment) for every comment token holding `type: ignore`."""
+    found = []
+    for p in sorted(files):
+        text = p.read_text(encoding="utf-8")
+        for t in tokenize.generate_tokens(io.StringIO(text).readline):
+            if t.type == tokenize.COMMENT and TYPE_IGNORE.search(t.string):
+                found.append((rel(p, root), t.start[0], t.string.strip()))
+    return found
+
+
+def type_ignores(files: Iterable[Path], root: Path) -> list[str]:
+    """Every escape from the type checker in `files`, as `file:line: comment`."""
+    return [f"{where}:{line}: {text}" for where, line, text in _type_ignore_comments(files, root)]
+
+
+def type_ignore_shape_errors(files: Iterable[Path], root: Path) -> list[str]:
+    """Every escape that lacks its error code or the reason on its own line after it."""
+    return [
+        f"{where}:{line}: {text} (wants `# type: ignore[<code>]  # <reason>`)"
+        for where, line, text in _type_ignore_comments(files, root)
+        if not TYPE_IGNORE_SHAPE.search(text)
+    ]
+
+
+# ---------------------------------------------------------------------------------------------
 # One owner for a table's state. A handler module receives the table as a parameter of one
 # name and changes it only by calling the table's methods, so every invariant of the state (a
 # count that is the sum of the rows, a set that holds only the engine's numbers) is kept in the

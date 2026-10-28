@@ -472,6 +472,36 @@ def test_passes_ratchet_end_to_end_with_its_own_flag(inner) -> None:
     assert json.loads(last)["fewer_reason"] == "upstream moved one"
 
 
+IGNORES = """
+import pytest
+
+pytestmark = pytest.mark.goal("rules")
+
+def test_count(metric):
+    metric("ignores", {ignores})
+"""
+
+
+def test_an_ignores_count_ratchets_end_to_end(inner) -> None:
+    """`metric("ignores")` is a count that only falls: a rise is growth and red until a reason
+    accepts it, and a fall is green and kept as the new, lower value."""
+    result, _ = inner("--accept", "base", source=IGNORES.format(ignores=3))
+    assert result.ret == 0, result.stdout.str()
+    result, _ = inner(source=IGNORES.format(ignores=4))
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(["*GREW test_inner.py::test_count: ignores 3 -> 4*"])
+    result, _ = inner(
+        "--accept", "rose", "--accept-growth", "a new escape", source=IGNORES.format(ignores=4)
+    )
+    assert result.ret == 0, result.stdout.str()
+    result, _ = inner(source=IGNORES.format(ignores=2))
+    assert result.ret == 0, result.stdout.str()
+    result, _ = inner("--accept", "fell", source=IGNORES.format(ignores=2))
+    assert result.ret == 0, result.stdout.str()
+    entry = accepted_file(inner.progress)["checks"]["test_inner.py::test_count"]
+    assert next(iter(entry["metrics"].values()))["ignores"] == 2
+
+
 # ---------------------------------------------------------------------------------------------
 # The plugin writes the line where history.target says, and says so (criteria 7, 8)
 

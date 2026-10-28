@@ -3861,3 +3861,31 @@ def test_the_real_quick_job_runs_lint_and_the_rules_unsilenced() -> None:
 def test_the_lint_step_scan_names_each_silencing(job, old, new, error) -> None:
     errors = scan.lint_step_errors(_in_job(REAL_WORKFLOW, job, old, new))
     assert any(e.startswith(error) for e in errors), errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The type checker's escapes: counted wherever a comment holds one, and each one's shape
+
+ESCAPES = '''\
+"""A module whose docstring says type: ignore, which is no comment."""
+
+a = 1  # type: ignore
+b = 2  # type: ignore[assignment]
+c = 3  # type: ignore[assignment, misc]  # the stubs lack it
+d = 4  #type:ignore
+e = 5  # noqa: E501  # type: ignore[misc]  # after another tool's comment
+f = "# type: ignore in a string"
+'''
+
+
+def test_type_ignores_are_counted_in_comments_bare_or_coded(work) -> None:
+    p = write(work, "src/pkg/m.py", ESCAPES)
+    found = scan.type_ignores([p], work)
+    assert [line.split(":")[1] for line in found] == ["3", "4", "5", "6", "7"], found
+    assert found[0] == "src/pkg/m.py:3: # type: ignore", found
+
+
+def test_a_type_ignore_without_its_code_or_reason_is_named(work) -> None:
+    p = write(work, "src/pkg/m.py", ESCAPES)
+    named = scan.type_ignore_shape_errors([p], work)
+    assert [line.split(":")[1] for line in named] == ["3", "4", "6"], named

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import history, needs, news, paths, scan
+from harness import history, needs, news, paths, scan, typecheck
 
 pytestmark = pytest.mark.goal("rules")
 
@@ -112,38 +112,50 @@ def test_ruff_format_is_clean() -> None:
 
 
 # The runner's package is type-checked whole under mypy's --strict (pinned exactly in the dev
-# group; the platform pinned to linux in pyproject.toml, so three systems give one verdict): every
-# function annotated, every generic given its parameters, no `Any` leaking from a declared return.
-# A module still carrying errors is listed here with why, in words; an entry whose module is
-# clean is a finding, so the list can only shrink, and an error anywhere else is one too.
+# group): every function annotated, every generic given its parameters, no `Any` leaking from a
+# declared return. It is read in two passes, each naming its platform so three systems give one
+# verdict: the Linux pass reads every module but the Windows half, and the Windows pass reads
+# that one module with win32's stubs, where its calls exist. A module still carrying errors is
+# listed here with why, in words; an entry whose module is clean is a finding, so the list can
+# only shrink, and an error anywhere else is one too.
 UNTYPED: dict[str, str] = {}
 
-MYPY_ERROR = re.compile(r"^src[\\/]wasi_python[\\/]([^:]+):\d+: error: .*\[([a-z-]+)\]\s*$", re.M)
+MYPY_ERROR = re.compile(
+    r"^(?:linux|win32): src[\\/]wasi_python[\\/]([^:]+):\d+: error: .*\[([a-z-]+)\]\s*$"
+)
 
 
 def test_src_type_checks_under_mypy_strict() -> None:
-    """`mypy` as pyproject.toml configures it (--strict, python 3.11, the linux platform, the files
-    `src/wasi_python`): an exit of 2 (a crash or a configuration error) fails; an error in a
-    module UNTYPED does not name fails; a module UNTYPED names with no error left fails."""
-    mypy = Path(sys.executable).parent / "mypy"
-    r = subprocess.run(
-        [str(mypy), "--no-error-summary"],
-        cwd=paths.REPO,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert r.returncode != 2, (r.stdout + r.stderr).strip().splitlines()[:5]
-    errors = [(module, code) for module, code in MYPY_ERROR.findall(r.stdout)]
+    """Both of the type checker's passes (`harness.typecheck.PASSES`): an exit of 2 (a crash or
+    a configuration error) fails; an error in a module UNTYPED does not name fails; a module
+    UNTYPED names with no error left fails."""
+    found = typecheck.run(paths.REPO)
+    errors = [m.group(1) for line in found if (m := MYPY_ERROR.match(line)) is not None]
     findings = [
-        line
-        for line in r.stdout.splitlines()
-        if (m := MYPY_ERROR.match(line)) is not None and m.group(1) not in UNTYPED
+        line for line in found if (m := MYPY_ERROR.match(line)) is None or m.group(1) not in UNTYPED
     ]
     for module in UNTYPED:
-        if not any(found == module for found, _ in errors):
+        if module not in errors:
             findings.append(f"UNTYPED names {module}, which has no error left: delete its entry")
     assert not findings, scan.report(findings)
+
+
+def _src_python() -> list[Path]:
+    return [p for p in scan.files_under(paths.REPO, "src") if p.suffix == ".py"]
+
+
+def test_every_type_ignore_names_its_code_and_reason() -> None:
+    """Each escape from the type checker under src/ reads `# type: ignore[<code>]  # <reason>`:
+    the code says which error it silences, so no other error on the line hides behind it, and
+    the reason on the same line tells the reader why the checker is wrong there."""
+    findings = scan.type_ignore_shape_errors(_src_python(), paths.REPO)
+    assert not findings, scan.report(findings)
+
+
+def test_the_type_checkers_escapes_are_counted(metric) -> None:
+    """Every `type: ignore` in a comment under src/, recorded as the metric `ignores`: the
+    ratchet keeps the lowest count accepted, and a rise is growth that needs its reason."""
+    metric("ignores", len(scan.type_ignores(_src_python(), paths.REPO)))
 
 
 def test_build_scripts_call_python_only_through_uv_or_a_path() -> None:

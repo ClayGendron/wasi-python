@@ -319,6 +319,21 @@ def test_a_file_entry_and_a_prefix_entry(tmp_path) -> None:
         assert not any("test_new" in line for line in rest), (entry, rest)
 
 
+ESCAPES = "tests/checks/test_rules.py::test_the_type_checkers_escapes_are_counted"
+
+
+def test_an_ignores_count_must_agree_and_a_grows_claim_explains_it(tmp_path) -> None:
+    """The count of the type checker's escapes is a count of source text, the same on every
+    system: two records that differ in it differ, and only a `grows` claim explains a rise."""
+    a, b = local(), local()
+    a["checks"][ESCAPES], b["checks"][ESCAPES] = _pass(ignores=3), _pass(ignores=4)
+    assert sameness.differences(a, b) == [f"{ESCAPES}: ignores 3 != 4"]
+    grows = f'[[claim]]\nspec = "1"\ngrows = ["{ESCAPES}"]\ngrowth = "1: one more escape"\n'
+    assert sameness.unexplained(a, b, claims(tmp_path, grows)) == []
+    changed = f'[[claim]]\nspec = "1"\nchanged = ["{ESCAPES}"]\n'
+    assert sameness.unexplained(a, b, claims(tmp_path, changed)) == [f"{ESCAPES}: ignores 3 != 4"]
+
+
 def test_except_drops_a_specs_claims(tmp_path) -> None:
     rest = sameness.unexplained(before(), after(), claims(tmp_path, FULL), drop={"101"})
     assert any(line.startswith(f"{G}: status") for line in rest)

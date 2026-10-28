@@ -206,6 +206,18 @@ def test_darwin_fuel_is_keyed_darwin_and_linux_fuel_is_not_ratcheted(inputs) -> 
     assert a.accepted["checks"][TOOLS]["metrics"][DARWIN]["fuel"] == 100
 
 
+def test_the_ignores_count_is_taken_from_the_record(inputs) -> None:
+    """The count of the type checker's escapes is source text, held equal on every system: a
+    record that measured it on Linux alone is applied over darwin's accepted count, so a fall
+    measured anywhere is accepted."""
+    inputs.accepted["checks"][RULE]["metrics"] = {DARWIN: {"wasmtime": WT, "ignores": 25}}
+    inputs.record["checks"][RULE]["metrics"] = {"ignores": 3}
+    inputs.record["checks"][RULE]["source"]["platform"] = LINUX
+    inputs.record["checks"][RULE]["worst_platform"] = LINUX
+    a = accept_from.accept(inputs)
+    assert a.accepted["checks"][RULE]["metrics"][DARWIN]["ignores"] == 3
+
+
 # ---------------------------------------------------------------------------------------------
 # The local acceptance's refusals, each in its form for CI's record
 
