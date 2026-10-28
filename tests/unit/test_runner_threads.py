@@ -5,8 +5,7 @@ a count of events, and the slices the runner waits in are its own."""
 
 from __future__ import annotations
 
-import ctypes
-import ctypes.util  # before any check stands in for ctypes' loaders, which it uses at import
+import ctypes.util  # before a check stands in for ctypes' loaders, which it uses at import
 import queue
 import threading
 
