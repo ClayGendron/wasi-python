@@ -185,11 +185,12 @@ class Snapshot:
 
         Raises:
             TypeError: `path` is not a str or a path.
-            PermissionError: Others may change the folder, or a folder on the way to it.
+            PermissionError: Others may change the folder, or a folder on the way to it, or a
+                call or session running now may write it.
             OSError: The file could not be written.
         """
         target = Path(_path("path", path)).absolute()
-        _places._refuse_live_writable(target.parent)  # no running guest may rewrite it
+        _publish_and_check(target.parent)  # no running guest may rewrite it
         fd, temp = tempfile.mkstemp(prefix=".wasi-python-", suffix=".tmp", dir=target.parent)
         try:
             with os.fdopen(fd, "wb") as f:
@@ -202,7 +203,6 @@ class Snapshot:
             except OSError:
                 pass
             raise
-        _remember(target.parent)
 
     @classmethod
     def load(cls, path: str | os.PathLike[str]) -> Snapshot:
@@ -222,15 +222,15 @@ class Snapshot:
         Raises:
             TypeError: `path` is not a str or a path.
             SnapshotMismatch: The file is not a snapshot, is damaged, or is of a newer format.
-            PermissionError: Others may write the file or its folder, or it is a link.
+            PermissionError: Others may write the file or its folder, or it is a link, or a
+                call or session running now may write it.
             OSError: The file could not be read.
         """
         where = Path(_path("path", path))
-        _places._refuse_live_writable(where.absolute().parent)
+        _publish_and_check(where.absolute().parent)
         fd = _platform.PLATFORM.open_owned(where)
         with os.fdopen(fd, "rb") as f:
             image, origin = _read(f, where)
-        _remember(where.absolute().parent)
         return _made(image, origin)
 
     def check(self, artifacts: Artifacts | None = None) -> None:
@@ -302,11 +302,22 @@ def _origin_of(
     )
 
 
-def _remember(folder: Path) -> None:
-    """Keep a saved or loaded file's folder from every later call's writable grants."""
-    p = process()
+def _publish_and_check(folder: Path) -> None:
+    """Keep a saved or loaded file's folder from every later call's writable grants, then refuse
+    it if a call or session running now may write it, forgetting it again if it was new. Each
+    side publishes before it checks, as a starting call registers its writable grants before it
+    judges these folders, so of a call and a save at once, one always sees the other."""
+    p, key = process(), str(folder)
     with p.cache_lock:
-        p.snapshot_folders.add(str(folder))
+        new = key not in p.snapshot_folders
+        p.snapshot_folders.add(key)
+    try:
+        _places._refuse_live_writable(folder)
+    except PermissionError:
+        if new:
+            with p.cache_lock:
+                p.snapshot_folders.discard(key)
+        raise
 
 
 # ---------------------------------------------------------------------------------------------

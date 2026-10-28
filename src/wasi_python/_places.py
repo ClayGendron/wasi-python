@@ -488,16 +488,22 @@ def _walk_grants(
                 (where, grant, _platform.PLATFORM.walk(where, os.fspath(grant.host), judge=True))
             )
         _judge(walked_root, walked, runtime, _shared_folders(), missing=missing)
+        # Published before the snapshot folders are judged, as a save remembers its folder
+        # before it checks the live calls: of a call and a save at once, one sees the other.
+        _hold_writable(walked_root, walked)
         _judge_snapshot_folders(walked_root, walked)
         _judge_import_path(walked_root, walked, import_path, serving)
         if walked_root is not None and walked_root.missing:
             try:
-                walked_root = _platform.PLATFORM.make_missing("root", walked_root)
+                made = _platform.PLATFORM.make_missing("root", walked_root)
             except OSError as e:
                 raise ValueError(f"root: {root!r} cannot be made: {e.strerror or e}") from None
-        _hold_writable(walked_root, walked)
+            _let_go([walked_root])
+            walked_root = made
+            _hold_writable(walked_root, [])
         return walked_root, walked
     except BaseException:
+        _let_go([walked_root, *(w for _, _, w in walked)])  # its publication undone
         for w in [walked_root, *(w for _, _, w in walked)]:
             if w is not None:
                 w.close()
