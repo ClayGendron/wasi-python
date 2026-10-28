@@ -118,7 +118,7 @@ def _member_parts(name: str) -> tuple[str, ...]:
         or name.startswith("/")
         or "\\" in name
         or ":" in name
-        or any(p in ("", ".", "..") or _platform._rewritten(p) for p in parts)
+        or any(p in ("", ".", "..") or _platform._rewritten_on_windows(p) for p in parts)
         or any(unicodedata.category(c) == "Cf" for c in name)
     ):
         raise RuntimeError(f"the stdlib zip's matplotlib data holds the member {name!r}")

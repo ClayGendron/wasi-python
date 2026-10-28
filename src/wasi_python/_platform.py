@@ -6,7 +6,7 @@ interpreter which system this is. Every caller writes `from . import _platform` 
 `_platform.PLATFORM` at the call, so a check that binds another platform for its duration is
 seen by every caller. The Windows class lives in `_platform_windows.py`, and what both families
 run in `_platform_common.py`, below both; no other module imports either, and what a caller needs
-of the shared half is re-exported here.
+of the shared half has a delegate here.
 
 What differs, and why each difference exists:
 
@@ -60,9 +60,6 @@ from typing import Any, Protocol
 from . import _platform_common
 from ._platform_common import _REMOVE_BATCH, _Opened, _Removal
 from ._platform_common import Identity as Identity
-from ._platform_common import _rewritten as _rewritten
-from ._platform_common import _this_users as _this_users
-from ._platform_common import _unlink_quietly as _unlink_quietly
 from ._platform_common import _Walked as _Walked
 from ._platform_windows import _Windows
 from ._process import process
@@ -1065,6 +1062,26 @@ class _Darwin(_Posix):
 
     def _unset_default(self, home: Path) -> Path:
         return self.default_cache_dir(home)  # macOS reads no override
+
+
+# What callers outside the platform modules need of the shared half, reached through this door.
+# Each delegates at the call, so a stand-in set on `_platform_common` is seen; each has a name of
+# its own, since a runner name is defined in one module.
+
+
+def _rewritten_on_windows(name: str) -> bool:
+    """Whether Windows rewrites or rejects this one path component."""
+    return _platform_common._rewritten(name)
+
+
+def _owned_by_this_user(st: os.stat_result) -> bool:
+    """Whether the file `st` describes is this user's."""
+    return _platform_common._this_users(st)
+
+
+def _remove_file_quietly(path: str) -> None:
+    """Remove `path`, if it can be removed."""
+    _platform_common._unlink_quietly(path)
 
 
 def _select() -> _Platform:
