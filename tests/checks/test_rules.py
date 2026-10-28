@@ -257,6 +257,17 @@ def test_a_release_has_its_structural_review() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_a_release_has_its_release_notes_review() -> None:
+    """A released version whose notes are written for the reader (above 0.1.1) has a review of
+    those notes by someone who wrote none of them, read as an embedder would, ending with its
+    verdict. A prerelease needs none from the judge: its string is what the tree carries all
+    cycle."""
+    version = _release_version_module()
+    current = version.read_version(version.INIT.read_text())
+    errors = scan.release_notes_review_errors(current, paths.CONTEXT / "reviews")
+    assert not errors, scan.report(errors)
+
+
 def test_built_structural_specifications_cite_their_pre_build_review() -> None:
     """A specification whose Kind line carries **structural** was reviewed before it was built:
     once built or landed, it cites its own `-spec-` review, and the file exists."""
@@ -479,18 +490,29 @@ def test_the_version_is_released_by_the_book() -> None:
 
 
 def test_the_news_files_have_their_shape() -> None:
-    """Every news file in the changes folder reads: its changelog lines under the CHANGELOG's
-    headings, its package rows, and one claim block in the claims' shape; the release assembles
-    them and the acceptance from CI takes its reasons from them."""
+    """Every news file in the changes folder reads: its entries in the reader's shape under the
+    six headings, its package rows, and one claim block in the claims' shape; the release
+    assembles them and the acceptance from CI takes its reasons from them. Every link to the
+    documentation site, in a news file or in a section of the changelog written for the reader,
+    leads to a page under docs/, so a page a published note links keeps its path."""
     folder = paths.REPO / news.CHANGES
+    docs = paths.REPO / "docs"
     errors = []
     for f in sorted(folder.glob("*.md")) if folder.is_dir() else []:
         if f.name == "README.md":
             continue
         try:
-            news.load(f)
+            n = news.load(f)
         except news.NewsError as e:
             errors.append(str(e))
+            continue
+        entries = [line for lines in n.changelog.values() for line in lines]
+        errors += [f"{f.name}: {e}" for e in news.link_errors(entries, docs)]
+    changelog = (paths.REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    for s in news.reader_sections(changelog):
+        entries = [line for line in s.body.splitlines() if line.startswith("- ")]
+        where = f"CHANGELOG.md's section for {s.version}" if s.version else "CHANGELOG.md's header"
+        errors += [f"{where}: {e}" for e in news.link_errors(entries, docs)]
     assert not errors, scan.report(errors)
 
 

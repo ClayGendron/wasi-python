@@ -2,10 +2,10 @@
 `uv run pytest tests/lint`.
 
 These hold how the documents and the code's prose are written: the specifications' shape, the one-
-line paragraphs, the labels of an executed write-up, the README's badge, and the rule that code
-names no document of the knowledge tree. They gate a change but are not goal checks: no area, no
-ratchet, no acceptance, and the fast tier does not collect them (`norecursedirs`), so a document
-being written never colours the product's verdict.
+line paragraphs, the labels of an executed write-up, the README's badge, the rule that code
+names no document of the knowledge tree, and the same rule for the release's notes. They gate a
+change but are not goal checks: no area, no ratchet, no acceptance, and the fast tier does not
+collect them (`norecursedirs`), so a document being written never colours the product's verdict.
 """
 
 from __future__ import annotations
@@ -193,6 +193,17 @@ def test_no_string_names_a_context_document() -> None:
             else:
                 hits.append(f"{where}:{line}: {rule}: {phrase}")
     hits += [f"{path}: allowed '{phrase}' is no longer there" for path, phrase in allowed - used]
+    assert not hits, scan.report(hits)
+
+
+def test_release_notes_name_no_context_document() -> None:
+    """The release's notes are a public page, on GitHub, on the site and behind PyPI's link, so
+    they meet the public pages' rule: every news file's entries, the changelog's header and its
+    sections written for the reader name no specification, constitution section, write-up,
+    review, numbered question, path under the knowledge tree or finding, by the same regexes the
+    README and the site are read with, and no reserved embedder name. The sections published
+    before the reader's notes began are not read."""
+    hits = scan.release_note_hits(paths.REPO)
     assert not hits, scan.report(hits)
 
 

@@ -280,6 +280,75 @@ def test_a_release_has_its_structural_review(work) -> None:
     ]
 
 
+def test_a_release_has_its_release_notes_review(work) -> None:
+    reviews = work / "reviews"
+    reviews.mkdir()
+    assert scan.release_notes_review_errors("0.1.2a1", reviews) == []  # a prerelease: never
+    assert scan.release_notes_review_errors("0.1.1", reviews) == []  # before the reader's notes
+    assert scan.release_notes_review_errors("0.1.2", reviews) == [
+        "0.1.2 is a release; reviews/ has no 0.1.2-release-notes-review-<date>.md"
+    ]
+    write(reviews, "0.1.2-structural-review-2026-11-02.md", "## Verdict\n\nReads.\n")
+    assert len(scan.release_notes_review_errors("0.1.2", reviews)) == 1  # the twin does not count
+    write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Findings\n\nNone.\n")
+    assert scan.release_notes_review_errors("0.1.2", reviews) == [
+        "0.1.2-release-notes-review-2026-11-02.md: has no ## Verdict section"
+    ]
+    write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Verdict\n\nReads.\n")
+    assert scan.release_notes_review_errors("0.1.2", reviews) == []
+    assert len(scan.release_notes_review_errors("0.2.0", reviews)) == 1  # another version's file
+
+
+NOTES_NEWS = """# 300: a change
+
+## Changelog
+
+### Fixed
+
+- **It works again.** As spec 144 says, for acme. [Home](https://claygendron.github.io/wasi-python/)
+
+## Claims
+
+```toml
+[[claim]]
+spec = "300"
+```
+"""
+NOTES_LOG = """# Changelog
+
+The header names context/specifications/x.md.
+
+## 0.1.2 — unreleased
+
+A summary for acme.
+
+### Fixed
+
+- **It works again.** As spec 144 says. [Home](https://claygendron.github.io/wasi-python/)
+
+## 0.1.1 — 2026-10-27
+
+- **Published.** As spec 131 says, for acme, in context/specifications/y.md.
+"""
+
+
+def test_the_release_notes_name_no_project_document(work) -> None:
+    """The reader's notes meet the public pages' rule: the news files' entries, the changelog's
+    header and its sections from 0.1.2 on name no project document and no reserved name; the
+    published sections are not read."""
+    write(work, "context/embedders.txt", "# reserved\nacme\n")
+    write(work, "context/changes/300-a-change.md", NOTES_NEWS)
+    write(work, "context/changes/README.md", "The folder names spec 999.\n")
+    write(work, "CHANGELOG.md", NOTES_LOG)
+    assert scan.release_note_hits(work) == [
+        "CHANGELOG.md:3: context path: context/specifications",
+        "CHANGELOG.md:7: embedder: acme",
+        "CHANGELOG.md:11: specification: spec 144",
+        "context/changes/300-a-change.md:7: embedder: acme",
+        "context/changes/300-a-change.md:7: specification: spec 144",
+    ]
+
+
 STRUCTURAL = SPEC.replace(
     "- **Kind:** feature", "- **Kind:** parallel-safe;\n  **structural**: it adds a lock"
 )

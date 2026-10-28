@@ -330,6 +330,28 @@ def test_each_rule_names_what_breaks_it(tmp_path, change, error) -> None:
     assert any(error in e for e in errors), errors
 
 
+def test_a_patch_named_in_a_news_file_is_named(tmp_path) -> None:
+    """A pull request that carries a patch names it in its news file's entries, which reach the
+    changelog at the release; the rule reads them there, so the pull request is held at its own
+    run."""
+    root = _repo(tmp_path, _edit("a.c", FILES["a.c"], NEW_A))
+    _write(root, "CHANGELOG.md", "nothing\n")
+    (root / "context" / "changes").mkdir(parents=True)
+    _write(
+        root,
+        "context/changes/300-two.md",
+        "# 300: two\n\n## Changelog\n\n### Fixed\n\n"
+        f"- **Two.** Carries `recipes/patches/{TOP}/0001-two.patch`.\n\n## Claims\n\nnone\n",
+    )
+    assert scan.patch_errors(root, {TOP}) == []
+    _write(
+        root,
+        "context/changes/300-two.md",
+        "# 300: two\n\n## Claims\n\n" + f"recipes/patches/{TOP}/0001-two.patch\n",
+    )
+    assert any("not named in CHANGELOG" in e for e in scan.patch_errors(root, {TOP}))
+
+
 def test_released_in_a_later_version_is_allowed(tmp_path) -> None:
     root = _repo(tmp_path, _edit("a.c", FILES["a.c"], NEW_A))
     _sub(root, "drafted", "released 1.10.0")
