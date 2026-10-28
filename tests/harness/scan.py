@@ -1533,8 +1533,9 @@ def assets_action_errors(text: str) -> list[str]:
 
 # A step's command words that run code of the repository or a package: uv, Python or pip as a
 # word of their own (a path to one counts; `wasi-python` in a title does not), or a path under
-# release/ (never release-assets/ or release.yml).
-CODE_WORDS = re.compile(r"(?<![\w.-])(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w./-])release/")
+# release/, `./release/` among them (never release-assets/ or release.yml).
+CODE_WORDS = re.compile(r"(?<![\w.-])(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w-])release/")
+UV_WORD = re.compile(r"(?<![\w.-])uvx?\b")
 TOKEN = re.compile(r"github\.token|secrets\.")
 UV_PUBLISH_BANNED = ("--token", "-t", "--username", "-u", "--password", "-p", "--publish-url",
                      "--index", "--check-url")  # fmt: skip
@@ -1578,7 +1579,8 @@ def token_scope_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> li
             errors.append(f"rule 19: {name}'s job-level env: names the token or a secret")
         holders = []
         for _, f in steps.get(name, []):
-            if not any(TOKEN.search(str(v)) for v in (f.get("env") or {}).values()):
+            named = [*(f.get("env") or {}).values(), f.get("run", "")]  # inline counts too
+            if not any(TOKEN.search(str(v)) for v in named):
                 continue
             holders.append(f)
             run = str(f.get("run", ""))
@@ -1622,11 +1624,13 @@ def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> li
         errors.append("rule 20: pypi sets env:")
     if any(re.search(r"GITHUB_(ENV|PATH)", str(f.get("run", ""))) for _, f in pypi):
         errors.append("rule 20: pypi writes GITHUB_ENV or GITHUB_PATH")
-    uploads = [str(f.get("run", "")) for _, f in pypi if "uv publish" in str(f.get("run", ""))]
-    if len(uploads) != 1:
+    # Every step that runs uv counts, however its words are ordered (`uv --no-config publish`).
+    uploads = [str(f.get("run", "")) for _, f in pypi if UV_WORD.search(str(f.get("run", "")))]
+    words = uploads[0].replace("\\\n", " ").split() if len(uploads) == 1 else []
+    if "publish" not in words:
         return [*errors, "rule 20: pypi does not run uv publish in exactly one step"]
-    words = uploads[0].replace("\\\n", " ").split()
-    args = words[words.index("publish") + 1 :] if "publish" in words else []
+    at = next(k for k, w in enumerate(words) if UV_WORD.fullmatch(w))
+    args = [w for w in words[at + 1 :] if w != "publish"]
     files = [a for k, a in enumerate(args) if not a.startswith("-")
              and (k == 0 or args[k - 1] != "--trusted-publishing")]  # fmt: skip
     if "--no-config" not in args:

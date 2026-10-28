@@ -49,11 +49,11 @@ Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED mean
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 —
-2. Finding 2 —
-3. Finding 3 —
-4. Finding 4 —
-5. Finding 5 —
+1. Finding 1 — fixed with the fix text: a step holds the token when `TOKEN` matches its `env:` or its `run:`, and `CODE_WORDS`'s second arm reads `(?<![\w-])release/`; two binding rows, the inline one naming rule 11 beside 19; the real workflow stays green.
+2. Finding 2 — fixed: every `pypi` step whose `run:` holds `uv` or `uvx` as a command word is an upload, there must be exactly one, its words must hold `publish`, and the flags are read from every word after `uv`; binding row "a second step of `pypi` running `uv --no-config publish`".
+3. Finding 3 — fixed: `is_agents` compares casefolded names; `ROWS` gain `context/claude.md` and `docs/Agents.md`; Decision 1 says "in any case".
+4. Finding 4 — fixed: `runs_of` keeps a run only when its `pull_requests` lists this pull request's number, which `green_runs` reads from `GITHUB_REF` (no listing without one); row `test_a_run_of_another_pull_request_on_the_same_branch_and_head_is_never_reused`.
+5. Finding 5 — to be done once the new run's Windows legs are read: every box ticked in one edit of the description, its run's "Why" and id recorded in the landing notes (criterion 4).
 
 ## Verdict
 

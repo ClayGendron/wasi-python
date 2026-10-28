@@ -85,6 +85,8 @@ ROWS = [
     ("CLAUDE.md", {"agents"}),
     ("context/CLAUDE.md", {"agents"}),
     ("docs/AGENTS.md", {"agents"}),
+    ("context/claude.md", {"agents"}),
+    ("docs/Agents.md", {"agents"}),
     # Paths in no row: not docs_only, so the own shards run.
     ("tests/unit/test_x.py", set()),
     ("tests/checks/test_rules.py", set()),
@@ -1355,15 +1357,28 @@ def test_an_edit_reads_its_description_anew() -> None:
     assert any("[skip ci]" in r for r in ci_plan.refusals(d, _edited(), changed, pr))
 
 
+def _listed(run_id: int, owner: str, number: int = 7) -> dict:
+    """One run of the Actions runs listing, on the edit's head, of pull request `number`."""
+    return {"id": run_id, "head_sha": EDIT_HEAD, "status": "completed", "conclusion": "success",
+            "head_repository": {"full_name": owner},
+            "pull_requests": [{"number": number}]}  # fmt: skip
+
+
+KEPT = {"databaseId": 7, "headSha": EDIT_HEAD, "status": "completed", "conclusion": "success"}
+
+
 def test_a_run_from_a_fork_is_never_reused() -> None:
     """A fork's branch of the same name at the same head is listed by branch and event alike;
     only the run's head repository tells them apart."""
+    payload = {"workflow_runs": [_listed(8, "someone/wasi-python"),
+                                 _listed(7, "ClayGendron/wasi-python")]}  # fmt: skip
+    assert ci_plan.runs_of(payload, "ClayGendron/wasi-python", 7) == [KEPT]
 
-    def run(run_id: int, owner: str) -> dict:
-        return {"id": run_id, "head_sha": EDIT_HEAD, "status": "completed",
-                "conclusion": "success", "head_repository": {"full_name": owner}}  # fmt: skip
 
-    payload = {"workflow_runs": [run(8, "someone/wasi-python"), run(7, "ClayGendron/wasi-python")]}
-    assert ci_plan.runs_of(payload, "ClayGendron/wasi-python") == [
-        {"databaseId": 7, "headSha": EDIT_HEAD, "status": "completed", "conclusion": "success"}
-    ]
+def test_a_run_of_another_pull_request_on_the_same_branch_and_head_is_never_reused() -> None:
+    """One branch may be the head of two pull requests, into dev and into main: their runs share
+    the listing, and only a run's pull requests say which one it judged."""
+    payload = {"workflow_runs": [_listed(8, "ClayGendron/wasi-python", number=9),
+                                 _listed(7, "ClayGendron/wasi-python")]}  # fmt: skip
+    assert ci_plan.runs_of(payload, "ClayGendron/wasi-python", 7) == [KEPT]
+    assert ci_plan.green_runs({"GH_TOKEN": "x", "GITHUB_REPOSITORY": "o/r"}, "b") is None
