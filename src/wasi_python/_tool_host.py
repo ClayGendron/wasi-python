@@ -36,6 +36,10 @@ _FAULT_CHARS = 200  # a fault's type and first line, as a mount's FileFault
 _RECORD_OUTCOMES = 1000  # the frames a record lists, whatever max_calls is
 _MAX_ID = 2**53 - 1
 _MAX_ABANDONED = 4  # tool threads one call may leave running before its next call is refused
+# Abandoned tool threads alive in the whole process before any call's next tool call is refused:
+# sixteen calls' worth, so a burst passes and a host notices long before it degrades.
+_MAX_ABANDONED_IN_PROCESS = 64
+_TOOL_WAIT_CEILING = 3600.0  # the longest a tool call waits when nothing else bounds it
 _DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
 _SURROGATE = re.compile("[\ud800-\udfff]")
 # One token per match, never retried: an escape pair, a quote or a bracket (rule 3).
@@ -600,12 +604,16 @@ class _Bounded:
     the call's `cancel` (`cancelled`); the call's deadline less two ticks, read from the ticker
     as the poll's waits read it, or the tool's `timeout_s` (`timeout`). A call left running is
     abandoned: its thread runs to its end unseen, and its result is dropped. One call may hold
-    `_MAX_ABANDONED` of them; while it does, its next tool call is answered `timeout` at once.
+    `_MAX_ABANDONED` of them, and the process `_MAX_ABANDONED_IN_PROCESS`; while either is
+    full, a call's next tool call is answered `timeout` at once. With neither a `timeout_s` nor
+    a deadline, a call waits at most `wait_s`: a session's lifetime, else `_TOOL_WAIT_CEILING`.
 
     Everything it needs is injected, so the judge drives it with fakes: `ticks` (the epoch
     ticker's count), `ctrl_c` (whether a Ctrl-C is pending; read, never cleared), `count` (told
-    +1 and -1 as tool threads start and end), `start` (starts a thread) and `clock` (for
-    `timeout_s`). It never raises an `Exception`: a thread that cannot start, or a fault of its
+    +1 and -1 as tool threads start and end), `abandoned` (told +1 and -1 as threads are
+    abandoned and end, and answering the process's count after the change; it may be called
+    under the bound's own lock, so it takes only a leaf), `start` (starts a thread) and `clock`
+    (for `timeout_s`). It never raises an `Exception`: a thread that cannot start, or a fault of its
     own, is a `tool_error` answer that keeps the call and its tool in the record."""
 
     def __init__(
@@ -617,12 +625,16 @@ class _Bounded:
         cancel: threading.Event | None = None,
         ctrl_c: Callable[[], bool] | None = None,
         count: Callable[[int], Any] = lambda delta: None,
+        abandoned: Callable[[int], int] = lambda delta: 0,
         start: Callable[[threading.Thread], Any] = threading.Thread.start,
         clock: Callable[[], float] = time.monotonic,
         context: Callable[[], contextvars.Context] = contextvars.copy_context,
+        wait_s: float | None = None,
     ) -> None:
         self._tick, self._stop_at, self._ticks = tick_s, stop_at, ticks
+        self._wait_s = _TOOL_WAIT_CEILING if wait_s is None else wait_s
         self._cancel, self._ctrl_c, self._count = cancel, ctrl_c, count
+        self._in_process = abandoned
         self._start, self._clock = start, clock
         self._context = context  # where a call's context is copied: the home thread
         self._lock = threading.Lock()
@@ -669,6 +681,12 @@ class _Bounded:
             if full:
                 busy = f"{name} timed out: {_MAX_ABANDONED} earlier tool calls are still running"
                 return _Interrupted("timeout", False, busy)
+            if self._in_process(0) >= _MAX_ABANDONED_IN_PROCESS:
+                busy = (
+                    f"{name} timed out: {_MAX_ABANDONED_IN_PROCESS} abandoned tool calls are "
+                    "still running in this process"
+                )
+                return _Interrupted("timeout", False, busy)
             slot = _Slot()
             if not self._started(work, slot):
                 return work.failed("tool_error", internal, slot.fault)
@@ -698,6 +716,7 @@ class _Bounded:
                     slot.finished = True
                     if slot.abandoned:
                         self._abandoned -= 1
+                        self._in_process(-1)
                 self._count(-1)
 
         self._count(1)
@@ -730,6 +749,7 @@ class _Bounded:
                 return False
             slot.abandoned = True
             self._abandoned += 1
+            self._in_process(1)
             started = (post := slot.post) is not None and post.started
         if started and post is not None:
             _cancel_post(post)
@@ -748,6 +768,8 @@ class _Bounded:
 
     def _wait(self, work: _Work, slot: _Slot) -> _Done | _Interrupted:
         name, timeout = work.tool.name, work.tool.timeout_s
+        if timeout is None and self._stop_at is None:  # nothing else bounds the wait
+            timeout = self._wait_s
         until = None if timeout is None else self._clock() + timeout
         while True:
             pause = self._tick

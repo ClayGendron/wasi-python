@@ -29,6 +29,7 @@ RESET = (
     "pools",
     "live",
     "tool_threads_running",
+    "tool_threads_abandoned",
     "zips",
     "compiling",
     "ticker_thread",
@@ -105,6 +106,7 @@ def test_reset_after_fork_resets_what_a_child_must_not_inherit() -> None:
     p.pool, p.pool_size, p.pools = object(), 7, [object()]
     p.live = {threading.Event()}
     p.tool_threads_running = 3
+    p.tool_threads_abandoned = 2
     p.zips = {"a digest": [object(), (1, 2), None]}
     p.compiling = {(True, "a digest"): threading.Lock()}
     p.ticker_thread, p.ticker_active = object(), 2

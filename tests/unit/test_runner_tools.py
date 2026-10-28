@@ -543,6 +543,128 @@ def test_abandoned_calls_are_counted_past_the_listed_outcomes(release) -> None:
     assert T.ToolRecord(1, (), 0).abandoned == 0  # the field is last, with a default
 
 
+class _StepClock:
+    """The host's clock, stepped by the check, never by a sleep. A tool call's first read sets
+    its end one second on. The tool, once running, waits for one more read of the clock, so
+    that first read is behind it, and then says it has started; the next read moves the clock
+    ten seconds, past the end, and the call is abandoned while its tool runs."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.reads = 0
+        self.started = False  # the tool of the call being waited on is running
+        self.cond = threading.Condition()
+
+    def __call__(self) -> float:
+        with self.cond:
+            self.reads += 1
+            if self.started:
+                self.started = False
+                self.now += 10.0
+            self.cond.notify_all()
+            return self.now
+
+    def start(self) -> None:
+        with self.cond:
+            seen = self.reads
+            self.cond.wait_for(lambda: self.reads > seen, 60)  # a fail-safe, not a timing
+            self.started = True
+
+
+def _abandoning(clock: _StepClock, held: list) -> T.Tool:
+    """A tool that tells the clock it has started and then blocks on an event of its own, kept
+    with its thread so the check can release one call at a time."""
+
+    @tool(name="slow", timeout_s=1.0)
+    def slow() -> int:
+        """Wait for the check."""
+        own = threading.Event()
+        held.append((own, threading.current_thread()))
+        clock.start()
+        own.wait()
+        return 1
+
+    return slow
+
+
+def _no_tool_thread_alive() -> None:
+    """No tool thread of an earlier row is still running, so none can end during this row and
+    move the process's count under it."""
+    alive = [t.name for t in threading.enumerate() if t.name.startswith("wasi-python-tool-")]
+    assert not alive, alive
+
+
+def _bound(clock: _StepClock) -> Any:
+    """One call's bound, counted against the process as the runner's are."""
+    return H._Bounded(tick_s=0.001, clock=clock, abandoned=_call._count_abandoned)
+
+
+def _fill_the_process(clock: _StepClock, held: list) -> None:
+    """Sixteen calls, each leaving four tool threads abandoned: the process's cap of 64."""
+    slow = _abandoning(clock, held)
+    for _ in range(16):
+        host = H._ToolHost([slow], invoke=_bound(clock))
+        answers = [kind(host(call_frame("slow", id=i))) for i in range(4)]
+        assert answers == ["timeout"] * 4
+        assert [o.abandoned for o in host.record.outcomes] == [True] * 4
+    assert len(held) == 64
+
+
+def _let_go(held: list) -> None:
+    for own, _ in held:
+        own.set()
+    for _, thread in held:
+        thread.join(60)  # a fail-safe, not a timing
+
+
+@tool
+def quick() -> int:
+    """Answer at once."""
+    return 2
+
+
+def test_abandoned_tool_threads_are_capped_per_process(monkeypatch) -> None:
+    """Sixteen calls may each leave four tool threads running; the seventeenth call's first
+    tool call is refused before its tool starts, with the process's bound in its message."""
+    _no_tool_thread_alive()
+    monkeypatch.setattr(process(), "tool_threads_abandoned", 0, raising=False)
+    clock, held = _StepClock(), []
+    try:
+        _fill_the_process(clock, held)
+        host = H._ToolHost([_abandoning(clock, held), quick], invoke=_bound(clock))
+        assert kind(host(call_frame("slow"))) == "timeout"
+        o = _last(host)
+        assert (o.outcome, o.abandoned, o.message) == (
+            "timeout", False,
+            "slow timed out: 64 abandoned tool calls are still running in this process",
+        ), o  # fmt: skip
+        assert len(held) == 64  # its work never started
+        assert process().tool_threads_abandoned == 64
+        assert kind(host(call_frame("quick", id=2))) == "timeout"  # any tool, while full
+    finally:
+        _let_go(held)
+    assert process().tool_threads_abandoned == 0
+
+
+def test_the_process_count_falls_as_an_abandoned_thread_returns(monkeypatch) -> None:
+    """When one of the 64 abandoned threads returns, the count falls by one and the next call's
+    tool call runs."""
+    _no_tool_thread_alive()
+    monkeypatch.setattr(process(), "tool_threads_abandoned", 0, raising=False)
+    clock, held = _StepClock(), []
+    try:
+        _fill_the_process(clock, held)
+        own, thread = held[0]
+        own.set()
+        thread.join(60)  # a fail-safe, not a timing
+        assert process().tool_threads_abandoned == 63
+        host = H._ToolHost([quick], invoke=_bound(clock))
+        assert value(host(call_frame("quick"))) == 2
+    finally:
+        _let_go(held)
+    assert process().tool_threads_abandoned == 0
+
+
 def _held_slot(monkeypatch, hold: threading.Event, filled: threading.Event) -> None:
     """Make each slot's `filled.set()` hold the tool's thread after setting it, before the
     thread's `finally` runs: the window where a result and an end race."""

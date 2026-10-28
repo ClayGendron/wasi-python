@@ -5,10 +5,12 @@ in a fixed order, as a raw `host=` would see them. Nothing here measures time.""
 from __future__ import annotations
 
 import functools
+import itertools
 import json
 import numbers
 import subprocess
 import sys
+import threading
 from typing import Any, Literal
 
 import pytest
@@ -1430,3 +1432,46 @@ def test_the_tool_list_cap_is_exact_for_each_id(monkeypatch) -> None:
     host = H._ToolHost(tools, max_calls=None)
     for i in (None, 0, 9, 10, 2**53 - 1):
         assert host._list_length(i) == len(host._list_answer(i)) == length(i), i
+
+
+def test_a_tool_call_with_no_timeout_and_no_deadline_still_ends() -> None:
+    """A tool with no `timeout_s`, in a run with no deadline, waits at most the session's
+    lifetime when the bound is given one, and the tool host's ceiling of an hour otherwise. The
+    host's clock steps 900 s at each read, so the call ends at its fifth read, never by a sleep.
+    A Ctrl-C callable that answers True after many polls is a fail-safe that ends a wait with no
+    bound at all, so a host without the ceiling fails here rather than hanging."""
+    hold = threading.Event()
+
+    @tool(name="slow")
+    def slow() -> int:
+        """Wait for the check."""
+        hold.wait()
+        return 1
+
+    def wait_once(**kw: Any) -> tuple[T.ToolOutcome, int]:
+        reads = itertools.count(0.0, 900.0)
+        clock_reads: list[float] = []
+
+        def clock() -> float:
+            clock_reads.append(next(reads))
+            return clock_reads[-1]
+
+        polls = itertools.count()
+        bound = H._Bounded(tick_s=0.001, clock=clock, ctrl_c=lambda: next(polls) > 1000, **kw)
+        host = H._ToolHost([slow], invoke=bound)
+        kind(host(call_frame("slow", {})))
+        return host.record.outcomes[-1], len(clock_reads)
+
+    try:
+        o, reads = wait_once()
+        assert (o.outcome, o.abandoned, o.message) == (
+            "timeout", True, "slow timed out after 3600 s"
+        ), o  # fmt: skip
+        assert reads == 5 and H._TOOL_WAIT_CEILING == 3600.0
+        o, reads = wait_once(wait_s=1800.0)  # a session whose lifetime is half an hour
+        assert (o.outcome, o.message, reads) == ("timeout", "slow timed out after 1800 s", 3), o
+    finally:
+        hold.set()
+        for t in threading.enumerate():
+            if t.name == "wasi-python-tool-slow":
+                t.join(60)  # a fail-safe, not a timing

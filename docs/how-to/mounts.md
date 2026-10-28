@@ -84,6 +84,8 @@ Each limit has a default:
 - **Open files.** At most `max_open_files` files and folders are open at once, 1,024 by default, counted with those in grants and the root. Mounts also hold at most 1,024 whatever the cap. The next open answers `EMFILE` without calling your provider.
 - **Staged bytes.** The bytes of every open file plus every kept listing are at most `memory_bytes`. With `memory_bytes=None` the bound is 4 GiB. A `read` that would pass it answers `EFBIG`. Your provider should refuse a large file before it reads it: check the size in `stat` first.
 
+Staged bytes are host memory, beside the guest's own. So a guest with a writable mount can hold three things at once in your process: up to `memory_bytes` of linear memory, up to `memory_bytes` of staged files, and one more copy of a staged file while your provider is handed it at a close. To budget host memory for many untrusted guests, count three times `memory_bytes` for each: about 3 GiB at the default.
+
 ## Know how a mount differs from a grant
 
 A read-only mount answers as a read-only grant does: every write-type call is `EPERM`, before your provider is called. It differs in a few ways:
