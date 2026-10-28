@@ -164,6 +164,7 @@ class _Platform(Protocol):
         self, root: Path, fd: int | None, parts: tuple[str, ...]
     ) -> tuple[Path, int | None]: ...
     def long_path(self, path: str) -> str: ...
+    def absolute(self, path: str) -> str: ...
     def try_lock(self, fd: int) -> bool | None: ...
     def unlock_close(self, fd: int, *, unlink: str | None = None) -> None: ...
     def kernel_identity(self) -> str | None: ...
@@ -349,6 +350,12 @@ class _Posix:
 
     def long_path(self, path: str) -> str:
         return os.path.abspath(path)
+
+    def absolute(self, path: str) -> str:
+        """`path` against the working folder, joined without normalising: the kernel takes a
+        `..` after it follows the link before it, so collapsing `link/..` by its spelling would
+        name another folder."""
+        return os.path.join(os.getcwd(), path)
 
     # Locks.
 

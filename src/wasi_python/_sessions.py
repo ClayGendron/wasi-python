@@ -8,7 +8,6 @@ import contextvars
 import enum
 import functools
 import math
-import os
 import queue
 import threading
 import time
@@ -974,7 +973,7 @@ def _open_session(
     c: _CheckedCall,
     host: Host | None,
     snapshot: bool,
-    cache_dir: str | os.PathLike[str] | None | bool,
+    chosen: _engines._Cache,
     artifacts: Artifacts | None,
     state: _State,
 ) -> None:
@@ -990,7 +989,7 @@ def _open_session(
             "predates the tool protocol, so its guest cannot `from host import "
             "tools`; tools= needs a set built with the guest package"
         )
-    cache = _engines._cache_dir(cache_dir)
+    cache = chosen.folder
     binary = found.snapshot if snapshot else found.plain
     metered = c.fuel is not None
     engine = _engines._engine(metered)
@@ -1007,7 +1006,7 @@ def _open_session(
     root = c.root
     entries = c.import_path
     walked_root, walked = _places._walk_grants(
-        root, c.grants, found, cache, entries, c.import_serving, others=_engines._caches(cache)
+        root, c.grants, found, cache, entries, c.import_serving, others=_engines._caches(chosen)
     )
     state.walked = [w for w in [walked_root, *(w for _, _, w in walked)] if w is not None]
     preopens: list[_Preopen] = []

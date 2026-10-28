@@ -241,6 +241,11 @@ class _Windows:
         path, and guests make links only where the user holds the symbolic-link privilege."""
         return _platform_common._real_dir_by_path(root, parts), None
 
+    def absolute(self, path: str) -> str:
+        """`path` against the working folder of its drive: Win32 takes `..` by its spelling
+        before it opens anything, and a drive-relative `D:rel` needs that drive's own folder."""
+        return os.path.abspath(path)
+
     def long_path(self, path: str) -> str:
         """An extended-length path, so no path is limited to 260 characters."""
         path = os.path.abspath(path)
