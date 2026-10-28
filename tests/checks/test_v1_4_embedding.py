@@ -4560,8 +4560,9 @@ print(json.dumps(out))
 def test_links_and_times_in_a_writable_mount(guest_workdir) -> None:
     """`os.link` and `os.symlink` within a writable mount are ENOTSUP,
     `os.link` to a writable grant EXDEV and to a read-only grant EPERM, each with no provider
-    call; `os.utime` of a file and of the mount's own path succeeds with no call, and `os.stat`
-    then shows the provider's `mtime_ns`; `shutil.copy2` within the mount succeeds."""
+    call; `os.utime` of a file succeeds after one `stat`, which finds it as a grant would, and of
+    the mount's own path with no call; `os.stat` then shows the provider's `mtime_ns`;
+    `shutil.copy2` within the mount succeeds."""
     from harness.files import MemoryProvider
     from wasi_python import Grant, Mount, Stat
 
@@ -4588,7 +4589,7 @@ def test_links_and_times_in_a_writable_mount(guest_workdir) -> None:
         "symlink within": [["errno", 58], 0],
         "link to a writable grant": [["errno", 75], 0],
         "link to a read-only grant": [["errno", 63], 0],
-        "utime of a file": [None, 0],
+        "utime of a file": [None, 1],
         "utime of the mount": [None, 0],
         "stat after": 7,
     }, out

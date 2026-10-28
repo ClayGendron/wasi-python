@@ -436,8 +436,14 @@ def _path_filestat_set_times(
     if isinstance(texts, int):
         return texts
     resolved = _resolve(entry, texts[0])
-    # Times are the provider's: accepted and ignored, with no provider call.
-    return resolved if isinstance(resolved, int) else 0
+    if isinstance(resolved, int):
+        return resolved
+    if not fst or resolved[0] == "/":
+        # No time to set is nothing to do: Linux's utimensat answers 0 before it looks the path
+        # up, and the reference grant with it. The mount itself is always there.
+        return 0
+    # Times are the provider's: accepted and ignored once the path is found, as a grant answers.
+    return files._stat(caller, entry.mount, resolved[0])[0]
 
 
 def _path_symlink(
