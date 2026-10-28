@@ -32,5 +32,5 @@ new = [
 changed = [
   "tests/unit/test_runner_threads.py::test_a_resolve_once_table_is_never_seen_half_filled",
 ]
-units = 23
+units = 24
 ```

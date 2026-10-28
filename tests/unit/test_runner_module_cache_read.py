@@ -521,6 +521,8 @@ RIGHTS = {
     "chown": 1 << 13,
 }
 ALL_SIX = sum(RIGHTS.values())
+# The kernel's generic write bit (sys/kauth.h), which grants every right above but chown.
+GENERIC_WRITE = 1 << 23
 # list, search, readattr, writeattr, readextattr, writeextattr, readsecurity, synchronize.
 CHANGE_NOTHING = (1 << 1) | (1 << 3) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11)
 CHANGE_NOTHING |= 1 << 20
@@ -574,25 +576,27 @@ def _group_words(gid: int) -> str:
 
 @pytest.mark.skipif(not POSIX, reason=WALK_SKIP)
 @pytest.mark.parametrize(
-    ("kind", "rights"),
-    [*(("user", [name]) for name in RIGHTS), ("group", ["add_file", "delete_child"])]
-    + [("", ["delete_child"])],
-    ids=[*RIGHTS, "group-everyone", "unnamed"],
+    ("kind", "rights", "mask"),
+    [*(("user", [name], None) for name in RIGHTS), ("group", ["add_file", "delete_child"], None)]
+    + [("", ["delete_child"], None), ("user", [*RIGHTS][:5], GENERIC_WRITE)],
+    ids=[*RIGHTS, "group-everyone", "unnamed", "generic-write"],
 )
 def test_an_entry_that_lets_another_change_a_folder_on_the_way_is_not_used(
-    work, monkeypatch, kind, rights
+    work, monkeypatch, kind, rights, mask
 ) -> None:
     """The folder above the cache is a real 0755 folder whose access list holds one allow
     entry: for another user, each right that adds, removes or renames what the folder holds,
     removes or renames the folder, or changes who may; for the group everyone; for a principal
-    the system cannot name, whose id is never read as root's. Each lets someone other than this
-    user or root change the folder, so the cache is not used, and the warning names the folder,
-    the principal and the rights."""
+    the system cannot name, whose id is never read as root's; for another user, the kernel's
+    generic write bit alone, which a list a network file system translates can carry and which
+    grants five of those rights. Each lets someone other than this user or root change the
+    folder, so the cache is not used, and the warning names the folder, the principal and the
+    rights."""
     binary, digest = _tiny(work)
     above = _above(work)
     cache = above / "cache"
     who = {"user": _other(), "group": EVERYONE, "": 0}[kind]
-    mask = sum(RIGHTS[name] for name in rights)
+    mask = sum(RIGHTS[name] for name in rights) if mask is None else mask
     _listed(monkeypatch, above, (True, kind, who, mask, False))
     counts, seen, _ = _miss(binary, cache, digest)
     principal = {
