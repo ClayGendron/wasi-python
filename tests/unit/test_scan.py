@@ -999,7 +999,8 @@ BAD_BINDINGS = [
         {7},
     ),
     (("verify", CHECKOUT, ""), {7}),
-    (("pypi", "uses: ./.github/actions/verify-artifact", "uses: ./.github/actions/other"), {7}),
+    # Another local action in pypi: not the one that reads the build's files, nor one it may use.
+    (("pypi", "uses: ./.github/actions/verify-artifact", "uses: ./.github/actions/other"), {7, 20}),
     # A copy of the action's check in a job.
     (
         (

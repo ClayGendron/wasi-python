@@ -1531,15 +1531,126 @@ def assets_action_errors(text: str) -> list[str]:
     return errors
 
 
+# A step's command words that run code of the repository or a package: uv, Python, pip, or a
+# path under release/ (never release-assets/ or release.yml).
+CODE_WORDS = re.compile(r"\b(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w./-])release/")
+TOKEN = re.compile(r"github\.token|secrets\.")
+UV_PUBLISH_BANNED = ("--token", "-t", "--username", "-u", "--password", "-p", "--publish-url",
+                     "--index", "--check-url")  # fmt: skip
+PYPI_USES = re.compile(r"(actions/checkout|astral-sh/setup-uv)@[0-9a-f]{40}")
+
+
+def _job_block(lines: list[str], key: str) -> list[str]:
+    """A job-level block's lines (`env:`), its keys indented six spaces."""
+    out, inside = [], False
+    for line in lines:
+        if re.fullmatch(rf"    {key}:\s*(.*)", line):
+            inside = True
+            out.append(line)
+            continue
+        if inside:
+            if line.startswith("      ") or not line.strip():
+                out.append(line)
+            else:
+                break
+    return out
+
+
+def _writes(lines: list[str]) -> bool:
+    perms = _permission_set(lines)
+    return _job_field(lines, "permissions") == "write-all" or any(
+        p.endswith(": write") for p in perms or ()
+    )
+
+
+def token_scope_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
+    """Rule 19: in a job that can write, the token reaches only steps that run gh and no code of
+    the repository or a package: no job-level env names it, a step whose env names it runs gh and
+    none of CODE_WORDS, and publish names it on one step alone, the one that creates the release.
+    The steps of a job share a runner, so this keeps the token out of the environment uv, Python
+    and the release scripts see, which closes an accidental read."""
+    errors = []
+    for name, lines in jobs.items():
+        if not _writes(lines):
+            continue
+        if TOKEN.search("\n".join(_job_block(lines, "env"))):
+            errors.append(f"rule 19: {name}'s job-level env: names the token or a secret")
+        holders = []
+        for _, f in steps.get(name, []):
+            if not any(TOKEN.search(str(v)) for v in (f.get("env") or {}).values()):
+                continue
+            holders.append(f)
+            run = str(f.get("run", ""))
+            if not re.search(r"\bgh\s", run) or CODE_WORDS.search(run):
+                errors.append(
+                    f"rule 19: {name}'s step {f.get('name', '(unnamed)')!r} holds the token and "
+                    "runs something other than gh"
+                )
+        if name == "publish" and (
+            len(holders) != 1 or "gh release create" not in str(holders[0].get("run", ""))
+        ):
+            errors.append("rule 19: publish names the token on more than the one step that runs "
+                          "gh release create")  # fmt: skip
+    return errors
+
+
+def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
+    """Rule 20: PyPI's upload runs the pinned uv through trusted publishing alone. pypi uses only
+    the checkout, setup-uv at the workflow's UV_VERSION with no cache, and the local action; one
+    step runs `uv publish --no-config --trusted-publishing always` on files under dist/ with no
+    credential or index of its own; pypi sets no env: anywhere and writes neither GITHUB_ENV nor
+    GITHUB_PATH, since a variable such as UV_CONFIG_FILE is read before --no-config; and no job
+    of the workflow runs in a container or beside a service, whose image is named by a tag."""
+    errors = []
+    for name, lines in jobs.items():
+        if _job_field(lines, "container") is not None or _job_field(lines, "services") is not None:
+            errors.append(f"rule 20: {name} runs in a container or beside a service")
+    pypi = steps.get("pypi", [])
+    for _, f in pypi:
+        uses = f.get("uses")
+        if uses is None:
+            continue
+        if uses != ASSETS_ACTION and not PYPI_USES.fullmatch(uses):
+            errors.append(f"rule 20: pypi uses {uses}")
+        if (
+            uses.startswith("astral-sh/setup-uv@")
+            and (f.get("with") or {}).get("version") != "${{ env.UV_VERSION }}"
+        ):
+            errors.append("rule 20: pypi's setup-uv is not the workflow's UV_VERSION")
+    if _job_block(jobs.get("pypi", []), "env") or any("env" in f for _, f in pypi):
+        errors.append("rule 20: pypi sets env:")
+    if any(re.search(r"GITHUB_(ENV|PATH)", str(f.get("run", ""))) for _, f in pypi):
+        errors.append("rule 20: pypi writes GITHUB_ENV or GITHUB_PATH")
+    uploads = [str(f.get("run", "")) for _, f in pypi if "uv publish" in str(f.get("run", ""))]
+    if len(uploads) != 1:
+        return [*errors, "rule 20: pypi does not run uv publish in exactly one step"]
+    words = uploads[0].replace("\\\n", " ").split()
+    args = words[words.index("publish") + 1 :] if "publish" in words else []
+    files = [a for k, a in enumerate(args) if not a.startswith("-")
+             and (k == 0 or args[k - 1] != "--trusted-publishing")]  # fmt: skip
+    if "--no-config" not in args:
+        errors.append("rule 20: uv publish runs without --no-config")
+    if "--trusted-publishing" not in args or args[args.index("--trusted-publishing") + 1 :][:1] != [
+        "always"
+    ]:
+        errors.append("rule 20: uv publish runs without --trusted-publishing always")
+    if any(a.split("=")[0] in UV_PUBLISH_BANNED for a in args):
+        errors.append("rule 20: uv publish names a credential or an index of its own")
+    if not files or any(not f.startswith("dist/") for f in files):
+        errors.append("rule 20: uv publish uploads files outside dist/")
+    return errors
+
+
 def release_binding_errors(text: str, action: str) -> list[str]:
-    """Every rule that ties what the release signs to what it built (rules 1 to 18), one line per
+    """Every rule that ties what the release signs to what it built (rules 1 to 20), one line per
     breach, each starting with its rule's number, on the workflow (and the local action
     `action`, the text of ASSETS_ACTION_FILE) without their comments: every reader of the
     build's files reads them through the action, which downloads them by an id it has guarded,
     checks them against the SHA-256 of SHA256SUMS the build job handed on, and acts on nothing
     else; nothing carries on past a failure; PyPI waits on publish and a pushed tag; the publish
     jobs name their environments, run setup-uv with no cache, and hold only the permissions they
-    use."""
+    use; the token of a job that can write reaches only gh (rule 19); and PyPI's upload runs the
+    pinned uv through trusted publishing alone, with no container and no env (rule 20)."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     steps = {
@@ -1751,7 +1862,30 @@ def release_binding_errors(text: str, action: str) -> list[str]:
     pypi = jobs.get("pypi", [])
     if _job_field(pypi, "if") != PYPI_IF or "publish" not in _needs(pypi):
         errors.append(f"rule 18: pypi's if: is not {PYPI_IF!r}, or it does not need publish")
+    errors += token_scope_errors(jobs, steps)
+    errors += pypi_upload_errors(jobs, steps)
     return errors
+
+
+def pull_request_types(text: str) -> set[str]:
+    """The `types:` of the workflow's `pull_request` trigger, read from its `on:` block; empty when
+    it names none."""
+    inside_on = inside_pr = False
+    for line in without_comments(text).splitlines():
+        if re.fullmatch(r"on:\s*", line):
+            inside_on = True
+            continue
+        if inside_on and line and not line.startswith(" "):
+            break
+        if not inside_on:
+            continue
+        if re.fullmatch(r"  [A-Za-z_]+:.*", line):
+            inside_pr = line.strip().startswith("pull_request:")
+            continue
+        m = re.fullmatch(r"    types:\s*\[(.*)\]\s*", line)
+        if inside_pr and m:
+            return {w.strip() for w in m[1].split(",") if w.strip()}
+    return set()
 
 
 # ---------------------------------------------------------------------------------------------
