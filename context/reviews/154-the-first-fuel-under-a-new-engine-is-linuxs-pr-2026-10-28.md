@@ -1,0 +1,88 @@
+# Review of 154 — The first fuel under a new engine is Linux's
+
+- **Date:** 2026-10-28
+- **Reviewer:** an agent (Claude Opus 5.5), a fresh sub-agent of https://claude.ai/code/session_01ThzDEU6oHaVS4VRYYiC1im; not the author
+- **Reviewed:** first on its own branch, `origin/dev` (`2bb857a1`)..`fa431621`, pull request #43 (six commits: the draft `9f197985`, the rows `a538930e`, the harness `447d4b3f`, the ledger `1bd2e0ab`, the README and news file `e55bc4a9`, the landing notes `fa431621`), against the specification and its landing notes. 154 now lands on `spec/142-116-154-the-length-rule-the-type-checks-and-the-first-fuel` with 116 and 142, rebased onto `dev`'s `bd8dcaee`, its commits cherry-picked as `cf987ca4`, `6d11741e`, `1226321c`, `d6cd92a2`, `cd015320` and `5c497717`, then `d05f1759` (Lows 1 and 2), head `51d65c0e`. On that branch (READ, EXECUTED): `tests/harness/scoreboard.py` and `gather.py` are byte-equal to `fa431621`'s; `accept_from.py` differs by one line, 116's `COUNTS = ("passes", "bytes", "ignores")`, with `_metrics` unchanged, so a check only Linux ran also takes the record's `ignores`, and the fuel and its label read as reviewed. The ledger's conflict with #44 was resolved by keeping 157's block alone: `context/release-tier-claims.toml` is its header and 157's one `[[claim]]` block, 127's removed, and `news.ledger_claims(REPO)` gives `['157']`. The replay on that tree against its `accepted.json` gives 0 growth, 0 lost, 0 fewer, 716 labelled and 7 absent, the checks 143, 145 and 158 added after 0.1.1, which the old record never ran and which hold no fuel (`build/154-review-absent.txt` in that tree). Box: 25 minutes (parallel-safe, a judge change); over it by the replays.
+- **Run:** not yet read
+- **Re-ran:** `uv sync`; `uv run ruff check src tests release` → clean; `uv run ruff format --check src tests release` → 192 files formatted; `uv run pytest tests/lint -q -p no:cacheprovider` → 9 passed; with `WASI_PYTHON_ARTIFACTS` the main tree's 0.1.1 set, `uv run pytest tests/checks/test_rules.py` → 121 passed, 1 skipped; `tests/unit/test_scoreboard.py test_accept_from.py test_gather.py test_plugin.py test_sameness.py test_news.py -n 4` → 418 passed; the builder's `build/154/ledger-rows.sh` without the block → 301 + 29 passed, `ledger_claims []`, and with 127's block put back in the worktree (then restored from `HEAD`, tree clean) → 301 + 29 passed, `ledger_claims [('127', [... test_upstream_suite[*])]`. `build/154/replay.py` rerun on both harnesses (the base from `git archive origin/dev tests/harness`) over the main tree's `build/land/rel-record/record.json` (read only, SHA-256 `4bd164fa…`) and `accepted.json` at `898bc091^` (regenerated with `git show`, byte-equal to the builder's copy) and at `HEAD`: the table below. One more replay of my own: the release acceptance twice in a row on the branch, the second with every Linux-sourced fuel raised 1%. Logs: `build/154/review-verify.txt`, `review-ledger-with-block.txt`, `review-replay.txt`, `review-replay-twice.txt`, `review-pr-body.txt` in the worktree.
+
+## Acceptance criteria against evidence
+
+1. **The ten rows, each seen failing** — met (READ, EXECUTED): ten collected rows (three parametrised cases of one scoreboard row, one scoreboard row, two cases and two rows in `test_accept_from.py`, one gather row, one plugin row), each with its failing line in `build/154/red-lines.txt` and in pull request #43's description. Every row asserts lists, counts, stored values and exit codes; none times anything. The base harness `6bc56eeb` and `2bb857a1` differ only in `tests/harness/scan.py` (READ, `git diff --stat`), so the red lines hold for the rebased base too. The unchanged rows of Decision 10 pass among the 418.
+2. **The unit files and the lint** — met (EXECUTED): 418 passed (255 + 9 on the five files, 153 + 1 on the gather's); `tests/lint` 9 passed; no code file names a specification or a `context/` path.
+3. **The offline replay** — met in substance, its text needs one amendment (Finding 1) (EXECUTED):
+
+   | harness | `accepted.json` | growth | lost | not compared (wasmtime changed) | not compared (another system) | labelled after the merge | release-tier suites with no fuel after |
+   |---|---|---|---|---|---|---|---|
+   | base | `898bc091^` | 716, all "fuel is no longer recorded" | 0 | 0 | 0 | — | — |
+   | branch | `898bc091^` | **0** | 0 | 716 | 0 | 716 `linux-x86_64` | 0 |
+   | base | `HEAD` | 0 | 0 | 0 | 0 | 0 | 716 |
+   | branch | `HEAD` | **0** | 0 | 0 | 0 | 716 `linux-x86_64` | 0 |
+
+   The 6 absent rows against `HEAD` are the collection's moves since 0.1.1, the same on both harnesses. The replay twice in a row (branch, `HEAD`): the first gives the line above; the second, every Linux fuel 1% higher, gives 0 growth and 716 "fuel not compared (measured on another system)", and all 716 keep the first, lower fuel.
+4. **`news.ledger_claims(REPO)` is `[]`** — met (EXECUTED): `[]` without the block, raising nothing; the history's `## 0.1.1` (`context/release-tier-claims-history.md:5`) holds one fence, ```` ```text ```` (`:13`), which `news.FENCE` (`^```toml\n`) does not read. A `toml` fence there would be read while the package's version is 0.1.1, so the block would come back as a claim at 0.1.2's release pull request until the bump; `text` is right.
+5. **The news file's shape** — met (EXECUTED): `test_the_news_files_have_their_shape` among the 121 passes.
+6. **`ci-status` green, `GROWTH` empty, the post-merge acceptance carries one reason** — not yet evidenced (the run is not read). INFERRED from the code and the state: `claimed()` (`tests/harness/accept_from.py:293-302`) asks a reason only for a changed judge file that `paths.is_verdict_bearing` names; the ledger is in `VERDICT_BEARING` and its hash moves (`5b10fddf…` accepted, `f0ce68e4…` at the head, byte-equal to the file before `607b2d79`); the harness and unit files are judge files that are not verdict-bearing, and the history is no judge file. The news file's `[claim.judge]` key is the exact path, which `news.reason` matches. Every metered normal-tier entry holds darwin's unlabelled fuel under 50.0.1 (READ: 346 such entries, 0 labelled), so a Linux-only normal-tier check keeps darwin's fuel, writes no label and moves nothing. dev's last acceptance is `6bc56eeb`; 158's merge (`2bb857a1`) is not yet accepted, and its news file has no `grows`, `passes`, `moved`, `retired` or `[claim.judge]`, so it adds no reason if one run accepts both.
+
+What the code does, READ and traced.
+
+- **A Linux record against darwin's unlabelled fuel.** Before: `_metrics` kept darwin's accepted fuel and dropped the record's when the entry's `wasmtime` was `uv.lock`'s, and dropped the fuel entirely otherwise, so the ratchet saw "fuel is no longer recorded" (the 716). Now (`accept_from.py:190-199`): under the same engine the entry is unlabelled and holds a fuel, so `darwins` is true and `kept` is exactly what it was before (the accepted entry minus labels and counts; it held no `fuel_platform` to strip), Linux's fuel ignored; the existing row `test_darwin_fuel_is_keyed_darwin_and_linux_fuel_is_not_ratcheted` (Linux 99,999 against darwin 500) holds that, and would fail if the record's fuel were taken, since `_merged` would then replace 500 whole. Under another engine the record's fuel is taken, labelled, and listed "fuel not compared (wasmtime changed)": the intended change. In a gather, a Linux shard's record is compared under `linux-x86_64`, where nothing is accepted, as before.
+- **`fuel_system()` with no label** returns the key's platform (`scoreboard.py:129-131`); in `compare` the key is the run's own platform (`old` is `metrics[meta["platform"]]`), in `_merged` the key being written. So every entry accepted today reads as measured by its key's system, and a darwin run against darwin's fuel is compared exactly as before (`scoreboard.py:206-213`): engine first, then system, then the tolerance.
+- **`_merged`, every case** (`scoreboard.py:384-406`; P the key's platform, L another system; no growth reason):
+
+  | old | fresh | engine | result |
+  |---|---|---|---|
+  | P | P | same | lower kept, no label (as before; a higher one was refused by `compare` first) |
+  | P | P | other | fresh whole, no label (as before) |
+  | L | P | same or other | fresh whole, label dropped: darwin's first fuel takes over (Decision 5) |
+  | L | L | same | lower kept, label L kept |
+  | L | L | other | fresh whole, label L |
+  | L | L' | same or other | fresh whole, label L' |
+  | P | L | other | fresh whole, label L (the engine move) |
+  | P with a fuel | L | same | fresh whole, label L: **unreachable**, since `_metrics` labels only when `darwins` is false, which needs no unlabelled fuel of this engine; held by the row above |
+  | no fuel | L | any | fresh, label L |
+
+  The label is written only with a fuel (`:404`), and only from the run's metrics, so the merge cannot invent one; a fresh entry with no metrics leaves the accepted one, label and all, untouched (`accept`, unchanged).
+- **Can a label be forged?** A check records metrics only through the `metric` fixture, whose names are `METRIC_NAMES = ("fuel", "bytes", "passes")` and whose values are `int(value)` (`tests/harness/plugin.py:71`, `:358-365`); G5 reds any record metric that is not a number (`gather.py:393-395`), and `fuel_platform` is a string. So a record cannot carry the label; only `_metrics` writes it. A darwin rise is therefore hidden only in the one place Decision 5 chose: darwin's first fuel under an engine after a Linux-first one is taken without comparison, because there is no darwin fuel of that engine to compare with.
+- **Can a label be lost?** Only by a darwin fuel replacing it (Decision 5), or with the fuel itself (a growth accepted with a reason drops both). A Linux fuel can never become unlabelled, so a later darwin run is never compared with a Linux number.
+- **G5 skipping labels** (`gather.py:390`) subtracts only `wasmtime` and `fuel_platform` from what a record must carry; `fuel`, `bytes` and `passes` stay required, and no metric can be named like a label (`METRIC_NAMES`). Nothing real can go missing silently.
+- **The budget** (`budget.py:84-120`): `fuel_over` and `run_fuel_over` skip release-tier rows, where the 716 labels land; a normal-tier Linux-first fuel would be held to its family's cap as the gather already holds each record's own fuel. Agrees with the sixth difference.
+- **What is not seen, by the owner's decision.** A rise in a release-tier upstream group's Linux fuel is never compared (Decision 4); before this change those 716 rows held no fuel at all, so nothing is lost. 156, which could make Linux fuel repeat, is deferred out of 0.1.2, so no ledger block of it waits on this one.
+
+## Findings, most severe first
+
+1. **Low: criterion 3's text still says "0 rows not compared, as before"** (`context/specifications/154-the-first-fuel-under-a-new-engine-is-linuxs.md:166`). The replay gives 716 under "fuel not compared (wasmtime changed)", and should: at `898bc091^` the 716 entries hold darwin's fuel under 49.0.0, and Decision 4 compares the engine first. The landing notes record the difference; the criterion should be true as written, since the next reader checks it. Fix text, replacing the criterion: "3. Offline replay of 0.1.1's release acceptance, with the record kept in the main tree (`build/land/rel-record/record.json`, read only) and `accepted.json` at `898bc091^`: `accept_from.run_from_record` and `scoreboard.compare`, with no claim, give **0** growth rows (716 before the change, every one "fuel is no longer recorded"), 0 lost, **716** "fuel not compared (wasmtime changed)" (0 before the change, when the run carried no fuel for them; their accepted fuel is darwin's under 49.0.0) and 0 "fuel not compared (measured on another system)", and 716 entries labelled `linux-x86_64` in the merged state. Against today's `accepted.json`, whose 716 entries hold no fuel: 0 growth, 0 not compared, 716 labelled. The landing notes give the commands and the counts." The first bullet under "Where the build differs from the text" then says the criterion was amended. Context only; the reviewer may write it in.
+2. **Low: the owner's ruling and the seventh difference are not on record in the repository** (`context/specifications/154-…:3`; `context/decisions.md` has no entry for it). The Status line says the owner decided on 2026-10-28 that Linux-first fuel is recorded and never compared, and the pull request's seventh difference says the Status line records that ruling, not an instruction to build; neither the owner's words nor the date of the instruction to build is in `context/decisions.md` or the specification, and the specification's list has six items where the pull request has seven. Fix text: the orchestrator adds the ruling, with the owner's words and the instruction to build, to `context/decisions.md` (or quotes them in the Status line, as 158's does: "The owner asked for it to be built on 2026-10-28 (\"…\")"), and the specification gains the seventh bullet. Context only.
+3. **Low: the self-check's Windows box is unticked** (pull request #43's description, "The Windows legs of this pull request's run were read. (Not yet read.)"). Fix text: tick it once the run's Windows legs are read; this change runs nothing on Windows that it did not before.
+
+No High, no Medium.
+
+## Rubric (structure, AGENTS.md "Structure is reviewed")
+
+Nothing under `src/` changes, so no row moves; the Kind line's **not structural** is right.
+
+| row | then | now | reason |
+|---|---|---|---|
+| R1 Contract | unchanged | unchanged | no line of `tests/public_api.txt`, no default an embedder can see |
+| R2 Safety | unchanged | unchanged | no guest import or export, no artifact byte |
+| R3 Layering | unchanged | unchanged | no private wasmtime-py use |
+| R4 Process state | unchanged | unchanged | no module-level mutable or lock in `src/`; `LABELS` is a tuple in the harness |
+| R5 Portability | unchanged | unchanged | no platform branch; the label names a system as data, not a branch |
+| R6 Testability | unchanged | unchanged | no test seam; `_merged` is a pure function of its arguments |
+| R7 Evolvability | unchanged | unchanged | `accept` shrinks by moving the merge out; `_merged` is 23 lines |
+| R8 Operability | unchanged | unchanged | the ratchet line names the new list, "fuel not compared (measured on another system) N" |
+
+## Constitution checks
+
+- §4 constraints: no download, no pin, no patch, no artifact in git (holds). uv only (holds). Tests count operations, never wall-clock: every new row asserts lists, stored values and exit codes (holds). Code speaks for itself: the harness's docstrings and comments name no specification or `context/` path (`tests/lint` green); "(spec 154)" appears only in `context/` and the news file's changelog line, as other news files do. The judge is changed in its own change, with a reason: the ledger's `[claim.judge]`, and the three harness files recorded by the judge's hash. No check was weakened: a darwin rise against darwin's fuel is still a growth (`test_ten_times_the_fuel_under_the_locked_wasmtime_is_red_through_the_ratchet`, `test_accept_keeps_the_minimum_metric_unless_growth_is_accepted` green), a Linux record against darwin's fuel of this engine behaves as before, and the only rows that stop being growth are ones that held no comparable fuel. Removing the ledger block changes no verdict (301 + 29 passed with and without it).
+- §7 never-do list: nothing tripped. Every commit since `origin/dev` carries `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (READ, `git log --format='%(trailers:key=Co-Authored-By,valueonly)' origin/dev..HEAD`). The news file's claim block names the ten rows and `units = 10`, which matches the ten collected rows; no `grows`, `passes`, `moved` or `retired`, and the gather has no `GROWTH` row to claim (INFERRED until the run is read).
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+1. Criterion 3's text — fixed in `d05f1759` with the wording of Finding 1, and the difference bullet says it was amended. Confirmed (READ).
+2. The owner's ruling and the seventh difference — fixed in `d05f1759`: the Status line records the owner's choice of 2026-10-28 on Decision 4 and the instruction to build, and the differences list says so. Confirmed (READ).
+3. The Windows box — open until the group's run is read; this change runs nothing on Windows it did not before.
+
+## Verdict
+
+Lands once the pull request's run is green: the code holds on every case traced, the replays agree with the landing notes, and the three Lows touch only `context/` and the pull request's description.
