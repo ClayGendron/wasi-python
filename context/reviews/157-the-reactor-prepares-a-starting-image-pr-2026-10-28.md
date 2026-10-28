@@ -45,10 +45,10 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 —
+1. Finding 1 — fixed as written: a `prepare_called` bit set before the prelude and never cleared; `prepare` refuses when it is set; `run` returns 70 and `turn` -1, running no Python, after a failed `prepare`; the embed page's step 2 says to discard such an instance. `test_prepare_refuses` gained "after a failed prepare", "a run after a failed prepare" and "a turn after a failed prepare", seen failing on the earlier head's set (`build/157/refuses-before-fix.log`) and green on the rebuilt set; the landing notes' "Found by the review" paragraph names it.
 2. Finding 2 — committed by the reviewer with this file.
-3. Finding 3 —
-4. Finding 4 —
+3. Finding 3 — fixed with the fix text, after step 1 of the embed page's starting-image section.
+4. Finding 4 — the Windows box is ticked once the new run's Windows legs are read; whether the plan ran the macOS legs for the recipe paths, or `ci:full` is added, is answered in the pull request once the run is read.
 
 ## Verdict
 
