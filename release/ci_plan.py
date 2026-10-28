@@ -119,9 +119,12 @@ HARNESS_FILES = (
 
 def is_agents(path: str) -> bool:
     """A path with a folder named for an agent's settings on it, or an agent's instructions file
-    at any depth."""
-    *folders, name = path.split("/")
-    return name in AGENTS_FILES or any(f in AGENTS_DIRS for f in folders)
+    at any depth, in any case: a file system that ignores case, as macOS's does by default, opens
+    `claude.md` for `CLAUDE.md`."""
+    *folders, name = path.casefold().split("/")
+    return name in {n.casefold() for n in AGENTS_FILES} or any(
+        f in {d.casefold() for d in AGENTS_DIRS} for f in folders
+    )
 
 
 def classify(path: str) -> frozenset[str]:
@@ -769,15 +772,20 @@ def _gh(environ, *args: str, repo_flag: bool = True) -> object | None:
         return None
 
 
-def runs_of(payload: object, repository: str) -> list[dict]:
-    """The runs of an Actions runs listing whose head is in `repository`, newest first, each as
-    its id, head commit, status and conclusion. A fork's branch of the same name is listed by
-    branch and event alike; only the run's head repository tells it apart."""
+def runs_of(payload: object, repository: str, number: int | None = None) -> list[dict]:
+    """The runs of an Actions runs listing whose head is in `repository` and, given `number`,
+    whose pull requests list that one, newest first, each as its id, head commit, status and
+    conclusion. A fork's branch of the same name is listed by branch and event alike, and so is
+    another pull request from this branch into another base; only the run's head repository and
+    its pull requests tell them apart."""
     runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
     out = []
     for r in runs if isinstance(runs, list) else ():
         owner = (r.get("head_repository") or {}).get("full_name") if isinstance(r, dict) else None
         if owner != repository or not repository:
+            continue
+        numbers = {p.get("number") for p in r.get("pull_requests") or () if isinstance(p, dict)}
+        if number is not None and number not in numbers:
             continue
         out.append(
             {
@@ -800,7 +808,10 @@ def green_runs(environ, head_ref: str) -> list[dict] | None:
     query = urllib.parse.urlencode({"branch": head_ref, "event": "pull_request", "per_page": 20})
     got = _gh(environ, "api", f"repos/{repository}/actions/workflows/release.yml/runs?{query}",
               repo_flag=False)  # fmt: skip
-    return runs_of(got, repository) if isinstance(got, dict) else None
+    m = re.fullmatch(r"refs/pull/(\d+)/merge", environ.get("GITHUB_REF", ""))
+    if m is None:
+        return None
+    return runs_of(got, repository, int(m[1])) if isinstance(got, dict) else None
 
 
 def run_jobs(environ, run_id: int) -> dict[str, str] | None:

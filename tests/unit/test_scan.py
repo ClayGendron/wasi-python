@@ -1100,6 +1100,35 @@ BAD_BINDINGS = [
     (("pypi", UPLOAD, UPLOAD + "        env:\n          UV_CONFIG_FILE: x.toml\n"), {20}),
     (("pypi", "version: ${{ env.UV_VERSION }}", "version: 0.9.22"), {20}),
     (("pypi", "always dist/*.whl", "always release-assets/*"), {20}),
+    # The token named inline in a run: text, and a path to the release scripts beside gh.
+    (
+        (
+            "publish",
+            '          uv run --no-project python release/version.py notes "$version" > notes.md',
+            "          GH_TOKEN=${{ github.token }} uv run --no-project python "
+            'release/version.py notes "$version" > notes.md',
+        ),
+        {11, 19},  # an expression in a run: is rule 11's too
+    ),
+    (
+        (
+            "publish",
+            "run: gh release create",
+            "run: ./release/version.py notes 0 > notes.md; gh release create",
+        ),
+        {19},
+    ),
+    # A second step of pypi that runs uv with its words in another order.
+    (
+        (
+            "pypi",
+            "        run: mkdir dist && mv release-assets/*.whl dist/\n",
+            "        run: mkdir dist && mv release-assets/*.whl dist/\n"
+            "      - name: Again\n"
+            "        run: uv --no-config publish --trusted-publishing automatic release-assets/*\n",
+        ),
+        {20},
+    ),
 ]
 
 
