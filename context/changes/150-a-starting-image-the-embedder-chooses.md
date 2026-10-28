@@ -6,9 +6,9 @@
 
 - **Start every call from your own snapshot.** Run your setup code once, imports, data and functions, with `make_snapshot`, or import every package with `make_package_snapshot()`, then pass `snapshot=` to `run` or `Session`: each call is still a fresh, sealed instance, and skips the seconds its imports took. [Snapshots](https://claygendron.github.io/wasi-python/how-to/snapshots/)
 
-### Fixed
+### For contributors
 
-- **The judge keeps a restored call's fuel as a fact where it cannot repeat.** A call from a snapshot that holds numpy's random module spends a number of instructions that moves by up to a few percent from run to run, so four snapshot rows record that fuel as a fact, and the judge's exact fuel rows stay exact.
+- **Snapshot rows whose fuel varies keep it as a fact.** A call from a snapshot that holds numpy's random module spends a few percent more or less from run to run, so four snapshot rows record that fuel as a fact and the exact rows stay exact. [The ratchet](https://claygendron.github.io/wasi-python/contributing/first-change/#the-ratchet)
 
 ## Package rows
 
