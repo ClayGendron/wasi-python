@@ -4,7 +4,7 @@
 
 ### Security
 
-- **On macOS, a folder on the way to the module cache whose access list lets another user or group add, remove or rename what it holds, or change its list, means the cache is not used**, with a warning that names the folder, the principal and the rights; a deny entry, such as the `deny delete` every home carries, and an entry for you or root pass; a list that cannot be read means the cache is not used; on Linux the mode's group bits already show what a list grants, so nothing new is read there (spec 141).
+- **On macOS, the module cache refuses a folder others can change.** If an access list on the way to the cache lets another user or group add, remove or rename what a folder holds, or change its list, the cache is not used, and the warning names the folder, who and the rights. [Where the compiled module is kept](https://claygendron.github.io/wasi-python/get-started/install/#where-the-compiled-module-is-kept)
 
 ## Package rows
 
