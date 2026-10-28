@@ -164,9 +164,8 @@ def run(
         root: The host folder the guest sees as /, writable, made if missing. `False` or
             `None` (the default) gives no / and nothing writable; `True` gives a fresh private
             folder, removed after the call.
-        grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only
-            unless it says `writable=True`. The stdlib zip is always granted, read-only, at
-            /usr/local/lib.
+        grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless
+            it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
         mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
             served from your code, read-only unless it says `writable=True`.
         import_path: Guest paths put on the guest's `sys.path` after the stdlib zip, in order:
