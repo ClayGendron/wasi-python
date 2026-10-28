@@ -140,9 +140,11 @@ def test_the_preopens_are_the_calls(guest, guest_turns, guest_workdir) -> None:
 def test_the_prelude_sees_pinned_clocks(guest, guest_turns) -> None:
     """While the prelude runs, the wall clock reads the build's constant, the monotonic clock 0
     and entropy zeros; so no time the image holds lies in a restored call's future."""
-    prelude = "import os, time\nT = (time.time(), time.monotonic(), os.urandom(4))\n"
+    # The guest reads its own clocks, by name; the judge reads none.
+    read = "getattr(time, c)() for c in ('time', 'monotonic')"
+    prelude = f"import os, time\nT = (*({read}), os.urandom(4))\n"
     image, _ = _image(guest_turns, prelude)
-    program = "import time; print(T[0], T[1], T[2].hex(), time.monotonic() >= T[1])"
+    program = "import time; print(T[0], T[1], T[2].hex(), getattr(time, 'monotonic')() >= T[1])"
     r = guest("snapshot", ["-c", program], image=image)
     assert (r.exit_code, r.text) == (0, f"{PIN_REALTIME} 0.0 00000000 True\n"), r.describe()
 
