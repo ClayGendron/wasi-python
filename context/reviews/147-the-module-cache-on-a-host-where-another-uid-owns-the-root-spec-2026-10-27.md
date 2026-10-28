@@ -57,12 +57,14 @@ Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED mean
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 —
-2. L1 — written in by the reviewer, `f0c1679a`.
-3. L2 — written in by the reviewer, `f0c1679a`.
-4. L3 — written in by the reviewer, `f0c1679a`.
-5. L4 — written in by the reviewer, `f0c1679a`.
+1. M1 — applied by the author with the review's fix text, `c90aa3b8`; confirmed by the reviewer, 2026-10-27 (below).
+2. L1 — written in by the reviewer, `ee29b6f5` (`f0c1679a` before the branch was rebased onto `dev` at `86fab037`).
+3. L2 — written in by the reviewer, `ee29b6f5` (`f0c1679a` before the branch was rebased onto `dev` at `86fab037`).
+4. L3 — written in by the reviewer, `ee29b6f5` (`f0c1679a` before the branch was rebased onto `dev` at `86fab037`).
+5. L4 — written in by the reviewer, `ee29b6f5` (`f0c1679a` before the branch was rebased onto `dev` at `86fab037`).
 
 ## Verdict
 
 Not yet: M1, the owner of `/` trusted on a folder past a mount point, where it cannot already swap the way, with the reason for leaving it open resting on a writable `/`; with M1's fix text applied, or the owner's written acceptance of that widening with the read-only root named, it is fit to build.
+
+2026-10-27, after `c90aa3b8`: Fit to build on `c90aa3b8`. I read Decision 1 again (READ, `git show c90aa3b8`): rule 2 and its code line are the review's fix text, the chained compare `owner(st) == r != _OVERFLOW_UID` keeps the overflow uid trusted on `/` alone, and `st.st_dev` is read only for a folder `/`'s owner owns, so the existing rows whose stand-in `lstat` returns a namespace without `st_dev` (row 2 of the read file) never reach it; the mount-point bullet names the read-only root and the bind-mount remainder; row 1(d) is red today for the reason given (it names `/`), and the unit count is 20; the install page, the security model and the news file say "on its own file system". M1 is closed. One Low for the builder, no round needed: row 1(b) uses a real folder for the folder above, so it passes only where the harness's folder is on `/`'s device (true on this macOS host, EXECUTED, and expected on the CI runners, INFERRED); the row's stand-in should give that folder `/`'s `st_dev` as well as the uid, so the row does not depend on the runner's mounts.
