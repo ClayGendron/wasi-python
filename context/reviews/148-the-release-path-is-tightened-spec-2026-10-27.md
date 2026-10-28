@@ -50,7 +50,17 @@ I recommend **A**: accept the loss of PyPI's PEP 740 provenance object. The proj
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 8 — written in by the reviewer, `3b5902f4`.
+1. Finding 1 (Medium) — fixed in Decision 4 by option (b), as the orchestrator decided: an edit that leaves the base alone re-uses the newest run of the pull request's branch other than its own when that run is completed, on the same head, and green but for `ci-status`, through `reusable_after_edit` beside `find_reusable`; the refusals are read anew; a base change, or a newest run that is red, cancelled, unfinished or on another head, runs the selection; ten rows in Decision 9 and criterion 4. Option (a)'s wording is taken too, for the template's Windows box and the self-check paragraph of `review-and-landing.md` (Decision 8).
+2. Finding 2 — fixed in Decision 1 with the fix text (any depth, `CLAUDE.local.md` among the names); `ROWS` gain `context/CLAUDE.md` and `docs/AGENTS.md`.
+3. Finding 3 — fixed in Decision 7 (the laptop rehearsal with uv 0.9.22 on the 0.1.1 wheel, as a build step the landing notes record, and the next patch tag as the owner's to push or delegate), Decision 8 (the upload sentences in `release-process.md`) and criterion 10.
+4. Finding 4 — fixed in Decision 3 (`-z` after the subcommand, bytes decoded as UTF-8 with `surrogateescape`) and Decision 9 (the Windows claim dropped, `-c core.protectNTFS=false` in the fixture, the rows' shards named).
+5. Finding 5 — fixed in Decision 5's rule 19 (any `secrets.` value, command words).
+6. Finding 6 — fixed in Decision 6's rule 20 (`pypi` has no `env:` and writes neither `$GITHUB_ENV` nor `$GITHUB_PATH`) and its "command line and the runner's own variables"; the `UV_CONFIG_FILE` row joins `test_scan.py`.
+7. Finding 7 — fixed in Decision 9's opening (the four guards named) and its quoted-path row read through `_diff`, and criterion 1.
+8. Finding 8 — written in by the reviewer, `3b5902f4` (`c8e2a1b4` after the rebase onto `dev`'s `86fab037`).
+9. The PyPI provenance — option A, as recommended; the orchestrator puts it to the owner as reversible.
+
+`units` is 54: the review's 43 counted Finding 2's two rows; Finding 6 adds one and option (b) adds ten.
 
 ## Verdict
 
