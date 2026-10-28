@@ -1,6 +1,6 @@
 # 142: The 80-line allowance is judged by length
 
-- **Status:** drafted 2026-10-27 from the 0.1.1 structural review's one Medium, M-a (`../reviews/0.1.1-structural-review-2026-10-26.md`, finding 1), first stated as M-a of `../reviews/0.1.0-structural-review-2026-10-21.md`; the owner approved what it decides on 2026-10-27, with the 0.1.2 scope (`../roadmap.md`); not yet built.
+- **Status:** **built 2026-10-28** on `spec/142-the-80-line-allowance-is-judged-by-length`, rebased onto `dev` at `0b67fe1b` (144, 145 and 146 merged), its pull request into `dev` open and awaiting its run and its review; drafted 2026-10-27 from the 0.1.1 structural review's one Medium, M-a (`../reviews/0.1.1-structural-review-2026-10-26.md`, finding 1), first stated as M-a of `../reviews/0.1.0-structural-review-2026-10-21.md`; the owner approved what it decides on 2026-10-27, with the 0.1.2 scope (`../roadmap.md`).
 - **Date:** 2026-10-27
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, **not structural**, the judge alone: `tests/harness/scan.py` (`long_function_hits`, about ten lines changed), `tests/checks/test_rules.py` (the values of `LONG_FUNCTIONS`, the comment above it, and the docstring and message of `test_no_function_is_over_eighty_lines`), two rows in `tests/unit/test_scan.py`, the news file, and the roadmap's 142 line in the landing. No file under `src/` changes and no artifact byte moves, so there is no pre-build review: it touches no guest import or export, no part of the artifact set and no build recipe (constitution §5.6), and it adds nothing the structural rule names. It is a judge change with its reason (Decision 5): `test_rules.py` and `scan.py` are judge files but not verdict-bearing (`tests/harness/paths.py:296-304`, READ), so the acceptance records them by the judge's hash and asks no `[claim.judge]` for them (`tests/harness/accept_from.py:286-295`, READ); the news file carries one anyway, for the three lengths this change raises.
@@ -127,4 +127,22 @@ In: the above. Out:
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-28 by an agent (Claude Opus 5.5), the one that drafted the specification, in the worktree `../wasi_python-wt/spec-142`. Not yet landed: the pull request's run, its review and the merge are to come, and 147 and 143 may still move a listed length before the merge, in which case the builder re-measures once more and these notes change with it.
+
+**The commits.** The specification; the two unit rows, seen failing; the scan; the reset of `LONG_FUNCTIONS` with the check's docstring and message (the rules check seen failing between the two); the news file; and, after the rebase onto `0b67fe1b`, the head's lengths with these notes.
+
+**Seen failing first** (EXECUTED on `ee72523e`, each output kept under `build/142/`, not committed):
+
+- `test_a_listed_function_past_its_length_is_a_hit`: `AssertionError: assert [] == ['m.py:1: f (82 lines, listed 81)']`.
+- `test_a_listed_function_shorter_than_its_length_is_a_stale_allowance`: `AssertionError: assert [] == ['stale allowance: m.py:f (81 lines, listed 83)']`.
+- `test_no_function_is_over_eighty_lines`, with the new scan and the old values: `6 finding(s), digest 3092c2796d92`, the three entry points past their listed lengths (156 against 151, 181 against 176, 178 against 173) and three stale listings (`_open_session` 136 against 150, `_instance` 155 against 159, `_Process.__init__` 81 against 82). With the reset values it passed.
+
+**The lengths on the head** (EXECUTED on the branch rebased onto `0b67fe1b`, `uv run python -c "import sys; sys.path.insert(0,'tests'); from harness import scan, paths; files=[p for p in scan.files_under(paths.REPO,'src') if p.suffix=='.py']; print(*scan.long_function_hits(files, paths.REPO, {}), sep='\n')"`, seven lines): `runner.py:run` 156, `runner.py:run_async` 181, `runner.py:Session.__init__` 178, `runner.py:Session.run_async` 81, `_sessions.py:_open_session` 138, `_call.py:_instance` 155, `_process.py:_Process.__init__` 83. `LONG_FUNCTIONS` holds exactly these.
+
+**What moved since Decision 6's table**, measured by the same scan on an export of `src/` at each merge (EXECUTED): 145 (`658a6213`) moved none; 146 (`2a13298b`) took `_Process.__init__` from 81 to 82 (the abandoned tool threads' count) and `_open_session` from 136 to 138 (the tool host's abandoned count and its wait bound, two arguments); 144 (`0b67fe1b`) took `_Process.__init__` to 83 (`pool_done`, the queue of pools whose futures are done) and `Session.run_async` from 82 to 81. Against the listing at `ee72523e`, four lengths rise (`run`, `run_async`, `Session.__init__` by 5 each, `_Process.__init__` 82 to 83) and three fall (`Session.run_async` 82 to 81, `_open_session` 150 to 138, `_instance` 159 to 155). The news file's claim names each rise with its reason, and its CHANGELOG line names the four that had grown unseen.
+
+**Verification on the head** (EXECUTED, `WASI_PYTHON_ARTIFACTS` set to the 0.1.1 set): `uv run ruff check src tests` and `uv run ruff format --check src tests` clean; `uv run pytest tests/unit/test_scan.py -q` all passed; `uv run pytest tests/checks/test_rules.py -q -p no:cacheprovider` exit 0; `uv run pytest tests/lint -q -p no:cacheprovider` all passed. The counts are in the pull request's description.
+
+**One difference from the Design's text.** Design says the walk keeps each key's path and line beside its length for a later pass. The scan reports a grown listed function inside the walk instead, as `elif n > FUNCTION_CEILING and n > allowed[key]` after the unlisted branch. The output and its sort order are the same, and a listed function at 80 lines or under is still reported as a stale allowance, not as grown. Reason: one branch where the line and qualified name are already at hand, instead of a second map.
+
+**No gap added**: `tests/known_gaps.toml` is unchanged. No file under `src/` changes (`git diff --stat origin/dev...HEAD -- src/` is empty, EXECUTED).
