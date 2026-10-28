@@ -302,6 +302,8 @@ def test_bump_refuses_a_broken_news_file_and_writes_nothing(tmp_path: Path, monk
 
 def test_the_release_notes_say_how_to_verify_this_version() -> None:
     note = version.verify_note("0.1.0a2")
+    assert "(https://claygendron.github.io/wasi-python/how-to/verify-a-download/)" in note
+    assert "README" not in note  # the README no longer carries the steps; the site's page does
     assert "--source-ref refs/tags/v0.1.0a2" in note
     assert "--signer-workflow ClayGendron/wasi-python/.github/workflows/release.yml" in note
     assert "--deny-self-hosted-runners" in note

@@ -496,9 +496,9 @@ NEWS = """# {n}: a change
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **Change {n}**: it moved.
+- **Change {n} moves.** It moved. [The release process](https://claygendron.github.io/wasi-python/contributing/release-process/)
 
 ## Claims
 

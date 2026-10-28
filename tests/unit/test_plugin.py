@@ -719,9 +719,9 @@ RETIRING = """# 999: a check goes
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **A check goes**: it is retired.
+- **A check goes.** It is retired. [The release process](https://claygendron.github.io/wasi-python/contributing/release-process/)
 
 ## Claims
 
@@ -755,9 +755,9 @@ GROWING = """# 999: a check grows
 
 ## Changelog
 
-### Changed
+### For contributors
 
-- **A check grows**: it does more.
+- **A check grows.** It does more. [The release process](https://claygendron.github.io/wasi-python/contributing/release-process/)
 
 ## Claims
 

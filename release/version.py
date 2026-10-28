@@ -479,7 +479,9 @@ def verify_note(version: str, repository: str = REPOSITORY) -> str:
     """How a user checks this release's assets: appended to the release's notes, not to the tag's
     message. The command is the one the release's attest job runs before it publishes."""
     return (
-        "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
+        "\n**Verify a download** (`gh` logged in; see "
+        "[Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/)):"
+        "\n\n"
         "```\n"
         f"gh attestation verify <asset> --repo {repository} \\\n"
         "  --signer-workflow "
