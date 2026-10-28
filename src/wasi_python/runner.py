@@ -29,7 +29,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions
+from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions, _snapshot
 from ._artifacts import Artifacts
 from ._call import Completed as Completed  # re-exported: the public API names them here
 from ._call import _CheckedCall
@@ -38,6 +38,7 @@ from ._places import Grant as Grant
 from ._process import process
 from ._sessions import _CLOSER, MAX_TURN_BYTES, _Event, _Phase, _State
 from ._sessions import SessionEnded as SessionEnded
+from ._snapshot import Snapshot
 from .mounts import Mount
 
 if TYPE_CHECKING:
@@ -124,7 +125,7 @@ def run(
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
-    snapshot: bool = True,
+    snapshot: bool | Snapshot = True,
     fuel: int | None = None,
     deadline_s: float | None = _UNSET,
     memory_bytes: int | None = _UNSET,
@@ -143,13 +144,12 @@ def run(
 
     The guest runs on a thread of the runner's own, with an 8 MiB wasm stack; your `host`,
     providers and tools' contexts are served on the calling thread, which waits. The guest sees
-    no host folder but the read-only stdlib, and what `root`, `grants` and
-    `mounts` give it. Every argument is checked before any work. A call that names no limit has
-    the ones `defaults()` returns, read once, when the call is made. Nothing a guest does, and
-    no `Exception` a provider, a tool or a gate raises, makes `run` raise: a provider's `OSError`
+    no host folder but the read-only stdlib, and what `root`, `grants` and `mounts` give it.
+    Every argument is checked before any work. A call that names no limit has the ones
+    `defaults()` returns, read once, when the call is made. Nothing a guest does, and no
+    `Exception` a provider, a tool or a gate raises, makes `run` raise: a provider's `OSError`
     may be its answer (the README's *Mounts*), and the rest are recorded in the result. A new
-    failure is raised as one of the types below, or a subclass of one;
-    messages may change.
+    failure is raised as one of the types below, or a subclass of one; messages may change.
 
     Args:
         argv: The guest's arguments after the program's name, as for `python`: `["-c", code]`,
@@ -176,7 +176,7 @@ def run(
             made the call, it returns the response's. It must answer synchronously: an async one
             raises `TypeError`. Excludes `tools`.
         snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no
-            package); `False` the plain reactor.
+            package); `False` the plain reactor; a `Snapshot` starts the call from its image.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
             fuel". `None` (the default) sets no cap.
         deadline_s: Wall-clock seconds; past them the call ends "deadline". Default:
@@ -225,7 +225,7 @@ def run(
 
     Raises:
         TypeError: An argument has the wrong type; raised before any work.
-        ValueError: An argument is out of range; raised before any work.
+        ValueError: An argument is out of range (`SnapshotMismatch` too); raised before any work.
         ArtifactsMissing: There is no usable artifact set.
         ImportError: wasmtime-py cannot load; its own error is chained as the cause.
         OSError: A host filesystem call failed while the root, the private folders, the zip's
@@ -267,23 +267,23 @@ def run(
         max_file_calls=max_file_calls,
         import_path=import_path,
         max_open_files=max_open_files,
+        snapshot=snapshot,
     )
     cache = _engines._cache_given(cache_dir)
-    return _run_checked_flushed(wt, checked, host, snapshot, cache, artifacts, None)
+    return _run_checked_flushed(wt, checked, host, cache, artifacts, None)
 
 
 def _run_checked_flushed(
     wt: Any,
     checked: _CheckedCall,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None,
-    snapshot: bool,
     cache: _engines._Cache,
     artifacts: Artifacts | None,
     loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
     """`_run_checked`, then the warnings its removals queued, outside every lock."""
     try:
-        return _call._run_checked(wt, checked, host, snapshot, cache, artifacts, loop)
+        return _call._run_checked(wt, checked, host, cache, artifacts, loop)
     finally:
         _private_dirs._flush_warnings()
 
@@ -298,7 +298,7 @@ async def run_async(
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
-    snapshot: bool = True,
+    snapshot: bool | Snapshot = True,
     fuel: int | None = None,
     deadline_s: float | None = _UNSET,
     memory_bytes: int | None = _UNSET,
@@ -348,7 +348,7 @@ async def run_async(
             made the call, it returns the response's. It must answer synchronously: an async one
             raises `TypeError`. Excludes `tools`.
         snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no
-            package); `False` the plain reactor.
+            package); `False` the plain reactor; a `Snapshot` starts the call from its image.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
             fuel". `None` (the default) sets no cap.
         deadline_s: Wall-clock seconds; past them the call ends "deadline". Default:
@@ -398,7 +398,7 @@ async def run_async(
 
     Raises:
         TypeError: An argument has the wrong type; raised before any work.
-        ValueError: An argument is out of range; raised before any work.
+        ValueError: An argument is out of range (`SnapshotMismatch` too); raised before any work.
         ArtifactsMissing: There is no usable artifact set.
         ImportError: wasmtime-py cannot load; its own error is chained as the cause.
         OSError: A host filesystem call failed while the root, the private folders, the zip's
@@ -415,7 +415,6 @@ async def run_async(
             or gate, propagates.
     """
     import asyncio
-    import contextvars
 
     _platform._refuse_forked()
     event = threading.Event()  # the call's cancel, set when the awaiting task is cancelled
@@ -439,6 +438,7 @@ async def run_async(
         max_file_calls=max_file_calls,
         import_path=import_path,
         max_open_files=max_open_files,
+        snapshot=snapshot,
     )
     cache = _engines._cache_given(cache_dir)
     _check_executor(executor)
@@ -452,7 +452,7 @@ async def run_async(
         p.live[event] = None
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
-        args = (_run_checked_flushed, wt, checked, host, snapshot, cache, artifacts, loop)
+        args = (_run_checked_flushed, wt, checked, host, cache, artifacts, loop)
         future = _submit(executor, work, *args)
         try:
             return await asyncio.wrap_future(future)
@@ -637,6 +637,7 @@ def _checked(
     import_path: Any = (),
     max_open_files: Any = _UNSET,
     limits: Defaults | None = None,
+    snapshot: Any = True,
 ) -> _CheckedCall:
     """Every argument a call's guest depends on, checked before any work, as one frozen record
     built from its typed parts, each field named. The defaults are read once, here, and every
@@ -656,6 +657,7 @@ def _checked(
     if cancel is not None and not isinstance(cancel, threading.Event):
         raise TypeError(f"cancel must be a threading.Event, or None; got {type(cancel).__name__}")
     bounds = _limits._check_limits(fuel, deadline_s, memory_bytes, output_bytes)
+    binary, start = _snapshot._start(snapshot, bounds.memory_bytes)
     inputs = _limits._check_inputs(argv, env, stdin)
     places = _places._check_places(
         root,
@@ -686,6 +688,8 @@ def _checked(
         import_serving=places.import_serving,
         file_calls=places.file_calls,
         open_files=places.open_files,
+        binary=binary,
+        start=start,
     )
 
 
@@ -803,7 +807,8 @@ def stats() -> dict[str, int]:
     included. `sessions_open` counts the `Session`s opened and not yet ended. `compiled`,
     `loaded` and `written` count how this process got its compiled modules: compiled from the
     binary, loaded from a .cwasm file, and .cwasm files written; what they count may change with
-    the cache. A later release may add keys.
+    the cache. `snapshots_made` counts the snapshots this process made, and `snapshots_restored`
+    the calls and sessions it started from one. A later release may add keys.
     """
     # the judge reads it.
     p = process()
@@ -846,7 +851,7 @@ class Session:
         import_path: Iterable[str] = (),
         env: Mapping[str, str] | None = None,
         host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
-        snapshot: bool = True,
+        snapshot: bool | Snapshot = True,
         fuel: int | None = None,
         deadline_s: float | None = _UNSET,
         memory_bytes: int | None = _UNSET,
@@ -888,7 +893,7 @@ class Session:
                 response's. It must answer synchronously: an async one raises `TypeError`.
                 Excludes `tools`.
             snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported
-                (no package); `False` the plain reactor.
+                (no package); `False` the plain reactor; a `Snapshot` opens it from its image.
             fuel: Each turn's cap on the guest's executed instructions, unless the turn passes
                 its own; past it the turn ends "out of fuel", which ends the session. A session
                 given a number is metered; `None` (the default) is unmetered, and its turns
@@ -945,7 +950,8 @@ class Session:
 
         Raises:
             TypeError: An argument has the wrong type; raised before any work.
-            ValueError: An argument is out of range; raised before any work.
+            ValueError: An argument is out of range (`SnapshotMismatch` too); raised before
+                any work.
             ArtifactsMissing: There is no usable artifact set, or it predates sessions.
             ImportError: wasmtime-py cannot load; its own error is chained as the cause.
             OSError: A host filesystem call failed while the root, the private folders, the
@@ -980,6 +986,7 @@ class Session:
             import_path=import_path,
             max_open_files=max_open_files,
             limits=limits,
+            snapshot=snapshot,
         )
         cache = _engines._cache_given(cache_dir)
         state = _State(c, wt)
@@ -992,13 +999,11 @@ class Session:
         state.shutdown_s = _limits._shutdown_limit(
             "shutdown_s", limits.session_shutdown_s if shutdown_s is _UNSET else shutdown_s
         )
-        if not isinstance(snapshot, bool):
-            raise TypeError(f"snapshot must be a bool; got {type(snapshot).__name__}")
         state.host = host
         state.context = contextvars.copy_context()
         self._state = state
         try:
-            _sessions._open_session(wt, c, host, snapshot, cache, artifacts, state)
+            _sessions._open_session(wt, c, host, cache, artifacts, state)
         finally:
             _private_dirs._flush_warnings()  # the sweep's, or a failed opening's
         p = process()

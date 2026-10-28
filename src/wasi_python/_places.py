@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _limits, _platform, _zip
+from . import _limits, _platform, _snapshot, _zip
 from ._artifacts import Artifacts
 from ._fs_memory import METHODS
 from ._limits import _UNSET
@@ -486,6 +486,7 @@ def _walk_grants(
                 (where, grant, _platform.PLATFORM.walk(where, os.fspath(grant.host), judge=True))
             )
         _judge(walked_root, walked, runtime, _shared_folders(), missing=missing)
+        _judge_snapshot_folders(walked_root, walked)
         _judge_import_path(walked_root, walked, import_path, serving)
         if walked_root is not None and walked_root.missing:
             try:
@@ -498,6 +499,22 @@ def _walk_grants(
             if w is not None:
                 w.close()
         raise
+
+
+def _judge_snapshot_folders(root: _Walked | None, grants: list[tuple[str, Grant, _Walked]]) -> None:
+    """By identity: no writable grant, and no root, at or above the folder of a snapshot file
+    this process saved or loaded, whose image every call from it runs as code. One inside it is
+    allowed, since a guest cannot climb out of its grant; a folder gone since is skipped."""
+    writable = [("root", root)] if root is not None else []
+    writable += [(where, w) for where, g, w in grants if g.writable]
+    for folder in _snapshot._folders() if writable else []:
+        identity, chain = _chain(folder)
+        for where, w in writable if identity is not None else []:
+            if w.identity is not None and w.identity in chain:
+                raise ValueError(
+                    f"{where} is writable and holds the folder of a snapshot file this process "
+                    f"saved or loaded ({folder}); grant a folder apart from it"
+                )
 
 
 def _judge_import_path(
