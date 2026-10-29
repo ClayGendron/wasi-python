@@ -53,7 +53,7 @@ from .runner import (
     stats,
 )
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 def defaults() -> Defaults:

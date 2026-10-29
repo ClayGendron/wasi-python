@@ -2,6 +2,19 @@
 
 `release/version.py date` moves the ledger's blocks (`release-tier-claims.toml`) here, under the version it dates, before the release pull request, and the ledger starts empty again; the release pull request's gather and acceptance read the version's blocks, with any appended since, as their claims (`progress/README.md`, "The release tier"). Until 0.1.0 the release acceptance moved them.
 
+## 0.1.2
+
+Moved by `release/version.py date` on 2026-10-29, before the release pull request.
+
+```toml
+[[claim]]
+spec = "157"
+grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[*"]
+growth = "the reactor gains the export `prepare`, a prepared instance's ending and five reseeds in `_refresh`, so both binaries are larger and every run unmarshals and refreshes a little more"
+[claim.judge]
+"context/release-tier-claims.toml" = "this block: the reason the upstream suites' fuel grows with 157's new reactor code, for the release pull request's acceptance"
+```
+
 ## 0.1.1
 
 Moved by `release/version.py date` on 2026-10-27, before the release pull request.
