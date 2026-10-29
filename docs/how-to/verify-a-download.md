@@ -32,6 +32,8 @@ The command fails if any check does not hold. When it passes, it has shown that:
 
 The first alpha, `0.1.0a1`, has no attestation. Every release after it carries one.
 
+From 0.1.2 the wheel on PyPI carries no PyPI provenance. It is the same file as the release's wheel, so check a wheel you installed from PyPI with the command above.
+
 The repository was named `wasi_python` until after 0.1.0, and an attestation names the repository it was signed in. For 0.1.0 and the alphas before it, write `ClayGendron/wasi_python` in place of `ClayGendron/wasi-python` in both options.
 
 ## Check an asset without `gh`
