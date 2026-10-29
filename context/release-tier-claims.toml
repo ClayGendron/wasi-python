@@ -5,10 +5,3 @@
 # request's gather and acceptance read these reasons here. release/version.py date moves the
 # blocks under "## <version>" in context/release-tier-claims-history.md, and this file starts
 # empty again.
-
-[[claim]]
-spec = "157"
-grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[*"]
-growth = "the reactor gains the export `prepare`, a prepared instance's ending and five reseeds in `_refresh`, so both binaries are larger and every run unmarshals and refreshes a little more"
-[claim.judge]
-"context/release-tier-claims.toml" = "this block: the reason the upstream suites' fuel grows with 157's new reactor code, for the release pull request's acceptance"
