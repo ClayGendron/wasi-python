@@ -76,6 +76,10 @@ Reserved: 157 (the reactor prepares a starting image: the snapshot binary gains 
 
 **The release.** Once the above has landed, a fresh agent writes the structural review and another the security review, the preparation pull request carries them with `bump --to 0.1.2` and `date`, the release pull request from `dev` to `main` runs the whole workflow, and the orchestrating agent fast-forwards `main` and tags, as delegated.
 
+## 0.1.3: the process is faster
+
+The owner adopted `research/2026-10-30-where-the-time-goes-since-0-1-1.md` on 2026-10-30 (`decisions.md`). Reserved: 159 (the runs take the shape the data asks for: the build and the judges beside `quick`, no macOS leg on a pull request, the own shards split, a `review` check apart from `ci-status`, the build shard only where the set is rebuilt, the build on arm64 Linux with macOS rebuilding and voting, same-bytes off the gather's needs, the judges at the plan's parallelism and the release legs repacked; build-class, reviewed before it is built); 155 (the tag's run publishes what the release pull request judged, stacked on 159; constitution §5.5); 160 (the rules follow the data: fix-forward replaces the freeze, the up-to-date rule goes and `review` is required, one signature per review, the release reviews beside the last changes, caps on the documents, the fork flow written down; constitution §4.14 and §5.7); 161 (growth is listed on `dev` and reconciled at the release; a judge change).
+
 ## After 0.1.0
 
 The documentation's follow-ups still open (specs 122 and 123; the owner, 2026-10-22): the quickstart and how-to snippets as files under `docs/examples/`, run as a slow-tier guest job; versioned docs; the included-packages table generated from `MANIFEST` and `tests/upstream/packages.toml`; a scheduled external link check, upstream download hosts excluded; and `recipes/numpy_lapack_shims.c:13`'s pointer to its generator in the evidence folder `research/2026-10-20-numpy-on-openblas/`, which went with the evidence folders' deletion (the generator stays in git history at `bb2235f2`; a build-class change).
