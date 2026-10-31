@@ -90,6 +90,12 @@ dependencies = [
     # shows the patches change no result.
     "python-docx==1.2.0",
     "python-pptx==1.0.2",
+    # pdfplumber, pdfminer.six and xarray at the guest's pins, their stock wheels (the sdists the
+    # guest takes hold the same package files). Natively pdfminer.six brings cryptography and
+    # pdfplumber pypdfium2, which the guest does not carry; the job calls neither.
+    "pdfplumber==0.11.10",
+    "pdfminer-six==20260107",
+    "xarray==2026.9.0",
 ]
 
 [tool.uv.sources]

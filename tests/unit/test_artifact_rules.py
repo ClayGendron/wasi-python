@@ -90,6 +90,9 @@ PIN_FILES = {
     "wrapt-2.5.1-py3-none-any.whl": b"wrapt pin",
     "python_docx-1.2.0.tar.gz": b"python-docx pin",
     "python_pptx-1.0.2.tar.gz": b"python-pptx pin",
+    "pdfplumber-0.11.10-py3-none-any.whl": b"pdfplumber pin",
+    "pdfminer_six-20260107.tar.gz": b"pdfminer.six pin",
+    "xarray-2026.9.0.tar.gz": b"xarray pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -164,6 +167,9 @@ PACKAGES = {
     "wrapt": "2.5.1",
     "python-docx": "1.2.0",
     "python-pptx": "1.0.2",
+    "pdfplumber": "0.11.10",
+    "pdfminer-six": "20260107",
+    "xarray": "2026.9.0",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
@@ -579,6 +585,28 @@ def test_a_wheel_carries_the_list_and_nothing_else(good, work) -> None:
     assert rules.wheel_errors(wheel, good) == [
         f"{wheel.name} carries wasi_python/artifacts/Thumbs.db, which SHA256SUMS does not list",
         f"{wheel.name} carries wasi_python/artifacts/stray.bin, which SHA256SUMS does not list",
+    ]
+
+
+def test_a_wheel_must_fit_pypis_file_limit(good, work, monkeypatch) -> None:
+    """PyPI refuses a file over its limit for the project, and on a tag the GitHub release is made
+    before the upload: a wheel one byte over the limit is named, one at the limit is not."""
+    wheel = work / "wasi_python-0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as w:
+        w.writestr(rules.TYPED, b"")
+        w.writestr(LICENCE_MEMBER, _combined(good))
+        for p in good.rglob("*"):
+            if p.is_file():
+                w.writestr(
+                    f"wasi_python/artifacts/{p.relative_to(good).as_posix()}", p.read_bytes()
+                )
+    assert rules.PYPI_FILE_LIMIT == 104_857_600
+    size = wheel.stat().st_size
+    monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size)
+    assert rules.wheel_errors(wheel, good) == []
+    monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size - 1)
+    assert rules.wheel_errors(wheel, good) == [
+        f"{wheel.name} is {size:,} bytes, over PyPI's file limit of {size - 1:,}"
     ]
 
 
