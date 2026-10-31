@@ -177,6 +177,8 @@ SOURCE_COMPONENTS = (
     "statsmodels",
     "python-docx",
     "python-pptx",
+    "pdfminer-six",
+    "xarray",
 )
 
 # The test sources: every other pinned source the judge stages but never builds (the pure-Python
