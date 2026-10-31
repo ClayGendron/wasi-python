@@ -1,113 +1,126 @@
 # 167: pdfplumber, plotly, xarray and zstd
 
-- **Status:** drafted 2026-10-30, to be reviewed before it is built (the guest's imports and the build recipe: constitution §5.6). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). It also waits on the owner: the five licences are not yet approved under constitution §4.12, and the wheel crosses decision 64's 100 MB line (The owner's choices).
+- **Status:** drafted 2026-10-30, to be reviewed before it is built (the guest's imports and the build recipe: constitution §5.6). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). Revised the same day against its pre-build review, `../reviews/167-pdfplumber-plotly-xarray-and-zstd-spec-2026-10-30.md` (its Disposition). It waits on the owner: the licences of choice 1 are not yet approved under constitution §4.12, and plotly waits on PyPI (choice 2).
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
-- **Kind:** **build-class**, **a judge change**, three carried patches; not structural: nothing under `src/` changes. The files are in Design.
-- **Depends on:** landed: 007, 020, 035 (the zip's resource reader), 041 (Decision 4), 042 (an sdist for its notices; growth measured from the pins), 063 and 067, 157. Siblings: 166 lands first (CPython 3.15.2 holds `Modules/_zstd/`; pandas 3.1.0's patch folder; the oracle on the new line). 165 edits the same recipe and judge files; whichever lands second rebases and recounts. 162 to 164 and 168 touch `src/` only.
-- **Research it stands on:** `../research/2026-10-30-what-0-1-3-could-carry.md`, items E and F; `../decisions.md` line 529 and question 64 (line 245); `../roadmap.md` line 89. **The drafting reads** (2026-10-30, scratch folder only): the wheels of pdfplumber 0.11.10, pdfminer.six 20260107, plotly 7.1.0, xarray 2026.9.0 and pypdfium2 5.14.0, unpacked in uv's cache on this machine (READ); each tree compiled with Python 3.14 and deflated at level 9 (EXECUTED, a scratch script, not step 70's); the oracle's CPython 3.15.0 asked for its libzstd (EXECUTED: `1.5.7`); the 0.1.2 wheel listed with `unzip -v` (EXECUTED); pandas 3.0.6's `io/common.py` in the main tree's build and 3.1.0's in uv's cache (READ).
+- **Kind:** **build-class**, **a judge change**, three carried patches; not structural: nothing under `src/` changes. Two parts: A, the packages, is this specification's pull request; B, libzstd, is a decision block that the lane's next free number takes whole (Decision 10).
+- **Depends on:** landed: 007, 020, 035 (the zip's resource reader), 041 (Decision 4), 042 (an sdist for its notices; growth measured from the pins), 063 and 067, 157. Siblings: 166 lands first (pandas' patch folder, the oracle; B rechecks the oracle's libzstd on 3.15.2, and makes its patch against whichever pandas 166 pins). 165 shares files; the second to land rebases. 162 to 164 and 168 touch `src/` only.
+- **Research it stands on:** `../research/2026-10-30-what-0-1-3-could-carry.md`, items E and F; `../decisions.md` line 529 and question 64 (line 245); `../roadmap.md` line 89. **Drafting reads** (2026-10-30): the four wheels and pypdfium2's in uv's cache (READ); each tree compiled with Python 3.14 and deflated (EXECUTED, a scratch script, not step 70's); the oracle CPython's libzstd (EXECUTED: `1.5.7`); the 0.1.2 wheel (EXECUTED).
 
 ## The problem
 
-The memo called these pure Python over the zip, and libzstd three surfaces. The code says five things it did not.
-
-1. pdfminer.six imports `cryptography` at the top of `pdfminer/pdfdocument.py` (lines 13 and 14). So `import pdfplumber` fails without it, and cryptography is Rust, out of 0.1.3. Only AES needs it.
-2. pdfplumber requires pypdfium2, a native wheel. Only `page.to_image` reaches it (`pdfplumber/display.py:7`, imported inside `page.py:598`).
-3. plotly 7.1.0 opens its validators' JSON by path (`plotly/validator_cache.py:18-26`) and its sample data by path (`plotly/data/__init__.py:400-405`). A path into the zip does not open, so every figure would fail.
-4. pandas' `compression="zstd"` imports `zstandard`, not the standard library (`pandas/io/common.py:905-911` in 3.0.6, the same in 3.1.0). Linking libzstd gives two surfaces, not three.
-5. The 0.1.2 wheel is 98,385,354 bytes, and the zip sits in it almost unshrunk (53,915,154 bytes stored as 53,139,109; EXECUTED). This change and 165 together take it past 100 MB, with or without plotly.
+1. pdfminer.six imports `cryptography` at the top of `pdfminer/pdfdocument.py` (lines 13 and 14), so `import pdfplumber` fails without it. Only AES needs it.
+2. pdfplumber requires pypdfium2, a native wheel; only `page.to_image` reaches it (`display.py:7`, imported inside `page.py:598`).
+3. plotly opens its validators, its datasets and its election map by path (`plotly/validator_cache.py:18-26`, `plotly/data/__init__.py:181-204` and `:400-405`). A path into the zip does not open.
+4. pandas' `compression="zstd"` imports `zstandard`, not the standard library (`io/common.py:905-906` in 3.0.6, `:914-915` in 3.1.0).
+5. The 0.1.2 wheel is 98,385,354 bytes, the zip in it almost unshrunk (EXECUTED). Nothing checks the wheel's size, and on a tag `publish` creates the GitHub release before `pypi` uploads (`.github/workflows/release.yml:1502`, `:1541`).
 
 ## Decisions
 
 ### 1. The pins, and what stays out
 
-pdfplumber 0.11.10 with pdfminer.six 20260107, which it pins exactly; plotly 7.1.0; xarray 2026.9.0 (READ, their METADATA). The builder reads PyPI once at build and takes the newest. Each package taken from an sdist is first compared with its wheel through step 70's `walk` and `wheel_members` (`scripts/make_stdlib_zip.py:113`, `:149`), as 041 did for networkx; a difference beyond the patched and dropped files stops the build. plotly is 7, not the memo's 6: 7.1.0 is current, MIT, and stands on narwhals as 6 did. Every other requirement is carried. Out: pypdfium2 and cryptography (native), kaleido (a browser), anywidget, and xarray's optional engines and accelerators (netCDF4, h5netcdf, zarr, dask, numba, bottleneck, flox, cftime, pooch).
+pdfplumber 0.11.10 with pdfminer.six 20260107, which it pins exactly; plotly 7.1.0; xarray 2026.9.0 (READ, their METADATA). The builder takes the newest at build. plotly is 7, departing from the decision's "plotly 6": 7.1.0 is current. pdfminer.six, plotly and xarray come from their sdists (041, Decision 4); the builder compares each sdist's package with its wheel once, through step 70's `walk` and `wheel_members` (`scripts/make_stdlib_zip.py:113`, `:149`), and records the result in the landing notes. Out: pypdfium2, cryptography, kaleido, anywidget, and xarray's optional engines.
 
 ### 2. pdfminer imports cryptography where AES runs
 
-A carried patch moves the two imports into one helper that the AES paths call (`pdfdocument.py:527-546`, `574-586`, `655`, `664`). Then `import pdfplumber` works, plain and RC4 files read, and an AES file raises `ModuleNotFoundError: No module named 'cryptography'`, as pypdf's AES raises `DependencyError` today. A stand-in `cryptography` would mislead every package that looks for the real one, pypdf first. pdfminer.six comes from its sdist, staged under `build/pure-install/` (041, Decision 4).
+A carried patch, `recipes/patches/pdfminer_six-20260107/`, moves the two imports into one helper the AES paths call (`pdfdocument.py:539-542`, `574-586`, `656`, `664-667`). Plain and RC4 files read; an AES file raises `ModuleNotFoundError: No module named 'cryptography'`, as pypdf's AES raises `DependencyError` today. A stand-in `cryptography` would mislead pypdf's probe for the real one.
 
 ### 3. pdfminer's CJK maps stay out
 
-`--drop pdfminer/cmap` leaves out 149 files, about 6.4 MB deflated. pdfminer opens them by path (`pdfminer/cmapdb.py:249-285`), which the zip cannot serve, and they are Adobe's data under Adobe's terms (`cmap/README.txt`). Identity-H and a font's own ToUnicode table are code, so most files read. Text in a font that names a predefined CJK map and has no ToUnicode table comes out as `(cid:N)`. The limitations page says so.
+`--drop pdfminer/cmap` leaves out 149 files, about 6.4 MB deflated. pdfminer opens them by path (`pdfminer/cmapdb.py:249-285`); Identity-H and ToUnicode tables are code, so most files read. A font that names a predefined CJK map and has no ToUnicode table reads as `(cid:N)`; the limitations page says so.
 
 ### 4. plotly reads its data as package data
 
-plotly already reads plotly.js and its templates with `pkgutil.get_data` (`plotly/offline/offline.py:85-86`, `plotly/io/_templates.py:84`). A carried patch makes the validator cache and `_get_dataset` do the same, the dataset handed to the backend as a file object. plotly then comes from its sdist. `package_data/widgetbundle.js` is dropped: only `FigureWidget` reads it, by path, under Jupyter. `plotly.min.js` stays: `write_html` embeds it by default. `to_image` raises plotly's own error naming kaleido.
+plotly reads plotly.js with `pkgutil.get_data` (`plotly/offline/offline.py:85-86`). A carried patch does the same for the validators' JSON, `_get_dataset` and `election_geojson`, handing the backend `gzip.GzipFile(fileobj=io.BytesIO(...))`, since pandas reads a buffer as uncompressed. The survey greps `__file__` in `plotly` and `_plotly_utils`, and the landing notes list each hit. `package_data/widgetbundle.js` and `labextension/` are dropped: FigureWidget and JupyterLab only. `plotly.min.js` stays, since `write_html` embeds it. `to_image` raises plotly's error naming kaleido.
 
 ### 5. xarray from its sdist, with its notices
 
-xarray adapts code from dask, seaborn and scikit-learn (comments at `xarray/backends/locks.py:16`, `plot/utils.py:163`, `util/deprecation_helpers.py:78`). Their notices are in the sdist's `licenses/` folder; the wheel carries `LICENSE` only. So the sdist is the pin, as seaborn's was (042). The HTML view reads its CSS and icons through `importlib.resources` (`core/formatting_html.py:33-36`), which 035's reader serves. netCDF4, HDF5, zarr, dask, non-standard calendars and `xarray.tutorial` fail by name.
+xarray carries code from dask, seaborn, scikit-learn, toolz, pandas, NumPy and flox (READ, the review's Finding 2). Its sdist's `licenses/` folder holds their notices; the wheel holds `LICENSE` only. Its HTML view reads its files through `importlib.resources` (`core/formatting_html.py:33-36`), which 035's reader serves. Its absent engines and `xarray.tutorial` fail by name.
 
-### 6. The zip's growth is measured first
+### 6. The size: measured on every pull request, and gated
 
-| distribution | estimate in the zip (INFERRED) |
+| distribution | in the zip (INFERRED) |
 |---|---|
-| plotly with `_plotly_utils`, without the widget bundle | 8.3 MB (bytecode of `graph_objs` 4.6, `plotly.min.js` 1.5) |
+| plotly, less its two Jupyter parts | 6.9 MB |
 | xarray | 1.6 MB |
 | pdfminer.six without `cmap/` | 0.3 MB |
 | pdfplumber | 0.1 MB |
 
-About 10.4 MB and 1,750 members, 19% of the zip. Before any pin lands, the build measures each with step 70's own functions, as 042 did, and records the snapshot's bytes (the zip's directory sits in it) and a plain start's fuel. Recommended threshold: plotly lands if its measured growth is at most 9.0 MB; above it, plotly waits and the rest lands.
+The two lines are decision 64's 100,000,000 bytes and PyPI's limit, 104,857,600 bytes (100 MiB). From 98.39 MB, with 165's 0.9, Part B's 0.5 and 166's 0.5 to 3: about 102.4 to 104.9 MB without plotly, and 109.3 to 111.8 MB with it (INFERRED). So:
 
-### 7. libzstd 1.5.7 linked in as `_zstd`
+- `wheel_errors` (`tests/harness/artifacts.py:236`) gains a row: the wheel is at most `PYPI_FILE_LIMIT`, a constant beside it, 104,857,600 until PyPI grants more, with its source in a comment. It is red on any run that builds a wheel, the release pull request included, so no tag publishes a wheel PyPI refuses.
+- plotly is its own commit range, last, and its pull request merges only once PyPI's raised limit is recorded in `decisions.md`. If it has not come when the rest is ready, plotly moves to 0.1.4; the release does not wait on PyPI.
 
-The pin is zstd 1.5.7's release tarball, the version the oracle's CPython links, so the golden compares compressed bytes as `compress.py` does for bz2 and xz. Step 35 compiles `lib/common`, `compress`, `decompress` and `dictBuilder` outside the tree, as it does bzip2 (`35_stdlib_libs.sh:26-38`), with `-O2 -DZSTD_DISABLE_ASM -DXXH_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=0`, and without `ZSTD_MULTITHREAD`: the guest has no threads, and pre-1.0 frames are not read. Step 60 adds a Setup.local line for `_zstd` from CPython's four files (`Modules/Setup.stdlib.in:69`), puts `libzstd.a` in the weak-duplicate gate (`60_link.sh:98-100`) and `_zstd` in the dropped-module check (`:139-141`). `nb_workers` above 0 raises `ZstdError` (INFERRED). zstd is BSD-3-Clause or GPLv2; the set takes BSD-3-Clause and ships `LICENSE`. The `-V` line drops "zstd" (`recipes/reactor_bootstrap.py:24-28`).
+### 7. The checks
 
-### 8. pandas' `compression="zstd"` through the standard library
-
-A carried patch in `recipes/patches/pandas-3.1.0/`: when `zstandard` cannot be imported, `get_handle` opens `compression.zstd.ZstdFile`, passing `level` on; `zstandard` stays first. The draft links pandas' own issue if one exists. A stand-in `zstandard` is refused, as in Decision 2.
-
-### 9. The checks
-
-Four golden jobs match native under the oracle, which gains the four pins and `zstandard` (natively pulling cryptography and pypdfium2, which no job reaches):
+Golden jobs match native under the oracle, which gains the pins:
 
 - `pdf_tables`: reportlab draws a ruled table on two pages; pdfplumber prints the text, the words' rounded boxes and `extract_tables()`; a file pypdf encrypts with RC4 opens with its password.
-- `plotly_figures`: a `go.Figure` and a `px.scatter` of `px.data.iris()`; the hashes of `to_json()` and of `to_html(div_id=…, include_plotlyjs=False)`; the length and hash of a full `write_html`; `to_image`'s error.
-- `labelled_arrays`: alignment, `groupby("time.month")`, `rolling`, `interp` through scipy, a DataFrame round trip, `_repr_html_`'s hash, and netCDF3 bytes written and read back.
-- `zstd`: `compression.zstd` at three levels, a trained dictionary, a streaming `ZstdFile`, `tarfile`'s `w:zst` and `zipfile`'s `ZIP_ZSTANDARD`, each length and SHA-256 with its round trip; pandas' zstd CSV round-tripped and read by `compression.zstd`, its compressed bytes not printed (natively they come from `zstandard`).
+- `plotly_figures`: a `go.Figure` and a `px.scatter` of `px.data.iris()`; `px.data.election_geojson()`'s feature count; `to_json(engine="json")`'s hash; `to_html` and `write_html` with a fixed `div_id`; `to_image`'s error.
+- `labelled_arrays`: alignment, `groupby("time.month")`, `rolling`, `interp` through scipy, a DataFrame round trip, netCDF3 bytes round-tripped, and `_repr_html_` hashed after each UUID (`core/formatting_html.py:92-93`) is replaced by a fixed token.
 
-Guest rows, each seen failing on today's set: `_zstd` joins `test_stdlib_c_modules_are_builtin` (`tests/checks/test_v1_1_artifact_set.py:348`); after `import pdfplumber`, `cryptography` is not in `sys.modules`, and an AES decrypt names it; `page.to_image()` names pypdfium2.
+Guest rows: after `import pdfplumber`, `cryptography` is not in `sys.modules`, and an AES decrypt names it; `page.to_image()` names pypdfium2.
 
-Own suites (063, 067): a survey first, then four families, a smoke group in the normal tier and the whole suite in the release tier. Expected classes: no cryptography, no pypdfium2, no processes (`pdfplumber.repair` runs Ghostscript), no kaleido, absent optional engines. `zstd` is `kind = "via"`, via `compression.zstd`, added to `stdlib_modules`. CPython's `test_zstd` (`tests/upstream/python/cpython-b.txt:140`) and the archive modules' zstd tests now run; a cap that must rise is a judge change with that reason.
+Own suites (063, 067): a survey, then four families, a smoke group in the normal tier and the whole suite in the release tier. Test sources, pinned: the three sdists; pdfplumber's sdist if it holds `tests/`, else its release tag's archive. Expected classes: no cryptography, no pypdfium2, no processes (`pdfplumber.repair` runs Ghostscript), no kaleido, absent engines.
 
-### 10. The halves split
+### 8. Upstream drafts
 
-The zstd half changes the binaries; the package half changes the zip and carries the size question. Recommended: the zstd half (Decisions 7 and 8, its rows of 9) takes its own number and lands first. Until the owner answers, it is this specification's first pull request.
+Each draft under `../upstream/patches/` follows its project's contribution rules, read at build, as a facts sheet where they ask (question 80).
+
+### 9. Fuel on every start
+
+About 1,750 more members cost about 45 M of fuel on every plain start, now about 250 M, (INFERRED: 26 k a member, 044 and 045). The news file claims it.
+
+### 10. Part B, libzstd: a block the next number takes
+
+B changes the binaries, A the zip. One news file and one review belong to one number (`../changes/README.md`), so B takes the next free number with these decisions, and may land first once libzstd is approved.
+
+- **B1. libzstd 1.5.7 as `_zstd`.** The pin is zstd 1.5.7's release tarball, the oracle's version, so the golden compares compressed bytes. Step 35 compiles `lib/common`, `compress`, `decompress` and `dictBuilder` outside the tree, as bzip2 (`35_stdlib_libs.sh:26-38`), with `-O2 -DZSTD_DISABLE_ASM -DXXH_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=0`, without `ZSTD_MULTITHREAD`. Step 60 adds `_zstd` from CPython's four files (`Modules/Setup.stdlib.in:69`), `libzstd.a` to the weak-duplicate gate (`60_link.sh:98-100`) and `_zstd` to the dropped-module check (`:139-141`). `nb_workers` above 0 raises `ValueError`. The `-V` line drops "zstd" (`recipes/reactor_bootstrap.py:24-28`).
+- **B2. pandas' `compression="zstd"`.** A carried patch: without `zstandard`, `get_handle` opens `compression.zstd.ZstdFile` with `level`; any other key raises `TypeError` naming it. pandas' own zstd tests skip without `zstandard` (INFERRED), so B's golden is this path's only test.
+- **B3. Its checks.** A `zstd` golden job: `compression.zstd` at three levels, a trained dictionary, a streaming `ZstdFile`, `tarfile`'s `w:zst`, `zipfile`'s `ZIP_ZSTANDARD`, each length and SHA-256 with its round trip; pandas' zstd CSV round-tripped and read by `compression.zstd`, its bytes not printed (the oracle's pandas writes through `zstandard`). `_zstd` joins `test_stdlib_c_modules_are_builtin` (`tests/checks/test_v1_1_artifact_set.py:348`); `-V` and `_missing_stdlib_info.py` name no zstd. `zstd` is `kind = "via"`, via `compression.zstd`, in `stdlib_modules`; CPython's `test_zstd` (`tests/upstream/python/cpython-b.txt:140`) and the archive modules' zstd tests run, and a cap that must rise is a judge change with that reason.
+- **B4. Its files.** Those of B1 to B3, `downloads/SHA256SUMS`, `00_download.sh`, `assemble_artifacts.py`, `recipes/snapshot-packages.txt` (`zstd: compression.zstd`), and the tree lists of Design, one more each.
 
 ## Intent
 
-`import pdfplumber`, `plotly` and `xarray` work from the zip with native's answers; `compression.zstd`, `tarfile`'s zstd modes and pandas' `compression="zstd"` work; what does not is named on the limitations page.
+pdfplumber, plotly and xarray work from the zip with native's answers; no wheel PyPI would refuse is tagged.
 
 ## Design
 
-- Recipe: `scripts/00_download.sh` and `downloads/SHA256SUMS` (zstd, three sdists, pdfplumber's wheel, the test sources); `scripts/steps/35_stdlib_libs.sh`, `60_link.sh`; `70_zip.sh` (three sdists staged in `build/pure-install/`, three `--drop`s); `scripts/assemble_artifacts.py` (`PACKAGES`, `WHEELS`, the notices, plotly.js's bundled-licence comments among them); `recipes/reactor_bootstrap.py`; five lines in `recipes/snapshot-packages.txt`.
-- Patches: `recipes/patches/<pdfminer.six top>/0001-import-cryptography-where-aes-runs.patch`, `recipes/patches/plotly-7.1.0/0001-validators-and-datasets-as-package-data.patch`, `recipes/patches/pandas-3.1.0/0002-zstd-from-the-standard-library.patch`, and a draft each under `../upstream/patches/`.
-- Judge: four jobs under `tests/jobs/` and their rows in `tests/checks/test_v1_3_default_profile.py` and `test_v1_3_data_stack.py`; the guest rows; `tests/harness/paths.py`; four families under `tests/upstream/`; `packages.toml`; `tests/release_shards.toml`; `tests/jobs/oracle/pyproject.toml`.
-- Documents: `docs/reference/packages.md` and `docs/reference/limitations.md` (the `_zstd` line goes; Decisions 2 to 5's limits come in).
+- Recipe: `scripts/00_download.sh`, `downloads/SHA256SUMS`; `scripts/steps/70_zip.sh` (three sdists staged in `build/pure-install/`, four `--drop`s); `scripts/assemble_artifacts.py` (`PACKAGES`, `WHEELS`, the notices); `recipes/snapshot-packages.txt` (`pdfminer-six`, `pdfplumber`, `plotly: plotly plotly.graph_objects plotly.express`, `xarray`).
+- Patches: `recipes/patches/pdfminer_six-20260107/0001-import-cryptography-where-aes-runs.patch`, `recipes/patches/plotly-7.1.0/0001-data-as-package-data.patch`, each with its draft.
+- The tree lists, each one more per sdist, so every patched tree is compared with its tarball (§4.1): `tests/harness/pins.py` (`SOURCE_PATTERNS`), `tests/harness/needs.py` (`SOURCE_COMPONENTS`), `tests/harness/upstream.py` (`PURE_SUITES`), and the "28 passed" count at `.github/workflows/release.yml:344` and `:446` (three more here, one in Part B; whichever of 165 and 167 lands second recounts).
+- Judge: `tests/harness/artifacts.py` (`PYPI_FILE_LIMIT`) and its row in `tests/unit/test_artifact_rules.py`; three jobs under `tests/jobs/` and their rows in `tests/checks/test_v1_3_default_profile.py`; the guest rows; `tests/harness/paths.py`; four families under `tests/upstream/`; `packages.toml`; `tests/release_shards.toml`; `tests/jobs/oracle/pyproject.toml`.
+- Documents: the packages and limitations pages.
 
 ## Scope
 
-In: the ten decisions. Out: cryptography, pypdfium2, kaleido and a widget; pdfminer's CJK maps; xarray's file engines and dask; zstd's threads and legacy frames; the PyPI limit itself, which is the owner's request.
+In: Decisions 1 to 9; Decision 10 as the next number's text. Out: cryptography, pypdfium2, kaleido, widgets, CJK maps, xarray's engines; the PyPI request, the owner's.
 
 ## Acceptance criteria
 
-1. Before any pin lands, the zip's growth per distribution, measured with step 70's functions, is in the landing notes, and plotly is held to the owner's threshold (EXECUTED).
-2. The zip's names differ from the starting set's by exactly the computed additions, none under `pdfminer/cmap/` or named `widgetbundle.js`; every tree is its tarball plus its patches (the build shard).
-3. The four golden jobs match native (`tests/jobs/regen.py --check`, and their checks in the guest).
-4. `_zstd` is a builtin, and the AES and `to_image` rows give their named errors, each seen failing first.
-5. `python.wasm -V` names no zstd, and `_missing_stdlib_info.py` names no `_zstd` (a check).
-6. The survey's classes are recorded; the four families and CPython's zstd tests pass in their tiers; every growth is claimed in the news file.
-7. MANIFEST has a `package` and a notice for each of the five; the wheel's size is recorded against 100 MB (EXECUTED).
-8. The fast tier, `tests/lint` and `ci-status` are green.
+1. Before choice 1 is asked, the builder's sweep lists every licence in the headers (`Copyright|licen[cs]e`) of every file staged and in each sdist's `licenses/`, with its file (EXECUTED, in the landing notes).
+2. The zip's growth per distribution, measured with step 70's functions, and the wheel's bytes are in each pull request's landing notes (EXECUTED).
+3. `wheel_errors` refuses a wheel over `PYPI_FILE_LIMIT`, seen failing first (unit row).
+4. The zip's names differ from the starting set's by exactly the computed additions, none under `pdfminer/cmap/`, `plotly/labextension/` or named `widgetbundle.js`; every tree is its tarball plus its patches (the build shard).
+5. The three golden jobs match native (`tests/jobs/regen.py --check`, and their checks in the guest).
+6. The AES and `to_image` rows give their named errors, each seen failing first.
+7. The survey's classes are recorded; the four families pass in their tiers; every growth is claimed.
+8. plotly's pull request cites PyPI's recorded limit in `decisions.md`.
+9. The fast tier, `tests/lint` and `ci-status` are green.
 
 ## The owner's choices
 
-1. **The licences (§4.12).** Recommended: approve pdfplumber (MIT), pdfminer.six (MIT), plotly (MIT) with plotly.js 4.1.1 and the MIT and BSD-3-Clause libraries its bundled notices name, xarray (Apache-2.0) with the BSD-3-Clause notices of the code it adapts, and libzstd (BSD-3-Clause, of its BSD-or-GPLv2 choice). A further licence the build finds in a notice folder comes back before landing. Alternative: all but plotly.
-2. **The wheel crosses 100 MB.** About 110 MB with this change and 165, about 102 MB without plotly (INFERRED from Decision 6 and 165's estimate). Recommended: the owner asks PyPI now to raise `wasi-python`'s file limit, to 200 MB; the build goes on, and 0.1.3's publication waits on PyPI's answer. Alternative: stop carrying a file in the wheel, a product change of its own.
-3. **plotly.** Recommended: 7.1.0, landing if its measured growth is at most 9.0 MB. Alternative: plotly waits for 0.1.4.
-4. **pandas' zstd.** Recommended: carry Decision 8's patch. Alternative: no patch; the documentation shows `pd.read_csv(compression.zstd.open(path))`.
-5. **The split.** Recommended: the zstd half takes its own number and lands first.
+1. **The licences (§4.12).** Recommended: approve, each shipped with its notice:
+   - pdfplumber: MIT.
+   - pdfminer.six: MIT; `_saslprep.py` Apache-2.0 (MongoDB, Inc.); `glyphlist.py` the Adobe Glyph List notice; `fontmetrics.py` the Adobe Core 35 AFM terms; `arcfour.py` and `runlength.py` public domain.
+   - plotly: MIT; `_plotly_utils/colors/carto.py` CARTOColors, CC BY 3.0 US; `colorbrewer.py` Apache-2.0; `cmocean.py` and the vendored pypng MIT; plotly.js 4.1.1, MIT, with its bundled libraries (maplibre-gl-js BSD-3-Clause, its text pinned from its URL; polybooljs; Jon Schlinkert's code; d3, INFERRED); the ten datasets under their sources' terms (gapminder CC BY 4.0, INFERRED; tips from Rdatasets).
+   - xarray: Apache-2.0; code from dask, seaborn, scikit-learn, toolz, pandas and NumPy (BSD-3-Clause) and flox (Apache-2.0); its HTML icons (IcoMoon, CC BY 4.0 or GPL, INFERRED).
+   - Part B's libzstd 1.5.7: BSD-3-Clause, of its BSD-or-GPLv2 choice, with divsufsort (MIT, INFERRED).
+   
+   Criterion 1's sweep may add to this list; the owner is asked with the swept list. Alternatives: all but plotly's datasets (`px.data` then fails by name); all but plotly.
+2. **PyPI's limit.** Recommended: ask PyPI now to raise `wasi-python`'s file limit to 200 MB; plotly waits on the recorded answer, and moves to 0.1.4 if it has not come. Alternative: plotly to 0.1.4 now. Without plotly, the wheel is 102.4 to 104.9 MB: past decision 64's line, at PyPI's.
+3. **plotly.** Recommended: 7.1.0 (the decision named 6), about 6.9 MB of the zip and part of the 45 M fuel of Decision 9.
+4. **pandas' zstd (B2).** Recommended: carry the patch. Alternative: document `pd.read_csv(compression.zstd.open(path))`.
 
 ## Landing notes
 
