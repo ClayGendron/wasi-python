@@ -277,7 +277,6 @@ def test_full_runs_the_merge_grade_set(changed, event, labels, messages) -> None
         (SCHEDULE, True),
         (DISPATCH, True),
         (ci_plan.Event("workflow_dispatch", DISPATCH.ref, weekly=True), True),
-        (TAG, True),
     ],
     ids=[
         "pull-request",
@@ -286,19 +285,74 @@ def test_full_runs_the_merge_grade_set(changed, event, labels, messages) -> None
         "weekly",
         "dispatch",
         "weekly-dispatch",
-        "tag",
     ],  # fmt: skip
 )
 def test_the_build_shard_runs_exactly_where_the_rebuilds_compile(event, build) -> None:
     """The build shard reads a build tree, which the x86-64 rebuild compiles from the pins
-    exactly when the plan rebuilds: the release pull request, the weekly run, a dispatch and a
-    tag; never a push to dev or a pull request into dev."""
-    changed = None if event in (TAG, SCHEDULE, DISPATCH) or event.weekly else ["src/x.py"]
+    exactly when the plan rebuilds and judges: the release pull request, the weekly run and a
+    dispatch; never a push to dev or a pull request into dev. A tag rebuilds and judges nothing
+    (the row below)."""
+    changed = None if event in (SCHEDULE, DISPATCH) or event.weekly else ["src/x.py"]
     d = ci_plan.decide(changed, event)
     sel = ci_plan.select(d, PLAN)
     assert sel["build"] is build and d.rebuild is build
     assert ("build/build" in sel["selected"]) is build
     assert ci_plan.outputs(d, sel, [])["build"] == ("true" if build else "false")
+
+
+def test_a_tag_publishes_what_the_release_pull_request_judged() -> None:
+    """A pushed tag compiles the set from the pins on three hosts, installs the wheel fresh on
+    three systems and publishes; it judges nothing again, since its tree is the one the release
+    pull request judged plus the commit that recorded it: no judge leg, no build shard, no
+    gather, and no tier."""
+    d = ci_plan.decide(None, TAG)
+    assert d.rebuild and d.publish and not d.judge and d.tier == ""
+    sel = ci_plan.select(d, PLAN)
+    assert all(sel[s] == [] for s in (*shards.OWN_SYSTEMS, "release"))
+    assert sel["build"] is False and sel["selected"] == [] and sel["coverage"] == []
+    assert sel["verify"] == list(ci_plan.VERIFY_RUNNERS)
+    out = ci_plan.outputs(d, sel, [])
+    assert (out["judge"], out["build"], out["rebuild"], out["publish"]) == (
+        "false",
+        "false",
+        "true",
+        "true",
+    )
+    assert out["tier"] == ""
+    assert all(out[s] == "[]" for s in (*shards.OWN_SYSTEMS, "release"))
+    assert json.loads(out["verify"]) == list(ci_plan.VERIFY_RUNNERS)
+
+
+@pytest.mark.parametrize(
+    ("changed", "event"),
+    [
+        (["src/x.py"], PR_DEV),
+        (["docs/x.md"], PR_DEV),
+        (["src/x.py"], PR_MAIN),
+        (["src/x.py"], PUSH_DEV),
+        (["context/progress/accepted.json"], PUSH_DEV),
+        (None, SCHEDULE),
+        (None, DISPATCH),
+        (None, ci_plan.Event("workflow_dispatch", "refs/heads/main")),
+        (None, ci_plan.Event("workflow_dispatch", "refs/tags/v0.1.1")),
+    ],
+    ids=[
+        "pull-request",
+        "docs-pull-request",
+        "release-pull-request",
+        "push-to-dev",
+        "acceptance",
+        "weekly",
+        "dispatch",
+        "dispatch-on-main",
+        "dispatch-on-a-tag",
+    ],  # fmt: skip
+)
+def test_only_a_pushed_tag_publishes(changed, event) -> None:
+    """Every other event's publish output is false: a dispatch, even on a tag, never publishes."""
+    d = ci_plan.decide(changed, event)
+    assert not d.publish
+    assert ci_plan.outputs(d, ci_plan.select(d, PLAN), [])["publish"] == "false"
 
 
 @pytest.mark.parametrize("message", ["citest:fullness", "say citest:full here", "ci:full"])
@@ -314,8 +368,8 @@ def test_another_label_is_not_full() -> None:
 
 @pytest.mark.parametrize(
     "event",
-    [TAG, PR_MAIN, SCHEDULE, ci_plan.Event("workflow_dispatch", "refs/heads/main")],
-    ids=["tag", "release-pull-request", "schedule", "dispatch-on-main"],
+    [PR_MAIN, SCHEDULE, ci_plan.Event("workflow_dispatch", "refs/heads/main")],
+    ids=["release-pull-request", "schedule", "dispatch-on-main"],
 )
 def test_a_release_shape_judges_both_tiers_and_rebuilds(event) -> None:
     d = ci_plan.decide(None if event is not PR_MAIN else ["src/x.py"], event)
@@ -512,7 +566,7 @@ def test_a_release_pull_request_carries_devs_acceptances_and_is_not_refused() ->
 def test_the_whole_selection_is_the_shard_plan_on_every_system() -> None:
     """The matrix each judge job runs is generated from tests/release_shards.toml: run whole,
     each system's list is the plan's, in its order, and the build shard rides with it."""
-    sel = ci_plan.select(ci_plan.decide(None, TAG), PLAN)
+    sel = ci_plan.select(ci_plan.decide(None, SCHEDULE), PLAN)
     for system in (*shards.OWN_SYSTEMS, "release"):
         assert sel[system] == shards.on(shards.load(), system), system
     pairs = {tuple(p.split("/", 1)) for p in sel["selected"]}
@@ -538,7 +592,7 @@ def test_coverage_runs_on_every_linux_own_leg_of_a_merge_grade_run_alone() -> No
     labelled = ci_plan.Event(
         "pull_request", ref="refs/pull/7/merge", base_ref="dev", labels=("ci:full",)
     )
-    for changed, event in ((["src/x.py"], PUSH_DEV), (None, TAG), (["src/x.py"], labelled)):
+    for changed, event in ((["src/x.py"], PUSH_DEV), (None, SCHEDULE), (["src/x.py"], labelled)):
         d = ci_plan.decide(changed, event)
         sel = ci_plan.select(d, PLAN)
         assert sel["coverage"] == LINUX_OWN, event

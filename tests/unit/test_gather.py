@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import importlib.metadata
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -1688,3 +1689,98 @@ def test_a_claimed_growth_past_its_cap_is_still_red_after_a_merge(tmp_path) -> N
     assert v.growth == [f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70"], v.growth
     want = f"G5 budget macos/own-a: {PROBE}: fuel 70 is past its family"
     assert any(r.startswith(want) for r in v.red), v.red
+
+
+# ---------------------------------------------------------------------------------------------
+# A tag's proof that it publishes the bytes the release pull request accepted, on the tree it
+# judged: a scratch repository whose head is the release's acceptance commit.
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _acceptance(commit: str, **change) -> str:
+    """The history line a release pull request's acceptance writes, on `commit`."""
+    line = {"n": 61, "commit": commit, "source": "ci", "tier": "release", "dirty": False}
+    line.update(partial_reason=None, set_sums=S, artifact=W, event="pull_request")
+    line.update(change)
+    return json.dumps(line, sort_keys=True)
+
+
+def _tagged(tmp_path: Path, monkeypatch, line: dict | None = None, extra: str = "") -> Path:
+    """The judged commit (code and the history so far), then the acceptance commit a tag sits
+    on: accepted.json and one history volume, and `extra` beside them when it is given. `line`
+    changes the acceptance's history line; `judged` in it names another commit than the parent."""
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "no-config"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+    progress = repo / "context" / "progress"
+    progress.mkdir(parents=True)
+    _git(repo, "init", "-q", "-b", "dev")
+    (repo / "src.py").write_text("x = 1\n")
+    (progress / "history-00060.jsonl").write_text(_acceptance("0" * 40, tier="normal") + "\n")
+    (progress / "accepted.json").write_text("{}\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "the head the release pull request judged")
+    change = dict(line or {})
+    judged = change.pop("judged", None) or _git(repo, "rev-parse", "HEAD")
+    volume = progress / "history-00060.jsonl"
+    volume.write_text(volume.read_text() + _acceptance(judged, **change) + "\n")
+    (progress / "accepted.json").write_text(json.dumps({"commit": judged}) + "\n")
+    if extra:
+        (repo / extra).write_text("y = 2\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "Accepted: the release pull request")
+    return repo
+
+
+PROVE_CASES = {
+    "holds": ({}, "", (S, W), None),
+    "the tree alone holds": ({}, "", None, None),
+    "a different set": ({}, "", ("6" * 64, W), "set"),
+    "a different python.wasm": ({}, "", (S, "b" * 64), "python.wasm"),
+    "the newest line a merge's (tier normal)": ({"tier": "normal"}, "", None, "release"),
+    "the newest line a local acceptance's": ({"source": "local"}, "", None, "release"),
+    "the newest line a push's": ({"event": "push"}, "", None, "release"),
+    "the line's commit not the parent": ({"judged": "d" * 40}, "", None, "parent"),
+    "a second file in the acceptance commit": ({}, "src.py", None, "accepted.json"),
+    "a partial line": ({"partial_reason": "a shard was absent"}, "", None, "partial"),
+    "a dirty line": ({"dirty": True}, "", None, "clean"),
+}
+
+
+@pytest.mark.parametrize("case", PROVE_CASES)
+def test_the_tag_proves_it_publishes_what_the_release_judged(case, tmp_path, monkeypatch) -> None:
+    """`--prove-set` holds only when the newest acceptance is a release pull request's (from CI,
+    the release tier), whole and clean, made on the tagged commit's parent, on these bytes (when
+    the hashes are given), and the tagged commit adds that acceptance and nothing else."""
+    line, extra, sums, word = PROVE_CASES[case]
+    repo = _tagged(tmp_path, monkeypatch, line, extra)
+    found = gather.prove_set(repo, sums)
+    if word is None:
+        assert found is None, found
+    else:
+        assert found is not None and word in found, found
+
+
+def test_prove_set_runs_from_the_command_line(tmp_path, monkeypatch, capsys) -> None:
+    """The workflow's two calls: the tree alone before the compile, then the whole check against
+    the bytes; one line names the first mismatch, and the exit code is not zero."""
+    repo = _tagged(tmp_path, monkeypatch)
+    monkeypatch.setattr(paths, "REPO", repo)
+    assert gather.main(["--prove-set", "--tree-only"]) == 0
+    assert gather.main(["--prove-set", S, W]) == 0
+    capsys.readouterr()
+    assert gather.main(["--prove-set", "6" * 64, W]) == 1
+    assert "set" in capsys.readouterr().out
+    for argv in (["--prove-set"], ["--prove-set", S], ["--prove-set", "--tree-only", S, W]):
+        with pytest.raises(SystemExit):
+            gather.main(argv)
+    with pytest.raises(SystemExit):
+        gather.main(["--prove-set", "x" * 64, W])

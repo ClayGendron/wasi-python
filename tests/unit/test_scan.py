@@ -609,7 +609,7 @@ jobs:
     needs: build
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, gather]
+    needs: [build, verify, judged]
     permissions:
       id-token: write
       attestations: write
@@ -625,7 +625,7 @@ jobs:
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, attest, gather]
+    needs: [build, verify, attest, judged]
     permissions:
       contents: write
   pypi:
@@ -640,12 +640,12 @@ BAD_WORKFLOWS = [
     (("  attest:\n", "  other:\n"), "no attest job"),
     ((ATTEST_IF, "  attest:\n    if: always()\n"), "attest's or publish's if:"),
     (
-        ("    needs: [build, verify, gather]\n", "    needs: [build]\n"),
+        ("    needs: [build, verify, judged]\n", "    needs: [build]\n"),
         "attest does not need build,",
     ),
     (
-        ("    needs: [build, verify, gather]\n", "    needs: [build, verify]\n"),
-        "attest does not need build, verify and gather",
+        ("    needs: [build, verify, judged]\n", "    needs: [build, verify]\n"),
+        "attest does not need build, verify and judged",
     ),
     (("      contents: read\n", "      contents: write\n"), "attest's permissions are not"),
     (
@@ -670,12 +670,12 @@ BAD_WORKFLOWS = [
         "publish has id-token: write or write-all",
     ),
     (
-        ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, gather]\n"),
-        "publish does not need attest and gather",
+        ("    needs: [build, verify, attest, judged]\n", "    needs: [build, verify, judged]\n"),
+        "publish does not need attest and judged",
     ),
     (
-        ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, attest]\n"),
-        "publish does not need attest and gather",
+        ("    needs: [build, verify, attest, judged]\n", "    needs: [build, verify, attest]\n"),
+        "publish does not need attest and judged",
     ),
     # Ways around the first scan.
     (
@@ -683,13 +683,13 @@ BAD_WORKFLOWS = [
         "no actions/attest step pinned by a 40-hex commit",
     ),
     (
-        ("    needs: [build, verify, gather]\n", "    needs: [build]  # verify, gather\n"),
+        ("    needs: [build, verify, judged]\n", "    needs: [build]  # verify, judged\n"),
         "attest does not need build,",
     ),
     (
         (
-            "    needs: [build, verify, gather]\n",
-            "    needs: [build, verify, gather]\n    continue-on-error: true\n",
+            "    needs: [build, verify, judged]\n",
+            "    needs: [build, verify, judged]\n    continue-on-error: true\n",
         ),
         "attest has a job-level continue-on-error:",
     ),
@@ -975,7 +975,7 @@ jobs:
           gh issue create --title "$title" --body "$body"
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, gather]
+    needs: [build, verify, same-bytes, judged]
     permissions:
       id-token: write
       attestations: write
@@ -992,7 +992,7 @@ jobs:
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, attest, gather]
+    needs: [build, verify, same-bytes, attest, judged]
     environment: release
     permissions:
       contents: write
@@ -1572,13 +1572,13 @@ BAD_REBUILDS = [
     (
         (
             "attest",
-            "    needs: [build, verify, same-bytes, gather]\n",
-            "    needs: [build, verify, gather]\n",
+            "    needs: [build, verify, same-bytes, judged]\n",
+            "    needs: [build, verify, judged]\n",
         ),
         "attest does not need same-bytes",
     ),
     (
-        ("publish", "same-bytes, attest, gather]", "attest, gather]"),
+        ("publish", "same-bytes, attest, judged]", "attest, judged]"),
         "publish does not need same-bytes",
     ),
 ]
@@ -2556,7 +2556,7 @@ BAD_SHARDS = [
         "    timeout-minutes: 30\n    outputs:\n      own-rest-id: x\n",
         "rule 5: judge-linux hands on outputs",
     ),
-    ("attest", "same-bytes, gather]", "same-bytes]", "rule 8: attest"),
+    ("attest", "same-bytes, judged]", "same-bytes]", "rule 8: attest"),
     (
         "gather",
         "artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.record-id }}",
@@ -3468,10 +3468,11 @@ BAD_TIER = [
     ("gather", "          TIER: ${{ needs.plan.outputs.tier }}\n", "", "rule 7: gather's step"),
     # a job after the gather that a branch run reaches, with no status function in its if:
     (
-        "attest",
-        "    if: github.event_name == 'push' && github.ref_type == 'tag'\n",
-        "",
-        "rule 12: attest",
+        "accept-record",
+        "    if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && "
+        "needs.gather.result == 'success' }}\n",
+        "    if: needs.plan.outputs.accept == 'true'\n",
+        "rule 12: accept-record",
     ),
 ]
 
@@ -3511,7 +3512,7 @@ def _ci_plan():
 @pytest.mark.parametrize(
     ("event", "ref", "input_", "tier"),
     [
-        ("push", "refs/tags/v0.1.0", "", "release"),
+        ("push", "refs/tags/v0.1.0", "", ""),
         ("workflow_dispatch", "refs/heads/main", "false", "release"),
         ("workflow_dispatch", "refs/heads/spec/102", "true", "release"),
         ("workflow_dispatch", "refs/heads/spec/102", "false", "normal"),
@@ -3522,8 +3523,9 @@ def _ci_plan():
 )
 def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, tier) -> None:
     """The decision job decides the tier from the event, the ref and the dispatch's input as the
-    runner hands them on: a tag and a run on main always judge the release tier, a dispatch only
-    when its input is exactly true."""
+    runner hands them on: a run on main always judges the release tier, a dispatch only when its
+    input is exactly true, and a pushed tag judges no tier: the release pull request judged its
+    tree."""
     ci_plan = _ci_plan()
     environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
     e, changed, *_ = ci_plan.from_runner(environ)
@@ -3542,6 +3544,14 @@ BAD_CI_STATUS = [
         "ci-status's one step",
     ),
     ("ci-status", '("success", "skipped")', '("success", "skipped", "cancelled")', "ci-status's"),
+    # A tag whose publish was skipped would be green.
+    (
+        "ci-status",
+        'if os.environ.get("PUBLISH") == "true" and',
+        'if os.environ.get("PUBLISH") == "yes" and',
+        "ci-status's one step",
+    ),
+    ("ci-status", ", same-bytes, judged,", ", same-bytes,", "ci-status does not need"),
     (
         "ci-status",
         "    permissions: {}\n",
@@ -3577,6 +3587,49 @@ BAD_CI_STATUS = [
 )
 def test_the_ci_status_scan_names_each_breach(job, old, new, error) -> None:
     errors = scan.ci_status_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+# A pushed tag's run: each mutant named by tag_run_errors.
+TAG_PROOF_RUN = 'uv run python tests/harness/gather.py --prove-set "$sums" "$wasm"'
+BAD_TAG_RUN = [
+    ("plan", "      publish: ${{ steps.plan.outputs.publish }}\n", "",
+     "the plan hands on no publish"),
+    ("inputs", " || needs.plan.outputs.rebuild == 'true'", "", "inputs's if:"),
+    ("build", " || needs.plan.outputs.rebuild == 'true'", "", "build's if:"),
+    # The tree held after the compile, or on every run, or not at all.
+    ("build", "        if: github.event_name == 'push' && github.ref_type == 'tag'\n", "",
+     "build does not run"),
+    ("build", " --prove-set --tree-only", " --prove-set", "build does not run"),
+    # The build shard on a tag, with no gather to read its record.
+    ("rebuild-linux-x86-64", "        if: needs.plan.outputs.build == 'true'\n", "",
+     "rebuild-linux-x86-64's step 'The build shard'"),
+    ("judged", "    needs: [plan, build, same-bytes]\n", "    needs: [plan, build]\n",
+     "judged does not need"),
+    ("judged", "    if: needs.plan.outputs.publish == 'true'\n",
+     "    if: needs.plan.outputs.rebuild == 'true'\n", "judged's if:"),
+    ("judged", "fetch-depth: 2", "fetch-depth: 1", "judged does not check out"),
+    # The release assets' SHA256SUMS (which lists the wheel) in place of the set's own.
+    ("judged", 'sha256sum "$1/SHA256SUMS"', "sha256sum release-assets/SHA256SUMS",
+     "judged does not run"),
+    ("judged", TAG_PROOF_RUN, 'uv run python tests/harness/gather.py --prove-set "$sums" "$sums"',
+     "judged does not run"),
+    ("judged", TAG_PROOF_RUN, "uv run python tests/harness/gather.py --prove-set --tree-only",
+     "judged does not run"),
+    ("attest", "same-bytes, judged]", "same-bytes]", "attest does not need judged"),
+    ("publish", "attest, judged]", "attest]", "publish does not need judged"),
+]  # fmt: skip
+
+
+def test_the_real_workflow_holds_the_tag_run_rules() -> None:
+    assert scan.tag_run_errors(REAL_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_TAG_RUN, ids=[b[3] for b in BAD_TAG_RUN]
+)
+def test_the_tag_run_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.tag_run_errors(_in_job(REAL_WORKFLOW, job, old, new))
     assert any(e.startswith(error) for e in errors), errors
 
 
@@ -3633,7 +3686,7 @@ BAD_REUSE = [
      "R6: gather does not need rebuild-linux-x86-64, or needs same-bytes"),
     ("gather", "build, rebuild-linux-x86-64, judge-macos", "build, judge-macos",
      "R6: gather does not need rebuild-linux-x86-64"),
-    ("ci-status", "rebuild-macos-arm64, same-bytes, save-set", "rebuild-macos-arm64, save-set",
+    ("ci-status", "rebuild-macos-arm64, same-bytes, judged", "rebuild-macos-arm64, judged",
      "R6: ci-status does not need same-bytes"),
 ]  # fmt: skip
 

@@ -616,23 +616,38 @@ def test_every_job_checks_out_the_head_commit() -> None:
     assert not errors, scan.report(errors)
 
 
+# (the needs' results, the plan's refusals, its publish output, whether ci-status is red)
 CI_STATUS_CASES = {
     "every job succeeded or was skipped": (
         {"plan": "success", "quick": "success", "build": "skipped"},
         "[]",
+        "false",
         0,
     ),
-    "a failed job": ({"plan": "success", "quick": "failure"}, "[]", 1),
-    "a cancelled job": ({"plan": "success", "gather": "cancelled"}, "[]", 1),
-    "a refusal": ({"plan": "success"}, '["a pull request may not write accepted state"]', 1),
-    "no plan": ({"plan": "failure"}, "", 1),
+    "a failed job": ({"plan": "success", "quick": "failure"}, "[]", "false", 1),
+    "a cancelled job": ({"plan": "success", "gather": "cancelled"}, "[]", "false", 1),
+    "a refusal": (
+        {"plan": "success"},
+        '["a pull request may not write accepted state"]',
+        "false",
+        1,
+    ),
+    "no plan": ({"plan": "failure"}, "", "", 1),
+    "a tag that published": ({"plan": "success", "publish": "success"}, "[]", "true", 0),
+    "a tag whose publish was skipped": (
+        {"plan": "success", "judged": "skipped", "publish": "skipped"},
+        "[]",
+        "true",
+        1,
+    ),
 }
 
 
 @pytest.mark.parametrize("case", CI_STATUS_CASES)
 def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path) -> None:
     """ci-status's own step, run in bash with this environment's python3: green only when every
-    job it needs succeeded or was skipped and the plan refused nothing."""
+    job it needs succeeded or was skipped and the plan refused nothing, and, when the plan said
+    the run publishes, publish ran: a tag that published nothing is never green."""
     import json
 
     script = scan.workflow_step_script(
@@ -640,7 +655,7 @@ def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path)
         "ci-status",
         "Every job succeeded or was skipped, and the plan refused nothing",
     )
-    results, refusals, want = CI_STATUS_CASES[case]
+    results, refusals, publish, want = CI_STATUS_CASES[case]
     (tmp_path / "status.sh").write_text(script)
     r = subprocess.run(
         ["bash", "-e", str(tmp_path / "status.sh")],
@@ -648,6 +663,7 @@ def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path)
             "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
             "NEEDS": json.dumps({job: {"result": v, "outputs": {}} for job, v in results.items()}),
             "REFUSALS": refusals,
+            "PUBLISH": publish,
         },
         capture_output=True,
         text=True,
@@ -1218,7 +1234,8 @@ def test_every_package_names_its_own_suite() -> None:
 def test_release_judges_in_shards() -> None:
     """The release runs the shards the plan selects in their system's judge job, each leg
     uploading its record under its own name, names no shard by hand, and publishes nothing until
-    the gather, which holds no assets, has read every record."""
+    the judged job has held the bytes to the release pull request's acceptance; the gather holds
+    no assets and reads every record."""
     from harness import shards
 
     errors = scan.release_shard_errors(RELEASE_WORKFLOW.read_text(), shards.load())
@@ -1257,9 +1274,9 @@ def _ci_plan_module() -> types.ModuleType:
     return mod
 
 
-# Every event of the release shape: each judges the whole plan, both tiers, and rebuilds.
+# Every event of the release shape that judges: each judges the whole plan, both tiers, and
+# rebuilds. A pushed tag rebuilds and judges nothing (the rows below).
 RELEASE_SHAPES = {
-    "a pushed tag": ("push", "refs/tags/v0.1.1", ""),
     "a pull request into main": ("pull_request", "refs/pull/9/merge", "main"),
     "a dispatch on main": ("workflow_dispatch", "refs/heads/main", ""),
     "the weekly run": ("schedule", "refs/heads/dev", ""),
@@ -1286,6 +1303,54 @@ def test_the_judge_matrices_are_the_shard_plan_on_every_release(shape) -> None:
     ]
     if not (d.rebuild and sel["build"] and d.tier == "release"):
         errors.append(f"{shape}: rebuild {d.rebuild}, build {sel['build']}, tier {d.tier}")
+    assert not errors, scan.report(errors)
+
+
+# The jobs a pushed tag's run starts, every one taken to succeed: the compile and both rebuilds,
+# the vote, the wheel installed fresh on three systems, the proof that these are the accepted
+# bytes on the judged tree, the signature and the release. PyPI waits on the owner's switch.
+TAG_RUN = {
+    "plan",
+    "quick",
+    "inputs",
+    "build",
+    "rebuild-linux-x86-64",
+    "rebuild-macos-arm64",
+    "same-bytes",
+    "verify",
+    "judged",
+    "attest",
+    "publish",
+    "ci-status",
+}
+
+
+def test_a_tag_publishes_what_the_release_pull_request_judged() -> None:
+    """A pushed tag compiles the set from its pins and requires the same bytes from three hosts;
+    the judged job, after the build and same-bytes and on a tag alone, holds those bytes and the
+    tagged tree to the release pull request's acceptance (the build job holds the tree first,
+    before its compile), and attest and publish need it. No judge leg, build shard or gather runs
+    on it: the release pull request judged that tree. On every other event judged does not run."""
+    errors = scan.tag_run_errors(RELEASE_WORKFLOW.read_text())
+    ci_plan = _ci_plan_module()
+    text = RELEASE_WORKFLOW.read_text()
+    events = {
+        "a pushed tag": (("push", "refs/tags/v0.1.3", ""), "tag"),
+        "a pull request into main": (("pull_request", "refs/pull/9/merge", "main"), "branch"),
+        "the weekly run": (("schedule", "refs/heads/dev", ""), "branch"),
+        "a dispatch on a tag": (("workflow_dispatch", "refs/tags/v0.1.3", ""), "tag"),
+    }
+    for what, ((name, ref, base), ref_type) in events.items():
+        d = ci_plan.decide(
+            None if name != "pull_request" else ["src/x.py"], ci_plan.Event(name, ref, base)
+        )
+        outputs = ci_plan.outputs(d, ci_plan.select(d, ci_plan.load_shards()), [])
+        context = {"event_name": name, "ref": ref, "ref_type": ref_type, "base_ref": base}
+        ran = scan.jobs_that_run(text, outputs, context)
+        if what == "a pushed tag" and ran != TAG_RUN:
+            errors.append(f"a pushed tag runs {sorted(ran ^ TAG_RUN)} beside or instead of these")
+        if what != "a pushed tag" and ran & {"judged", "attest", "publish"}:
+            errors.append(f"{what} runs {sorted(ran & {'judged', 'attest', 'publish'})}")
     assert not errors, scan.report(errors)
 
 

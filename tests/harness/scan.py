@@ -576,6 +576,8 @@ ATTEST_USES = re.compile(r"uses:\s*actions/attest@[0-9a-f]{40}\b")
 VERIFY_FLAGS = ("--repo", "--signer-workflow", "--source-ref", "--deny-self-hosted-runners")
 TAG_ONLY = "github.event_name == 'push' && github.ref_type == 'tag'"
 ID_TOKEN = re.compile(r"id-token:\s*write|write-all")
+# The job that holds a tag's bytes and tree to the release pull request's acceptance.
+TAG_PROOF_JOB = "judged"
 
 
 def without_comments(text: str) -> str:
@@ -641,7 +643,8 @@ def _job_permissions(lines: list[str]) -> set[str]:
 
 def release_attestation_errors(text: str) -> list[str]:
     """Every rule of the release's provenance (each asset attested, then verified), as one line
-    per breach, on the workflow without its comments; attest and publish also need gather."""
+    per breach, on the workflow without its comments; attest and publish also need judged, the
+    proof that the bytes are the ones the release pull request accepted."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     if "attest" not in jobs:
@@ -651,8 +654,8 @@ def release_attestation_errors(text: str) -> list[str]:
     if _job_field(attest, "if") != TAG_ONLY or _job_field(publish, "if") != TAG_ONLY:
         errors.append("attest's or publish's if: is not the pushed-tag condition")
     needs_attest = _job_field(attest, "needs") or ""
-    if not {"build", "verify", "gather"} <= set(re.findall(r"[a-z_-]+", needs_attest)):
-        errors.append("attest does not need build, verify and gather")
+    if not {"build", "verify", TAG_PROOF_JOB} <= set(re.findall(r"[a-z_-]+", needs_attest)):
+        errors.append(f"attest does not need build, verify and {TAG_PROOF_JOB}")
     if _job_permissions(attest) != ATTEST_PERMISSIONS:
         errors.append(f"attest's permissions are not {sorted(ATTEST_PERMISSIONS)}")
     body = "\n".join(attest)
@@ -690,8 +693,10 @@ def release_attestation_errors(text: str) -> list[str]:
     for name, lines in jobs.items():
         if name not in ("attest", "pypi") and ID_TOKEN.search("\n".join(lines)):
             errors.append(f"{name} has id-token: write or write-all")
-    if not {"attest", "gather"} <= set(re.findall(r"[a-z_-]+", _job_field(publish, "needs") or "")):
-        errors.append("publish does not need attest and gather")
+    if not {"attest", TAG_PROOF_JOB} <= set(
+        re.findall(r"[a-z_-]+", _job_field(publish, "needs") or "")
+    ):
+        errors.append(f"publish does not need attest and {TAG_PROOF_JOB}")
     return errors
 
 
@@ -1434,6 +1439,8 @@ JOB_PERMISSIONS = {
     # It checks this commit out for the local action alone.
     "same-bytes": {"contents: read"},
     "verify": {"contents: read"},
+    # It checks the tagged commit and its parent out and reads the build's files.
+    TAG_PROOF_JOB: {"contents: read"},
     # The judge jobs check out and read the build's files; the gather checks out alone.
     **{
         job: {"contents: read"}
@@ -2363,10 +2370,11 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
                 f"rule 12: {job} needs gather, runs on a branch run, and its if: has no status "
                 "function"
             )
-    # Rule 8: attest and publish need the gather; only the gather reads a record id.
+    # Rule 8: attest and publish need the proof that the bytes are the accepted ones (a tag's run
+    # has no gather); only the gather reads a record id.
     for job in ("attest", "publish"):
-        if "gather" not in _needs(jobs.get(job, [])):
-            errors.append(f"rule 8: {job} does not need gather")
+        if TAG_PROOF_JOB not in _needs(jobs.get(job, [])):
+            errors.append(f"rule 8: {job} does not need {TAG_PROOF_JOB}")
     for job, lines in jobs.items():
         if job != "gather" and RECORD_ID_OUTPUT.search("\n".join(lines)):
             errors.append(f"rule 8: {job} reads a record id")
@@ -2392,6 +2400,92 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------
+# A pushed tag publishes what the release pull request judged
+
+# The plan's output that is true on a pushed tag alone, and the gates of the jobs it shapes: the
+# set is compiled when the plan judges or rebuilds; the build shard runs where the plan says.
+PUBLISH_IF = "needs.plan.outputs.publish == 'true'"
+COMPILE_IF = "needs.plan.outputs.judge == 'true' || needs.plan.outputs.rebuild == 'true'"
+BUILD_SHARD_IF = "needs.plan.outputs.build == 'true'"
+TREE_PROOF_RUN = "uv run python tests/harness/gather.py --prove-set --tree-only"
+SET_PROOF_RUN = re.compile(
+    r'^uv run python tests/harness/gather\.py --prove-set "\$(\w+)" "\$(\w+)"$', re.M
+)
+
+
+def tag_run_errors(text: str) -> list[str]:
+    """A pushed tag's run, one line per breach, on the workflow without its comments: the plan
+    hands on `publish`; inputs and build run when the plan judges or rebuilds, so a tag compiles;
+    the build job holds the tagged tree to the acceptance (`--prove-set --tree-only`) on a tag,
+    before its compile; the x86_64 rebuild runs the build shard, and hands on its record, only
+    where the plan's build output says; the judged job runs on the plan's publish alone, after
+    the build and same-bytes, checks out the tagged commit with its parent, reads the build's
+    files, and holds the set's own SHA256SUMS and python.wasm, each hashed from those files, to
+    the acceptance; attest and publish need it."""
+    text = without_comments(text)
+    jobs = workflow_jobs(text)
+    errors = []
+    if _job_map(jobs.get("plan", []), "outputs").get("publish") != (
+        "${{ steps.plan.outputs.publish }}"
+    ):
+        errors.append("the plan hands on no publish")
+    for name in ("inputs", "build"):
+        if _job_field(jobs.get(name, []), "if") != COMPILE_IF:
+            errors.append(f"{name}'s if: is not {COMPILE_IF}")
+    build = [step_fields(s) for s in workflow_steps(jobs.get("build", []))]
+    tree = next(
+        (i for i, f in enumerate(build) if str(f.get("run", "")).strip() == TREE_PROOF_RUN), None
+    )
+    compiled = next((i for i, f in enumerate(build) if f.get("id") == "compile"), None)
+    if tree is None or compiled is None or tree > compiled or build[tree].get("if") != TAG_ONLY:
+        errors.append(
+            f"build does not run {TREE_PROOF_RUN!r} on a pushed tag ({TAG_ONLY}) before its compile"
+        )
+    shard_steps = [step_fields(s) for s in workflow_steps(jobs.get(BUILD_SHARD_JOB, []))]
+    for f in shard_steps:
+        shard = (
+            f.get("name") == BUILD_SHARD_STEP or str(f.get("run", "")) == BUILD_SHARD_RUN.strip()
+        )
+        if (shard or f.get("id") in ("record", "record-sha")) and f.get("if") != BUILD_SHARD_IF:
+            errors.append(
+                f"{BUILD_SHARD_JOB}'s step {f.get('name') or f.get('id')!r} runs without "
+                f"if: {BUILD_SHARD_IF}"
+            )
+    judged = jobs.get(TAG_PROOF_JOB)
+    if judged is None:
+        return [*errors, f"no {TAG_PROOF_JOB} job"]
+    if _needs(judged) != {"plan", "build", "same-bytes"}:
+        errors.append(f"{TAG_PROOF_JOB} does not need exactly the plan, build and same-bytes")
+    if _job_field(judged, "if") != PUBLISH_IF:
+        errors.append(f"{TAG_PROOF_JOB}'s if: is not {PUBLISH_IF}")
+    if _job_field(judged, "runs-on") != "ubuntu-24.04":
+        errors.append(f"{TAG_PROOF_JOB} does not run on ubuntu-24.04")
+    steps = [step_fields(s) for s in workflow_steps(judged)]
+    checkout = next((f for f in steps if f.get("uses", "").startswith("actions/checkout@")), {})
+    if checkout.get("with", {}).get("fetch-depth") != "2":
+        errors.append(f"{TAG_PROOF_JOB} does not check out the tagged commit with its parent")
+    proofs = [f for f in steps if "--prove-set" in str(f.get("run", ""))]
+    m = SET_PROOF_RUN.search(str(proofs[0].get("run", ""))) if len(proofs) == 1 else None
+    hashed = m and all(
+        re.search(
+            rf'^{var}=\$\(sha256sum "?(?!release-assets/)[^)\n]*/{name}"? \| cut -c1-64\)$',
+            proofs[0]["run"],
+            re.M,
+        )
+        for var, name in zip(m.groups(), ("SHA256SUMS", "python.wasm"), strict=True)
+    )
+    if not hashed:
+        errors.append(
+            f"{TAG_PROOF_JOB} does not run gather.py --prove-set once, on the SHA-256 of the "
+            "set's own SHA256SUMS and of python.wasm, each hashed from the build's files"
+        )
+    for name in ("attest", "publish"):
+        if TAG_PROOF_JOB not in _needs(jobs.get(name, [])):
+            errors.append(f"{name} does not need {TAG_PROOF_JOB}")
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
 # The decision job, the one required check, and what a pull request checks out
 
 HEAD_REF = "${{ github.event.pull_request.head.sha || github.sha }}"
@@ -2402,7 +2496,13 @@ UNGATED = ("plan", "quick", "ci-status", "review", *TAG_JOBS)
 CI_STATUS_ENV = {
     "NEEDS": "${{ toJSON(needs) }}",
     "REFUSALS": "${{ needs.plan.outputs.refusals }}",
+    "PUBLISH": "${{ needs.plan.outputs.publish }}",
 }
+# A run whose plan says it publishes is red unless publish ran: a tag that published nothing.
+CI_STATUS_PUBLISH = (
+    'if os.environ.get("PUBLISH") == "true" and needs.get("publish", {}).get("result") != '
+    '"success":'
+)
 # The review file's own check: on every pull request into dev, whatever the plan judges, so the
 # review file's push reads it on a re-used run; after a plan that failed too, so it is red, never
 # skipped. Its verdict is the review file's, not the code's, so ci-status does not wait for it.
@@ -2436,7 +2536,8 @@ def checkout_ref_errors(text: str) -> list[str]:
 def ci_status_errors(text: str) -> list[str]:
     """The one required check and the gates it rests on: no workflow-level paths: filter (a
     filtered run leaves the check pending); ci-status, named so, runs always(), needs every other
-    job and fails unless each succeeded or was skipped and the plan refused nothing; every job
+    job and fails unless each succeeded or was skipped, the plan refused nothing, and publish ran
+    when the plan said the run publishes; every job
     but the plan, quick, ci-status and the tag's three needs the plan and gates on its outputs;
     a pull request's run cancels its older one, and nothing else is cancelled."""
     errors = []
@@ -2474,10 +2575,11 @@ def ci_status_errors(text: str) -> list[str]:
         or js[0].get("env") != CI_STATUS_ENV
         or 'n.get("result") not in ("success", "skipped")' not in run
         or 'os.environ.get("REFUSALS") != "[]"' not in run
+        or CI_STATUS_PUBLISH not in run
     ):
         errors.append(
-            "ci-status's one step does not fail on a need neither successful nor skipped, or on "
-            "a refusal of the plan"
+            "ci-status's one step does not fail on a need neither successful nor skipped, on "
+            "a refusal of the plan, or on a skipped publish when the plan said publish"
         )
     for job, lines in jobs.items():
         if job in UNGATED:
@@ -2530,6 +2632,7 @@ ACCEPT_PUSH_IF = (
     "&& needs.accept-record.result == 'success' }}"
 )
 NOT_JUDGED_WITH = {
+    TAG_PROOF_JOB,
     "accept-record",
     "accept-push",
     "ci-status",
@@ -5209,6 +5312,8 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
             want_if[k] = COMPILED
         elif name == LOGS_STEP:
             want_if[k] = "failure()"
+        elif run == TREE_PROOF_RUN:
+            want_if[k] = TAG_ONLY
         else:
             want_if[k] = None
         if f.get("if") != want_if[k]:
@@ -5322,7 +5427,10 @@ def _rebuild_job_errors(job: str, jobs: dict, steps: dict) -> list[str]:
     if None in at or at != sorted(at):
         errors.append(f"{job} does not run, in order: {', '.join(order)}")
     for f in js:
-        if f.get("if") is not None and f.get("name") != LOGS_STEP:
+        # The build shard and its record run where the plan's build output says: not on a tag.
+        shard_step = f.get("name") == BUILD_SHARD_STEP or f.get("id") in ("record", "record-sha")
+        planned = job == BUILD_SHARD_JOB and shard_step and f.get("if") == BUILD_SHARD_IF
+        if f.get("if") is not None and f.get("name") != LOGS_STEP and not planned:
             errors.append(f"{job}'s step {f.get('name') or f.get('run')!r} has an if:")
     zero = [f.get("run") for f in js if f.get("name") == ZERO_PATCH_STEP]
     built = [f.get("run") for f in steps.get("build", []) if f.get("name") == ZERO_PATCH_STEP]
