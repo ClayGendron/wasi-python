@@ -1798,6 +1798,12 @@ reason = "it does not end within 4.5 T of fuel in the guest (measured), past the
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-uniform-P]"
+match = "1 finding(s), digest 8a6adb372535"
+reason = "it takes 3.54 T of fuel in the guest (measured under CPython 3.15.2), past the bound for one test, and its release leg ran past the job's 30 minutes; upstream marks it @slow and @XFAIL"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-issue-15227]"
 match = "1 finding(s), digest ac73574961e5"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"

@@ -94,6 +94,8 @@ Two decisions of 2026-10-30 give 0.1.3 its scope: the process memo, adopted whol
 
 **Carried from 0.1.2:** 153 (output from a pipe on Windows) and 156 (the listing-order check), deferred on 2026-10-28; the reserved-after-0.1.2 lines above (a snapshot file's access lists; the platform module's next split before the next release, the 0.1.2 structural review's M1; 115); and the "Out of 0.1.2" list.
 
+**Carried from the weekly-shape run of 2026-10-31.** Why sympy's `test_uniform_P` takes 23.6% more fuel under CPython 3.15.2 is not found: the C-stack check 3.15.2 adds to tuple hashing is a guess, not a finding. The test is a trap since then (`specifications/159-the-runs-take-the-shape-the-data-asks-for.md`, landing notes); a memo measures the cause before the next pin move of CPython, since every sympy group may carry it.
+
 **Out of 0.1.3.** An MCP server command and the run's record on `Completed` (the memo's items I and J); a Rust or JavaScript core; pyarrow, polars, pydantic, cryptography; threads, WASI 0.3 and wasip3 (CPython's `main` is on `wasm32-wasip3` since 2026-10-22: a 3.16 spike after its first beta); build-time profiles.
 
 **The release.** As 0.1.2's: a fresh agent writes the structural review and another the security review, the preparation pull request carries them with `bump --to 0.1.3` and `date`, the release pull request from `dev` to `main` runs the whole workflow, and the owner is asked again about the push of `main` and the tag (constitution §5.5).

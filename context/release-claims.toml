@@ -38,3 +38,10 @@ new = [
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
 growth = "python-docx 1.2.0 and python-pptx 1.0.2 join the zip, 214 members, so every guest's zip directory is larger: a plain start +1.93% and a snapshot start +1.01% in fuel (darwin arm64). Their whole suites measure 105.8 G (1,571 passes) and 150.0 G (2,677 passes) on darwin arm64; six tests that patch io.BytesIO for the whole interpreter fail under the driver's sys capture, as natively under --capture=sys"
+
+[[claim]]
+spec = "159"
+new = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-uniform-P]"]
+retired = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-r-stats-4-continuous-rv-2]"]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-*"]
+growth = "sympy's release tier under CPython 3.15.2. One group measured, on darwin arm64 against dev's set: sympy-r-stats-4-continuous-rv-2, the single test test_uniform_P, 3,542,150,840,058 fuel against the accepted 2,865,065,511,960 (+23.6%); its leg passed the release judge job's 30 minutes in the weekly-shape run 41201012715, so by the owner's choice of 2026-10-31 the group is retired and the test is the trap sympy-slow-uniform-P, run alone to the 50 G cap, a gap. Its neighbours, run on the same set: sympy-r-stats-4-continuous-rv-1 +0.070% and -3 -0.050%, the same passes. Why test_uniform_P grew is not established (CPython 3.15.2's C-stack check in tuple hashing is a hypothesis). The other sympy groups are read at the next weekly run, under CPython 3.15.2"

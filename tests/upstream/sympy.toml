@@ -7,7 +7,7 @@ driver = "package"
 grant = "/upstream-sympy"
 test_source = true
 wheel = "sympy-1.14.0-py3-none-any.whl"
-budget = 124_005_638_664_050
+budget = 119_755_638_664_050
 stage_folders = [
     "sympy/algebras/tests",
     "sympy/assumptions/tests",
@@ -2632,13 +2632,6 @@ release_by = "path"
 fuel = 600_000_000_000
 measured = 397_058_305_732
 
-[groups.sympy-r-stats-4-continuous-rv-2]
-paths = ["sympy/stats/tests/test_continuous_rv.py"]
-tier = "release"
-release_by = "path"
-fuel = 4_300_000_000_000
-measured = 2_865_017_063_969
-
 [groups.sympy-r-stats-4-continuous-rv-3]
 paths = ["sympy/stats/tests/test_continuous_rv.py"]
 tier = "release"
@@ -3628,12 +3621,10 @@ keywords = [
 file = "sympy/stats/tests/test_continuous_rv.py"
 groups = [
     "sympy-r-stats-4-continuous-rv-1",
-    "sympy-r-stats-4-continuous-rv-2",
     "sympy-r-stats-4-continuous-rv-3",
 ]
 keywords = [
     "(test_single_normal or test_conditional_1d or test_ContinuousDomain or test_multiple_normal or test_symbolic or test_cdf or test_characteristic_function or test_moment_generating_function or test_ContinuousRV or test_arcsin or test_benini or test_beta or test_beta_noncentral or test_betaprime or test_BoundedPareto or test_cauchy or test_chi or test_chi_noncentral or test_chi_squared or test_dagum or test_davis or test_erlang or test_exgaussian or test_exponential or test_exponential_power or test_f_distribution or test_fisher_z or test_frechet or test_gamma or test_gamma_inverse or test_gompertz or test_gumbel or test_kumaraswamy or test_laplace or test_levy or test_logcauchy or test_logistic or test_loglogistic or test_logitnormal or test_lognormal or test_Lomax or test_maxwell or test_Moyal or test_nakagami or test_gaussian_inverse or test_pareto or test_pareto_numeric or test_PowerFunction or test_raised_cosine or test_rayleigh or test_reciprocal or test_shiftedgompertz or test_studentt or test_trapezoidal or test_triangular or test_quadratic_u or test_uniform) and not (test_uniform_P or test_uniformsum)",
-    "(test_uniform_P)",
 ]
 
 [[split]]
@@ -3665,6 +3656,13 @@ id = "sympy-slow-function-range1"
 node = "sympy/calculus/tests/test_util.py::test_function_range1"
 group = "sympy-r-calculus-5-util-1"
 reason = "it does not end within 4.5 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow"
+closes_with = "docs/reference/limitations.md"
+
+[[trap]]
+id = "sympy-slow-uniform-P"
+node = "sympy/stats/tests/test_continuous_rv.py::test_uniform_P"
+group = "sympy-r-stats-4-continuous-rv-3"
+reason = "it takes 3.54 T of fuel in the guest (measured under CPython 3.15.2), past the bound for one test, and its release leg ran past the job's 30 minutes; upstream marks it @slow and @XFAIL"
 closes_with = "docs/reference/limitations.md"
 
 [[trap]]
