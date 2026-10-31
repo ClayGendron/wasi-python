@@ -32,7 +32,7 @@ PACKAGES = {
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it
     "python-dateutil": "2.9.0.post0",
-    "tzdata": "2026.5",
+    "tzdata": "2026.6",
     "six": "1.17.0",
     "regex": "2026.9.29",
     # matplotlib: the package, its compiled dependencies, the C libraries linked in, the
@@ -106,7 +106,7 @@ PACKAGES = {
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
-    "tzdata": "tzdata-2026.5-py2.py3-none-any.whl",
+    "tzdata": "tzdata-2026.6-py2.py3-none-any.whl",
     "six": "six-1.17.0-py2.py3-none-any.whl",
     "pybind11": "pybind11-3.1.0-py3-none-any.whl",
     "cppy": "cppy-1.3.1-py3-none-any.whl",

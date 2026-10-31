@@ -15,7 +15,7 @@ dependencies = [
     "numpy==2.5.4 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
     "pandas==3.0.6",
     "python-dateutil==2.9.0.post0",
-    "tzdata==2026.5",
+    "tzdata==2026.6",
     "six==1.17.0",
     # matplotlib and its dependencies at the guest's pins; contourpy is native only
     # (the guest has none until M2), at the version the research pinned.

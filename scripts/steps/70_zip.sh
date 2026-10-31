@@ -106,7 +106,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/sklearn-install" \
   --tree "$B/statsmodels-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
-  --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
+  --wheel "$(pinned tzdata-2026.6-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
   --wheel "$(pinned cycler-0.12.1-py3-none-any.whl)" \
   --wheel "$(pinned pyparsing-3.3.3-py3-none-any.whl)" \
