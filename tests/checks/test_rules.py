@@ -273,9 +273,9 @@ def test_a_release_has_its_structural_review() -> None:
 def test_a_releases_security_review_reads_its_notes() -> None:
     """A released version whose notes are written for the reader (above 0.1.1) has those notes
     read by someone who wrote none of them, as an embedder would, in a "Release notes" section of
-    its review against the threat model; a release up to 0.1.2 may have had that read in a review file of its
-    own, ending with its verdict. A prerelease needs none from the judge: its string is what the
-    tree carries all cycle."""
+    its review against the threat model; a release up to 0.1.2 may have had that read in a review
+    file of its own, ending with its verdict. A prerelease needs none from the judge: its string
+    is what the tree carries all cycle."""
     version = _release_version_module()
     current = version.read_version(version.INIT.read_text())
     errors = scan.release_notes_read_errors(current, paths.CONTEXT / "reviews")

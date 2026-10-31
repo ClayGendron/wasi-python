@@ -465,10 +465,11 @@ def _dated_reviews(reviews: Path, version: str, kind: str) -> list[Path]:
 def release_notes_read_errors(version: str, reviews: Path) -> list[str]:
     """A released version whose notes are written for the reader has those notes read by someone
     who wrote none of them, in a `## Release notes` section, with text under it, of its review
-    against the threat model, `<version>-security-review-YYYY-MM-DD.md`. A release up to 0.1.2 may instead have had
-    the read in a file of its own, `<version>-release-notes-review-YYYY-MM-DD.md`, ending with
-    its verdict, as 0.1.2's was. A prerelease needs none from the judge: its string is what the
-    tree carries all cycle; nor does a version whose notes were published in the older shape."""
+    against the threat model, `<version>-security-review-YYYY-MM-DD.md`. A release up to 0.1.2
+    may instead have had the read in a file of its own,
+    `<version>-release-notes-review-YYYY-MM-DD.md`, ending with its verdict, as 0.1.2's was. A
+    prerelease needs none from the judge: its string is what the tree carries all cycle; nor
+    does a version whose notes were published in the older shape."""
     if not RELEASE_VERSION.match(version) or not news.is_reader_version(version):
         return []
     for p in _dated_reviews(reviews, version, "security-review"):
