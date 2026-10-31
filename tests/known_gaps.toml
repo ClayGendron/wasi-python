@@ -1932,8 +1932,14 @@ closes_with = "docs/reference/limitations.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]"
 match = "1 finding(s), digest 3ecee5286156"
-reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.0.6, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.1.0, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
 closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-pandas-multiindex-sel]"
+match = "1 finding(s), digest b79efce58684"
+reason = "pandas 3.1.0's MultiIndex.get_loc raises KeyError for a key longer than the index's depth where xarray 2026.9.0's test expects its own error; the same natively"
+closes_with = "context/roadmap.md (xarray's next release after 2026.9.0)"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]"
