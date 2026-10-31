@@ -17,13 +17,15 @@ PLAIN_EXPORTS = {
     "run",
     "host_alloc",
     "turn",
+    "turn_input",
     "shutdown",
     "prepare",
 }
-SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "shutdown", "prepare"}
+SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "turn_input", "shutdown", "prepare"}
 # The function types of the exports that take the host's code or end a call.
 EXPORT_TYPES = {
     "turn": "(i32, i32) -> (i32)",
+    "turn_input": "(i32, i32) -> (i32)",
     "shutdown": "() -> (i32)",
     "prepare": "(i32, i32) -> (i32)",
 }
