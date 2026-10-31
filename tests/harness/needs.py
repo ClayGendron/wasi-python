@@ -160,6 +160,7 @@ SOURCE_COMPONENTS = (
     "sheenbidi",
     "libraqm",
     "qhull",
+    "libjpeg-turbo",
     "pillow",
     "kiwisolver",
     "matplotlib",

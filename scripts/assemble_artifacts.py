@@ -53,6 +53,8 @@ PACKAGES = {
     "fonttools": "4.67.0",
     "contourpy": "1.4.0",
     "qhull": "8.0.2",
+    # Pillow's JPEG codec, linked with Pillow's _imaging.
+    "libjpeg-turbo": "3.2.0",
     # lxml: the package and its two C libraries, linked in.
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
@@ -905,6 +907,12 @@ def main() -> None:
             ),
         ],
         "qhull": [("Qhull COPYING.txt", (b / "qhull-8.0.2" / "COPYING.txt").read_bytes())],
+        # libjpeg-turbo's BSD-3-Clause terms and the IJG License, which covers the libjpeg API
+        # library linked here; its SIMD code, under zlib's terms, is not compiled.
+        "libjpeg-turbo": [
+            (f"libjpeg-turbo {n}", (b / "libjpeg-turbo-3.2.0" / n).read_bytes())
+            for n in ("LICENSE.md", "README.ijg")
+        ],
         "libxml2": [("libxml2 Copyright", (b / "libxml2-2.15.4" / "Copyright").read_bytes())]
         + [
             (f"libxml2 {n}, its head comment", head_notice(b / "libxml2-2.15.4" / n, words))

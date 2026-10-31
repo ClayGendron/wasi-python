@@ -40,10 +40,10 @@ reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[expected]]
-id = "pillow-zlib-only"
+id = "pillow-no-jpeg2k-or-tiff"
 group = "pypdf-r"
 outcome = "failed"
-match = "(en|de)coder (jpeg|jpeg2k|libtiff) not available"
-reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+match = "(en|de)coder (jpeg2k|libtiff) not available"
+reason = "Pillow is built with zlib and JPEG: a test that needs JPEG 2000 or TIFF's codecs without its own feature guard (README)"
+closes_with = "docs/reference/limitations.md"
 

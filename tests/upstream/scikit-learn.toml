@@ -14,7 +14,7 @@ package = "scikit-learn"
 driver = "package"
 grant = "/upstream-scikit-learn"
 component = "scikit_learn"
-budget = 15_171_000_000_000
+budget = 15_212_000_000_000
 stage_folders = [
     "sklearn/_loss/tests",
     "sklearn/callback/tests",
@@ -157,8 +157,8 @@ measured = 322_567_375_793
 [groups.scikit-learn-datasets]
 paths = ["sklearn/datasets/tests"]
 tier = "release"
-fuel = 99_000_000_000
-measured = 65_566_937_060
+fuel = 140_000_000_000
+measured = 90_941_855_101
 
 [groups.scikit-learn-decomposition-pca-1]
 paths = ["sklearn/decomposition/tests/test_pca.py"]
@@ -506,14 +506,6 @@ groups = [
 keywords = [
     "test_unsupported_estimators_get_metadata_routing or test_unsupported_estimators_fit_with_metadata or test_registry_copy or test_default_request or test_error_on_missing_requests_for_sub_estimator or test_setting_request_on_sub_estimator_removes_error or test_non_consuming_estimator_works or test_metadata_is_routed_correctly_to_scorer or test_metadata_is_routed_correctly_to_splitter or test_metadata_routed_to_sub_estimator_in_pipeline",
 ]
-
-[[expected]]
-id = "pillow-zlib-only-at-setup"
-group = "scikit-learn-datasets"
-outcome = "error"
-match = "(en|de)coder jpeg not available"
-reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
-closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "no-mmap"

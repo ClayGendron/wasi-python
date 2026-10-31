@@ -38,6 +38,8 @@ SOURCE_PATTERNS = {
     "sheenbidi": re.compile(r"SheenBidi-[\w.]+\.tar\.gz"),
     "libraqm": re.compile(r"libraqm-[\w.]+\.tar\.gz"),
     "qhull": re.compile(r"qhull-[\w.]+\.tar\.gz"),
+    # Pillow's JPEG codec
+    "libjpeg-turbo": re.compile(r"libjpeg-turbo-[\w.]+\.tar\.gz"),
     "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
     "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
     "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),

@@ -73,6 +73,11 @@ via = "matplotlib"
 kind = "via"
 via = "matplotlib"
 
+[package.libjpeg-turbo]
+# Pillow's JPEG codec: its own suite's JPEG and MPO tests run in the pillow group.
+kind = "via"
+via = "pillow"
+
 [package.libxml2]
 kind = "via"
 via = "lxml"
