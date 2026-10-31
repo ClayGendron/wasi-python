@@ -2,22 +2,22 @@
 
 - **Date:** 2026-10-31
 - **Reviewer:** an agent (Claude), a fresh sub-agent of Claude Code session 0672b924-ca3c-4b6c-91ca-f834537cb1bc; not the author
-- **Reviewed:** `origin/dev...95587e3a` (one commit, `AGENTS.md` alone), and this review's commit, which adds the news file of Low 1
-- **Run:** 41250521031 (`plan` green, `review` red for want of a news file and a review file, `quick` running when read)
-- **Re-ran:** `uv run pytest tests/lint -q` → 14 passed, exit 0; `uv run pytest tests/checks/test_rules.py::test_the_news_files_have_their_shape` → 1 passed, with the news file added; in a scratch repository, `git worktree remove`, `git branch -D` and their refusals (below); `git ls-remote origin refs/pull/52/head` → the head of #52, whose branch GitHub deleted; `gh api repos/ClayGendron/wasi-python --jq .delete_branch_on_merge` → `true`
+- **Reviewed:** `origin/dev...d7fddcdf`: the rule (`95587e3a`), the first review commit with the news file of Low 1 (`9cf0f390`), and the fix of Lows 2 to 5 (`d7fddcdf`); signed again on `d7fddcdf`
+- **Run:** 41250521031 (`plan` green, `review` red for want of a news file and a review file, `quick` running when read); the fix round's run not read, as `d7fddcdf` changes one line of `AGENTS.md`, which `quick` alone judges
+- **Re-ran:** `uv run pytest tests/lint -q` → 14 passed, exit 0, on `9cf0f390` and again on `d7fddcdf`; `uv run pytest tests/checks/test_rules.py::test_the_news_files_have_their_shape` → 1 passed, with the news file added; in a scratch repository, `git worktree remove`, `git branch -D` and their refusals (below); `git ls-remote origin refs/pull/52/head` → the head of #52, whose branch GitHub deleted; `gh api repos/ClayGendron/wasi-python --jq .delete_branch_on_merge` → `true`
 
 Box: 25 minutes, an agents' file and no code.
 
 ## Acceptance criteria against evidence
 
 1. The owner's request, "clean up worktrees and branches after work is merged" — met: READ. Step 9 says merged work is cleared once a green post-merge run covers it, and the new bullet says who does it, when, and with which commands.
-2. No uncommitted work is lost — met: EXECUTED. `git worktree remove` refused a worktree holding an untracked file ("contains modified or untracked files, use --force"), and the rule forbids `--force` and stops on a non-empty `git status --porcelain`. Ignored files are another matter (Low 2).
+2. No uncommitted work is lost — met: EXECUTED. `git worktree remove` refused a worktree holding an untracked file ("contains modified or untracked files, use --force"), and the rule forbids `--force` and stops on a non-empty `git status --porcelain`. Ignored files are deleted with the worktree, and the rule now says so (Low 2, fixed).
 3. No unmerged work is lost — met: READ and EXECUTED. The local tip must equal the merged pull request's `headRefOid`, so a commit made after the merge stops the cleanup. `refs/pull/<N>/head` outlives the branch: #52's is still served while its branch is gone, and `git fetch origin pull/<N>/head:<branch>` is a valid refspec that rebuilds the branch from it.
 4. Squash merges — met: INFERRED from git's rules. A squash commit does not contain the branch's commits, so `git branch -d` refuses and `-D` is right; the tip check is what makes `-D` safe. `git branch -D` is refused while the branch is checked out in a worktree (EXECUTED), so the order the text gives, worktree first and then branch, is the only order that works.
 5. No conflict with "never `git checkout`, `git restore` or `git stash` a file that carries uncommitted work" — met: READ. The rule uses none of the three and stops at the first uncommitted file. It also agrees with constitution §4.14, "no other long-lived branch or worktree unless asked".
 6. Remote branches — met: EXECUTED. `delete_branch_on_merge` is `true`, and `git fetch --prune origin` drops the remote-tracking ref.
 7. Step 9's wording — met: READ. One sentence, placed after the red-run sentence, with "(below)" pointing to the bullet.
-8. "Explaining things" — met, with small wording Lows (4, 5). The bullet is long (about 210 words) but each sentence carries one idea, and the reason for the wait is stated.
+8. "Explaining things" — met, after the fix of Lows 3 to 5. The bullet is long (about 210 words) but each sentence carries one idea, and the reason for the wait is stated.
 9. The news file and the review gate — not met as opened, fixed in this commit (Low 1).
 
 ## Findings, most severe first
@@ -28,9 +28,9 @@ Box: 25 minutes, an agents' file and no code.
 4. **"deleted by hand"** (`AGENTS.md:48`, and the pull request's description) — the 217 branches (59 remote, 158 local) were deleted by a script. Fix text: "after a script deleted 217 stale branches".
 5. **"drops its local copy"** (`AGENTS.md:48`) — `git fetch --prune` drops the remote-tracking ref `origin/<branch>`, not the local branch the previous sentence deleted; "local copy" reads as the latter. Fix text: "and `git fetch --prune origin` drops `origin/<branch>`."
 
-Lows 2 to 5 are in `AGENTS.md`, which is not `context/`, so they are the author's. A fix to `AGENTS.md` after this review is a commit to an agents' file and makes the `review` check refuse this file, so it needs a second signing; an answer in writing does not.
+Lows 2 to 5 were in `AGENTS.md`, so the author fixed them, in one commit, `d7fddcdf`, read here before this second signing. It now says the orchestrator checks the two stops first and repeats "Before either command," ahead of them (3); that removing a worktree deletes its ignored files (`build/`, `.venv/`, any `downloads/` copy) and that the main tree's `downloads/` stays (2); "a script deleted 217 stale branches" (4); and that the prune drops `origin/<branch>` (5). The bullet's last sentence still says the sources under `downloads/` are deleted only by asking; read beside the sentence before it, that means the main tree's, so it stands. The optional ancestor check of Low 3 was not taken; the rule stays conservative, which is safe.
 
-A note outside this pull request: with its news file, an agents' change is no longer `agents_only` (`classify` gives the news file `news`, outside `{"docs", "agents"}`), so its run takes the own shards on Linux and Windows, not `quick` alone as specification 148's Decision 1 intends. The unit row `test_an_agents_change_runs_quick_alone_and_is_not_documentation` decides on the agents' path alone and does not see it. The cost is a larger run on this pull request, not a wrong verdict; it is a candidate for a later specification.
+A follow-up outside this pull request, not its to fix: with its news file, an agents' change is no longer `agents_only` (`classify` gives the news file `news`, outside `{"docs", "agents"}`), so its run takes the own shards on Linux and Windows, not `quick` alone as specification 148's Decision 1 intends. The unit row `test_an_agents_change_runs_quick_alone_and_is_not_documentation` decides on the agents' path alone and does not see it. The cost is a larger run on this pull request, not a wrong verdict; it is a candidate for a later specification that lets a news file ride with an agents' change and keep `quick` alone.
 
 ## Constitution checks
 
@@ -40,8 +40,12 @@ A note outside this pull request: with its news file, an agents' change is no lo
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
 1. Low 1 — fixed by the reviewer in this commit.
-2. Lows 2 to 5 — for the author: fixed in one commit and signed again, or answered in writing.
+2. Low 2 — fixed in `d7fddcdf`.
+3. Low 3 — fixed in `d7fddcdf` (the optional ancestor check not taken).
+4. Low 4 — fixed in `d7fddcdf`.
+5. Low 5 — fixed in `d7fddcdf`.
+6. The `agents_only` selection — a follow-up, outside this pull request.
 
 ## Verdict
 
-Lands: the rule does what the owner asked and cannot lose uncommitted or unmerged work, the news file it lacked is added here, and Lows 2 to 5 are wording the author may fix or answer.
+Lands: on `d7fddcdf` the rule does what the owner asked, cannot lose uncommitted or unmerged work, carries its news file, and has Lows 2 to 5 fixed.
