@@ -1,0 +1,350 @@
+P01 unclosed file	native			0		a.txt:100
+P01 unclosed file	plain:today	352813112		0		a.txt:100
+P01 unclosed file	snapshot:today	79813601		0		a.txt:100
+P01 unclosed file	snapshot:X flush+exit	21220583		0		a.txt:0
+P01 unclosed file	snapshot:A young	21687513		0		a.txt:100
+P01 unclosed file	snapshot:AW young+writers	22596313		0		a.txt:100
+P01 unclosed file	snapshot:B young modules	22084140		0		a.txt:100
+P01 unclosed file	snapshot:BW young modules+writers	22967681		0		a.txt:100
+P01 unclosed file	nofree:today	60226481		0		a.txt:100
+P01 unclosed file	nointerp:today	68776118		0		a.txt:100
+P02 unclosed file + def (073's gap)	native			0		a.txt:100
+P02 unclosed file + def (073's gap)	plain:today	352687243		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:today	80022678		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:X flush+exit	21376688		0		a.txt:0
+P02 unclosed file + def (073's gap)	snapshot:A young	21848320		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:AW young+writers	22751952		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:B young modules	22251791		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:BW young modules+writers	23132116		0		a.txt:100
+P02 unclosed file + def (073's gap)	nofree:today	60384362		0		a.txt:100
+P02 unclosed file + def (073's gap)	nointerp:today	68987767		0		a.txt:100
+P03 ZipFile left open + def	native			0		a.zip:ok
+P03 ZipFile left open + def	plain:today	557681066		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:today	189708798		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:X flush+exit	123520869		0		a.zip:BAD
+P03 ZipFile left open + def	snapshot:A young	125551840		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:AW young+writers	131778461		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:B young modules	131192772		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:BW young modules+writers	132142759		0		a.zip:ok
+P03 ZipFile left open + def	nofree:today	166247463		0		a.zip:ok
+P03 ZipFile left open + def	nointerp:today	177474878		0		a.zip:ok
+P04 script: unclosed file + def	native			0		a.txt:100
+P04 script: unclosed file + def	plain:today	406552086		0		a.txt:100
+P04 script: unclosed file + def	snapshot:today	91627392		0		a.txt:100
+P04 script: unclosed file + def	snapshot:X flush+exit	32102284		0		a.txt:0
+P04 script: unclosed file + def	snapshot:A young	32832172		0		a.txt:100
+P04 script: unclosed file + def	snapshot:AW young+writers	34458802		0		a.txt:100
+P04 script: unclosed file + def	snapshot:B young modules	34591744		0		a.txt:100
+P04 script: unclosed file + def	snapshot:BW young modules+writers	35474528		0		a.txt:100
+P04 script: unclosed file + def	nofree:today	71584488		0		a.txt:100
+P04 script: unclosed file + def	nointerp:today	80519894		0		a.txt:100
+P05 -m: unclosed file + def	native			0		a.txt:100
+P05 -m: unclosed file + def	plain:today	362394233		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:today	87410813		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:X flush+exit	28176781		0		a.txt:0
+P05 -m: unclosed file + def	snapshot:A young	28831753		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:AW young+writers	30204500		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:B young modules	30425367		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:BW young modules+writers	31355665		0		a.txt:100
+P05 -m: unclosed file + def	nofree:today	67527583		0		a.txt:100
+P05 -m: unclosed file + def	nointerp:today	76318344		0		a.txt:100
+P06 gzip left open + def	native			0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	plain:today	368600666		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	snapshot:today	93843892		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	snapshot:X flush+exit	33401691		0		a.gz:short
+P06 gzip left open + def	snapshot:A young	43818732		0		a.gz:ok
+P06 gzip left open + def	snapshot:AW young+writers	45768888		0		a.gz:ok
+P06 gzip left open + def	snapshot:B young modules	44727487		0		a.gz:ok
+P06 gzip left open + def	snapshot:BW young modules+writers	46098181		0		a.gz:ok
+P06 gzip left open + def	nofree:today	73691461		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	nointerp:today	82714374		0	Exception ignored,Error	a.gz:BAD
+P07 atexit order	native		c/b/a	0		
+P07 atexit order	plain:today	352416532	c/b/a	0		
+P07 atexit order	snapshot:today	79807821	c/b/a	0		
+P07 atexit order	snapshot:X flush+exit	21214464		0		
+P07 atexit order	snapshot:A young	21650744	c/b/a	0		
+P07 atexit order	snapshot:AW young+writers	22544881	c/b/a	0		
+P07 atexit order	snapshot:B young modules	22035794	c/b/a	0		
+P07 atexit order	snapshot:BW young modules+writers	22904786	c/b/a	0		
+P07 atexit order	nofree:today	60186740	c/b/a	0		
+P07 atexit order	nointerp:today	68785145	c/b/a	0		
+P08 atexit handler raises	native		after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	plain:today	782079795	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:today	177945744	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:X flush+exit	21373533		0		
+P08 atexit handler raises	snapshot:A young	114865988	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:AW young+writers	120170178	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:B young modules	119919107	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:BW young modules+writers	120903599	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	nofree:today	154723541	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	nointerp:today	165980516	after	0	Exception ignored,ZeroDivisionError,Error	
+P09 __del__ in __main__, order	native		del 1/del 2	0		
+P09 __del__ in __main__, order	plain:today	353862732	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:today	80492435	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:X flush+exit	22000290		0		
+P09 __del__ in __main__, order	snapshot:A young	22474834	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:AW young+writers	23373593	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:B young modules	22870877	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:BW young modules+writers	23744709	del 1/del 2	0		
+P09 __del__ in __main__, order	nofree:today	60970177	del 1/del 2	0		
+P09 __del__ in __main__, order	nointerp:today	69465757	del 1/del 2	0		
+P10 __del__ of cyclic garbage	native		del cycle	0		
+P10 __del__ of cyclic garbage	plain:today	353533817	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:today	80631647	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:X flush+exit	22000084		0		
+P10 __del__ of cyclic garbage	snapshot:A young	22457056	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:AW young+writers	23356434	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:B young modules	22850772	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:BW young modules+writers	23725356	del cycle	0		
+P10 __del__ of cyclic garbage	nofree:today	60960569	del cycle	0		
+P10 __del__ of cyclic garbage	nointerp:today	69600439	del cycle	0		
+P11 weakref callback	native			0		
+P11 weakref callback	plain:today	353012916		0		
+P11 weakref callback	snapshot:today	80324851		0		
+P11 weakref callback	snapshot:X flush+exit	21655775		0		
+P11 weakref callback	snapshot:A young	22103742	cb	0		
+P11 weakref callback	snapshot:AW young+writers	23001764	cb	0		
+P11 weakref callback	snapshot:B young modules	22482468		0		
+P11 weakref callback	snapshot:BW young modules+writers	23351852		0		
+P11 weakref callback	nofree:today	60613617		0		
+P11 weakref callback	nointerp:today	69283614		0		
+P12 weakref.finalize	native		fin	0		
+P12 weakref.finalize	plain:today	353146801	fin	0		
+P12 weakref.finalize	snapshot:today	80041691	fin	0		
+P12 weakref.finalize	snapshot:X flush+exit	21539641		0		
+P12 weakref.finalize	snapshot:A young	22025918	fin	0		
+P12 weakref.finalize	snapshot:AW young+writers	22923831	fin	0		
+P12 weakref.finalize	snapshot:B young modules	22412922	fin	0		
+P12 weakref.finalize	snapshot:BW young modules+writers	23285936	fin	0		
+P12 weakref.finalize	nofree:today	60548267	fin	0		
+P12 weakref.finalize	nointerp:today	68992646	fin	0		
+P13 suspended generator's finally	native		gen closed	0		
+P13 suspended generator's finally	plain:today	352961998	gen closed	0		
+P13 suspended generator's finally	snapshot:today	80102619	gen closed	0		
+P13 suspended generator's finally	snapshot:X flush+exit	21589608		0		
+P13 suspended generator's finally	snapshot:A young	22027602	gen closed	0		
+P13 suspended generator's finally	snapshot:AW young+writers	22926478	gen closed	0		
+P13 suspended generator's finally	snapshot:B young modules	22418922	gen closed	0		
+P13 suspended generator's finally	snapshot:BW young modules+writers	23292888	gen closed	0		
+P13 suspended generator's finally	nofree:today	60542808	gen closed	0		
+P13 suspended generator's finally	nointerp:today	69081100	gen closed	0		
+P14 __del__ hung on a pre-imported module	native		del json-hung	0		
+P14 __del__ hung on a pre-imported module	plain:today	462886287	del json-hung	0		
+P14 __del__ hung on a pre-imported module	snapshot:today	80632240	del json-hung	0		
+P14 __del__ hung on a pre-imported module	snapshot:X flush+exit	21969609		0		
+P14 __del__ hung on a pre-imported module	snapshot:A young	22396808		0		
+P14 __del__ hung on a pre-imported module	snapshot:AW young+writers	23318939		0		
+P14 __del__ hung on a pre-imported module	snapshot:B young modules	22795697		0		
+P14 __del__ hung on a pre-imported module	snapshot:BW young modules+writers	23695559		0		
+P14 __del__ hung on a pre-imported module	nofree:today	60936158	del json-hung	0		
+P14 __del__ hung on a pre-imported module	nointerp:today	69598518	del json-hung	0		
+P15 file hung on a pre-imported module	native			0		a.txt:100
+P15 file hung on a pre-imported module	plain:today	461851248		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:today	79928203		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:X flush+exit	21318153		0		a.txt:0
+P15 file hung on a pre-imported module	snapshot:A young	21735606		0		a.txt:0
+P15 file hung on a pre-imported module	snapshot:AW young+writers	22695370		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:B young modules	22130494		0		a.txt:0
+P15 file hung on a pre-imported module	snapshot:BW young modules+writers	23065071		0		a.txt:100
+P15 file hung on a pre-imported module	nofree:today	60326077		0		a.txt:100
+P15 file hung on a pre-imported module	nointerp:today	68873794		0		a.txt:100
+P16 ZipFile hung on a pre-imported module	native			0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	plain:today	575334540		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	snapshot:today	189509576		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	snapshot:X flush+exit	123460735		0		a.zip:BAD
+P16 ZipFile hung on a pre-imported module	snapshot:A young	125377895		0		a.zip:BAD
+P16 ZipFile hung on a pre-imported module	snapshot:AW young+writers	131660444		0		a.zip:BAD
+P16 ZipFile hung on a pre-imported module	snapshot:B young modules	133082468		0		a.zip:BAD
+P16 ZipFile hung on a pre-imported module	snapshot:BW young modules+writers	134434525		0		a.zip:BAD
+P16 ZipFile hung on a pre-imported module	nofree:today	166150725		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	nointerp:today	177290384		0		a.zip:ok
+P17 pre-imported class patched (073)	native			0		a.txt:100
+P17 pre-imported class patched (073)	plain:today	462901622		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:today	80321896		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:X flush+exit	21675377		0		a.txt:0
+P17 pre-imported class patched (073)	snapshot:A young	22150271		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:AW young+writers	23061027		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:B young modules	22493724		0		a.txt:0
+P17 pre-imported class patched (073)	snapshot:BW young modules+writers	23433795		0		a.txt:100
+P17 pre-imported class patched (073)	nofree:today	60665937		0		a.txt:100
+P17 pre-imported class patched (073)	nointerp:today	69290929		0		a.txt:100
+P18 __del__ hung on a module imported later	native		del fractions-hung	0		
+P18 __del__ hung on a module imported later	plain:today	473108457	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:today	108843032	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:X flush+exit	48784736		0		
+P18 __del__ hung on a module imported later	snapshot:A young	49611059		0		
+P18 __del__ hung on a module imported later	snapshot:AW young+writers	51992363		0		
+P18 __del__ hung on a module imported later	snapshot:B young modules	50901732	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:BW young modules+writers	51820144	del fractions-hung	0		
+P18 __del__ hung on a module imported later	nofree:today	88861719	del fractions-hung	0		
+P18 __del__ hung on a module imported later	nointerp:today	97632705	del fractions-hung	0		
+P19 weakref callback on a pre-imported class	native			0		
+P19 weakref callback on a pre-imported class	plain:today	462633530		0		
+P19 weakref callback on a pre-imported class	snapshot:today	80357802		0		
+P19 weakref callback on a pre-imported class	snapshot:X flush+exit	21766799		0		
+P19 weakref callback on a pre-imported class	snapshot:A young	22210707	cb class	0		
+P19 weakref callback on a pre-imported class	snapshot:AW young+writers	23117241	cb class	0		
+P19 weakref callback on a pre-imported class	snapshot:B young modules	22583085		0		
+P19 weakref callback on a pre-imported class	snapshot:BW young modules+writers	23485812		0		
+P19 weakref callback on a pre-imported class	nofree:today	60721375		0		
+P19 weakref callback on a pre-imported class	nointerp:today	69330465		0		
+P20 streams without newline	native		out no newline	0	err no newline	
+P20 streams without newline	plain:today	352179536	out no newline	0	err no newline	
+P20 streams without newline	snapshot:today	79815244	out no newline	0	err no newline	
+P20 streams without newline	snapshot:X flush+exit	21232019	out no newline	0	err no newline	
+P20 streams without newline	snapshot:A young	21644283	out no newline	0	err no newline	
+P20 streams without newline	snapshot:AW young+writers	22534909	out no newline	0	err no newline	
+P20 streams without newline	snapshot:B young modules	22031667	out no newline	0	err no newline	
+P20 streams without newline	snapshot:BW young modules+writers	22897324	out no newline	0	err no newline	
+P20 streams without newline	nofree:today	60185700	out no newline	0	err no newline	
+P20 streams without newline	nointerp:today	68772025	out no newline	0	err no newline	
+P21 stdout replaced by a file	native			0		out.txt:3
+P21 stdout replaced by a file	plain:today	352520622		0		out.txt:3
+P21 stdout replaced by a file	snapshot:today	79867001		0		out.txt:3
+P21 stdout replaced by a file	snapshot:X flush+exit	21288055		0		out.txt:3
+P21 stdout replaced by a file	snapshot:A young	21704911		0		out.txt:3
+P21 stdout replaced by a file	snapshot:AW young+writers	22657759		0		out.txt:3
+P21 stdout replaced by a file	snapshot:B young modules	22099959		0		out.txt:3
+P21 stdout replaced by a file	snapshot:BW young modules+writers	23026299		0		out.txt:3
+P21 stdout replaced by a file	nofree:today	60285644		0		out.txt:3
+P21 stdout replaced by a file	nointerp:today	68833360		0		out.txt:3
+P22 sys.exit(3)	native			3		
+P22 sys.exit(3)	plain:today	352219583		3		
+P22 sys.exit(3)	snapshot:today	79654560		3		
+P22 sys.exit(3)	snapshot:X flush+exit	21073387		3		
+P22 sys.exit(3)	snapshot:A young	21486108		3		
+P22 sys.exit(3)	snapshot:AW young+writers	22381807		3		
+P22 sys.exit(3)	snapshot:B young modules	21874113		3		
+P22 sys.exit(3)	snapshot:BW young modules+writers	22744203		3		
+P22 sys.exit(3)	nofree:today	60031028		3		
+P22 sys.exit(3)	nointerp:today	68609581		3		
+P23 SystemExit('bye')	native			1	bye	
+P23 SystemExit('bye')	plain:today	352301225		1	bye	
+P23 SystemExit('bye')	snapshot:today	79610234		1	bye	
+P23 SystemExit('bye')	snapshot:X flush+exit	21032675		1	bye	
+P23 SystemExit('bye')	snapshot:A young	21442487		1	bye	
+P23 SystemExit('bye')	snapshot:AW young+writers	22337972		1	bye	
+P23 SystemExit('bye')	snapshot:B young modules	21832623		1	bye	
+P23 SystemExit('bye')	snapshot:BW young modules+writers	22703353		1	bye	
+P23 SystemExit('bye')	nofree:today	59990677		1	bye	
+P23 SystemExit('bye')	nointerp:today	68567388		1	bye	
+P24 uncaught exception	native			1	ZeroDivisionError,Error	
+P24 uncaught exception	plain:today	782088362		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:today	177224127		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:X flush+exit	112289001		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:A young	113984686		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:AW young+writers	119291353		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:B young modules	119038606		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:BW young modules+writers	120025214		1	ZeroDivisionError,Error	
+P24 uncaught exception	nofree:today	153943302		1	ZeroDivisionError,Error	
+P24 uncaught exception	nointerp:today	165251548		1	ZeroDivisionError,Error	
+P25 stdout whose flush fails	native			120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	plain:today	783060108		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	snapshot:today	178391185		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	snapshot:X flush+exit	21956476		120		
+P25 stdout whose flush fails	snapshot:A young	22392350		120		
+P25 stdout whose flush fails	snapshot:AW young+writers	23314663		120		
+P25 stdout whose flush fails	snapshot:B young modules	22790125		120		
+P25 stdout whose flush fails	snapshot:BW young modules+writers	23690895		120		
+P25 stdout whose flush fails	nofree:today	155190577		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	nointerp:today	166427384		120	Exception ignored,OSError,Error	
+P26 logging MemoryHandler	native			0		log.txt:2
+P26 logging MemoryHandler	plain:today	671241264		0		log.txt:2
+P26 logging MemoryHandler	snapshot:today	295394820		0		log.txt:2
+P26 logging MemoryHandler	snapshot:X flush+exit	223535662		0		log.txt:0
+P26 logging MemoryHandler	snapshot:A young	226156515		0		log.txt:2
+P26 logging MemoryHandler	snapshot:AW young+writers	236322246		0		log.txt:2
+P26 logging MemoryHandler	snapshot:B young modules	235627916		0		log.txt:2
+P26 logging MemoryHandler	snapshot:BW young modules+writers	236569076		0		log.txt:2
+P26 logging MemoryHandler	nofree:today	268205244		0		log.txt:2
+P26 logging MemoryHandler	nointerp:today	282178518		0		log.txt:2
+P27 NamedTemporaryFile left open	native			0		
+P27 NamedTemporaryFile left open	plain:today	508016176		0		
+P27 NamedTemporaryFile left open	snapshot:today	141129319		0		
+P27 NamedTemporaryFile left open	snapshot:X flush+exit	79034191		0		tmp*
+P27 NamedTemporaryFile left open	snapshot:A young	79906358		0		
+P27 NamedTemporaryFile left open	snapshot:AW young+writers	83646863		0		
+P27 NamedTemporaryFile left open	snapshot:B young modules	82671673		0		
+P27 NamedTemporaryFile left open	snapshot:BW young modules+writers	83585685		0		
+P27 NamedTemporaryFile left open	nofree:today	119144162		0		
+P27 NamedTemporaryFile left open	nointerp:today	129427383		0		
+P28 TemporaryDirectory left	native			0		
+P28 TemporaryDirectory left	plain:today	508533793		0		
+P28 TemporaryDirectory left	snapshot:today	141221041		0		
+P28 TemporaryDirectory left	snapshot:X flush+exit	79020902		0		tmp*
+P28 TemporaryDirectory left	snapshot:A young	79997961		0		
+P28 TemporaryDirectory left	snapshot:AW young+writers	83732007		0		
+P28 TemporaryDirectory left	snapshot:B young modules	82759804		0		
+P28 TemporaryDirectory left	snapshot:BW young modules+writers	83667379		0		
+P28 TemporaryDirectory left	nofree:today	119226970		0		
+P28 TemporaryDirectory left	nointerp:today	129535663		0		
+P29 sqlite3 uncommitted insert	native			0		t.db:rows=0
+P29 sqlite3 uncommitted insert	plain:today	412347188		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:today	98691238		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:X flush+exit	38380868		0		t.db:rows=0 t.db-journal:4616 t.db.lock:64
+P29 sqlite3 uncommitted insert	snapshot:A young	39283788		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:AW young+writers	41587814		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:B young modules	40656662		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:BW young modules+writers	41553531		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	nofree:today	78335319		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	nointerp:today	87440141		0		t.db:rows=0
+P30 audit hook holds a file	native			0		a.txt:100
+P30 audit hook holds a file	plain:today	353235333		0		a.txt:100
+P30 audit hook holds a file	snapshot:today	80513725		0		a.txt:100
+P30 audit hook holds a file	snapshot:X flush+exit	21797326		0		a.txt:0
+P30 audit hook holds a file	snapshot:A young	22223896		0		a.txt:0
+P30 audit hook holds a file	snapshot:AW young+writers	23197908		0		a.txt:100
+P30 audit hook holds a file	snapshot:B young modules	22620967		0		a.txt:0
+P30 audit hook holds a file	snapshot:BW young modules+writers	23578216		0		a.txt:100
+P30 audit hook holds a file	nofree:today	60798376		0		a.txt:100
+P30 audit hook holds a file	nointerp:today	69334161		0		a.txt:0
+P31 __del__ sees sys.modules	native		json is NoneType	0		
+P31 __del__ sees sys.modules	plain:today	353274660	json is NoneType	0		
+P31 __del__ sees sys.modules	snapshot:today	80483139	json is NoneType	0		
+P31 __del__ sees sys.modules	snapshot:X flush+exit	21802809		0		
+P31 __del__ sees sys.modules	snapshot:A young	120388038		0	Exception ignored,Error	
+P31 __del__ sees sys.modules	snapshot:AW young+writers	125709377		0	Exception ignored,Error	
+P31 __del__ sees sys.modules	snapshot:B young modules	22653080	json is module	0		
+P31 __del__ sees sys.modules	snapshot:BW young modules+writers	23526516	json is module	0		
+P31 __del__ sees sys.modules	nofree:today	60775958	json is NoneType	0		
+P31 __del__ sees sys.modules	nointerp:today	69447064	json is NoneType	0		
+P32 __del__ imports	native		import failed ImportError	0		
+P32 __del__ imports	plain:today	353821429	import failed ImportError	0		
+P32 __del__ imports	snapshot:today	80771053	import failed ImportError	0		
+P32 __del__ imports	snapshot:X flush+exit	22071485		0		
+P32 __del__ imports	snapshot:A young	49725552	import ok	0		
+P32 __del__ imports	snapshot:AW young+writers	52088010	import ok	0		
+P32 __del__ imports	snapshot:B young modules	50169259	import ok	0		
+P32 __del__ imports	snapshot:BW young modules+writers	52506098	import ok	0		
+P32 __del__ imports	nofree:today	61136934	import failed ImportError	0		
+P32 __del__ imports	nointerp:today	69753744	import failed ImportError	0		
+P33 __del__ of a cycle that imports	native		import ok	0		
+P33 __del__ of a cycle that imports	plain:today	471465976	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:today	108863814	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:X flush+exit	22169320		0		
+P33 __del__ of a cycle that imports	snapshot:A young	49458119	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:AW young+writers	52544283	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:B young modules	50874136	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:BW young modules+writers	51792274	import ok	0		
+P33 __del__ of a cycle that imports	nofree:today	88437070	import ok	0		
+P33 __del__ of a cycle that imports	nointerp:today	97645851	import ok	0		
+P34 output order: atexit, then __del__	native		atexit/del main	0		
+P34 output order: atexit, then __del__	plain:today	353513732	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:today	80779341	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:X flush+exit	22129204		0		
+P34 output order: atexit, then __del__	snapshot:A young	22600530	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:AW young+writers	23493450	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:B young modules	22992271	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:BW young modules+writers	23865886	atexit/del main	0		
+P34 output order: atexit, then __del__	nofree:today	61089378	atexit/del main	0		
+P34 output order: atexit, then __del__	nointerp:today	69743332	atexit/del main	0		
+P35 __del__ sees a global module	native		sep '/'	0		
+P35 __del__ sees a global module	plain:today	353189226	sep '/'	0		
+P35 __del__ sees a global module	snapshot:today	80356304	sep '/'	0		
+P35 __del__ sees a global module	snapshot:X flush+exit	21737557		0		
+P35 __del__ sees a global module	snapshot:A young	115708814		0	Exception ignored,Error	
+P35 __del__ sees a global module	snapshot:AW young+writers	121031814		0	Exception ignored,Error	
+P35 __del__ sees a global module	snapshot:B young modules	22587146	sep '/'	0		
+P35 __del__ sees a global module	snapshot:BW young modules+writers	23457790	sep '/'	0		
+P35 __del__ sees a global module	nofree:today	60703177	sep '/'	0		
+P35 __del__ sees a global module	nointerp:today	69331623	sep '/'	0		

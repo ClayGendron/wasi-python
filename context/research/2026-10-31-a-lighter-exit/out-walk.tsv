@@ -1,0 +1,6 @@
+pass walk	snapshot	1611656	0	None	young 82	
+pass nowalk	snapshot	1480336	0	None	young 0	
+numpy walk	snapshot	731261570	0	None	45 | young 10868	
+numpy nowalk	snapshot	730015174	0	None	45 | young 0	
+pandas walk	snapshot	4394278492	0	None	{1: 4.0, 2: 6.0} | young 53656	
+pandas nowalk	snapshot	4388014417	0	None	{1: 4.0, 2: 6.0} | young 0	

@@ -1,0 +1,8 @@
+import gc	snapshot	58566466	0	None		
+import gc	plain	323990225	0	None		
+import gc	plain	323999320	0	None		
+import gc	plain	324196625	0	None		
+gc.disable()	snapshot	51527855	0	None		
+gc.disable()	plain	320039768	0	None		
+gc.disable()	plain	319795406	0	None		
+gc.disable()	plain	319611816	0	None		

@@ -1,0 +1,54 @@
+pass	snapshot	today	93785621	0		
+pass	plain	today	366885466	0		
+pass	snapshot	X flush+exit	33813870	0		
+pass	plain	X flush+exit	320839095	0		
+pass	snapshot	F skip if nothing to finalize	44035996	0	None	
+pass	plain	F skip if nothing to finalize	436744785	0	a class with __del__ whose instances are untracked	
+print	snapshot	today	93814470	0		hello
+print	plain	today	366781025	0		hello
+print	snapshot	X flush+exit	33909462	0		hello
+print	plain	X flush+exit	321104324	0		hello
+print	snapshot	F skip if nothing to finalize	44109197	0	None	hello
+print	plain	F skip if nothing to finalize	437129559	0	a class with __del__ whose instances are untracked	hello
+json and csv	snapshot	today	98741869	0		2180 685
+json and csv	plain	today	490957272	0		2180 685
+json and csv	snapshot	X flush+exit	38559301	0		2180 685
+json and csv	plain	X flush+exit	436505354	0		2180 685
+json and csv	snapshot	F skip if nothing to finalize	50926564	0	None	2180 685
+json and csv	plain	F skip if nothing to finalize	592987856	0	a class with __del__ whose instances are untracked	2180 685
+1,000 instances	snapshot	today	101352296	0		499500
+1,000 instances	plain	today	374278377	0		499500
+1,000 instances	snapshot	X flush+exit	38549704	0		499500
+1,000 instances	plain	X flush+exit	325663036	0		499500
+1,000 instances	snapshot	F skip if nothing to finalize	72686465	0	None	499500
+1,000 instances	plain	F skip if nothing to finalize	468388819	0	a class with __del__ whose instances are untracked	499500
+a file closed by with	snapshot	today	94555729	0		xxx
+a file closed by with	plain	today	367166780	0		xxx
+a file closed by with	snapshot	X flush+exit	34605004	0		xxx
+a file closed by with	plain	X flush+exit	321467847	0		xxx
+a file closed by with	snapshot	F skip if nothing to finalize	45120381	0	None	xxx
+a file closed by with	plain	F skip if nothing to finalize	438853059	0	a class with __del__ whose instances are untracked	xxx
+a file left open	snapshot	today	94053090	0		
+a file left open	plain	today	366963941	0		
+a file left open	snapshot	X flush+exit	34110287	0		
+a file left open	plain	X flush+exit	321059617	0		
+a file left open	snapshot	F skip if nothing to finalize	104556497	0	finalizer FileIO	
+a file left open	plain	F skip if nothing to finalize	373568160	0	finalizer FileIO	
+import fractions, decimal, datetime	snapshot	today	194361652	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	today	561282184	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	snapshot	X flush+exit	126567320	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	X flush+exit	500056694	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	snapshot	F skip if nothing to finalize	206699736	0	extension type _contextvars.Context	4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	F skip if nothing to finalize	590116244	0	extension type _contextvars.Context	4/3 3.3 2026-01-01
+import numpy	snapshot	today	868399141	0		45
+import numpy	plain	today	1265214394	0		45
+import numpy	snapshot	X flush+exit	766462046	0		45
+import numpy	plain	X flush+exit	1169609403	0		45
+import numpy	snapshot	F skip if nothing to finalize	897806698	0	extension type _contextvars.ContextVar	45
+import numpy	plain	F skip if nothing to finalize	1485938837	0	a class with __del__ whose instances are untracked	45
+pandas groupby	snapshot	today	4784798286	0		{1: 4.0, 2: 6.0}
+pandas groupby	plain	today	5209795113	0		{1: 4.0, 2: 6.0}
+pandas groupby	snapshot	X flush+exit	4459709259	0		{1: 4.0, 2: 6.0}
+pandas groupby	plain	X flush+exit	4891535529	0		{1: 4.0, 2: 6.0}
+pandas groupby	snapshot	F skip if nothing to finalize	4815580701	0	extension type pandas._libs.properties.CachedProperty	{1: 4.0, 2: 6.0}
+pandas groupby	plain	F skip if nothing to finalize	5246336716	0	extension type _cython_3_3_0.fused_cython_function	{1: 4.0, 2: 6.0}
