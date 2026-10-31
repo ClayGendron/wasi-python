@@ -45,8 +45,7 @@ Time box: 25 minutes for a parallel-safe specification, 45 for a build-class one
 1. <criterion> — met / not met: <the evidence or the gap>
 
 ## Findings, most severe first
-1. **<title>** (`path:line`) — <the defect in one sentence>.
-   Failure: <concrete input or state → wrong output or crash>.
+1. **<title>** (`path:line`) — <the defect in one sentence>. Failure: <concrete input or state → wrong output or crash>.
 
 ## Constitution checks
 - §4 constraints: <each one touched, and whether it holds>
