@@ -78,6 +78,8 @@ JOBS = (
     "jpeg_images",
     # SVG to PNG and PDF through cairo
     "svg_to_png",
+    # plotly's figures, HTML and JSON
+    "plotly_figures",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
