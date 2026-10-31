@@ -372,6 +372,7 @@ DISTRIBUTIONS = (
     "contourpy",
     "cycler",
     "defusedxml",
+    "drawsvg",
     "et-xmlfile",
     "fonttools",
     "formulaic",

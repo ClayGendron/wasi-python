@@ -32,7 +32,7 @@ A *golden job* is a fixed program whose output the project compares with native 
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, and xarray:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray and drawsvg:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -40,6 +40,7 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
 | | xlrd 2.0.2 | read old `.xls` files |
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
+| drawing | drawsvg 2.4.2 | vector drawings and SMIL animations, saved as SVG or HTML |
 | labelled arrays | xarray 2026.9.0 | n-dimensional arrays with named dimensions and labels; netCDF3 through scipy |
 | PDF | pypdf 6.21.4 | read, extract text, merge, split, encrypt (RC4) |
 | | reportlab 5.0.1 | write PDFs: text, tables, charts, Unicode text, images |
@@ -69,7 +70,7 @@ pyyaml and markupsafe come from their source releases and run as pure Python: py
 
 python-docx and python-pptx start from their own default templates, which they read from the zip. python-pptx's `fit_text()` needs Pillow's FreeType module, which the set lacks: it raises `OSError` looking for the system's fonts, or `ImportError` when given `font_file=`. Set a font size instead.
 
-Each family has a golden job whose output equals native Python's at the same pins.
+Each family has a golden job whose output equals native Python's at the same pins. drawsvg ships no tests of its own, so its golden job is its only check: it shows the guest writes native drawsvg's SVG and HTML bytes.
 
 ## What is not carried
 
@@ -80,7 +81,9 @@ These are not in the set, so each raises its `ImportError`, as it does natively 
 - `pypdfium2`, for pdfplumber's page images;
 - `antlr4` and `lark`, for sympy's `parse_latex`;
 - `odfpy`, for pandas' `engine="odf"`, and `pyxlsb`, for `.xlsb` files;
-- `cssselect` and `lxml_html_clean`, for `lxml.cssselect` and `lxml.html.clean`.
+- `cssselect` and `lxml_html_clean`, for `lxml.cssselect` and `lxml.html.clean`;
+- `cairosvg` and `imageio`, for drawsvg's PNG, GIF, video and sprite-sheet output;
+- `pwkit`, for `drawsvg.color`, and `ipywidgets`, for `drawsvg.widgets`.
 
 pdfplumber's `page.to_image()` needs pypdfium2, which is not carried; it raises `ModuleNotFoundError`. pdfminer.six reads files encrypted with RC4, and raises `ModuleNotFoundError` naming `cryptography` for one encrypted with AES. xarray's other file engines (netCDF4, h5netcdf, zarr) and its tutorial data are not carried; netCDF3 works through scipy, a file by path with `open_dataset(path, mmap=False)`.
 
@@ -121,4 +124,4 @@ The list is the runtime's. A package a grant adds through `import_path=` is not 
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, and xarray in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray and drawsvg in the zip, each at one pinned version.

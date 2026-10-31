@@ -93,6 +93,7 @@ PIN_FILES = {
     "pdfplumber-0.11.10-py3-none-any.whl": b"pdfplumber pin",
     "pdfminer_six-20260107.tar.gz": b"pdfminer.six pin",
     "xarray-2026.9.0.tar.gz": b"xarray pin",
+    "drawsvg-2.4.2-py3-none-any.whl": b"drawsvg pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -170,6 +171,7 @@ PACKAGES = {
     "pdfplumber": "0.11.10",
     "pdfminer-six": "20260107",
     "xarray": "2026.9.0",
+    "drawsvg": "2.4.2",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

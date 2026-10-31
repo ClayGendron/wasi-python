@@ -10,6 +10,7 @@ not yet (`package_errors`, Decision 15).
 
 from __future__ import annotations
 
+import ast
 import re
 import tomllib
 from dataclasses import dataclass
@@ -332,7 +333,9 @@ def _minutes_errors(plan: dict[str, Shard]) -> list[str]:
 # ---------------------------------------------------------------------------------------------
 # Every package names its own suite (Decision 15)
 
-KINDS = ("suite", "via", "build-only", "later")
+KINDS = ("suite", "via", "build-only", "later", "none")
+# Where a `none` entry's import names are read: each distribution's line, `<name>: <import> ...`.
+SNAPSHOT_PACKAGES = "recipes/snapshot-packages.txt"
 # The runtimes linked into every binary, which neither list names.
 LINKED_RUNTIMES = ("wasi-libc", "llvm-runtimes")
 # needs.SOURCE_COMPONENTS names three components otherwise than paths.PACKAGES and the file do
@@ -407,4 +410,54 @@ def package_errors(
                     f"{name}: closes_with {e.get('closes_with')!r} names no specification, "
                     "written or reserved"
                 )
+        elif kind == "none":
+            errors += _none_errors(name, e, suites, repo)
     return errors
+
+
+def _none_errors(name: str, e: dict, suites: dict[str, int], repo: Path) -> list[str]:
+    """Why a `none` entry does not hold: the project ships no tests, so the entry says where that
+    was read and names the golden jobs that run the package instead. A suite file for it, or a
+    named job that never imports it, would leave the package run nowhere."""
+    from harness import jobs
+
+    errors = []
+    if not str(e.get("reason", "")).strip():
+        errors.append(f"{name}: none without a reason")
+    checked = e.get("checked_by", [])
+    if not isinstance(checked, list) or not checked:
+        errors.append(f"{name}: none without checked_by, the golden jobs that run it")
+        checked = []
+    if name in suites or (repo / "tests" / "upstream" / f"{name}.toml").is_file():
+        errors.append(f"{name}: none, but tests/upstream/{name}.toml exists, so a suite does")
+    imports = _import_names(name, repo)
+    for job in checked:
+        if job not in jobs.JOBS:
+            errors.append(f"{name}: checked_by {job!r} is not a golden job")
+        elif not imports & _job_imports(repo / "tests" / "jobs" / f"{job}.py"):
+            errors.append(f"{name}: checked_by {job!r} does not import {name}")
+    return errors
+
+
+def _import_names(name: str, repo: Path) -> set[str]:
+    """The top-level import names the snapshot's package recipe gives a distribution."""
+    path = repo / SNAPSHOT_PACKAGES
+    lines = path.read_text().splitlines() if path.is_file() else []
+    for line in lines:
+        dist, _, names = line.partition(":")
+        if not line.startswith("#") and dist.strip() == name:
+            return {n.split(".")[0] for n in names.split()}
+    return set()
+
+
+def _job_imports(path: Path) -> set[str]:
+    """The top-level names a job's source imports, read with `ast`; none for a missing file."""
+    if not path.is_file():
+        return set()
+    out: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(), str(path))):
+        if isinstance(node, ast.Import):
+            out |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            out.add(node.module.split(".")[0])
+    return out

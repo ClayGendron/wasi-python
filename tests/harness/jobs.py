@@ -71,6 +71,8 @@ JOBS = (
     # pdfplumber's tables and xarray's labelled arrays
     "pdf_tables",
     "labelled_arrays",
+    # drawsvg's vector drawings and animations, as SVG and HTML
+    "vector_drawings",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -95,7 +97,11 @@ PLATFORM_BOUND = (
     "statistical_plots",
     "statistical_models",
 )
-DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
+# A small PNG an SVG drawing embeds as a data URI, read from the data folder.
+DATA = {
+    "sales.csv": paths.REPO / "fixtures" / "sales.csv",
+    "swatch.png": paths.REPO / "fixtures" / "swatch.png",
+}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
 # guest does: nothing is built on the host.
 PURE_SDIST = "pyyaml-6.0.3.tar.gz"

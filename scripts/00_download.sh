@@ -251,6 +251,8 @@ get https://files.pythonhosted.org/packages/77/8b/1ea57b936b70f98e8e7620a3525780
 get https://files.pythonhosted.org/packages/a2/9a/07d658e1e7fad860f1c541ab941348125dbdab773be3a0afaf32361866c7/pdfplumber-0.11.10-py3-none-any.whl pdfplumber-0.11.10-py3-none-any.whl
 get https://files.pythonhosted.org/packages/34/a4/5cec1112009f0439a5ca6afa8ace321f0ab2f48da3255b7a1c8953014670/pdfminer_six-20260107.tar.gz pdfminer_six-20260107.tar.gz
 get https://files.pythonhosted.org/packages/ff/f5/781c70b234f54e0401f4f7c4427a7486da38d50dbb138c7d7c55144b3d86/xarray-2026.9.0.tar.gz xarray-2026.9.0.tar.gz
+# drawsvg, its pure wheel: vector drawings and SMIL animations as SVG and HTML
+get https://files.pythonhosted.org/packages/15/5a/c47c10de42c49a3a9957123d77e5692b56b4fbc342b55285b52c41a8f1c1/drawsvg-2.4.2-py3-none-any.whl drawsvg-2.4.2-py3-none-any.whl
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)

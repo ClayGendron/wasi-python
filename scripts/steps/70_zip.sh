@@ -58,6 +58,8 @@
 # ToUnicode table reads as `(cid:N)`); xarray from its sdist, whose licences folder holds the
 # notices of the code it adapts, with its entry_points.txt, as networkx's. Both sdists' METADATA
 # their PKG-INFO.
+# drawsvg: its pure wheel, whole: its raster, video and colour helpers and its widgets folder stay,
+# so each names the package it lacks (CairoSVG, imageio, pwkit, ipywidgets) as it does natively.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -163,6 +165,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
   --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
   --wheel "$(pinned pdfplumber-0.11.10-py3-none-any.whl)" \
+  --wheel "$(pinned drawsvg-2.4.2-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.4/PKG-INFO=numpy" \
   --metadata "$B/pandas-3.0.6/PKG-INFO=pandas" \
   --metadata "$B/pillow-13.0.0/PKG-INFO=PIL" \
