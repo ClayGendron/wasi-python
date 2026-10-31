@@ -72,7 +72,7 @@ def test_the_render_has_no_colour_whatever_the_terminal(monkeypatch) -> None:
     is the same text everywhere, so the render turns colour off."""
     monkeypatch.setenv("FORCE_COLOR", "1")
     monkeypatch.delenv("NO_COLOR", raising=False)
-    text = cli_doc.render(cli_doc.live_parser())
+    text = cli_doc.live_block()
     assert "\x1b" not in text
     assert cli_doc.page_block(cli_doc.PAGE.read_text(encoding="utf-8")) == (1, text)
 
@@ -85,10 +85,18 @@ def test_every_option_of_the_command_is_described() -> None:
 
 
 def test_every_option_of_the_command_carries_its_help() -> None:
-    """`wasi-python run --help` describes every option, from the same text the page renders."""
+    """Each command's `--help` describes every option, from the same text the page renders."""
     bare = [
         a.option_strings[-1]
-        for a in cli_doc.live_parser()._actions
+        for parser in cli_doc.live_parsers()
+        for a in parser._actions
         if a.option_strings and a.dest != "help" and a.help in (None, argparse.SUPPRESS)
     ]
     assert bare == [], f"options with no help=: {bare}"
+
+
+def test_the_page_has_a_section_per_command() -> None:
+    """`wasi-python packages` is on the page too, after `run`, with its one option."""
+    text = cli_doc.live_block()
+    assert text.index("### `wasi-python run`") < text.index("### `wasi-python packages`")
+    assert "wasi-python packages [--json]" in text and "| `--json` |  | off |" in text

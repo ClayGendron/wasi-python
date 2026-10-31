@@ -1,4 +1,6 @@
-"""`wasi-python run`: run one program through `wasi_python.run` and print its result as one line
+"""The `wasi-python` command, with two subcommands: `run` and `packages`.
+
+`wasi-python run` runs one program through `wasi_python.run` and prints its result as one line
 of JSON. It adds no power `run` does not have: each option is one of `run`'s
 arguments, and without an option the argument is `run`'s default.
 
@@ -14,6 +16,12 @@ Exit codes say whether there is a result, not how the program ended: 0, the call
 JSON says how the program ended); 1, `run` raised (one JSON object with `error` and `kind`);
 2, a usage error (argparse's message on standard error); 130, interrupted by Ctrl-C, with
 nothing on standard output but the chunks `--stream` had printed.
+
+`wasi-python packages` prints the Python packages the runtime carries, one line each, the line
+`str(Package)` gives (`scikit-learn 1.9.1 (import sklearn)`); with `--json`, one JSON line,
+`{"packages": [{"imports": [...], "name": ..., "version": ...}, ...]}`. Its exit codes are
+`run`'s: 0, printed; 1, `packages()` raised (the error line under `--json`, else one line on
+standard error); 2, a usage error. `-h` and an unknown command print the usage of both.
 
 Run as its own process, the command raises its soft descriptor limit to its hard one first, so
 the cap on open files guards it; the library never changes a process's
@@ -31,7 +39,11 @@ import threading
 from collections.abc import Sequence
 from typing import Any
 
+from . import _packages
+
 USAGE = "wasi-python run [OPTIONS] [--] ARG..."
+PACKAGES_USAGE = "wasi-python packages [--json]"
+COMMANDS = f"usage: {USAGE}\n       {PACKAGES_USAGE}"  # the command's own: one line each
 VALUED = {
     "--env",
     "--stdin",
@@ -157,6 +169,46 @@ def _parser() -> argparse.ArgumentParser:
     return p
 
 
+def _packages_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="wasi-python packages",
+        usage=PACKAGES_USAGE,
+        allow_abbrev=False,
+        description="List the Python packages in the runtime, each with its version and the "
+        "names to import.",
+    )
+    p.add_argument(
+        "--json", action="store_true",
+        help="print one JSON line, an object whose packages list holds each package's name, "
+        "version and imports",
+    )  # fmt: skip
+    return p
+
+
+def _packages_main(args: list[str]) -> int:
+    """A line per package, or one JSON line with --json; exit 1 with the error when the set
+    cannot be read."""
+    try:
+        ns = _packages_parser().parse_args(args)
+    except SystemExit as e:  # usage errors exit 2; --help exits 0
+        return int(e.code or 0)
+    try:
+        found = _packages.packages()
+    except Exception as e:
+        if ns.json:
+            _write({"error": str(e), "kind": type(e).__name__})
+        else:
+            print(f"wasi-python packages: {e}", file=sys.stderr)
+        return 1
+    if ns.json:
+        rows = [{"name": p.name, "version": p.version, "imports": list(p.imports)} for p in found]
+        _write({"packages": rows})
+    else:
+        sys.stdout.buffer.write("".join(f"{p}\n" for p in found).encode("utf-8"))
+        sys.stdout.buffer.flush()
+    return 0
+
+
 def _grants(items: list[tuple[str, str]], parser: argparse.ArgumentParser) -> list[Any]:
     """GUEST=HOST, split at the first `=`: a host path may hold `=` or `C:\\`, a guest path
     starts with `/`. Whatever parses goes to `run()`, which judges it."""
@@ -272,10 +324,12 @@ def main(argv: list[str] | None = None) -> int:
 
 def _main(args: list[str]) -> int:
     if args[:1] in (["-h"], ["--help"]):
-        print(f"usage: {USAGE}\n\nRun `wasi-python run --help` for the options.")
+        print(f"{COMMANDS}\n\nRun `wasi-python <command> --help` for a command's options.")
         return 0
+    if args[:1] == ["packages"]:
+        return _packages_main(args[1:])
     if args[:1] != ["run"]:
-        print(f"usage: {USAGE}\nwasi-python: the one command is `run`", file=sys.stderr)
+        print(f"{COMMANDS}\nwasi-python: the commands are `run` and `packages`", file=sys.stderr)
         return 2
     options, guest = _split(args[1:])
     parser = _parser()

@@ -30,6 +30,7 @@ ORDER = (
     "_platform_posix",
     "_platform",
     "_artifacts",
+    "_packages",
     "_engines",
     "_private_dirs",
     "_zip",

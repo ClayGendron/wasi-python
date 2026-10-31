@@ -291,6 +291,24 @@ A `run_async` call's output as an async iterator: pass the feed as `on_output`, 
 - `OutputFeed.follow`: Each chunk in order, ending once `task` is done, whatever its outcome, after the chunks already delivered.
   - `task`: The task or future of the call this feed was given to.
 
+#### `wasi_python.Package`
+
+```python
+@dataclass(frozen=True)
+class Package:
+    name: str
+    version: str
+    imports: tuple[str, ...]
+```
+
+One Python package in the artifact set, as `packages()` lists it.
+
+**Attributes:**
+
+- `name`: The distribution's name, as its metadata writes it (`scikit-learn`).
+- `version`: The distribution's version (`1.9.1`).
+- `imports`: The top-level names it puts on the import path, sorted (`("sklearn",)`).
+
 #### `wasi_python.RefusedWrite`
 
 ```python
@@ -716,6 +734,23 @@ Run your code once in a fresh guest and keep its memory, as a starting image.
 - `ArtifactsMissing`: There is no usable artifact set, or it predates snapshots you make.
 - `OSError`: A host filesystem call failed while the folders were prepared.
 - `RuntimeError`: As for `Session`.
+
+#### `wasi_python.packages`
+
+```python
+def packages(artifacts: Artifacts | None = None) -> tuple[Package, ...]
+```
+
+The Python packages in the artifact set, each with its version and import names.
+
+**Args:**
+
+- `artifacts`: The set to read; `None` finds it with `artifacts()`.
+
+**Raises:**
+
+- `TypeError`: `artifacts` is neither `None` nor an `Artifacts`.
+- `ArtifactsMissing`: There is no set, its zip cannot be read, or a distribution in it has no name or version, a member over 1 MiB, or a control character in a name.
 
 #### `wasi_python.run`
 
