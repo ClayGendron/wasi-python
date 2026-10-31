@@ -151,7 +151,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
   --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.4/PKG-INFO" \
-  --metadata "$B/pandas-3.0.6/PKG-INFO" \
+  --metadata "$B/pandas-3.1.0/PKG-INFO" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
   --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \
   --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
