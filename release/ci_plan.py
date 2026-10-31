@@ -221,6 +221,14 @@ def ledger_move_refusal(base: tuple[str, str], head: tuple[str, str], version: s
     moved = news.moved_blocks(head[1], version)
     if kept and moved != kept and not moved.startswith(kept + "\n"):
         return f"a block the base's ledger held was dropped or edited under ## {version}"
+    added = moved[len(kept) :].lstrip()
+    if kept and added and not added.startswith("[[claim]]"):
+        # Text after the base's last block that is not a new table continues that block, so it
+        # would be read as a reason given under the base block's spec: an edit, not an addition.
+        return (
+            f"text added after the base's last block under ## {version} does not begin a new "
+            "[[claim]] block, so it edits that block"
+        )
     try:
         news.ledger_tables(news.LEDGER, head[0])
         want = news.move_ledger(header + "\n" + moved, base[1], version, m[1])

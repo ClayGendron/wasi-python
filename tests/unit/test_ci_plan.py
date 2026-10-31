@@ -1220,6 +1220,12 @@ def test_a_preparation_that_edits_or_drops_a_ledger_block_is_refused_named() -> 
     assert why and "dropped or edited" in why, why
     dropped = _moved(LEDGER_HEADER + "\n" + EXTRA)
     assert "dropped or edited" in ci_plan.ledger_move_refusal(base, dropped, "0.1.1")
+    # A key or sub-table appended after the base's last block continues that block, under its
+    # spec: an edit of it, not an added block.
+    tail = '[claim.judge]\n"tests/known_gaps.toml" = "a new allowance"\n'
+    continued = _moved(LEDGER_HEADER + "\n" + LEDGER_BLOCK + tail)
+    why_tail = ci_plan.ledger_move_refusal(base, continued, "0.1.1")
+    assert why_tail and "[[claim]]" in why_tail, why_tail
     broken = '[[claim]]\nspec = "999"\ngrows = ["x"]\n'  # grows without its growth
     kept = ci_plan.ledger_move_refusal(base, (head_ledger + "\n" + broken, head_history), "0.1.1")
     assert kept and "growth" in kept, kept

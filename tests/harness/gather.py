@@ -20,7 +20,7 @@ the accept job clears each with the claim of a news file, or refuses it. On both
 a news file's claim retires is listed beside them; one no claim retires stays red, as a lost pass
 does. Each listed row names the reason a news file's claim gives (the news files at this commit),
 or `unclaimed`. The release pull request into main is judged whole, with G7 in its own form, its
-rows that a claim of the news files or of the release-tier ledger gives a reason for listed as
+rows that a claim of the news files or of the release ledger gives a reason for listed as
 after a merge, and the rest red. It prints the merged scoreboard, writes the merged record (with
 its own red lines, the event, and each shard's commit and guards, which the acceptance from CI's
 record holds) and the job's summary, and writes nothing to the progress history. It is the
@@ -191,7 +191,7 @@ def gather(i: Inputs) -> Verdict:
     release_pr = i.event == "pull_request" and i.base_ref == "main"
     pull_request = i.event == "pull_request" and not release_pr
     # Where an acceptance's reasons are the news files' (and, on the release pull request, the
-    # release-tier ledger's too), a row that needs one is listed, not red: the acceptance clears it
+    # release ledger's too), a row that needs one is listed, not red: the acceptance clears it
     # with its claim, or refuses it, named. A lost pass stays red everywhere.
     listed = pull_request or i.g7 in ("post-merge", "release-pull-request")
     # After a merge into dev a row no claim gives a reason for is listed too: the acceptance
@@ -704,7 +704,7 @@ def news_claims(repo: Path = paths.REPO) -> list[news.Claim]:
 
 
 def release_ledger(repo: Path = paths.REPO) -> list[news.Claim]:
-    """The release-tier ledger's claims for this version, which the release pull request's
+    """The release ledger's claims for this version, which the release pull request's
     acceptance reads beside the news files; none when it is broken, which its acceptance names."""
     try:
         return news.ledger_claims(repo)

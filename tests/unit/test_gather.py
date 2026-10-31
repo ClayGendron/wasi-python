@@ -1202,7 +1202,7 @@ def test_a_release_pull_request_builds_its_own_set(tmp_path) -> None:
 def test_a_growth_on_a_release_pull_request_is_listed_with_the_ledgers_reason(tmp_path) -> None:
     """The release pull request is the one run that judges the release tier between releases:
     a row that moved since the last release is listed with the reason the news files or the
-    release-tier ledger give, which the acceptance consumes; one no claim gives a reason for is
+    release ledger give, which the acceptance consumes; one no claim gives a reason for is
     red, as after a merge, since the acceptance would have nothing to consume."""
     case = ReleasePRCase(tmp_path)
     case.records[("release", "up-r")]["checks"][R_SUITE]["metrics"] = {"passes": 5, "fuel": 900}
