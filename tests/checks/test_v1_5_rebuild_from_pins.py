@@ -565,7 +565,18 @@ def test_one_qhull_is_linked() -> None:
 
 
 CPYTHON_CONFIGURE = paths.REPO / "tests" / "cpython_configure.txt"
-PYCONFIG = Path("Python-3.15.0") / "cross-build" / "wasm32-wasip1" / "pyconfig.h"
+
+
+def _pyconfig() -> Path:
+    """The guest CPython's pyconfig.h under build/, in the tree of the line's own version."""
+    return (
+        Path(f"Python-{_line_values()['PYTHON_VERSION']}")
+        / "cross-build"
+        / "wasm32-wasip1"
+        / "pyconfig.h"
+    )
+
+
 DEFINE = re.compile(r"^\s*#\s*define\s+(\S+)(?:\s+(.*?))?\s*$")
 
 
@@ -587,8 +598,9 @@ def test_the_guests_configure_results_are_recorded() -> None:
     assert len(digests) == 1, "tests/cpython_configure.txt holds no single digest line"
     recorded = {line for line in text if line.strip() and not line.startswith(("#", "digest "))}
     needs.need("compile records")
-    header = paths.BUILD / PYCONFIG
-    assert header.is_file(), f"no build/{PYCONFIG}"
+    pyconfig = _pyconfig()
+    header = paths.BUILD / pyconfig
+    assert header.is_file(), f"no build/{pyconfig}"
     built = _defines(header.read_text(errors="replace"))
     reserved = scan.read_names(paths.EMBEDDERS)
     visible = {line for line in built if not any(name in line.lower() for name in reserved)}
