@@ -83,3 +83,15 @@ growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the
 spec = "171"
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
 growth = "each distribution's .dist-info gains its top_level.txt, 58 members after 167, so every guest's zip directory is larger: a plain start 282,492,922 to 283,900,438 fuel (+0.50%) and a snapshot start 54,644,143 to 54,695,369 (+0.09%), measured on darwin arm64 against dev's set at a750e8fe"
+
+[[claim]]
+spec = "166"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-a]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-b]",
+]
+fewer = "pandas 3.1.0, the second pull request: pandas-slow-a 2,259 -> 2,256 and pandas-slow-b 28 -> 26. 3.1.0 drops the slow mark from test_where_inplace_casting, test_unstack_number_of_levels_larger_than_int32_warns, test_pivot_number_of_levels_larger_than_int32_warns and test_isocalendar, so their six nodes move to the normal groups; slow-b's three test_categorical_dtype_high_cardinality_numeric cases fail as its wasm32-int32 class says (the test's expected categories take numpy's 32-bit default integer; read_csv's int64 categories are native's); four new parallel-read tests pass"
