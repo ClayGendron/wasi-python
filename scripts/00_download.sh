@@ -240,7 +240,7 @@ get https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd8526619
 # wrapt's py3-none-any wheel is upstream's pure form, its C file carried as source only
 get https://files.pythonhosted.org/packages/fc/75/0576b03f7889ad25b5385b4f6c69e0543713425a6f193b056c9b0a2e65ce/formulaic-1.2.2-py3-none-any.whl formulaic-1.2.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/a1/d3/20a61a248feb1249cd81f83ce731f0bdf5170ed96a08a298f7081cda9e90/interface_meta-2.0.1-py3-none-any.whl interface_meta-2.0.1-py3-none-any.whl
-get https://files.pythonhosted.org/packages/bc/0c/7da7513ddcc8f1d831ec4bfbedc9f7f174ecb91042bc16916fc1e0d06b22/wrapt-2.5.1-py3-none-any.whl wrapt-2.5.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/77/8b/1ea57b936b70f98e8e7620a352578096d778dbee95b262f73c066d210ffb/wrapt-2.5.2-py3-none-any.whl wrapt-2.5.2-py3-none-any.whl
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)
@@ -302,7 +302,7 @@ tests https://files.pythonhosted.org/packages/bf/21/f64d6b2dbea7bf3f8c38cdc786dc
 tests https://files.pythonhosted.org/packages/f1/87/e7b9b39d218793f159d7425e264c0ac196da07f1decc333001502fac02fb/formulaic-1.2.2.tar.gz formulaic-1.2.2.tar.gz
 tests https://files.pythonhosted.org/packages/28/5b/202a48a1ccdef721a95357fbe263c54ef87c18c4972df1ab5c22fe0f33d5/interface_meta-2.0.1.tar.gz interface_meta-2.0.1.tar.gz
 tests https://files.pythonhosted.org/packages/4a/51/dbe28534ae12c852f61be91f039f343305fd1f34f1c66b8de75afae7a525/reportlab-5.0.1.tar.gz reportlab-5.0.1.tar.gz
-tests https://files.pythonhosted.org/packages/04/22/89e2f3bdae5cb34e0cab0cd86d7172dbf418de4b46c9b17b9c7a560dfa44/wrapt-2.5.1.tar.gz wrapt-2.5.1.tar.gz
+tests https://files.pythonhosted.org/packages/9c/b0/f752d19e1e83ab8bd64aeccfde32ff086aee3ef08520f7340b69a8d0a4d2/wrapt-2.5.2.tar.gz wrapt-2.5.2.tar.gz
 tests https://github.com/matplotlib/cycler/archive/refs/tags/v0.12.1.tar.gz cycler-0.12.1-tag.tar.gz
 tests https://github.com/cloudpipe/cloudpickle/archive/refs/tags/v3.1.2.tar.gz cloudpickle-3.1.2-tag.tar.gz
 tests https://github.com/joblib/threadpoolctl/archive/refs/tags/3.7.0.tar.gz threadpoolctl-3.7.0-tag.tar.gz

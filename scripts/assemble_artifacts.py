@@ -102,7 +102,7 @@ PACKAGES = {
     "statsmodels": "0.15.0",
     "formulaic": "1.2.2",
     "interface-meta": "2.0.1",
-    "wrapt": "2.5.1",
+    "wrapt": "2.5.2",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -147,7 +147,7 @@ WHEELS = {
     # statsmodels' formula engine
     "formulaic": "formulaic-1.2.2-py3-none-any.whl",
     "interface-meta": "interface_meta-2.0.1-py3-none-any.whl",
-    "wrapt": "wrapt-2.5.1-py3-none-any.whl",
+    "wrapt": "wrapt-2.5.2-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
