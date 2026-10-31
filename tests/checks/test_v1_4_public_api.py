@@ -36,6 +36,7 @@ TOP = [
     "Mount",
     "OutputChunk",  # output while the guest runs
     "OutputFeed",
+    "Package",  # the packages a set carries
     "RefusedWrite",
     "Session",  # bounded sessions
     "SessionEnded",
@@ -50,6 +51,7 @@ TOP = [
     "defaults",
     "make_package_snapshot",
     "make_snapshot",
+    "packages",
     "run",
     "run_async",
     "set_defaults",

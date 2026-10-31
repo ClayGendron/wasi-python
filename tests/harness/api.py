@@ -44,6 +44,7 @@ RUNNER_FILES = (
     "_platform_posix.py",
     "_platform.py",
     "_artifacts.py",
+    "_packages.py",
     "_engines.py",
     "_private_dirs.py",
     "_zip.py",
@@ -80,6 +81,7 @@ INTERNAL_MODULES = tuple(
 DEFINING = (
     "__init__.py",
     "_artifacts.py",
+    "_packages.py",
     "_places.py",
     "_snapshot.py",
     "_outputs.py",

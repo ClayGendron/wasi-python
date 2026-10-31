@@ -83,6 +83,10 @@ class OutputFeed
     param chunk: OutputChunk  positional
   def follow -> AsyncIterator[OutputChunk]
     param task: asyncio.Future[Any]  positional
+dataclass Package: frozen
+  field name: str = required
+  field version: str = required
+  field imports: tuple[str, ...] = required
 dataclass RefusedWrite: frozen
   field mount: str = required
   field method: str = required
@@ -217,6 +221,8 @@ def make_snapshot -> Snapshot
   param artifacts: Artifacts | None = None  keyword-only
   param max_file_calls: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
+def packages -> tuple[Package, ...]
+  param artifacts: Artifacts | None = None  positional
 def run -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only

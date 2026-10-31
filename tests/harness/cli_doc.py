@@ -3,9 +3,10 @@
     uv run python tests/harness/cli_doc.py --write   # rewrite the block in docs/reference/cli.md
     uv run python tests/harness/cli_doc.py --check   # exit 1 if it differs from the live parser
 
-The page's block is a table of `wasi-python run`'s options: each option, its value, its default
-and one sentence. The sentence is the option's `help=`, the text `--help` prints, and the render
-fails on an option that has none, so the page and the parser cannot drift apart. Importing
+The page's block is a section per command, `wasi-python run` and then `wasi-python packages`,
+each a table of its options: each option, its value, its default and one sentence. The sentence
+is the option's `help=`, the text `--help` prints, and the render fails on an option that has
+none, so the page and the parser cannot drift apart. Importing
 `wasi_python.cli` never loads wasmtime.
 """
 
@@ -24,10 +25,22 @@ WRITE = "uv run python tests/harness/cli_doc.py --write"
 
 
 def live_parser() -> argparse.ArgumentParser:
-    """The command's own parser."""
+    """`wasi-python run`'s own parser."""
     from wasi_python import cli
 
     return cli._parser()
+
+
+def live_parsers() -> tuple[argparse.ArgumentParser, ...]:
+    """Each command's own parser, in the page's order."""
+    from wasi_python import cli
+
+    return (cli._parser(), cli._packages_parser())
+
+
+def live_block() -> str:
+    """The page's block: a section per command, rendered from its live parser."""
+    return "\n\n".join(render(p) for p in live_parsers())
 
 
 def _default(action: argparse.Action) -> str:
@@ -122,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--check", action="store_true")
     p.add_argument("--page", type=Path, default=PAGE)
     ns = p.parse_args(argv)
-    block = render(live_parser())
+    block = live_block()
     text = ns.page.read_text(encoding="utf-8") if ns.page.is_file() else ""
     count, current = page_block(text)
     if count != 1:

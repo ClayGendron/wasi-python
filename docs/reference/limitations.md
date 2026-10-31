@@ -70,7 +70,7 @@ The standard library and the packages' Python code are bytecode in one read-only
 - Tracebacks into the stdlib show no source line. `inspect.getsource`, `linecache`, `pdb` and `pydoc` have no source for it.
 - `os.path.exists` of a stdlib module's `__file__` is false, and the zip's path cannot be listed.
 - Tracebacks and warnings name a module by its full zip path, such as `/usr/local/lib/python315.zip/pandas/core/frame.py`.
-- `importlib.metadata` gives each package's name, version and entry points; `files()` gives `None`, because the zip keeps no `RECORD`.
+- `importlib.metadata` gives each package's name, version and entry points, and `packages_distributions()` maps each import name to its package. `files()` gives `None`, because the zip keeps no `RECORD`.
 - `importlib.resources.files()` on a package in the zip gives the runtime's own reader, not a `zipfile.Path`. It lacks `root`, `at`, `glob`, `rglob` and a few more of `zipfile.Path`'s members.
 - The packages' own `tests` folders are not in the zip.
 - The snapshot runs only beside the exact stdlib zip it was built against, because zipimport's file offsets are part of the snapshot.

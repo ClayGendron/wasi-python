@@ -303,7 +303,7 @@ def test_generated_pages_are_current() -> None:
     _, api_block = api.render()
     pages = [
         (api.PAGE, api.readme_block, api_block, api.WRITE),
-        (cli_doc.PAGE, cli_doc.page_block, cli_doc.render(cli_doc.live_parser()), cli_doc.WRITE),
+        (cli_doc.PAGE, cli_doc.page_block, cli_doc.live_block(), cli_doc.WRITE),
     ]
     errors = []
     for page, read_block, live, write in pages:

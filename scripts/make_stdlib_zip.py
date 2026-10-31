@@ -1,7 +1,7 @@
 """Build the stdlib zip: bytecode-only, deflated and deterministic.
 
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
-        [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
+        [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>=<name>[,<name>...]]...
         [--entry-points <an sdist's PKG-INFO> <its entry_points.txt>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
         [--drop <folder or file in zip>]... [--keep <folder in zip>=<file>,<file>...]...
@@ -50,6 +50,17 @@ skips every .dist-info and .egg-info folder, and a tree with one at its top stop
 `--entry-points <PKG-INFO> <file>` packs an sdist's entry_points.txt,
 bytes unchanged, beside that PKG-INFO's METADATA, in the folder sdist_metadata names; once every
 input is gathered, an entry-points file whose folder has no METADATA member stops the build.
+
+Import names: every distribution's .dist-info gets a top_level.txt, its top-level names sorted,
+one per line, setuptools' format, so the guest's importlib.metadata.packages_distributions()
+answers and the host can list each package with the names to import. A name is a packed
+member's first folder, or a root module's stem; a wheel's .dist-info and .data folders are never
+names, and a root data file is none. A wheel owns the names of the members it packs (its own
+top_level.txt stays dropped, as RECORD does). A tree has no owner of its own (one tree holds
+several sdists' packages), so each --metadata names its distribution's: `<PKG-INFO>=<name>,...`,
+split at the last `=`. --lib and --file own nothing. The build stops on a name two inputs own
+(a wheel and a tree, two wheels, two trees, two claims), on a tree's name no --metadata claims,
+on a claim of a name no tree packed, and on a distribution left with no name.
 """
 
 from __future__ import annotations
@@ -325,6 +336,88 @@ def _under(name: str, folder: str) -> str | None:
     return name[len(prefix) :] if name.startswith(prefix) else None
 
 
+def import_name(name: str) -> str | None:
+    """The top-level import name a member puts on the path: its first folder, or a root module's
+    stem; None for a root data file and for a wheel's .dist-info and .data folders."""
+    top, sep, _ = name.partition("/")
+    if sep:
+        return None if top.endswith((*METADATA_DIRS, ".data")) else top
+    stem, dot, suffix = name.rpartition(".")
+    return stem if dot and suffix in ("py", "pyc") else None
+
+
+def parse_claim(spec: str) -> tuple[Path, list[str]]:
+    """`--metadata <PKG-INFO>=<name>[,<name>...]`, split at the last `=`: a distribution left
+    with no name could not say what to import, so the names are required."""
+    path, sep, names = spec.rpartition("=")
+    found = [n.strip() for n in names.split(",") if n.strip()] if sep else []
+    if not path or not found or not all(n.isidentifier() for n in found):
+        raise SystemExit(f"--metadata {spec!r}: write <PKG-INFO>=<name>[,<name>...]")
+    return Path(path), found
+
+
+class Owners:
+    """Which distribution owns each top-level name: a wheel the names of what it packs, an sdist
+    the names its --metadata claims among what the trees packed. Kept so that every name has one
+    owner and every distribution a name, and the build stops, naming both, when one does not."""
+
+    def __init__(self) -> None:
+        self.owner: dict[str, str] = {}  # a packed name: the wheel or tree that packed it
+        self.by_wheel: dict[str, set[str]] = {}  # a wheel: the names it packed
+        self.folder: dict[str, str] = {}  # a wheel: its .dist-info folder
+        self.trees: set[str] = set()  # the names the trees packed
+        self.claims: dict[str, str] = {}  # a claimed name: the --metadata that claims it
+        self.claimed: dict[str, set[str]] = {}  # an sdist's .dist-info folder: its names
+
+    def packed(self, name: str, origin: str, wheel: bool) -> None:
+        """A member `add` took from a wheel or a tree."""
+        if wheel and name.partition("/")[0].endswith(".dist-info"):
+            self.folder[origin] = name.partition("/")[0]
+        top = import_name(name)
+        if top is None:
+            return
+        if self.owner.setdefault(top, origin) != origin:
+            raise SystemExit(f"{top} is owned by two inputs: {self.owner[top]} and {origin}")
+        if wheel:
+            self.by_wheel.setdefault(origin, set()).add(top)
+        else:
+            self.trees.add(top)
+
+    def claim(self, folder: str, names: list[str], spec: str) -> None:
+        for name in names:
+            if self.claims.setdefault(name, spec) != spec:
+                raise SystemExit(
+                    f"{name} is claimed twice: --metadata {self.claims[name]} and --metadata {spec}"
+                )
+        self.claimed.setdefault(folder, set()).update(names)
+
+    def top_level(self) -> dict[str, bytes]:
+        """Each distribution's `<dist-info>/top_level.txt`, after the checks."""
+        for name, spec in sorted(self.claims.items()):
+            if name in self.by_wheel.get(self.owner.get(name, ""), set()):
+                raise SystemExit(
+                    f"{name} is owned by two inputs: {self.owner[name]} and --metadata {spec}"
+                )
+            if name not in self.trees:
+                raise SystemExit(f"--metadata {spec}: no tree packed {name}")
+        unclaimed = sorted(self.trees - set(self.claims))
+        if unclaimed:
+            where = ", ".join(f"{n} ({self.owner[n]})" for n in unclaimed)
+            raise SystemExit(f"no --metadata claims the names a tree packed: {where}")
+        names = dict(self.claimed)
+        for wheel, packed in self.by_wheel.items():
+            if wheel not in self.folder:
+                raise SystemExit(f"{wheel}: no .dist-info folder for the names it packs")
+            names[self.folder[wheel]] = packed
+        for wheel, folder in self.folder.items():
+            if not self.by_wheel.get(wheel):
+                raise SystemExit(f"{wheel}: {folder} is left with no name to import")
+        return {
+            f"{folder}/top_level.txt": "".join(f"{n}\n" for n in sorted(found)).encode()
+            for folder, found in names.items()
+        }
+
+
 class Selection:
     """The --drop, --keep and --inner rules, and what each matched, so a rule that matches nothing
     stops the build instead of passing silently."""
@@ -378,7 +471,7 @@ def main() -> None:
     ap.add_argument("--lib", required=True, type=Path)
     ap.add_argument("--tree", action="append", default=[], type=Path)
     ap.add_argument("--wheel", action="append", default=[], type=Path)
-    ap.add_argument("--metadata", action="append", default=[], type=Path)
+    ap.add_argument("--metadata", action="append", default=[], type=parse_claim)
     ap.add_argument("--entry-points", action="append", default=[], nargs=2, type=Path)
     ap.add_argument("--file", action="append", default=[])
     ap.add_argument("--skip", action="append", default=[])
@@ -405,10 +498,11 @@ def main() -> None:
 
     entries: dict[str, bytes] = {}
     chosen = Selection(a.drop, a.keep, a.inner)
+    owners = Owners()
 
-    def add(data: bytes, name: str, origin: str) -> None:
+    def add(data: bytes, name: str, origin: str) -> bool:
         if not chosen.take(data, name):
-            return
+            return False
         if name.endswith(".py"):
             kind = next((key for key in REWRITE if key in name), None)
             if kind is not None:
@@ -422,18 +516,22 @@ def main() -> None:
         if name in entries:
             raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
         entries[name] = data
+        return True
 
     for data, name in walk(a.lib, frozenset(a.skip)):
         add(data, name, str(a.lib))
     for tree in a.tree:
         for data, name in tree_members(tree):
-            add(data, name, str(tree))
+            if add(data, name, str(tree)):
+                owners.packed(name, str(tree), wheel=False)
     for wheel in a.wheel:
         for data, name in wheel_members(wheel):
-            add(data, name, wheel.name)
-    for path in a.metadata:
+            if add(data, name, wheel.name):
+                owners.packed(name, wheel.name, wheel=True)
+    for path, names in a.metadata:
         data, name = sdist_metadata(path)
         add(data, name, str(path))
+        owners.claim(name.rpartition("/")[0], names, f"{path}={','.join(names)}")
     placed: list[tuple[Path, Path, str]] = []
     for pkg_info, path in a.entry_points:
         data, name = sdist_entry_points(pkg_info, path)
@@ -443,6 +541,8 @@ def main() -> None:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
     check_entry_points(entries, placed)
+    for name, data in owners.top_level().items():
+        add(data, name, "the import names")
 
     chosen.check()
     for folder, files in chosen.packed.items():
