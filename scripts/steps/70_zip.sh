@@ -116,7 +116,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned et_xmlfile-2.0.0-py3-none-any.whl)" \
   --wheel "$(pinned xlsxwriter-3.2.9-py3-none-any.whl)" \
   --wheel "$(pinned xlrd-2.0.2-py2.py3-none-any.whl)" \
-  --wheel "$(pinned pypdf-6.21.1-py3-none-any.whl)" \
+  --wheel "$(pinned pypdf-6.21.4-py3-none-any.whl)" \
   --wheel "$(pinned defusedxml-0.7.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned beautifulsoup4-4.15.0-py3-none-any.whl)" \
   --wheel "$(pinned soupsieve-3.0.4-py3-none-any.whl)" \
