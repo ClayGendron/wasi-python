@@ -1,4 +1,4 @@
-versions pypdf=6.21.1
+versions pypdf=6.21.4
 1 'Invoice 17\nTotal: 42.50 EUR'
 2 merged ['Invoice 17\nTotal: 42.50 EUR', 'Page two']
 written 1127 a96461cfb51741a3

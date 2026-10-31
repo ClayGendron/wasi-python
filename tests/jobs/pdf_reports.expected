@@ -1,4 +1,4 @@
-versions reportlab=5.0.1 pypdf=6.21.1 matplotlib=3.11.2 pillow=13.0.0
+versions reportlab=5.0.1 pypdf=6.21.4 matplotlib=3.11.2 pillow=13.0.0
 letter 2846 8ab709dc7bb5c5d92dea624c0144015bc444f3bb42c9634a1ad8803f4661349f
 letter read pages 2 title 'A letter from the guest' author 'wasi_python' text ['Quarterly sales\nDear reader, the figures are below.\ntotal = 1234.50\nSee example.org\n', 'Page two: yours sincerely.\n']
 letter compressed read pages 2 title 'A letter from the guest' author 'wasi_python' text ['Quarterly sales\nDear reader, the figures are below.\ntotal = 1234.50\nSee example.org\n', 'Page two: yours sincerely.\n']
