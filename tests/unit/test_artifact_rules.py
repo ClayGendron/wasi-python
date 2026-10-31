@@ -88,6 +88,8 @@ PIN_FILES = {
     "formulaic-1.2.2-py3-none-any.whl": b"formulaic pin",
     "interface_meta-2.0.1-py3-none-any.whl": b"interface-meta pin",
     "wrapt-2.5.1-py3-none-any.whl": b"wrapt pin",
+    "python_docx-1.2.0.tar.gz": b"python-docx pin",
+    "python_pptx-1.0.2.tar.gz": b"python-pptx pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -160,6 +162,8 @@ PACKAGES = {
     "formulaic": "1.2.2",
     "interface-meta": "2.0.1",
     "wrapt": "2.5.1",
+    "python-docx": "1.2.0",
+    "python-pptx": "1.0.2",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

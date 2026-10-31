@@ -60,6 +60,9 @@ SOURCE_PATTERNS = {
     "seaborn": re.compile(r"seaborn-[\w.]+\.tar\.gz"),
     # statsmodels
     "statsmodels": re.compile(r"statsmodels-[\w.]+\.tar\.gz"),
+    # python-docx and python-pptx from their sdists, so each carried patch has a tree
+    "python-docx": re.compile(r"python_docx-[\w.]+\.tar\.gz"),
+    "python-pptx": re.compile(r"python_pptx-[\w.]+\.tar\.gz"),
     # The pure-Python packages' test sources: each package's sdist, or, where the sdist carries no
     # tests, its release tag's archive (named `-tag.tar.gz`, so no pattern meets an sdist), and
     # pypdf's sample files at the commit its release tag records. They are data the judge stages,

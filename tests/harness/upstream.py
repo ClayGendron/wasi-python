@@ -56,6 +56,7 @@ PURE_SUITES = (
     "markupsafe", "tabulate", "charset-normalizer", "networkx", "patsy", "sympy", "mpmath",
     "attrs", "more-itertools", "toolz", "tqdm", "typing-extensions", "joblib", "cloudpickle",
     "threadpoolctl", "narwhals", "seaborn", "reportlab", "formulaic", "interface-meta", "wrapt",
+    "python-docx", "python-pptx",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"

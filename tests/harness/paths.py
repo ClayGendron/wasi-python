@@ -180,6 +180,9 @@ LICENCE_COMPONENTS = (
     "formulaic",
     "interface-meta",
     "wrapt",
+    # python-docx and python-pptx, each its sdist's MIT licence
+    "python-docx",
+    "python-pptx",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -250,6 +253,8 @@ PACKAGES = (
     "formulaic",
     "interface-meta",
     "wrapt",
+    "python-docx",
+    "python-pptx",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
