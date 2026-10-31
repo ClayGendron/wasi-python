@@ -167,3 +167,55 @@ def test_an_entry_needs_its_reason_and_a_specification_still_to_land(tmp_path: P
     (folder / f"{number}-x.md").write_text("# x\n\n- **Status:** **landed 2026-10-30**, then\n")
     (folder / "README.md").write_text("no number\n")
     assert budget.spec_status(folder) == {number: "landed 2026-10-30, then"}
+
+
+def _spec(folder: Path, name: str, words: int, notes: int = 0, date: str = "") -> Path:
+    """A scratch specification of exactly `words` words, with `notes` lines of landing notes,
+    dated when `date` is given."""
+    dated = f"- **Date:** {date}\n\n" if date else ""
+    head = f"# 900: A scratch\n\n{dated}## Landing notes\n\n"
+    body = "".join(f"- line {i}\n" for i in range(notes))
+    filler = " ".join(["word"] * (words - len((head + body).split())))
+    p = folder / name
+    p.write_text(head.replace("## Landing", filler + "\n\n## Landing") + body)
+    assert len(p.read_text().split()) == words
+    return p
+
+
+def test_a_specification_past_2000_words_is_named_and_one_under_is_not(tmp_path: Path) -> None:
+    long = _spec(tmp_path, "900-long.md", 2001)
+    short = _spec(tmp_path, "901-short.md", 1999)
+    assert budget.length_over([long, short]) == ["900-long.md: 2,001 words, past 2,000"]
+    assert budget.length_over([short]) == []
+
+
+def test_landing_notes_past_15_lines_are_named_and_15_are_not(tmp_path: Path) -> None:
+    long = _spec(tmp_path, "900-long.md", 200, notes=16)
+    short = _spec(tmp_path, "901-short.md", 200, notes=15)
+    assert budget.length_over([long, short]) == [
+        "900-long.md: its landing notes run 16 lines, past 15"
+    ]
+
+
+def test_a_long_specification_is_a_warning_and_never_a_failure(tmp_path: Path) -> None:
+    long = _spec(tmp_path, "900-long.md", 2001)
+    summary = tmp_path / "summary.md"
+    assert budget.length_warnings([long], summary) == [
+        "::warning title=document length::900-long.md: 2,001 words, past 2,000"
+    ]
+    assert "- 900-long.md: 2,001 words, past 2,000" in summary.read_text()
+    assert budget.length_warnings([long], None) == [
+        "::warning title=document length::900-long.md: 2,001 words, past 2,000"
+    ]
+    assert budget.length_warnings([_spec(tmp_path, "901-short.md", 1999)], summary) == []
+
+
+def test_a_specification_dated_before_the_caps_is_not_named(tmp_path: Path) -> None:
+    assert budget.length_over([_spec(tmp_path, "900-old.md", 2001, date="2026-10-29")]) == []
+    status = _spec(tmp_path, "901-old.md", 2001)
+    status.write_text(
+        status.read_text().replace("A scratch", "A scratch\n\n- **Status:** drafted 2026-10-20", 1)
+    )
+    assert budget.length_over([status]) == []  # no Date line: the header's first date
+    new = _spec(tmp_path, "902-new.md", 2001, date="2026-10-30")
+    assert budget.length_over([new]) == ["902-new.md: 2,001 words, past 2,000"]

@@ -270,14 +270,15 @@ def test_a_release_has_its_structural_review() -> None:
     assert not errors, scan.report(errors)
 
 
-def test_a_release_has_its_release_notes_review() -> None:
-    """A released version whose notes are written for the reader (above 0.1.1) has a review of
-    those notes by someone who wrote none of them, read as an embedder would, ending with its
-    verdict. A prerelease needs none from the judge: its string is what the tree carries all
-    cycle."""
+def test_a_releases_security_review_reads_its_notes() -> None:
+    """A released version whose notes are written for the reader (above 0.1.1) has those notes
+    read by someone who wrote none of them, as an embedder would, in a "Release notes" section of
+    its review against the threat model; a release up to 0.1.2 may have had that read in a review file of its
+    own, ending with its verdict. A prerelease needs none from the judge: its string is what the
+    tree carries all cycle."""
     version = _release_version_module()
     current = version.read_version(version.INIT.read_text())
-    errors = scan.release_notes_review_errors(current, paths.CONTEXT / "reviews")
+    errors = scan.release_notes_read_errors(current, paths.CONTEXT / "reviews")
     assert not errors, scan.report(errors)
 
 
@@ -585,8 +586,8 @@ def test_every_action_is_pinned_by_commit() -> None:
 
 def test_every_job_checks_out_the_head_commit() -> None:
     """A pull request's jobs check out its head, never the merge ref: the merge ref is a merge
-    commit nobody will merge, which the history rules refuse, and the up-to-date rule makes the
-    head the tree the squash puts on dev."""
+    commit nobody will merge, which the history rules refuse; the head is judged as it is, and
+    the tree the squash puts on dev is judged by the run after the merge."""
     errors = scan.checkout_ref_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
@@ -683,10 +684,50 @@ def test_the_release_pull_request_checks_what_its_tag_will() -> None:
 
 
 def test_the_weekly_run_opens_an_issue_when_red_and_never_accepts() -> None:
-    """The weekly schedule and the dispatch input that selects its shape; one job with issues:
-    write that opens or updates an issue when a job of the run failed or was cancelled; the
+    """The weekly schedule and the dispatch input that selects its shape; the red-run issue job
+    (held below) opens or updates an issue when a job of the run failed or was cancelled; the
     accept jobs run on a merge into dev alone."""
     errors = scan.weekly_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
+# Every event the workflow runs on: (its name, ref, base, the files it changes, the dispatch's
+# weekly input) and what the red-run issue job does when the run is red and when it is green.
+NOTHING: tuple[set[str], set[str]] = (set(), set())
+CODE = ["src/x.py"]
+PR = "refs/pull/9/merge"
+DEV = "refs/heads/dev"
+RED_RUN_EVENTS = {
+    "a pull request into dev": (("pull_request", PR, "dev"), CODE, NOTHING),
+    "a pull request into main": (("pull_request", PR, "main"), CODE, NOTHING),
+    "a merge into dev": (("push", DEV, ""), CODE, ({"open"}, {"close"})),
+    "the acceptance's push": (("push", DEV, ""), ["context/progress/accepted.json"], NOTHING),
+    "a pushed tag": (("push", "refs/tags/v0.1.3", ""), None, NOTHING),
+    "the weekly run": (("schedule", DEV, ""), None, ({"open"}, set())),
+    "the weekly run, dispatched": (("workflow_dispatch", DEV, "", True), None, ({"open"}, set())),
+    "a dispatch": (("workflow_dispatch", DEV, ""), None, NOTHING),
+}
+
+
+def test_the_red_run_issue_opens_on_a_red_merge_or_weekly_run_and_on_nothing_else() -> None:
+    """A run after a merge into dev, or the weekly run, that ends red opens one issue titled by
+    its red legs, or comments on the one open of its kind; a green run after a merge closes the
+    open one; no other run, red or green, touches an issue. The job holds issues: write, and no
+    other job of the workflow does."""
+    ci_plan = _ci_plan_module()
+    text = RELEASE_WORKFLOW.read_text()
+    errors = scan.red_run_issue_errors(text)
+    for case, (event, changed, want) in RED_RUN_EVENTS.items():
+        name, ref, base, *weekly = event
+        e = ci_plan.Event(name, ref, base, weekly=bool(weekly))
+        d = ci_plan.decide(changed, e)
+        outputs = ci_plan.outputs(d, ci_plan.select(d, ci_plan.load_shards()), [])
+        kind = "tag" if ref.startswith("refs/tags/") else "branch"
+        context = {"event_name": name, "ref": ref, "ref_type": kind, "base_ref": base}
+        for red, wanted in zip((True, False), want, strict=True):
+            got = scan.red_run_issue_acts(text, outputs, context, red)
+            if got != wanted:
+                errors.append(f"{case}, {'red' if red else 'green'}: the issue job does {got}")
     assert not errors, scan.report(errors)
 
 

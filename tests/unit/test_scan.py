@@ -311,23 +311,44 @@ def test_a_release_has_its_structural_review(work) -> None:
     ]
 
 
-def test_a_release_has_its_release_notes_review(work) -> None:
+def test_a_releases_notes_are_read_in_its_security_review(work) -> None:
     reviews = work / "reviews"
     reviews.mkdir()
-    assert scan.release_notes_review_errors("0.1.2a1", reviews) == []  # a prerelease: never
-    assert scan.release_notes_review_errors("0.1.1", reviews) == []  # before the reader's notes
-    assert scan.release_notes_review_errors("0.1.2", reviews) == [
-        "0.1.2 is a release; reviews/ has no 0.1.2-release-notes-review-<date>.md"
-    ]
-    write(reviews, "0.1.2-structural-review-2026-11-02.md", "## Verdict\n\nReads.\n")
-    assert len(scan.release_notes_review_errors("0.1.2", reviews)) == 1  # the twin does not count
+    missing = (
+        "0.2.0 is a release; reviews/ has no 0.2.0-security-review-<date>.md with a "
+        "## Release notes section"
+    )
+    assert scan.release_notes_read_errors("0.2.0a1", reviews) == []  # a prerelease: never
+    assert scan.release_notes_read_errors("0.1.1", reviews) == []  # before the reader's notes
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]
+    write(reviews, "0.2.0-security-review-2026-11-02.md", "## Findings\n\nNone.\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]
+    write(reviews, "0.2.0-security-review-2026-11-02.md", "## Release notes\n\n## Verdict\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]  # an empty section
+    write(reviews, "0.2.0-structural-review-2026-11-02.md", "## Release notes\n\nRead.\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]  # the twin does not count
+    write(reviews, "0.2.0-release-notes-review-2026-11-02.md", "## Verdict\n\nReads.\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]  # a file of its own
+    write(
+        reviews, "0.2.0-security-review-2026-11-03.md", "## Release notes\n\nRead.\n\n## Verdict\n"
+    )
+    assert scan.release_notes_read_errors("0.2.0", reviews) == []
+    assert scan.release_notes_read_errors("0.3.0", reviews) == [missing.replace("0.2.0", "0.3.0")]
+
+
+def test_a_release_up_to_0_1_2_may_have_its_notes_read_in_a_file_of_their_own(work) -> None:
+    reviews = work / "reviews"
+    reviews.mkdir()
     write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Findings\n\nNone.\n")
-    assert scan.release_notes_review_errors("0.1.2", reviews) == [
+    assert scan.release_notes_read_errors("0.1.2", reviews) == [
         "0.1.2-release-notes-review-2026-11-02.md: has no ## Verdict section"
     ]
     write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Verdict\n\nReads.\n")
-    assert scan.release_notes_review_errors("0.1.2", reviews) == []
-    assert len(scan.release_notes_review_errors("0.2.0", reviews)) == 1  # another version's file
+    assert scan.release_notes_read_errors("0.1.2", reviews) == []
+
+
+def test_the_0_1_2_reviews_pass_the_release_notes_rule_unchanged() -> None:
+    assert scan.release_notes_read_errors("0.1.2", paths.CONTEXT / "reviews") == []
 
 
 NOTES_NEWS = """# 300: a change
@@ -942,9 +963,10 @@ jobs:
     steps:
 """
     + READ_ASSETS
-    + """  weekly-issue:
+    + """  red-run-issue:
     permissions:
       issues: write
+      actions: read
     steps:
       - name: Open the issue, or comment on the open one
         env:
@@ -1198,7 +1220,7 @@ BAD_BINDINGS = [
         ),
         {19},
     ),
-    (("weekly-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
+    (("red-run-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
     # PyPI's upload: the pinned uv, trusted publishing alone, no container, no env.
     (
         (
@@ -3977,12 +3999,11 @@ def test_the_real_workflows_weekly_run_holds() -> None:
     assert scan.weekly_errors(REAL_WORKFLOW) == []
 
 
+def test_the_real_workflows_red_run_issue_holds() -> None:
+    assert scan.red_run_issue_errors(REAL_WORKFLOW) == []
+
+
 BAD_WEEKLY = [
-    ("weekly-issue", "    permissions:\n      issues: write\n",
-     "    permissions:\n      issues: write\n      contents: write\n",
-     "weekly-issue's permissions"),
-    ("weekly-issue", "needs.plan.outputs.weekly == 'true' && ", "", "weekly-issue's if:"),
-    ("weekly-issue", "gh issue comment", "echo", "weekly-issue does not comment"),
     ("accept-record", "needs.plan.outputs.accept == 'true'", "needs.plan.outputs.full == 'true'",
      "accept-record does not run on the plan's accept output"),
 ]  # fmt: skip
@@ -3992,6 +4013,52 @@ BAD_WEEKLY = [
 def test_the_weekly_scan_names_each_breach(job, old, new, error) -> None:
     errors = scan.weekly_errors(_in_job(REAL_WORKFLOW, job, old, new))
     assert any(e.startswith(error) for e in errors), errors
+
+
+BAD_RED_RUN = [
+    ("red-run-issue", "    permissions:\n      issues: write\n",
+     "    permissions:\n      issues: write\n      contents: write\n",
+     "red-run-issue's permissions"),
+    ("red-run-issue", "needs.plan.outputs.weekly == 'true' && ", "", "red-run-issue's if:"),
+    ("red-run-issue", " || (needs.plan.outputs.accept == 'true' && github.event_name == 'push')",
+     "", "red-run-issue's if:"),
+    ("red-run-issue", "gh issue comment", "echo", "red-run-issue does not comment"),
+    ("red-run-issue", "gh issue close", "echo", "red-run-issue does not close"),
+    ("red-run-issue", "needs.gather.result == 'success' && ", "", "red-run-issue's close step"),
+    ("red-run-issue", "        if: ${{ contains(needs.*.result, 'failure') || ",
+     "        if: ${{ ", "red-run-issue's open step"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"),
+    BAD_RED_RUN,
+    ids=[b[3] + str(i) for i, b in enumerate(BAD_RED_RUN)],
+)
+def test_the_red_run_issue_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.red_run_issue_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+MERGE_OUTPUTS = {"weekly": "false", "accept": "true"}
+WEEKLY_OUTPUTS = {"weekly": "true", "accept": "false"}
+PULL_REQUEST = {"event_name": "pull_request", "ref": "refs/pull/9/merge", "base_ref": "dev"}
+SCHEDULE = {"event_name": "schedule", "ref": "refs/heads/dev", "ref_type": "branch"}
+
+
+def test_the_red_run_issue_opens_on_a_red_merge_or_weekly_run_and_closes_on_a_green_merge() -> None:
+    def acts(outputs, context, red):
+        return scan.red_run_issue_acts(REAL_WORKFLOW, outputs, context, red)
+
+    assert acts(MERGE_OUTPUTS, PUSH_DEV, red=True) == {"open"}
+    assert acts(MERGE_OUTPUTS, PUSH_DEV, red=False) == {"close"}
+    assert acts(WEEKLY_OUTPUTS, SCHEDULE, red=True) == {"open"}
+    assert acts(WEEKLY_OUTPUTS, SCHEDULE, red=False) == set()
+    quiet = {"weekly": "false", "accept": "false"}
+    assert acts(quiet, PULL_REQUEST, red=True) == set()
+    assert acts(quiet, PUSH_DEV, red=True) == set()
+    # The release pull request accepts too, but it is no push: its red run opens nothing.
+    assert acts(MERGE_OUTPUTS, {**PULL_REQUEST, "base_ref": "main"}, red=True) == set()
 
 
 def test_a_workflow_without_the_weekly_input_is_named() -> None:

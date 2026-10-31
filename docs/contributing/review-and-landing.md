@@ -12,12 +12,12 @@ This page explains how a change gets onto `dev`, the project's integration branc
 1. Branch from `dev`'s tip. A branch carries one to three specifications.
 2. Write the check before the code. Iterate locally on the fast tier and on single tests.
 3. Open a pull request into `dev`. A change that is more than documentation carries a *news file*: its changelog entry, written for someone who uses wasi-python and did not follow the change (what it gives them, the one fact that changed, and a link to the page that explains it, under New, Faster, Security, Fixed, Upgrading or For contributors), the rows of the packages page it changes, and the reason for every change in the test results it expects. `ci-status` is red on a pull request that needs one and has none. At a release the news files are assembled into the changelog, so nobody edits the changelog by hand.
-4. The pull request's required check, `ci-status`, runs what the changed files need.
+4. Two checks are required: `ci-status`, which runs what the changed files need, and `review`, which holds the review file.
 5. A fresh reviewer reads the change and commits a review file as the branch's last commit.
-6. When `ci-status` is green and the review's verdict begins "Lands", the author merges the pull request.
+6. When the checks are green and the review's verdict begins "Lands", the author merges the pull request.
 7. After the merge, the normal tier runs once in full on three systems, and a job records the result.
 
-Bring a branch up to date by rebasing it, never by a merge commit. The head of the branch is what the tests judge.
+A branch need not be up to date with `dev` to merge. Its head is judged as it is, and the run after the merge judges the tree the merge makes. To bring a branch up to date, rebase it, never merge `dev` into it.
 
 ## What a pull request runs
 
@@ -36,7 +36,7 @@ The verdict covers what ran. A lost pass is red. Fuel or bytes that grow, fewer 
 
 ## After a merge
 
-Each merge into `dev` runs the whole normal tier on macOS, Linux and Windows. When it is green, a job records the result in the repository's accepted state and pushes one commit to `dev`. A red run after a merge means `dev` is broken: the author of the merged change fixes it forward the same day or reverts it, and nothing else merges until `dev` is green.
+Each merge into `dev` runs the whole normal tier on macOS, Linux and Windows. When it is green, a job records the result in the repository's accepted state and pushes one commit to `dev`. A red run after a merge means `dev` is broken on the lines it names. The run opens an issue titled by those lines, or comments on the one already open. The author of the merged change fixes it forward the same day or reverts it. Other pull requests keep merging meanwhile: the next run after a merge judges everything since the last record, so a second red names both causes. The next green run after a merge closes the issue. A red run is never recorded.
 
 The job takes every reason it needs from the news files merged since the last record: a growth, fewer passes, a changed test file, a test moved between tiers, a test removed. A test a news file removes is listed, not red, on its pull request and after its merge, so the job can record its removal. A row no news file explains stops the record, with the row named. The fix is a one-line pull request to the news file, and its merge records both.
 
@@ -48,7 +48,7 @@ Nothing lands unreviewed. A *fresh reviewer* reads every pull request that is mo
 
 The reason is simple. An author reads the change they meant to write. A fresh reader reads the change that is actually there. So the reviewer gets the specification and the diff, never the author's summary of them, and checks one against the other.
 
-There is one review per pull request and no confirmation round. The author answers each finding in the pull request. A code fix is a new commit on the same branch; the reviewer reads it and signs again. The review file is committed after the last code commit, so the review covers the code that merges.
+There is one review per pull request, one fix commit per review round, and one signature. The author answers each finding in the pull request and fixes a round's findings in one commit on the same branch. A Low finding needs no second signing. When the fix commit fixes a High or a Medium finding, the reviewer reads it and signs once more. The review file is committed after the last code commit, so the review covers the code that merges. A review is at most 800 words outside its findings.
 
 `ci-status` holds the review. It is red unless the branch carries a review file, named after its news file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". The author is the one the pull request's description names, and the session on each code commit. A reviewer that the author's session started fresh, given only the specification and the diff, says so on its reviewer line. This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
 
@@ -90,7 +90,7 @@ Reviews are time-boxed, and each review states its box. Within it, the reviewer:
 6. **Ranks its findings**:
     - **High**: a wrong answer or an unsafe default. The change does not land.
     - **Medium**: a guarantee without evidence. The review says what evidence would close it.
-    - **Low**: a small fix, written out in full. It needs no further review round once it is answered in writing.
+    - **Low**: a small fix, written out in full. The author answers it or fixes it in the round's one commit, and it needs no second signing.
 7. **Gives a verdict in one sentence**: it lands, or it does not land yet, naming what stands.
 
 ## How structure is judged
@@ -112,6 +112,10 @@ Before every release, a fresh reviewer scores the runner's code this way and com
 
 The test results are a *ratchet*: a run that loses an accepted pass is red, and growth in the fuel or bytes a check uses needs a stated reason. New passes never pay for a lost one.
 
+## From a fork
+
+A pull request from a fork runs what a pull request from this repository runs: the `quick` job, and the product's own tests on Linux and Windows from the artifact set already built for `dev`, which a fork's run restores from `dev`'s cache. A fork's author is not asked to commit a fresh reviewer's file. A maintainer, or an agent a maintainer runs, reviews the change, and the maintainer commits the review file to the pull request's branch, which GitHub allows when the author lets maintainers edit it. The merge is the maintainer's.
+
 ## Commit only what you mean
 
 - Before every commit, read `git diff --cached --stat`. A rename or an earlier `git add` stays staged and rides along.
@@ -119,4 +123,4 @@ The test results are a *ratchet*: a run that loses an accepted pass is red, and 
 
 ## In one line
 
-A change is a pull request into `dev` that runs what its files need and merges once a fresh reader's review says it lands; each merge is tested once in full on three systems and recorded by a job.
+A change is a pull request into `dev` that runs what its files need and merges once a fresh reader's review says it lands; each merge is tested once in full on three systems and recorded by a job, and a red one is fixed forward the same day while other merges go on.

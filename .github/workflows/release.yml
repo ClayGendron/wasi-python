@@ -19,7 +19,8 @@
 # verify-artifact (the id guarded, the download by it, the check against the SHA-256 of
 # SHA256SUMS the build job handed on) before it uses them. Values reach scripts through env:,
 # never as expressions. A pull request's jobs check out its head commit, never the merge ref: the
-# up-to-date rule makes the head the tree the squash puts on dev.
+# head is judged as it is, and the tree the squash puts on dev is judged by the run after the
+# merge, whose red result red-run-issue opens an issue for.
 name: release
 
 on:
@@ -1331,32 +1332,68 @@ jobs:
           fi
           exit 1
 
-  weekly-issue:
-    name: the weekly run's issue, when it is red
-    # The weekly run never accepts. When a job it judges with failed or was cancelled, this opens
-    # one issue, or comments on the one already open, naming the run.
+  red-run-issue:
+    name: the issue when a run on dev is red
+    # A run after a merge into dev, or the weekly run, never accepts a red result. When a job it
+    # judges with failed or was cancelled, this opens one issue titled by the red legs, or comments
+    # on the one open of its kind: dev is broken on those lines, and the merged change's author
+    # fixes it forward the same day or reverts it, while other pull requests keep merging. A green
+    # run after a merge closes the open one. No other run touches an issue.
     needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
-    if: ${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    if: ${{ always() && ((needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) || (needs.plan.outputs.accept == 'true' && github.event_name == 'push')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       issues: write
+      # The run's own jobs, to name the red legs in the title.
+      actions: read
     steps:
       - name: Open the issue, or comment on the open one
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          WEEKLY: ${{ needs.plan.outputs.weekly }}
+          RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title="The weekly run on dev is red"
-          body="The weekly run $RUN_URL on $GITHUB_SHA is red: the release tier, a rebuild, same-bytes or a judge leg failed or was cancelled. Nothing was accepted; read its jobs."
+          if [ "$WEEKLY" = true ]; then
+            prefix="The weekly run on dev is red"
+            next="Nothing was accepted; read its jobs."
+          else
+            prefix="dev is red after a merge"
+            next="Nothing was accepted. The merged change's author fixes it forward today or reverts it; other pull requests keep merging, and the next run after a merge judges everything since the last acceptance."
+          fi
+          red=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" --paginate \
+            --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name' \
+            | paste -sd ',' - | sed 's/,/, /g') || red=""
+          if [ -z "$red" ]; then
+            red=$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key] | join(", ")')
+          fi
+          title=$(printf '%s: %s' "$prefix" "$red" | cut -c1-200)
+          body="The run $RUN_URL on $GITHUB_SHA is red: $red. $next"
           number=$(gh issue list --state open --limit 100 --json number,title \
-            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+            --jq "map(select(.title | startswith(\"$prefix\"))) | .[0].number // empty")
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"
           else
             gh issue create --title "$title" --body "$body"
           fi
+      - name: Close the open issue, once a run after a merge is green
+        if: ${{ github.event_name == 'push' && needs.gather.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          prefix="dev is red after a merge"
+          numbers=$(gh issue list --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title | startswith(\"$prefix\")) | .number") || numbers=""
+          for number in $numbers; do
+            gh issue close "$number" --comment "The run $RUN_URL after a merge, on $GITHUB_SHA, is green." \
+              || echo "could not close issue $number; close it by hand"
+          done
 
   verify:
     name: verify (${{ matrix.os }})
@@ -1541,7 +1578,7 @@ jobs:
     # refused nothing: a pull request may not write accepted state, and one into dev that is not
     # documentation only carries its news file and a review file that holds. A failed or
     # cancelled job is red here.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, weekly-issue, attest, publish, pypi]
+    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, red-run-issue, attest, publish, pypi]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

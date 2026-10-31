@@ -10,10 +10,11 @@ collect them (`norecursedirs`), so a document being written never colours the pr
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
-from harness import paths, scan
+from harness import budget, paths, scan
 
 SPECS = paths.CONTEXT / "specifications"
 RESEARCH = paths.CONTEXT / "research"
@@ -22,6 +23,21 @@ RESEARCH = paths.CONTEXT / "research"
 def test_specifications_have_their_header_and_sections() -> None:
     errors = [e for s in sorted(SPECS.glob("*.md")) for e in scan.spec_shape_errors(s)]
     assert not errors, scan.report(errors)
+
+
+def test_a_long_specification_is_named_never_failed(capsys) -> None:
+    """A specification says its decisions in about 1,500 words and its landing notes in ten lines.
+    One past 2,000 words, or whose landing notes run past 15 lines, is named as a warning, an
+    annotation and a line of the job's summary on a run, a plain line elsewhere; it never fails,
+    since a document already written is not rewritten to fit."""
+    named = os.environ.get("GITHUB_STEP_SUMMARY")
+    summary = Path(named) if named else None
+    lines = budget.length_warnings(sorted(SPECS.glob("[0-9][0-9][0-9]-*.md")), summary)
+    with capsys.disabled():
+        for line in lines:
+            print("\n" + (line if summary else line.removeprefix(budget.LENGTH_WARNING)), end="")
+        if lines:
+            print()
 
 
 def test_specifications_have_no_open_question() -> None:
