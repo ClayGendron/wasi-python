@@ -121,13 +121,13 @@ def test_upstream_class(
     upstream_session, regrtest_session, package_session, package, klass
 ) -> None:
     """The class's members are exactly its list, by node id: one finding each while the class has
-    members, and `+id`/`-id` for each test admitted or released without an edit to the list."""
+    members, and `+id`/`-id` for each test admitted or released without an edit to the list. A
+    node-limited class's list is its nodes, so a named test that no longer fails for its cause
+    shows as `-id`."""
     _need(package)
     session = _session(package, upstream_session, regrtest_session, package_session)
     run = session.group(package, klass.group)
-    findings = upstream.class_findings(
-        run.outcome.members[klass.id], upstream.read_list(upstream.list_path(klass))
-    )
+    findings = upstream.class_findings(run.outcome.members[klass.id], upstream.class_list(klass))
     if not run.outcome.finished:
         findings.append(f"group {klass.group} did not finish")
     assert not findings, scan.report(findings, f"class {klass.group}-{klass.id}")

@@ -1756,8 +1756,14 @@ reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-collector-timing]"
+match = "2 finding(s), digest 972ddf3843c5"
+reason = "no threads and no event-loop socket (README): a stray event loop the collector frees meets one of the two tests at setup, the other fails and errors at teardown for want of threads, and the set's allocations choose which"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]"
-match = "11 finding(s), digest ca9d96e202af"
+match = "10 finding(s), digest 5e4afad71ed0"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1775,13 +1781,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]"
-match = "99 finding(s), digest 10c256abd391"
+match = "98 finding(s), digest 77e1b0dfaea7"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]"
-match = "117 finding(s), digest c5948e42a741"
+match = "116 finding(s), digest 53093d631048"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 

@@ -363,12 +363,7 @@ def load(raw: dict, directory: Path | None = None) -> upstream.Config:
             upstream.Trap(t["id"], t["node"], t["reason"], t["closes_with"], t.get("group", ""))
             for t in raw.get("trap", [])
         ],
-        expected=[
-            upstream.Klass(
-                e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"]
-            )
-            for e in raw.get("expected", [])
-        ],
+        expected=[upstream.klass_of(e) for e in raw.get("expected", [])],
         grant=raw["grant"],
         driver="package",
         component=raw.get("component", ""),

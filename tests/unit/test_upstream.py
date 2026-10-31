@@ -354,6 +354,62 @@ def test_joblibs_cross_version_pickle_test_is_no_mmap_in_either_listing_order() 
         assert g.findings == [] and g.members["no-mmap"] == [node], (reason, g)
 
 
+PERF = "tests/tests_perf.py::test_iter_"
+K_TIMED = upstream.Klass(
+    "timed", "g", "", r"Errno 58|instances still", "r", "README.md",
+    nodes=(PERF + "a", PERF + "b"), outcomes=("failed", "error"),
+)  # fmt: skip
+K_THREADS = upstream.Klass("no-threads", "g", "failed", r"instances still", "r", "README.md")
+
+
+def test_a_node_limited_class_claims_its_nodes_first_and_in_either_outcome() -> None:
+    """The collector's timing decides which of two tests errors at setup and which fails: each is
+    the class's member either way, and an ordinary class whose cause also fits gets neither."""
+    for first, second in (("a", "b"), ("b", "a")):
+        text = _stream(
+            f"S {PERF}{first}",
+            f"R error {PERF}{first} -- OSError: [Errno 58] Not supported",
+            f"S {PERF}{second}",
+            f"R failed {PERF}{second} -- AssertionError: instances still in existence",
+            f"R error {PERF}{second} -- AssertionError: instances still in existence",
+            "S tests/tests_perf.py::test_other",
+            "R failed tests/tests_perf.py::test_other -- AssertionError: instances still in x",
+        )
+        g = _group(text, classes=(K_THREADS, K_TIMED))
+        assert g.findings == [], g.findings
+        assert g.members == {
+            "no-threads": ["tests/tests_perf.py::test_other"],
+            "timed": [PERF + "a", PERF + "b"],
+        }
+
+
+def test_a_node_limited_classs_test_that_passes_or_fails_for_another_cause_is_a_finding() -> None:
+    """Its tests must still fail, and only for its causes: another cause is not passed to the
+    ordinary classes, and a pass or a skip is a finding of the group."""
+    text = _stream(
+        f"S {PERF}a",
+        f"R failed {PERF}a -- OSError: [Errno 58] Not supported",
+        f"R error {PERF}a -- ValueError: something else",
+        f"S {PERF}b",
+        f"R passed {PERF}b -- ",
+    )
+    k_any = upstream.Klass("any", "g", "error", r".", "r", "README.md")
+    g = _group(text, classes=(K_TIMED, k_any))
+    assert g.members == {"timed": [PERF + "a"], "any": []}
+    assert g.findings == [
+        f"unexpected error {PERF}a — ValueError: something else",
+        f"passed {PERF}b, which class timed says fails",
+    ]
+
+
+def test_a_node_limited_classs_list_is_its_nodes_and_an_absent_one_is_a_finding() -> None:
+    listed = upstream.class_list(K_TIMED)
+    assert listed == [PERF + "a", PERF + "b"]
+    both = upstream.class_findings([PERF + "a", PERF + "b"], listed)
+    one = upstream.class_findings([PERF + "a"], listed)
+    assert f"-{PERF}b" in one and scan.digest(one) != scan.digest(both)
+
+
 def test_a_node_id_with_the_separator_inside_is_read_whole() -> None:
     node = "numpy/tests/test_a.py::test_1[a -- b]"
     text = _stream(f"S {node}", f"R failed {node} -- x -- OSError: [Errno 58] y")
@@ -583,6 +639,45 @@ def test_a_missing_closer_and_a_repeated_id_fail_the_rules(work) -> None:
     errors = upstream.rule_errors({"numpy": cfg}, set(), expected_dir=work / "expected")
     assert any("context/nowhere.md" in e for e in errors), errors
     assert any("twice" in e for e in errors), errors
+
+
+def _limited(id="timed", **kw) -> upstream.Klass:
+    base = {"nodes": ("t::a",), "outcomes": ("failed", "error")}
+    base.update(kw)
+    return upstream.Klass(id, "g", "", "x", "r", "README.md", **base)
+
+
+def test_a_node_limited_class_needs_no_list_file_but_its_gap(work) -> None:
+    cfg = _cfg(expected=[_limited()])
+    node = upstream.class_node("g", "timed")
+    assert upstream.rule_errors({"numpy": cfg}, {node}, expected_dir=work / "expected") == []
+    errors = upstream.rule_errors({"numpy": cfg}, set(), expected_dir=work / "expected")
+    assert any("no gap" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    ("classes", "error"),
+    [
+        ([_limited(nodes=())], "names no node"),
+        ([_limited(nodes=("t::b", "t::a"))], "nodes are not sorted and unique"),
+        ([_limited(), _limited(id="other")], "t::a is named by two node-limited classes"),
+        ([_limited(outcomes=("failed", "passed"))], "outcome 'passed'"),
+        ([upstream.Klass("c", "g", "failed", "x", "r", "README.md", outcomes=("error",))],
+         "outcome or outcomes, not both"),
+        ([upstream.Klass("c", "g", "", "x", "r", "README.md", outcomes=("error",))],
+         "outcomes only with nodes"),
+    ],
+)  # fmt: skip
+def test_a_node_limited_classs_shape_is_held_by_the_rules(work, classes, error) -> None:
+    cfg = _cfg(expected=classes)
+    gaps = {upstream.class_node("g", k.id) for k in classes}
+    for k in classes:
+        if k.nodes is None:
+            (work / "expected" / "g").mkdir(parents=True, exist_ok=True)
+            (work / "expected" / "g" / f"{k.id}.txt").write_text("")
+            gaps.discard(upstream.class_node("g", k.id))
+    errors = upstream.rule_errors({"numpy": cfg}, gaps, expected_dir=work / "expected")
+    assert any(error in e for e in errors), errors
 
 
 def test_paths_that_are_not_tarball_members_fail_the_rules(work) -> None:
