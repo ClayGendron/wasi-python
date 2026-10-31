@@ -1,0 +1,16 @@
+snapshot	seg-plotly.zip	base	78239456	
+snapshot	seg-plotly.zip	full read	287954703	
+snapshot	seg-plotly.zip	lazy read	96259055	
+snapshot	seg-plotly.zip	lazy read + load_all	262704947	
+snapshot	seg-plotly.zip	lazy eq	639000953	915 9379 True False False ['']
+snapshot	seg-plotly.zip	full + import pandas	4933683557	
+snapshot	seg-plotly.zip	lazy + import pandas	4756227444	3 ['dateutil', 'numpy', 'pandas']
+snapshot	seg-plotly.zip	full + plotly job	2166586780	
+snapshot	seg-plotly.zip	lazy + plotly job	1978511850	4
+snapshot	seg-plotly.zip	lazy + get_data first	665842991	4815814
+snapshot	seg-plotly.zip	lazy + namespace pkg	2264754350	 ERR OSError: Matplotlib requires access to a writable cache directory, but there was an issue with the default path (/tmp/.home-34298a5a712fed99252ed5891e1b1a1a/.matplotlib), and a temporary directory could not be created; set the MPLCONFIGDIR environment variable to a writable directory
+snapshot	seg-plotly.zip	lazy + invalidate	667773552	['_plotly_utils', 'plotly']
+snapshot	seg-plotly.zip	lazy + iter_modules	602639994	252 25
+snapshot	seg-plotly.zip	full + iter_modules	877221340	252 25
+snapshot	seg-plotly.zip	lazy + metadata	446451638	7.1.0 59
+snapshot	seg-plotly.zip	full + metadata	675972764	7.1.0 59

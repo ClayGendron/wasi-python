@@ -1,0 +1,16 @@
+plain	python-stdlib.zip	pass	323599997
+plain	python-stdlib.zip	pass2	323838281
+plain	python-stdlib.zip	import json	440105695
+plain	python-stdlib.zip	collect	328250278
+snapshot	python-stdlib.zip	pass	58545351
+snapshot	python-stdlib.zip	pass2	58545351
+snapshot	python-stdlib.zip	import json	58567392
+snapshot	python-stdlib.zip	collect	58748883
+plain	noplotly.zip	pass	282209050
+plain	noplotly.zip	pass2	282291006
+plain	noplotly.zip	import json	398833661
+plain	noplotly.zip	collect	286564344
+snapshot	noplotly.zip	pass	58545351
+snapshot	noplotly.zip	pass2	58545351
+snapshot	noplotly.zip	import json	58567392
+snapshot	noplotly.zip	collect	58748883
