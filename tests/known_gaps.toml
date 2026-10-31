@@ -494,7 +494,7 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-not-pillows-wheel]"
 match = "3 finding(s), digest 90629a5df21e"
 reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib and JPEG only (specs 023 and 170)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-fli-overflow-native]"
