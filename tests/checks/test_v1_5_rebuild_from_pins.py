@@ -114,11 +114,11 @@ def test_download_step_fails_on_a_fetched_file_with_no_pin(host, tmp_path) -> No
     m = re.match(r"downloads: (\d+) pins, 0 fetched, (\d+) verified", summary)
     assert whole.returncode == 0 and m and m[1] == m[2], (whole.returncode, whole.stderr[-300:])
     (repo / "downloads" / "SHA256SUMS").write_text(
-        "".join(line for line in sums if not line.endswith("  zlib-1.3.1.tar.gz\n"))
+        "".join(line for line in sums if not line.endswith("  zlib-1.3.2.tar.gz\n"))
     )
     short = _run_download(repo, bin_dir, host)
     assert short.returncode == 1, (short.returncode, short.stdout[-300:])
-    assert "zlib-1.3.1.tar.gz" in short.stderr and "curl must not run" not in short.stderr, (
+    assert "zlib-1.3.2.tar.gz" in short.stderr and "curl must not run" not in short.stderr, (
         short.stderr
     )
 
