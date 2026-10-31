@@ -131,7 +131,7 @@ The news file's CHANGELOG lines, in the shape of `../changes/README.md`:
 
 ## Landing notes
 
-Built 2026-10-31 by an agent (Claude Opus 5.5), a builder sub-agent of the orchestrating session, on `spec/171-the-packages-a-set-carries` from `dev` at `117bcd67`. The pre-build review is `../reviews/171-the-packages-a-set-carries-spec-2026-10-31.md`; the pull request's review is to come. Everything below is EXECUTED on an arm64 Mac (Darwin 25.5.0) unless labelled.
+Built 2026-10-31 by an agent (Claude Opus 5.5), a builder sub-agent of the orchestrating session, on `spec/171-the-packages-a-set-carries` from `dev` at `117bcd67`. The pre-build review is `../reviews/171-the-packages-a-set-carries-spec-2026-10-31.md`; the pull request is #78, and its review is to come. Everything below is EXECUTED on an arm64 Mac (Darwin 25.5.0) unless labelled.
 
 **The set**, built whole from the pinned sources with this branch's recipe (`scripts/build.sh`, 34 min 55 s): `python.wasm` is byte for byte dev's (`a1137950…`), so the base is dev's set; the zip (`667ae839…`) and the snapshot (`c3f8ef89…`) change, and so do `MANIFEST` (the two recipe lines and `x-snapshot-zip`) and `SHA256SUMS`. Each of the 55 `.dist-info` folders (53 at 0.1.2, and 165's two) carries its `top_level.txt`: matplotlib's `matplotlib`, `mpl_toolkits`, `pylab`; pyyaml's `yaml`; scikit-learn's `sklearn`; toolz's `tlz`, `toolz`; sympy's `isympy`, `sympy`; python-docx's `docx` and python-pptx's `pptx`, whose `--metadata` lines 165 put on `dev`.
 
