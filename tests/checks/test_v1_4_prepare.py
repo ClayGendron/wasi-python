@@ -1,4 +1,5 @@
-"""v1.4: an embedder makes a starting image with the snapshot's `prepare` export.
+"""v1.4: an embedder makes a starting image with the snapshot's `prepare` export, or reads a
+live session's memory between the two calls of its `checkpoint` export.
 
 `prepare` runs code the host passes in a snapshot instance that has run nothing, with the clocks
 and entropy pinned, then leaves the instance as the build leaves the snapshot: its heap frozen and
@@ -272,6 +273,64 @@ def test_a_prepared_image_is_reproducible(guest_turns, metric) -> None:
         ]
         pytest.fail(f"two images differ: {len(first)} and {len(second)} bytes, pages {pages[:8]}")
     metric("fuel", made.fuel)
+
+
+def test_checkpoint_refuses(guest_turns, metric) -> None:
+    """`checkpoint(1)` returns -1 and changes nothing before a turn, after `run`, on the plain
+    reactor and while entered; `checkpoint(0)` returns -1 unless entered, and so does any other
+    argument; `shutdown` and `prepare` return -1 while entered. Once left, the live instance
+    goes on as it was."""
+    calls = {}
+    calls["before a turn"] = guest_turns("snapshot").checkpoint(1)
+    ran = guest_turns("snapshot", argv=["-c", "pass"])
+    assert ran.run().value == 0
+    calls["after run"] = ran.checkpoint(1)
+    plain = guest_turns("plain")
+    assert plain.turn("pass").value == 0
+    calls["on the plain reactor"] = plain.checkpoint(1)
+    t = guest_turns("snapshot")
+    assert t.turn("x = 1").value == 0
+    calls["leaving before entering"] = t.checkpoint(0)
+    calls["another argument"] = t.checkpoint(2)
+    entered = t.checkpoint(1)
+    assert (entered.value, entered.trapped) == (0, None), entered.describe()
+    calls["entering twice"] = t.checkpoint(1)
+    calls["shutdown while entered"] = t.shutdown()
+    calls["prepare while entered"] = t.prepare("print('ran')")
+    left = t.checkpoint(0)
+    assert (left.value, left.trapped) == (0, None), left.describe()
+    calls["leaving twice"] = t.checkpoint(0)
+    found = [
+        f"{when}: {c.describe()}, stdout {c.stdout!r}"
+        for when, c in calls.items()
+        if (c.value, c.trapped, c.stdout, c.stderr) != (-1, None, b"", b"")
+    ]
+    assert not found, scan.report(found, "checkpoint refusals")
+    after = t.turn("print(x)")
+    assert (after.value, after.stdout) == (0, b"1\n"), after.describe()
+    metric("fuel", entered.fuel + left.fuel)
+
+
+def test_a_checkpoints_image_resumes_in_run_and_turn(guest_turns, metric) -> None:
+    """The memory read between `checkpoint(1)` and `checkpoint(0)` starts fresh instances: a
+    first turn there sees the session's names with its own environment, a `run` runs a program
+    in the session's `__main__`, and a session from it ends through `shutdown`."""
+    t = guest_turns("snapshot", env={"K": "session"})
+    assert t.turn("import os\nx = 41\nos.environ['K'] = 'turned'").value == 0
+    assert t.checkpoint(1).value == 0
+    image = t.image()
+    assert t.checkpoint(0).value == 0
+    turned = guest_turns("snapshot", image=image, env={"K": "start"})
+    first = turned.turn("print(x + 1, os.environ['K'])")
+    assert (first.value, first.stdout) == (0, b"42 start\n"), first.describe()
+    ended = turned.shutdown()
+    assert (ended.value, ended.stderr) == (0, b""), ended.describe()
+    ran = guest_turns("snapshot", image=image, argv=["-c", "print(x, os.environ.get('K'))"])
+    program = ran.run()
+    assert (program.value, program.stdout) == (0, b"41 None\n"), program.describe()
+    live = t.turn("print(x, os.environ['K'])")
+    assert (live.value, live.stdout) == (0, b"41 turned\n"), live.describe()
+    metric("fuel", first.fuel + ended.fuel + program.fuel)
 
 
 @pytest.mark.slow

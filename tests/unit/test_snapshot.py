@@ -36,6 +36,9 @@ WINDOWS = pytest.mark.skipif(sys.platform != "win32", reason="Windows' own rule"
 NO_PREPARE = wat.SNAPSHOT.replace(
     '(func (export "prepare") (param i32 i32) (result i32) (i32.const -1))', ""
 )
+NO_CHECKPOINT = wat.SNAPSHOT.replace(
+    '(func (export "checkpoint") (param i32) (result i32) (i32.const 0))', ""
+)
 
 
 def _origin(image: bytes, **changed: object) -> wasi_python.SnapshotOrigin:
@@ -532,6 +535,122 @@ def test_load_refuses_a_home_other_than_the_images(work) -> None:
     path = _write(_folder(work) / "home.wpsnap", header=_header(_image(), home="/w"), body=body)
     with pytest.raises(wasi_python.SnapshotMismatch, match="home"):
         wasi_python.Snapshot.load(path)
+
+
+SESSION_HOME = "/tmp/.home-" + "ab" * 16
+
+
+def test_a_header_from_before_checkpoints_loads_as_a_prelude(work) -> None:
+    """A file saved before the origin had `kind` and `parent_sha256` reads them as their
+    defaults, so the file stays format 1."""
+    header = _header(_image())
+    del header["kind"], header["parent_sha256"]
+    body = zlib.compress(_image(), 1)
+    path = _write(_folder(work) / "old.wpsnap", header=header, body=body)
+    origin = wasi_python.Snapshot.load(path).origin
+    assert (origin.kind, origin.parent_sha256) == ("prelude", None)
+    assert origin == _origin(_image())
+
+
+def test_a_checkpoints_header_keeps_its_sessions_home_and_parent(work) -> None:
+    snap = _snap(kind="checkpoint", home=SESSION_HOME, parent_sha256="c" * 64, prelude="")
+    path = _folder(work) / "cp.wpsnap"
+    snap.save(path)
+    assert wasi_python.Snapshot.load(path).origin == snap.origin
+
+
+CHECKPOINT_REFUSALS = {
+    "a kind this reader does not know": dict(kind="session"),
+    "a kind of another type": dict(kind=1),
+    "a parent that is not a SHA-256": dict(kind="checkpoint", parent_sha256="C" * 64),
+    "a parent that is too short": dict(kind="checkpoint", parent_sha256="c" * 63),
+    "a checkpoint at /": dict(kind="checkpoint", home="/"),
+    "a checkpoint's HOME of another shape": dict(kind="checkpoint", home="/tmp/.home-xyz"),
+    "a prelude at a session's HOME": dict(home=SESSION_HOME),
+}
+
+
+@pytest.mark.parametrize("case", sorted(CHECKPOINT_REFUSALS))
+def test_load_refuses_a_kind_parent_or_home_it_does_not_know(work, case) -> None:
+    body = zlib.compress(_image(), 1)
+    header = _header(_image(), **CHECKPOINT_REFUSALS[case])
+    path = _write(_folder(work) / "bad.wpsnap", header=header, body=body)
+    with pytest.raises(wasi_python.SnapshotMismatch, match="damaged header"):
+        wasi_python.Snapshot.load(path)
+
+
+def test_a_checkpoints_repr_names_its_kind() -> None:
+    snap = _snap(kind="checkpoint", home=SESSION_HOME, prelude="")
+    assert repr(snap) == (
+        "<Snapshot checkpoint, 0.1 MiB, made 2026-10-28T09:14:03Z by wasi-python 0.1.2>"
+    )
+
+
+# ---------------------------------------------------------------------------------------------
+# A session's checkpoint, on a stand-in set
+
+
+def test_a_checkpoint_keeps_the_sessions_memory_and_origin(work) -> None:
+    """After a turn, `checkpoint()` reads the stand-in's memory whole between its two calls; the
+    origin is the session's, bound to the set it opened with, and the session goes on."""
+    folder = _stand_in_set(work)
+    given = _given(folder)
+    data = _folder(work, "data")
+    before = wasi_python.stats()["snapshots_made"]
+    with wasi_python.Session(
+        grants=[wasi_python.Grant(data, "/data")], env={"B": "2", "A": "1"}, artifacts=given,
+        cache_dir=False,
+    ) as session:  # fmt: skip
+        assert session.run("pass").exit_code == 0
+        snap = session.checkpoint()
+        assert session.ended is None and session.run("pass").exit_code == 0
+    o = snap.origin
+    assert (o.kind, o.parent_sha256, o.prelude, o.prelude_fuel) == ("checkpoint", None, "", None)
+    assert o.image_bytes == PAGE and o.image_sha256 == hashlib.sha256(snap._image).hexdigest()
+    assert _snapshot.SESSION_HOME.match(o.home), o.home
+    assert (o.guest_paths, o.env_names) == (("/data",), ("A", "B"))
+    assert (o.snapshot_sha256, o.stdlib_zip_sha256) == (
+        _digest(given.snapshot),
+        _digest(given.stdlib_zip),
+    )
+    assert wasi_python.stats()["snapshots_made"] == before + 1
+    with wasi_python.Session(snapshot=snap, artifacts=given, cache_dir=False) as fork:
+        assert fork.run("pass").exit_code == 0
+        child = fork.checkpoint()
+    assert child.origin.parent_sha256 == o.image_sha256
+    assert child.origin.home == o.home  # a start keeps the session's HOME path
+
+
+def test_checkpoint_refusals_come_in_order_before_any_guest_code(work, monkeypatch) -> None:
+    """Each refusal is raised before the export, by its type, and leaves the session as it was:
+    a forked process, the plain binary, a set without the export, no turn returned yet, and a
+    session that has ended."""
+    given = _given(_stand_in_set(work))
+    calls: list[str] = []
+    monkeypatch.setattr(
+        process().observers, "on_export", lambda name, ident: calls.append(name)
+    )  # fmt: skip
+    with wasi_python.Session(artifacts=given, cache_dir=False) as session:
+        with pytest.raises(RuntimeError, match="a turn that returned"):
+            session.checkpoint()
+        assert session.ended is None
+        monkeypatch.setattr(process(), "forked", True)
+        with pytest.raises(RuntimeError, match="forked"):
+            session.checkpoint()
+        monkeypatch.setattr(process(), "forked", False)
+    with pytest.raises(wasi_python.SessionEnded):
+        session.checkpoint()
+    with wasi_python.Session(snapshot=False, artifacts=given, cache_dir=False) as plain:
+        assert plain.run("pass").exit_code == 0
+        with pytest.raises(ValueError, match="snapshot binary"):
+            plain.checkpoint()
+    old = _given(_stand_in_set(_folder(work, "old"), NO_CHECKPOINT))
+    with wasi_python.Session(artifacts=old, cache_dir=False) as before:
+        assert before.run("pass").exit_code == 0
+        with pytest.raises(wasi_python.ArtifactsMissing, match="does not export checkpoint"):
+            before.checkpoint()
+        assert before.ended is None
+    assert "checkpoint" not in calls, calls
 
 
 # ---------------------------------------------------------------------------------------------
