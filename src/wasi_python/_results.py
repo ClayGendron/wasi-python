@@ -152,7 +152,8 @@ class _ResultHost:
             return None
         self._records += 1
         if cap:  # past the tool frame's cap too: refused as a frame, not judged a display
-            return self._too_large(None, f"the frame is {length} bytes; at most {cap}", False)
+            most = max(bound, cap)
+            return self._too_large(None, f"the frame is {length} bytes; at most {most}", False)
         self.cut = True
         if spent:
             return self._encoded({"id": None, "ok": True, "kept": False})

@@ -339,6 +339,11 @@ def test_under_tools_a_frame_past_both_caps_is_not_called_a_display() -> None:
     raw = host.admit(2 << 20)
     message = answer(raw)["error"]["message"]
     assert kind(raw) == "too_large" and "display" not in message and "at most" in message
+    room = 1 << 20  # where six times the room passes the tool cap, the message names it
+    wide, _ = result_host(room=room, tools=H._ToolHost([lookup]))
+    most = R.ESCAPE * room + R.ENVELOPE
+    assert wide.admit(most) is None
+    assert answer(wide.admit(most + 1))["error"]["message"].endswith(f"at most {most}")
     assert host.cut is False
 
 
