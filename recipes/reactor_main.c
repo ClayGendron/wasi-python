@@ -6,7 +6,8 @@
  *   run               one program per instance: argv and the environment from WASI, then finalize
  *                     (on the snapshot, after undoing the freeze, as shutdown does: spec 073)
  *   turn              one turn of a session: code from host_alloc'd memory, the interpreter kept
- *   shutdown          a session's end: Python's own shutdown (atexit, finalization), once
+ *   turn_input        the next turn's stdin, from host_alloc'd memory, held until that turn
+ *   shutdown         a session's end: Python's own shutdown (atexit, finalization), once
  *   prepare           code from host_alloc'd memory run once in a snapshot instance that has run
  *                     nothing, with the clocks and entropy pinned, then the instance left as
  *                     wizer.initialize leaves the snapshot: the host reads its memory whole as a
@@ -169,6 +170,13 @@ static PyObject *unfreeze_function = NULL;
 /* _reactor._end, taken by prepare before the host's code runs: a prepared instance's run and
  * shutdown end through it. */
 static PyObject *end_function = NULL;
+/* The next turn's stdin, given by turn_input: a host_alloc buffer held until that turn copies it
+ * into a bytes and frees it, or until a second turn_input, shutdown or prepare frees it.
+ * stdin_given says turn_input was called; a NULL buffer with a length above 0 is then the host's
+ * out-of-memory. */
+static char *stdin_buffer = NULL;
+static int32_t stdin_length = 0;
+static int stdin_given = 0;
 
 extern unsigned char __stack_low;
 extern unsigned char __stack_high;
@@ -194,6 +202,7 @@ clear_unused_stack(void)
 
 static void run_private(const char *source);
 static void show_and_drop(void);
+static void drop_stdin(void);
 static void freeze_for_image(void);
 static int end_prepared(void);
 
@@ -518,7 +527,8 @@ turn_status(PyObject *result)
  * buffer from host_alloc that this function frees on every path. Returns the turn's exit status
  * (0 to 255), 256 plus it when the turn called exit() or quit(), or -1 for a refusal, which runs
  * no Python. A NULL pointer with a length above 0 is the host's out-of-memory: a MemoryError in
- * the guest. */
+ * the guest. The stdin a turn_input gave is this turn's, freed on every path; without one the
+ * turn's stdin is the session's own, which reads end of file. */
 __attribute__((export_name("turn")))
 int
 reactor_turn(int32_t ptr, int32_t len)
@@ -526,11 +536,13 @@ reactor_turn(int32_t ptr, int32_t len)
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
     if (preparing || (prepare_called && !prepared)) {
         free(code);
+        drop_stdin();
         return -1;
     }
     pinned = 0;
     if (run_called || in_turn || shut || len < 0) {
         free(code);
+        drop_stdin();
         return -1;
     }
     in_turn = 1;
@@ -556,6 +568,18 @@ reactor_turn(int32_t ptr, int32_t len)
     if (source == NULL) {
         source = Py_NewRef(Py_None);
     }
+    /* The turn's stdin: None when no turn_input came, its bytes, or False when the host or the
+     * copy had no memory for them, which the bootstrap raises as a MemoryError. */
+    PyObject *input = NULL;
+    if (stdin_given && (stdin_buffer != NULL || stdin_length == 0)) {
+        input = PyBytes_FromStringAndSize(stdin_buffer != NULL ? stdin_buffer : "",
+                                          (Py_ssize_t)stdin_length);
+        PyErr_Clear();
+    }
+    if (input == NULL) {
+        input = Py_NewRef(stdin_given ? Py_False : Py_None);
+    }
+    drop_stdin(); /* copy, then free, before any Python runs */
     PyObject *environ = NULL;
     if (!session_set_up) {
         session_set_up = 1;
@@ -575,7 +599,7 @@ reactor_turn(int32_t ptr, int32_t len)
     int rc = 1;
     PyObject *result = NULL;
     if (environ != NULL && turn_function != NULL) {
-        result = PyObject_CallFunctionObjArgs(turn_function, source, environ, NULL);
+        result = PyObject_CallFunctionObjArgs(turn_function, source, environ, input, NULL);
     }
     if (result != NULL) {
         rc = turn_status(result);
@@ -585,11 +609,42 @@ reactor_turn(int32_t ptr, int32_t len)
         show_and_drop();
     }
     Py_XDECREF(environ);
+    Py_DECREF(input);
     Py_DECREF(source);
     fflush(stdout);
     fflush(stderr);
     in_turn = 0;
     return rc;
+}
+
+/* The held stdin freed, and none given. */
+static void
+drop_stdin(void)
+{
+    free(stdin_buffer);
+    stdin_buffer = NULL;
+    stdin_length = 0;
+    stdin_given = 0;
+}
+
+/* The next turn's stdin: `len` bytes at `ptr`, a buffer from host_alloc, held until that turn
+ * copies and frees it. A second turn_input before the turn frees the first. A NULL pointer with a
+ * length above 0 is the host's out-of-memory: the turn raises MemoryError before its code. Returns
+ * 0, or -1 for a refusal, where turn would refuse, with the buffer freed. Runs no Python. */
+__attribute__((export_name("turn_input")))
+int
+reactor_turn_input(int32_t ptr, int32_t len)
+{
+    char *data = (char *)(uintptr_t)(uint32_t)ptr;
+    drop_stdin();
+    if (preparing || (prepare_called && !prepared) || run_called || in_turn || shut || len < 0) {
+        free(data);
+        return -1;
+    }
+    stdin_buffer = data;
+    stdin_length = len;
+    stdin_given = 1;
+    return 0;
 }
 
 /* A session's end (spec 055, Decisions 2 and 8): Python's normal shutdown, once, in an instance
@@ -600,6 +655,7 @@ __attribute__((export_name("shutdown")))
 int
 reactor_shutdown(void)
 {
+    drop_stdin(); /* a stdin no turn took */
     if (preparing) {
         return -1;
     }
@@ -660,6 +716,7 @@ int
 reactor_prepare(int32_t ptr, int32_t len)
 {
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
+    drop_stdin(); /* a stdin no turn took: the image never holds one */
     if (!initialized || prepare_called || run_called || turned || shut || len < 0) {
         free(code);
         return -1;

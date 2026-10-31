@@ -42,7 +42,7 @@ Two exceptions:
 |---|---|
 | memory | The guest cannot grow its linear memory past it; an allocation that needs more fails inside the guest. |
 | deadline | The call ends with `trapped == "deadline"`. The deadline holds while the guest sleeps or waits. |
-| output | Bytes past the limit are dropped, and the stream is named in `truncated`. |
+| output | Bytes past the limit are dropped, and the stream is named in `truncated`. A stream keeps its first bytes, or its last under `output_keep="tail"` (`--output-keep tail`), after a line `[N bytes cut]`. At most the limit of each stream is delivered to `on_output`. |
 | fuel | The call ends with `trapped == "out of fuel"`. |
 | open files | The next open answers `EMFILE`, and the guest runs on. |
 | provider calls | The call that would pass the limit is not made; the run ends with `trapped == "out of file calls"`. |

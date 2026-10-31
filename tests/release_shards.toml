@@ -264,6 +264,8 @@ files = [
   "tests/unit/test_runner_outputs.py",
   "tests/unit/test_runner_sessions.py",
   "tests/unit/test_runner_sets.py",
+  "tests/unit/test_runner_streaming.py",
+  "tests/unit/test_home.py",
   "tests/unit/test_runner_sweep.py",
   "tests/unit/test_runner_tools.py",
   "tests/unit/test_runner_waits.py",

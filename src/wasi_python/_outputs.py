@@ -1,5 +1,11 @@
-"""The guest's stdout and stderr: each kept up to its cap in a `_Stream`, and two captures that
-bring the guest's bytes there, with one shape.
+"""The guest's stdout and stderr: each kept up to its cap in a `_Stream`, two captures that
+bring the guest's bytes there, with one shape, and the delivery of those bytes to `on_output`
+while the guest runs (`OutputChunk`, `OutputFeed`, `_Feed`).
+
+Delivery. A stream hands the bytes it admits to its call's `_Feed` on the thread that read them;
+the feed queues them and posts a delivery to the call's home, the thread that made the call, so
+the reader and wasmtime's thread never run the embedder's code and a slow callback never blocks a
+guest's write. The last delivery runs on the home once every byte is in, before the result.
 
 Why two. wasmtime hands a custom output stream its bytes 4 KiB at a time on a worker thread of
 its own, and a Python callback called there makes and destroys a Python thread state for every
@@ -35,15 +41,24 @@ write has reached the pipe when `fd_write` returns.
 
 from __future__ import annotations
 
+import collections
 import ctypes
 import os
 import select
 import threading
 import time
-from typing import Any, Protocol
+import warnings
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Protocol
 
-from . import _platform
+from . import _limits, _platform
 from ._process import process
+
+if TYPE_CHECKING:
+    import asyncio
+
+    from ._home import _Home
 
 READ_BYTES = 65536  # one read takes a pipe's whole buffer on macOS and Linux
 SETTLE, STOP = b"s", b"x"  # what the wake pipe carries to the reader
@@ -51,19 +66,307 @@ SLOW_WAIT_S = 0.001  # the slow loop's sleep when no end had bytes
 
 
 class _Stream:
-    """A guest's stdout or stderr, kept up to a cap. Bytes past it are dropped, never buffered,
-    and still reported as written, so the guest's write succeeds and is not retried (wasmtime-py
-    takes the callback's return value as the count written)."""
+    """A guest's stdout or stderr, kept up to a cap: its first bytes under the keep "head", its
+    last under "tail", in a buffer that grows to the cap and then wraps. Bytes past the cap are
+    dropped, never buffered, and still reported as written, so the guest's write succeeds and is
+    not retried (wasmtime-py takes the callback's return value as the count written). `written`
+    counts every byte the guest wrote, kept or not. A sink, for a call with `on_output`, is
+    handed each write's bytes within the cap, and once, the mark of the first byte past it."""
 
-    def __init__(self, name: str, cap: int | None) -> None:
-        self.name, self.cap, self.data, self.dropped = name, cap, bytearray(), False
+    def __init__(
+        self,
+        name: str,
+        cap: int | None,
+        keep: str = "head",
+        sink: Callable[[str, bytes, bool], None] | None = None,
+    ) -> None:
+        self.name, self.cap, self.keep, self.sink = name, cap, keep, sink
+        self.data, self.dropped, self.written = bytearray(), False, 0
+        self.at = 0  # under "tail", once the buffer is full: where its oldest byte is
+        self.marked = False  # the sink has had the mark
 
     def write(self, data: bytes) -> int:
-        room = len(data) if self.cap is None else max(0, self.cap - len(self.data))
-        if room < len(data):
-            self.dropped = True
-        self.data.extend(data[:room])
-        return len(data)
+        n, cap = len(data), self.cap
+        before = self.written
+        self.written += n
+        if cap is None:
+            self.data += data
+        elif self.keep == "head":
+            room = max(0, cap - len(self.data))
+            self.dropped = self.dropped or room < n
+            self.data += data[:room] if room < n else data
+        else:
+            self._keep_tail(data, cap)
+        if self.sink is not None:
+            room = n if cap is None else max(0, cap - before)
+            cut = cap is not None and self.written > cap and not self.marked
+            if room or cut:
+                self.marked = self.marked or cut
+                self.sink(self.name, data[:room] if room < n else data, cut)
+        return n
+
+    def _keep_tail(self, data: bytes, cap: int) -> None:
+        """The last `cap` bytes kept: the buffer fills, then each write overwrites its oldest."""
+        self.dropped = self.written > cap
+        n = len(data)
+        if n >= cap:
+            self.data[:], self.at = data[n - cap :], 0
+            return
+        room = cap - len(self.data)
+        if room:  # still filling
+            self.data += data[:room]
+            data = data[room:]
+            if not data:
+                return
+            n = len(data)
+        end = self.at + n
+        if end <= cap:
+            self.data[self.at : end] = data
+        else:
+            first = cap - self.at
+            self.data[self.at :] = data[:first]
+            self.data[: end - cap] = data[first:]
+        self.at = end % cap
+
+    def kept(self) -> bytes:
+        """What the result holds. Under "tail" with bytes cut, it starts `[N bytes cut]` and a
+        newline, N the bytes past the cap (`written` less the cap the buffer holds), and the line
+        takes the place of the tail's first bytes, so the result stays within the cap; a cap
+        shorter than that line holds the tail alone."""
+        data = bytes(self.data[self.at :] + self.data[: self.at]) if self.at else bytes(self.data)
+        if self.keep == "head" or not self.dropped:
+            return data
+        line = f"[{self.written - len(data)} bytes cut]\n".encode()
+        return data if len(line) > len(data) else line + data[len(line) :]
+
+
+@dataclass(frozen=True)
+class OutputChunk:
+    """A piece of a guest's output, handed to `on_output` while the guest runs.
+
+    Within a stream, chunks come in the order written, and adjacent pieces are joined; across the
+    two streams, in the order the runner read them. A chunk is not a line.
+
+    Attributes:
+        stream: "stdout" or "stderr".
+        data: The bytes. At most `output_bytes` of a stream are delivered in all.
+        cut: True on the chunk that carries the stream past `output_bytes`; nothing more of that
+            stream follows. Its `data` may be empty.
+    """
+
+    stream: str
+    data: bytes
+    cut: bool = False
+
+
+class OutputFeed:
+    """A `run_async` call's output as an async iterator: pass the feed as `on_output`, and read it
+    with `follow` beside the call's task.
+
+        feed = OutputFeed()
+        task = asyncio.create_task(run_async(argv, on_output=feed))
+        async for chunk in feed.follow(task):
+            ...
+        done = await task
+
+    A feed serves one call, of `run_async` or `Session.run_async`; `run` and `Session.run`
+    refuse one, as does a second call.
+    """
+
+    def __init__(self) -> None:
+        """An empty feed, for one call."""
+        self._chunks: collections.deque[OutputChunk] = collections.deque()
+        self._waiter: asyncio.Future[None] | None = None
+        self._used = False
+        self._ended = False
+
+    def __call__(self, chunk: OutputChunk) -> None:
+        """Queue a chunk for `follow`; the call delivers each one here, on the event loop.
+
+        Args:
+            chunk: The next piece of the call's output.
+        """
+        self._chunks.append(chunk)
+        self._wake()
+
+    async def follow(self, task: asyncio.Future[Any]) -> AsyncIterator[OutputChunk]:
+        """Each chunk in order, ending once `task` is done, whatever its outcome, after the
+        chunks already delivered.
+
+        Args:
+            task: The task or future of the call this feed was given to.
+
+        Yields:
+            The call's chunks.
+        """
+        import asyncio
+
+        while True:
+            if self._chunks:
+                yield self._chunks.popleft()
+                continue
+            if self._ended or task.done():
+                return
+            waiter = self._waiter = asyncio.get_running_loop().create_future()
+            try:
+                await asyncio.wait({waiter, task}, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                self._waiter = None
+                waiter.cancel()
+
+    def _claim(self) -> None:
+        if self._used:
+            raise TypeError("this OutputFeed has served a call already; a feed serves one call")
+        self._used = True
+
+    def _end(self) -> None:
+        self._ended = True
+        self._wake()
+
+    def _wake(self) -> None:
+        waiter = self._waiter
+        if waiter is not None and not waiter.done():
+            waiter.set_result(None)
+
+
+def _check_on_output(value: object, *, asynchronous: bool) -> Any:
+    """`on_output` as a synchronous callable, or None. An async one is refused, as `host` is;
+    an `OutputFeed` is read on an event loop, so a call without one (`asynchronous` False)
+    refuses it."""
+    if value is None:
+        return None
+    if not callable(value):
+        raise TypeError(f"on_output must be a callable, or None; got {type(value).__name__}")
+    if _limits._is_async_callable(value):
+        raise TypeError("on_output must be synchronous; it is called with each chunk in turn")
+    if isinstance(value, OutputFeed) and not asynchronous:
+        raise TypeError("an OutputFeed is read by an event loop: pass it to run_async")
+    return value
+
+
+class _Late:
+    """`on_output` under an event loop, as the awaiting coroutine owns it: the embedder's
+    callback, and the first `BaseException` that is not an `Exception` it raised, which the
+    coroutine raises after its await. A batch the loop runs after the worker has returned can
+    stop no call; this is how its exception still reaches the caller."""
+
+    def __init__(self, fn: Callable[[OutputChunk], object]) -> None:
+        self.fn = fn
+        self.raised: BaseException | None = None
+
+    @classmethod
+    def around(cls, fn: Callable[[OutputChunk], object] | None) -> _Late | None:
+        return None if fn is None else cls(fn)
+
+    def __call__(self, chunk: OutputChunk) -> object:
+        try:
+            return self.fn(chunk)
+        except Exception:
+            raise  # the feed warns of it and stops delivery
+        except BaseException as e:
+            if self.raised is None:
+                self.raised = e
+            raise
+
+    @staticmethod
+    def check(late: _Late | None) -> None:
+        """Raise what the callback raised, if it raised anything but an `Exception`."""
+        if late is not None and late.raised is not None:
+            raise late.raised
+
+
+class _Feed:
+    """One call's or turn's delivery to `on_output`. The bytes a stream admits are queued here on
+    the thread that read them, joined to the last queued piece of the same stream, and a delivery
+    is posted to the call's home when none is pending, so the reader and wasmtime's thread never
+    run the embedder's code. On the home the callback is called, or, under an event loop, each
+    batch is handed to the loop. An `Exception` from the callback is warned once and ends
+    delivery for the call; any other `BaseException` stops the call."""
+
+    def __init__(
+        self,
+        on_output: Callable[[OutputChunk], object],
+        home: _Home,
+        loop: asyncio.AbstractEventLoop | None,
+    ) -> None:
+        self.on_output, self.home, self.loop = on_output, home, loop
+        self.lock = threading.Lock()  # the queue, `posted` and `off`
+        self.queue: list[list[Any]] = []  # [stream, bytearray, cut], oldest first
+        self.posted = False  # a delivery is in the home's inbox
+        self.off = False  # nothing more is queued: a fault, a closed loop, or the last delivery
+        self.faulted = False  # the callback raised an Exception: it is not called again
+
+    def add(self, stream: str, data: bytes, cut: bool) -> None:
+        with self.lock:
+            if self.off:
+                return
+            last = self.queue[-1] if self.queue else None
+            if last is not None and last[0] == stream and not last[2]:
+                last[1] += data
+                last[2] = cut
+            else:
+                self.queue.append([stream, bytearray(data), cut])
+            post, self.posted = not self.posted, True
+        if post:
+            self.home.post(self.deliver)
+
+    def _take(self, last: bool = False) -> list[OutputChunk]:
+        with self.lock:
+            batch, self.queue, self.posted = self.queue, [], False
+            self.off = self.off or last
+            faulted = self.faulted
+        return [] if faulted else [OutputChunk(s, bytes(d), c) for s, d, c in batch]
+
+    def deliver(self) -> None:
+        """On the home: what is queued, to the callback, or handed to the loop."""
+        batch = self._take()
+        if batch and self.loop is None:
+            self._call(batch)
+        elif batch:
+            self._to_loop(batch)
+
+    def close(self) -> None:
+        """The last delivery, on the home, after every byte is in: skipped when the home has
+        stopped. Under a loop it is handed to the loop and not waited for, since the loop's
+        thread may itself be waiting for this call; the loop runs it before it resumes the
+        awaiting coroutine, which raises a `BaseException` it kept (`_Late`)."""
+        batch = self._take(last=True)
+        if batch and not self.home.stopped():
+            if self.loop is None:
+                self._call(batch)
+            else:
+                self._to_loop(batch)
+
+    def _to_loop(self, batch: list[OutputChunk]) -> None:
+        assert self.loop is not None
+        try:
+            self.loop.call_soon_threadsafe(self._on_loop, batch)
+        except RuntimeError:  # the loop is closed: nothing more can be delivered
+            with self.lock:
+                self.off = True
+
+    def _on_loop(self, batch: list[OutputChunk]) -> None:
+        try:
+            self._call(batch)
+        except BaseException as e:  # not an Exception: `_call` keeps those
+            self.home.stop(e)  # a running call stops; after it, `_Late` holds it
+
+    def _call(self, batch: list[OutputChunk]) -> None:
+        for chunk in batch:
+            if self.faulted:
+                return
+            try:
+                self.on_output(chunk)
+            except Exception as e:
+                with self.lock:
+                    self.off = self.faulted = True
+                warnings.warn(
+                    f"on_output raised {type(e).__name__}: {e}; the rest of this call's output "
+                    "is not delivered to it",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+                return
 
 
 class _Capture(Protocol):
@@ -395,3 +698,26 @@ def _capture(wasi: Any, out: _Stream, err: _Stream) -> _Capture:
     if on_capture is not None:
         on_capture(capture.kind)
     return capture
+
+
+def _feed_for(
+    on_output: Callable[[OutputChunk], object] | None,
+    keep: str,
+    cap: int | None,
+    home: _Home,
+    loop: asyncio.AbstractEventLoop | None,
+) -> tuple[_Stream, _Stream, _Feed | None]:
+    """A call's or a turn's two streams, kept by `keep` up to `cap`, and the feed their admitted
+    bytes go to when it has `on_output` (on `home`, or handed to `loop` under `run_async`)."""
+    feed = None if on_output is None else _Feed(on_output, home, loop)
+    sink = None if feed is None else feed.add
+    return _Stream("stdout", cap, keep, sink), _Stream("stderr", cap, keep, sink), feed
+
+
+def _claimed(on_output: object) -> OutputFeed | None:
+    """The feed `on_output` is, claimed for one call, or None when it is not a feed; a feed that
+    served a call already is a `TypeError`."""
+    if not isinstance(on_output, OutputFeed):
+        return None
+    on_output._claim()
+    return on_output

@@ -230,6 +230,43 @@ A provider whose files the guest sees at a guest path, read-only unless `writabl
 - `guest`: Where the guest sees it: an absolute guest path, or / for the guest's whole filesystem (not with `root=`).
 - `writable`: Whether the guest may write there; it needs the provider's write half. Keyword-only.
 
+#### `wasi_python.OutputChunk`
+
+```python
+@dataclass(frozen=True)
+class OutputChunk:
+    stream: str
+    data: bytes
+    cut: bool = False
+```
+
+A piece of a guest's output, handed to `on_output` while the guest runs.
+
+**Attributes:**
+
+- `stream`: "stdout" or "stderr".
+- `data`: The bytes. At most `output_bytes` of a stream are delivered in all.
+- `cut`: True on the chunk that carries the stream past `output_bytes`; nothing more of that stream follows. Its `data` may be empty.
+
+#### `wasi_python.OutputFeed`
+
+```python
+class OutputFeed:
+    def __init__(self) -> None
+    def __call__(self, chunk: OutputChunk) -> None
+    def follow(self, task: asyncio.Future[Any]) -> AsyncIterator[OutputChunk]
+```
+
+A `run_async` call's output as an async iterator: pass the feed as `on_output`, and read it with `follow` beside the call's task.
+
+**Methods:**
+
+- `OutputFeed.__init__`: An empty feed, for one call.
+- `OutputFeed.__call__`: Queue a chunk for `follow`; the call delivers each one here, on the event loop.
+  - `chunk`: The next piece of the call's output.
+- `OutputFeed.follow`: Each chunk in order, ending once `task` is done, whatever its outcome, after the chunks already delivered.
+  - `task`: The task or future of the call this feed was given to.
+
 #### `wasi_python.RefusedWrite`
 
 ```python
@@ -298,6 +335,9 @@ class Session:
         deadline_s: float | None = <default>,
         output_bytes: int | None = <default>,
         cancel: threading.Event | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal['head', 'tail'] = 'head',
     ) -> Completed
     async def run_async(
         self,
@@ -307,6 +347,9 @@ class Session:
         deadline_s: float | None = <default>,
         output_bytes: int | None = <default>,
         executor: concurrent.futures.Executor | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal['head', 'tail'] = 'head',
     ) -> Completed
     def close(self) -> None
 ```
@@ -349,12 +392,18 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `deadline_s`: This turn's wall-clock seconds; `None` means no limit but the lifetime's. Default: the session's.
   - `output_bytes`: The most bytes kept per stream in this turn. Default: the session's.
   - `cancel`: A `threading.Event`. Once it is set and the guest runs, the turn stops within 5 ticks of 10 ms while it computes and ends "cancelled", which ends the session; set before the guest runs, the turn runs nothing and the session goes on.
+  - `stdin`: This turn's standard input: `sys.stdin` reads these bytes, as text, during the turn, and `input()` reads its lines; the session's own stdin comes back after it. `None` (the default) leaves the session's, which reads end of file.
+  - `on_output`: Called with each `OutputChunk` of the turn's output while it runs, on the thread that made the call, as `run` calls it. Default: none.
+  - `output_keep`: What a stream past this turn's `output_bytes` keeps, "head" or "tail", as for `run`. Default: "head".
 - `Session.run_async`: `run` from async code, on a worker thread, so the event loop is never blocked.
   - `code`: The turn's source, a str.
   - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
   - `deadline_s`: This turn's wall-clock seconds; `None` means no limit but the lifetime's. Default: the session's.
   - `output_bytes`: The most bytes kept per stream in this turn. Default: the session's.
   - `executor`: Where the turn runs: a `concurrent.futures.Executor` that runs callables on threads of this process. `None` uses the runner's own pool.
+  - `stdin`: This turn's standard input, as for `run`.
+  - `on_output`: Called with each `OutputChunk` of the turn's output while it runs, on the event loop's thread, as `run_async` calls it; an `OutputFeed` too.
+  - `output_keep`: What a stream past this turn's `output_bytes` keeps, as for `run`.
 - `Session.close`: End the session, run its ending, and return once its store is closed.
 
 #### `wasi_python.SessionEnded`
@@ -661,6 +710,8 @@ def run(
     max_tool_calls: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
     max_open_files: int | None = <default>,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal['head', 'tail'] = 'head',
 ) -> Completed
 ```
 
@@ -690,6 +741,8 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
 - `max_tool_request_bytes`: The most bytes of tool-protocol requests a call reads, counted from each frame's length before it is read, whatever its answer; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
 - `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
+- `on_output`: Called with each `OutputChunk` of the guest's stdout and stderr while it runs: under `run`, on the thread that made the call, in turn with your `host` and providers, which wait while it runs; under `run_async`, on the event loop's thread. Keep it short. At most `output_bytes` of each stream are delivered, every chunk before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and ends delivery for the call, which goes on; any other `BaseException` stops the call and is raised. It must be synchronous: an async one raises `TypeError`. An `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run` refuses one, and a feed serves one call.
+- `output_keep`: What a stream past `output_bytes` keeps: "head" (the default) its first bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes past `output_bytes` and the line takes the place of the tail's first bytes. Anything else raises `ValueError`.
 
 **Raises:**
 
@@ -730,6 +783,8 @@ async def run_async(
     max_tool_calls: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
     max_open_files: int | None = <default>,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal['head', 'tail'] = 'head',
 ) -> Completed
 ```
 
@@ -1016,6 +1071,8 @@ Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn
 | `--deadline-s` | `SECONDS` | store |
 | `--memory-bytes` | `BYTES` | store |
 | `--output-bytes` | `BYTES` | store |
+| `--output-keep` |  | store |
+| `--stream` |  | store_true |
 | `--fuel` | `N` | store |
 | `--max-open-files` | `N` | store |
 | `--no-snapshot` |  | store_true |

@@ -28,7 +28,7 @@ A turn runs in `__main__`, as the interactive interpreter runs it and as a Jupyt
 - **`exit(n)` and `quit()` end the session.** The turn stops at that line and returns its status; then the session runs Python's shutdown and ends with `ended == "quit"`.
 - **`os._exit(n)` ends the session at once**, with no shutdown.
 
-A session has no argv and no stdin: a turn's input is its code, and `sys.stdin.read()` returns `""`. Turns of one session run one at a time. A second turn while one runs raises `RuntimeError`.
+A session has no argv. A turn's input is its code, and `sys.stdin.read()` returns `""`, unless the turn is given its own `stdin`: `session.run(code, stdin=b"...")` makes `sys.stdin` a reader over those bytes for that turn alone. It has no descriptor, so `sys.stdin.fileno()` raises, and descriptor 0 stays empty. Turns of one session run one at a time. A second turn while one runs raises `RuntimeError`.
 
 ## Know what is per session and what is per turn
 
@@ -40,7 +40,7 @@ A session has no argv and no stdin: a turn's input is its code, and `sys.stdin.r
 | `idle_s`, `lifetime_s`, `shutdown_s` | per session: they bound the session and its ending |
 | `fuel`, `deadline_s`, `output_bytes` | per turn: the session's value is each turn's default, and `session.run(code, fuel=…)` may pass its own |
 | `max_file_calls`, `max_tool_calls`, `max_tool_request_bytes` | per turn, set once on the session: each turn gets the full allowance |
-| `cancel` | per turn only |
+| `cancel`, `stdin`, `on_output`, `output_keep` | per turn only |
 
 `Session(fuel=N)` opens a *metered* session, whose turns each get `N` instructions of fuel. `Session()` is unmetered, and its turns report `fuel_used=None`.
 

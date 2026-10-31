@@ -53,6 +53,16 @@ if TYPE_CHECKING:
 
 MAX_TURN_BYTES = 0x7FFFFFFF  # the `turn` export's length is an i32
 SESSION_EXPORTS = ("turn", "shutdown")
+STDIN_EXPORT = "turn_input"  # a turn's stdin, in a set built with it
+
+
+class _TurnIO(NamedTuple):
+    """A turn's own stdin and output delivery; none of either by default."""
+
+    stdin: bytes | None = None
+    on_output: Callable[[_outputs.OutputChunk], object] | None = None
+    keep: str = "head"
+
 
 # The clock the bounds read, and the hooks told of each arming, export and call, are the
 # observers of the process: `process().observers`.
@@ -260,6 +270,7 @@ class _State:
         self.ending_home: _Home | None = None  # the ending's home thread, while it runs
         self.set_digests: _artifacts._Checked | None = None  # a snapshot's set, as checked
         self.captured: tuple[bytes, int] | None = None  # a making's image and files left open
+        self.takes_stdin = False  # the instance exports turn_input: a turn may be given stdin
 
 
 _WAKE = object()
@@ -557,7 +568,7 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     ticks = max(1, math.ceil(left / TICK_S))
     fuel = state.checked.fuel if state.metered else None
     home = state.ending_home = _Home()  # the ending's home thread
-    call, _out, _err, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None, home)
+    call, _out, _err, _feed, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None, home)
     wt = state.wt
     assert state.table is not None  # the store is open: an ending runs before the release
     try:
@@ -661,10 +672,11 @@ def _arm(
     output_bytes: int | None,
     loop: asyncio.AbstractEventLoop | None,
     home: _Home,
-) -> tuple[_Call, _Stream, _Stream, _ToolHost | None]:
+    io: _TurnIO | None = None,
+) -> tuple[_Call, _Stream, _Stream, _outputs._Feed | None, _ToolHost | None]:
     """One call into the session's instance: its fuel and epoch deadline re-armed, its waits on
-    the session's clock base, fresh output streams, a frame host and mount counters of its own
-    (step 2)."""
+    the session's clock base, fresh output streams and their feed, a frame host and mount
+    counters of its own (step 2)."""
     store, table = state.store, state.table
     assert store is not None and table is not None  # a turn or an ending: the store is open
     if state.metered:
@@ -687,7 +699,8 @@ def _arm(
         time.sleep,
         (lambda: any(check() for check in checks)) if checks else None,
     )
-    out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
+    io = io or _TurnIO()
+    out, err, feed = _outputs._feed_for(io.on_output, io.keep, output_bytes, home, loop)
     assert state.capture is not None  # made with the store
     state.capture.retarget(out, err)
     host, admit, tool_host = state.host, None, None
@@ -698,7 +711,7 @@ def _arm(
     call = _Call(store, host, waits, state.origin_ns, stop, stop_at, admit, table=table, home=home)
     if obs.on_call is not None:
         obs.on_call(kind, call)
-    return call, out, err, tool_host
+    return call, out, err, feed, tool_host
 
 
 def _session_tool_host(
@@ -743,12 +756,25 @@ def _home_ident(call: _Call) -> int:
     return threading.get_ident() if home is None else home.ident
 
 
+def _handed(exports: Mapping[str, Any], store: Any, data: bytes) -> int:
+    """`data` copied into the guest's memory from `host_alloc`: its address, or 0 when it is
+    empty or the guest had no room, which the guest raises as a MemoryError."""
+    if not data:
+        return 0
+    p: int = exports["host_alloc"](store, len(data)) & MASK32
+    memory = exports["memory"]
+    if p and p + len(data) <= memory.data_len(store):
+        memory.write(store, data, p)
+        return p
+    return 0
+
+
 def _drive_turn(
-    state: _State, call: _Call, data: bytes, export: str = "turn"
+    state: _State, call: _Call, data: bytes, export: str = "turn", stdin: bytes | None = None
 ) -> tuple[int | None, int | None, str | None, bool]:
     """(the export's value, an exit code, a trap's name, whether guest code ran), on this
     thread's stack, by `_drive`'s rules (steps 3 and 4); `export` is `turn`, or `prepare` for a
-    making. Before any guest code, as in
+    making. A turn's `stdin` is handed to `turn_input` first. Before any guest code, as in
     `_drive`, a turn is refused when wasmtime's trap handlers were replaced: the session then
     ends as on an error, without Python's shutdown."""
     not_ready = _platform.PLATFORM.trap_handlers_ready()
@@ -768,14 +794,9 @@ def _drive_turn(
         _move_guest(state, _GuestEvent.ENTER)
         if first and "_initialize" in exports:
             exports["_initialize"](store)
-        p = 0
-        if data:
-            p = exports["host_alloc"](store, len(data)) & MASK32
-            memory = exports["memory"]
-            if p and p + len(data) <= memory.data_len(store):
-                memory.write(store, data, p)
-            else:
-                p = 0  # the guest raises MemoryError for its code
+        if stdin is not None:
+            exports[STDIN_EXPORT](store, _handed(exports, store, stdin), len(stdin))
+        p = _handed(exports, store, data)
         on_export = process().observers.on_export
         if on_export is not None:  # told the home thread, the thread that made the call
             on_export(export, _home_ident(call))
@@ -821,6 +842,7 @@ def _turn_inside(
     loop: asyncio.AbstractEventLoop | None,
     home: _Home,
     export: str = "turn",
+    io: _TurnIO | None = None,
 ) -> _TurnDone:
     own = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     ticks, capped = own, False
@@ -830,11 +852,13 @@ def _turn_inside(
         if cap < own:
             ticks, capped = cap, True
     stop = _Either(cancel, state.closing, home)
-    call, out, err, tool_host = _arm(state, "turn", fuel, ticks, stop, output_bytes, loop, home)
+    armed = _arm(state, "turn", fuel, ticks, stop, output_bytes, loop, home, io)
+    call, out, err, feed, tool_host = armed
+    stdin = None if io is None else io.stdin
     try:
         with _epoch_ticker(state.engine, True):
             value, exit_code, trapped, ran = _home._on_guest_thread(
-                "turn", home, call, _drive_turn, state, call, data, export
+                "turn", home, call, _drive_turn, state, call, data, export, stdin
             )
         assert state.capture is not None  # made with the store
         state.capture.settle()  # every byte the turn wrote, before its result is made
@@ -870,17 +894,9 @@ def _turn_inside(
             context.leave()  # between turns the table serves no call
         files = table.record() if state.checked.mounts else None
         record = None if tool_host is None else tool_host.record
-        truncated = tuple(s.name for s in (out, err) if s.dropped)
-        completed = Completed(
-            exit_code,
-            bytes(out.data),
-            bytes(err.data),
-            trapped,
-            fuel_used,
-            truncated,
-            files,
-            record,
-            None if state.checked.start is None else state.checked.start.sha256,
+        image = None if state.checked.start is None else state.checked.start.sha256
+        completed = _call._completed(
+            out, err, feed, exit_code, trapped, fuel_used, files, record, image
         )
         return _TurnDone(completed, cause, returned)
     finally:
@@ -900,9 +916,11 @@ def _session_turn(
     cancel: threading.Event | None,
     loop: asyncio.AbstractEventLoop | None,
     export: str = "turn",
+    io: _TurnIO | None = None,
 ) -> Completed:
     """A claimed turn, on this thread: run it, decide whether it ended the session, and if the
-    session has ended by its return, run the ending here (step 6); `export` is the turn's. Its
+    session has ended by its return, run the ending here (step 6); `export` is the turn's, and
+    `io` its stdin and output delivery. Its
     first step makes this thread the turn's holder, whichever thread claimed it, so a `close()`
     from this thread, a host function's or a provider's, returns at once."""
     with state.lock:
@@ -914,7 +932,7 @@ def _session_turn(
         try:
             with _home._deferred_ctrl_c():
                 args = (state, data, fuel, deadline_s, output_bytes, cancel, loop, home, export)
-                done = _turn_inside(*args)
+                done = _turn_inside(*args, io)
         except BaseException as e:
             error = e
         if home.phase in _home._GUEST_MAY_RUN:  # forced out while the guest thread runs
@@ -1009,6 +1027,7 @@ def _open_session(
     )
     names = {e.name for e in module.exports}
     missing = [n for n in SESSION_EXPORTS if n not in names]
+    state.takes_stdin = STDIN_EXPORT in names
     if missing:
         raise ArtifactsMissing(
             f"{binary} does not export {' or '.join(missing)}: this artifact set predates "

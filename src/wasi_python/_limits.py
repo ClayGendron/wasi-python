@@ -1,5 +1,6 @@
 """The limits of a call: the tick constants, the checks of every limit argument, the text and
-input checks, the worker count, and the sentinel `_UNSET` for an argument not given."""
+input checks, the output keep's check, the worker count, and the sentinel `_UNSET` for an
+argument not given."""
 
 from __future__ import annotations
 
@@ -167,6 +168,36 @@ def _check_inputs(argv: Any, env: Any, stdin: Any) -> _Inputs:
                     f"stdin must be bytes-like, or None; got {type(stdin).__name__}"
                 ) from None
     return _Inputs(args, plain_env, data)
+
+
+KEEPS = ("head", "tail")  # what a stream past its cap keeps: its first bytes, or its last
+
+
+def _check_output_keep(value: Any) -> str:
+    """`output_keep` as "head" or "tail"; anything else is a ValueError."""
+    if not isinstance(value, str) or value not in KEEPS:
+        raise ValueError(f'output_keep must be "head" or "tail"; got {value!r}')
+    return value
+
+
+def _is_async_callable(fn: Any) -> bool:
+    """Whether calling `fn` makes a coroutine or an async generator, read through `partial`s and
+    at an object's `__call__`, as `tool()` reads a tool. It does not
+    import `wasi_python.tools`."""
+    import functools
+    import inspect
+
+    while isinstance(fn, functools.partial):
+        fn = fn.func
+    tests = (inspect.iscoroutinefunction, inspect.isasyncgenfunction)
+    if any(test(fn) for test in tests):
+        return True
+    if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
+        if not callable(fn):
+            return False
+        call = type(fn).__call__
+        return any(test(call) for test in tests)
+    return False
 
 
 def _cpus() -> int:

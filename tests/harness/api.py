@@ -82,6 +82,7 @@ DEFINING = (
     "_artifacts.py",
     "_places.py",
     "_snapshot.py",
+    "_outputs.py",
     "_call.py",
     "_sessions.py",
     "runner.py",
@@ -716,6 +717,7 @@ def readme_block(text: str) -> tuple[int, str | None]:
 
 
 def annotation_namespace(modules: dict[str, Any]) -> dict[str, Any]:
+    import asyncio
     import builtins
     import collections.abc
     import concurrent.futures
@@ -727,6 +729,7 @@ def annotation_namespace(modules: dict[str, Any]) -> dict[str, Any]:
     ns.update({k: v for k, v in vars(typing).items() if not k.startswith("_")})
     ns.update({k: v for k, v in vars(collections.abc).items() if not k.startswith("_")})
     ns.update(os=os, threading=threading, concurrent=concurrent, Path=pathlib.Path)
+    ns.update(asyncio=asyncio)
     assert concurrent.futures
     for modname in PUBLIC:
         mod = modules[modname]

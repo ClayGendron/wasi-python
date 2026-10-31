@@ -73,6 +73,16 @@ dataclass Mount: frozen
   field provider: FileProvider = required
   field guest: str = required
   field writable: bool = False  kw_only
+dataclass OutputChunk: frozen
+  field stream: str = required
+  field data: bytes = required
+  field cut: bool = False
+class OutputFeed
+  def __init__ -> None
+  def __call__ -> None
+    param chunk: OutputChunk  positional
+  def follow -> AsyncIterator[OutputChunk]
+    param task: asyncio.Future[Any]  positional
 dataclass RefusedWrite: frozen
   field mount: str = required
   field method: str = required
@@ -115,12 +125,18 @@ class Session
     param deadline_s: float | None = <default>  keyword-only
     param output_bytes: int | None = <default>  keyword-only
     param cancel: threading.Event | None = None  keyword-only
+    param stdin: bytes | bytearray | memoryview | None = None  keyword-only
+    param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+    param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
   async def run_async -> Completed
     param code: str  positional
     param fuel: int | None = <default>  keyword-only
     param deadline_s: float | None = <default>  keyword-only
     param output_bytes: int | None = <default>  keyword-only
     param executor: concurrent.futures.Executor | None = None  keyword-only
+    param stdin: bytes | bytearray | memoryview | None = None  keyword-only
+    param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+    param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
   def close -> None
 exception SessionEnded(RuntimeError)
 class Snapshot
@@ -221,6 +237,8 @@ def run -> Completed
   param max_tool_calls: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
+  param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+  param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
 async def run_async -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
@@ -244,6 +262,8 @@ async def run_async -> Completed
   param max_tool_calls: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
+  param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+  param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
 def set_defaults -> Defaults
   param new: Defaults  positional
 def stats -> dict[str, int]
@@ -343,6 +363,8 @@ command wasi-python = wasi_python.cli:main
   option --deadline-s SECONDS  store
   option --memory-bytes BYTES  store
   option --output-bytes BYTES  store
+  option --output-keep  store
+  option --stream  store_true
   option --fuel N  store
   option --max-open-files N  store
   option --no-snapshot  store_true

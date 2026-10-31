@@ -26,14 +26,17 @@ import queue
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, cast
 
-from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions, _snapshot
-from ._artifacts import Artifacts
+from . import _call, _engines, _limits, _outputs, _places, _platform, _private_dirs, _sessions
+from . import _snapshot as _snapshot  # its own line: the line above is full
+from ._artifacts import Artifacts, ArtifactsMissing
 from ._call import Completed as Completed  # re-exported: the public API names them here
 from ._call import _CheckedCall
 from ._limits import _UNSET
+from ._outputs import OutputChunk as OutputChunk  # re-exported: the public API names them here
+from ._outputs import OutputFeed as OutputFeed
 from ._places import Grant as Grant
 from ._process import process
 from ._sessions import _CLOSER, MAX_TURN_BYTES, _Event, _Phase, _State
@@ -145,6 +148,8 @@ def run(
     max_tool_calls: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
     max_open_files: int | None = _UNSET,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal["head", "tail"] = "head",
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -225,6 +230,19 @@ def run(
             0 refuses every open, the stdlib's included. It protects your process only within
             the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024.
             `None` means no limit.
+        on_output: Called with each `OutputChunk` of the guest's stdout and stderr while it
+            runs: under `run`, on the thread that made the call, in turn with your `host` and
+            providers, which wait while it runs; under `run_async`, on the event loop's thread.
+            Keep it short. At most `output_bytes` of each stream are delivered, every chunk
+            before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and
+            ends delivery for the call, which goes on; any other `BaseException` stops the call
+            and is raised. It must be synchronous: an async one raises `TypeError`. An
+            `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run`
+            refuses one, and a feed serves one call.
+        output_keep: What a stream past `output_bytes` keeps: "head" (the default) its first
+            bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
+            past `output_bytes` and the line takes the place of the tail's first bytes. Anything
+            else raises `ValueError`.
 
     Returns:
         How the program ended.
@@ -274,6 +292,8 @@ def run(
         import_path=import_path,
         max_open_files=max_open_files,
         snapshot=snapshot,
+        on_output=on_output,
+        output_keep=output_keep,
     )
     cache = _engines._cache_given(cache_dir)
     return _run_checked_flushed(wt, checked, host, cache, artifacts, None)
@@ -318,6 +338,8 @@ async def run_async(
     max_tool_calls: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
     max_open_files: int | None = _UNSET,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal["head", "tail"] = "head",
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -398,6 +420,19 @@ async def run_async(
             0 refuses every open, the stdlib's included. It protects your process only within
             the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024.
             `None` means no limit.
+        on_output: Called with each `OutputChunk` of the guest's stdout and stderr while it
+            runs: under `run`, on the thread that made the call, in turn with your `host` and
+            providers, which wait while it runs; under `run_async`, on the event loop's thread.
+            Keep it short. At most `output_bytes` of each stream are delivered, every chunk
+            before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and
+            ends delivery for the call, which goes on; any other `BaseException` stops the call
+            and is raised. It must be synchronous: an async one raises `TypeError`. An
+            `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run`
+            refuses one, and a feed serves one call.
+        output_keep: What a stream past `output_bytes` keeps: "head" (the default) its first
+            bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
+            past `output_bytes` and the line takes the place of the tail's first bytes. Anything
+            else raises `ValueError`.
 
     Returns:
         How the program ended.
@@ -422,59 +457,71 @@ async def run_async(
     """
     import asyncio
 
-    _platform._refuse_forked()
-    event = threading.Event()  # the call's cancel, set when the awaiting task is cancelled
-    checked = _checked(
-        argv,
-        env,
-        stdin,
-        fuel,
-        deadline_s,
-        memory_bytes,
-        output_bytes,
-        event,
-        host=host,
-        tools=tools,
-        gate=gate,
-        max_tool_calls=max_tool_calls,
-        max_tool_request_bytes=max_tool_request_bytes,
-        root=root,
-        grants=grants,
-        mounts=mounts,
-        max_file_calls=max_file_calls,
-        import_path=import_path,
-        max_open_files=max_open_files,
-        snapshot=snapshot,
-    )
-    cache = _engines._cache_given(cache_dir)
-    _check_executor(executor)
-    loop = asyncio.get_running_loop()  # async tools await here
-    wt = _engines._wasmtime()
-    _register_exit_hook()
-    p = process()
-    with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
-        if p.exiting:
-            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        p.live[event] = None
+    feed = _outputs._claimed(on_output)  # a feed serves one call
     try:
-        work = contextvars.copy_context().run  # a door host sees the request's context
-        args = (_run_checked_flushed, wt, checked, host, cache, artifacts, loop)
-        future = _submit(executor, work, *args)
+        _platform._refuse_forked()
+        event = threading.Event()  # the call's cancel, set when the awaiting task is cancelled
+        checked = _checked(
+            argv,
+            env,
+            stdin,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+            event,
+            host=host,
+            tools=tools,
+            gate=gate,
+            max_tool_calls=max_tool_calls,
+            max_tool_request_bytes=max_tool_request_bytes,
+            root=root,
+            grants=grants,
+            mounts=mounts,
+            max_file_calls=max_file_calls,
+            import_path=import_path,
+            max_open_files=max_open_files,
+            snapshot=snapshot,
+            on_output=on_output,
+            output_keep=output_keep,
+            asynchronous=True,
+        )
+        late = _outputs._Late.around(checked.on_output)  # the coroutine's: raised after the await
+        checked = replace(checked, on_output=late)
+        cache = _engines._cache_given(cache_dir)
+        _check_executor(executor)
+        loop = asyncio.get_running_loop()  # async tools await here
+        wt = _engines._wasmtime()
+        _register_exit_hook()
+        p = process()
+        with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
+            if p.exiting:
+                raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+            p.live[event] = None
         try:
-            return await asyncio.wrap_future(future)
-        except asyncio.CancelledError:
-            if future.cancel():  # still queued: it never starts
+            work = contextvars.copy_context().run  # a door host sees the request's context
+            args = (_run_checked_flushed, wt, checked, host, cache, artifacts, loop)
+            future = _submit(executor, work, *args)
+            try:
+                done: Completed = await asyncio.wrap_future(future)
+                _outputs._Late.check(late)
+                return done
+            except asyncio.CancelledError:
+                if future.cancel():  # still queued: it never starts
+                    raise
+                event.set()
+                while not future.done():  # wait for the worker, whatever the call's outcome
+                    try:
+                        await asyncio.wrap_future(future)
+                    except BaseException:
+                        pass
                 raise
-            event.set()
-            while not future.done():  # wait for the worker, whatever the call's outcome
-                try:
-                    await asyncio.wrap_future(future)
-                except BaseException:
-                    pass
-            raise
+        finally:
+            with p.live_lock:
+                p.live.pop(event, None)
     finally:
-        with p.live_lock:
-            p.live.pop(event, None)
+        if feed is not None:
+            feed._end()  # whatever the outcome, its follower ends
 
 
 def _check_executor(executor: Any) -> None:
@@ -644,22 +691,23 @@ def _checked(
     max_open_files: Any = _UNSET,
     limits: Defaults | None = None,
     snapshot: Any = True,
+    on_output: Any = None,
+    output_keep: Any = "head",
+    asynchronous: bool = False,
 ) -> _CheckedCall:
     """Every argument a call's guest depends on, checked before any work, as one frozen record
     built from its typed parts, each field named. The defaults are read once, here, and every
     check that takes one takes it from this read, so a `set_defaults` on another thread never
     gives a call a mix of the old and new limits. `async_workers` is not a call's limit:
-    `_submit` reads it under the pool's lock. A session passes the `limits` it read."""
+    `_submit` reads it under the pool's lock. A session passes the `limits` it read;
+    `asynchronous` says an event loop awaits the call, which an `OutputFeed` needs."""
     limits = limits if limits is not None else _current_defaults()
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
     )
-    if memory_bytes is _UNSET:
-        memory_bytes = limits.memory_bytes
-    if deadline_s is _UNSET:
-        deadline_s = limits.deadline_s
-    if output_bytes is _UNSET:
-        output_bytes = limits.output_bytes
+    memory_bytes = limits.memory_bytes if memory_bytes is _UNSET else memory_bytes
+    deadline_s = limits.deadline_s if deadline_s is _UNSET else deadline_s
+    output_bytes = limits.output_bytes if output_bytes is _UNSET else output_bytes
     if cancel is not None and not isinstance(cancel, threading.Event):
         raise TypeError(f"cancel must be a threading.Event, or None; got {type(cancel).__name__}")
     bounds = _limits._check_limits(fuel, deadline_s, memory_bytes, output_bytes)
@@ -679,6 +727,8 @@ def _checked(
         deadline_s=bounds.deadline_s,
         memory_bytes=bounds.memory_bytes,
         output_bytes=bounds.output_bytes,
+        output_keep=_limits._check_output_keep(output_keep),
+        on_output=_outputs._check_on_output(on_output, asynchronous=asynchronous),
         argv=inputs.argv,
         env=inputs.env,
         stdin=inputs.stdin,
@@ -697,26 +747,6 @@ def _checked(
         binary=binary,
         start=start,
     )
-
-
-def _is_async_callable(fn: Any) -> bool:
-    """Whether calling `fn` makes a coroutine or an async generator, read through `partial`s and
-    at an object's `__call__`, as `tool()` reads a tool. It does not
-    import `wasi_python.tools`."""
-    import functools
-    import inspect
-
-    while isinstance(fn, functools.partial):
-        fn = fn.func
-    tests = (inspect.iscoroutinefunction, inspect.isasyncgenfunction)
-    if any(test(fn) for test in tests):
-        return True
-    if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
-        if not callable(fn):
-            return False
-        call = type(fn).__call__
-        return any(test(call) for test in tests)
-    return False
 
 
 class _ToolArgs(NamedTuple):
@@ -743,7 +773,7 @@ def _check_tools(
     plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
     given, so `import wasi_python` still does not import it. An async `host=` is
     refused."""
-    if host is not None and _is_async_callable(host):
+    if host is not None and _limits._is_async_callable(host):
         raise TypeError(
             "host= must answer synchronously; serve an async host function as a tool (tools=)"
         )
@@ -1089,6 +1119,23 @@ class Session:
             )
         return data, fuel, deadline, output
 
+    def _turn_io(
+        self, stdin: Any, on_output: Any, output_keep: Any, *, asynchronous: bool
+    ) -> _sessions._TurnIO:
+        """A turn's stdin, delivery and keep, checked before the claim: a turn's stdin as
+        `run`'s, at most `MAX_TURN_BYTES`, and only on a set whose binary takes one."""
+        data = _limits._check_inputs((), None, stdin).stdin
+        if data is not None and len(data) > MAX_TURN_BYTES:
+            raise ValueError(f"stdin must be at most {MAX_TURN_BYTES} bytes")
+        keep = _limits._check_output_keep(output_keep)
+        callback = _outputs._check_on_output(on_output, asynchronous=asynchronous)
+        if data is not None and not self._state.takes_stdin:
+            raise ArtifactsMissing(
+                "this artifact set's binary does not export turn_input, so a turn cannot be "
+                "given stdin; it needs a set built with it"
+            )
+        return _sessions._TurnIO(data, callback, keep)
+
     def _claim(self, *, here: bool) -> None:
         """Claim the session for one turn, or raise SessionEnded (a bound that has passed ends it
         first: its ending runs here, or on a closer thread) or RuntimeError (a turn running)."""
@@ -1151,6 +1198,9 @@ class Session:
         deadline_s: float | None = _UNSET,
         output_bytes: int | None = _UNSET,
         cancel: threading.Event | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal["head", "tail"] = "head",
     ) -> Completed:
         """Run one turn of code in the session and return how it ended.
 
@@ -1170,6 +1220,13 @@ class Session:
                 within 5 ticks of 10 ms while it computes and ends "cancelled", which ends the
                 session; set before the guest runs, the turn runs nothing and the session goes
                 on.
+            stdin: This turn's standard input: `sys.stdin` reads these bytes, as text, during
+                the turn, and `input()` reads its lines; the session's own stdin comes back
+                after it. `None` (the default) leaves the session's, which reads end of file.
+            on_output: Called with each `OutputChunk` of the turn's output while it runs, on
+                the thread that made the call, as `run` calls it. Default: none.
+            output_keep: What a stream past this turn's `output_bytes` keeps, "head" or
+                "tail", as for `run`. Default: "head".
 
         Returns:
             How the turn ended.
@@ -1177,6 +1234,8 @@ class Session:
         Raises:
             TypeError: An argument has the wrong type; the session stays open.
             ValueError: An argument is out of range; the session stays open.
+            ArtifactsMissing: `stdin` was given and the artifact set predates a turn's stdin;
+                the session stays open.
             SessionEnded: The session has ended, or its idle bound or lifetime has passed;
                 in that case the session's ending runs here first, so `run` may block for up
                 to `shutdown_s` (plus any call of your own code it makes) before it raises.
@@ -1191,8 +1250,10 @@ class Session:
         """
         _platform._refuse_forked()
         data, fuel, deadline, output = self._turn_args(code, fuel, deadline_s, output_bytes, cancel)
+        io = self._turn_io(stdin, on_output, output_keep, asynchronous=False)
         self._claim(here=True)
-        return _sessions._session_turn(self._state, data, fuel, deadline, output, cancel, None)
+        args = (self._state, data, fuel, deadline, output, cancel, None, "turn", io)
+        return _sessions._session_turn(*args)
 
     async def run_async(
         self,
@@ -1202,6 +1263,9 @@ class Session:
         deadline_s: float | None = _UNSET,
         output_bytes: int | None = _UNSET,
         executor: concurrent.futures.Executor | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal["head", "tail"] = "head",
     ) -> Completed:
         """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -1219,6 +1283,10 @@ class Session:
             output_bytes: The most bytes kept per stream in this turn. Default: the session's.
             executor: Where the turn runs: a `concurrent.futures.Executor` that runs callables
                 on threads of this process. `None` uses the runner's own pool.
+            stdin: This turn's standard input, as for `run`.
+            on_output: Called with each `OutputChunk` of the turn's output while it runs, on
+                the event loop's thread, as `run_async` calls it; an `OutputFeed` too.
+            output_keep: What a stream past this turn's `output_bytes` keeps, as for `run`.
 
         Returns:
             How the turn ended.
@@ -1226,6 +1294,7 @@ class Session:
         Raises:
             TypeError: An argument has the wrong type; the session stays open.
             ValueError: An argument is out of range; the session stays open.
+            ArtifactsMissing: `stdin` was given and the artifact set predates a turn's stdin.
             SessionEnded: The session has ended, or its idle bound or lifetime has passed.
             RuntimeError: A turn is already running in this session; this process was forked
                 after it ran a guest; the interpreter is shutting down; the runner lost track
@@ -1237,44 +1306,57 @@ class Session:
         import asyncio
         import contextvars
 
-        _platform._refuse_forked()
-        data, fuel, deadline, output = self._turn_args(code, fuel, deadline_s, output_bytes, None)
-        _check_executor(executor)
-        loop = asyncio.get_running_loop()
-        _register_exit_hook()
-        self._claim(here=False)
-        event = threading.Event()
-        state = self._state
-        p = process()
+        feed = _outputs._claimed(on_output)  # a feed serves one turn
         try:
-            with p.live_lock:
-                if p.exiting:
-                    raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-                p.live[event] = None
-            work = contextvars.copy_context().run
-            args = (_sessions._session_turn, state, data, fuel, deadline, output, event, loop)
-            future = _submit(executor, work, *args)
-        except BaseException:
-            _take_live(event)
-            self._release_claim()
-            raise
-        _keep_release(event, future, self._release_claim)
-        try:
+            _platform._refuse_forked()
+            data, fuel, deadline, output = self._turn_args(
+                code, fuel, deadline_s, output_bytes, None
+            )
+            io = self._turn_io(stdin, on_output, output_keep, asynchronous=True)
+            late = _outputs._Late.around(io.on_output)  # the coroutine's: raised after the await
+            io = io._replace(on_output=late)
+            _check_executor(executor)
+            loop = asyncio.get_running_loop()
+            _register_exit_hook()
+            self._claim(here=False)
+            event = threading.Event()
+            state = self._state
+            p = process()
             try:
-                return await asyncio.wrap_future(future)
-            except asyncio.CancelledError:
-                if future.cancel():  # still queued: it never starts, the session is untouched
-                    _take_live(event)()  # its claim released, unless the exit hook did it
-                    raise
-                event.set()
-                while not future.done():
-                    try:
-                        await asyncio.wrap_future(future)
-                    except BaseException:
-                        pass
+                with p.live_lock:
+                    if p.exiting:
+                        raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+                    p.live[event] = None
+                work = contextvars.copy_context().run
+                turn = (state, data, fuel, deadline, output, event, loop, "turn", io)
+                args = (_sessions._session_turn, *turn)
+                future = _submit(executor, work, *args)
+            except BaseException:
+                _take_live(event)
+                self._release_claim()
                 raise
+            _keep_release(event, future, self._release_claim)
+            try:
+                try:
+                    done: Completed = await asyncio.wrap_future(future)
+                    _outputs._Late.check(late)
+                    return done
+                except asyncio.CancelledError:
+                    if future.cancel():  # still queued: it never starts, the session is untouched
+                        _take_live(event)()  # its claim released, unless the exit hook did it
+                        raise
+                    event.set()
+                    while not future.done():
+                        try:
+                            await asyncio.wrap_future(future)
+                        except BaseException:
+                            pass
+                    raise
+            finally:
+                _take_live(event)
         finally:
-            _take_live(event)
+            if feed is not None:
+                feed._end()  # whatever the outcome, its follower ends
 
     def close(self) -> None:
         """End the session, run its ending, and return once its store is closed.

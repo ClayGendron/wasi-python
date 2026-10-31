@@ -373,3 +373,70 @@ def test_the_command_raises_its_own_descriptor_limit(fake, capsysbinary, monkeyp
     package = Path(cli.__file__).parent
     named = sorted(p.name for p in package.rglob("*.py") if "setrlimit" in p.read_text())
     assert named == ["cli.py"], named
+
+
+# Output while the guest runs, and the tail.
+
+
+def test_output_keep_reaches_run(fake, capsysbinary) -> None:
+    """`--output-keep head|tail` is `run`'s `output_keep`, passed only when given; another word
+    is a usage error."""
+    calls, _ = fake
+    assert _main(capsysbinary, "run", "--output-keep", "tail", "--", "-c", "1")[0] == 0
+    assert calls[-1][1]["output_keep"] == "tail"
+    assert _main(capsysbinary, "run", "--output-keep=head", "x.py")[0] == 0
+    assert calls[-1][0] == ["x.py"] and calls[-1][1]["output_keep"] == "head"
+    assert _main(capsysbinary, "run", "--", "-c", "1")[0] == 0
+    assert "output_keep" not in calls[-1][1] and "on_output" not in calls[-1][1]
+    before = len(calls)
+    code, out, err = _main(capsysbinary, "run", "--output-keep", "middle", "--", "-c", "1")
+    assert (code, out, len(calls)) == (2, b"", before), err
+
+
+def _streaming(monkeypatch, ending: BaseException | None) -> None:
+    """A fake `run` that hands three chunks to its `on_output`, then returns or raises."""
+    from wasi_python import OutputChunk
+
+    def run(argv, **kw):
+        for chunk in (
+            OutputChunk("stdout", b"a\n"),
+            OutputChunk("stderr", b"\xff"),
+            OutputChunk("stdout", b"", True),
+        ):
+            kw["on_output"](chunk)
+        if ending is not None:
+            raise ending
+        return Completed(0, b"a\n", b"\xff", None, None, ("stdout",))
+
+    monkeypatch.setattr(runner, "run", run)
+
+
+CHUNK_LINES = [
+    {"stream": "stdout", "data": "a\n"},
+    {"stream": "stderr", "data_base64": base64.b64encode(b"\xff").decode()},
+    {"stream": "stdout", "data": "", "cut": True},
+]
+
+
+def test_stream_prints_a_line_per_chunk_then_the_result(capsysbinary, monkeypatch) -> None:
+    """`--stream`: one JSON line per chunk as it arrives, then the result line; each line
+    ASCII with sorted keys."""
+    _streaming(monkeypatch, None)
+    code, out, _ = _main(capsysbinary, "run", "--stream", "--", "-c", "1")
+    lines = [json.loads(line) for line in out.splitlines()]
+    assert code == 0 and out.isascii() and len(lines) == 4
+    assert lines[:3] == CHUNK_LINES
+    assert all(list(line) == sorted(line) for line in lines)
+    assert lines[3]["stdout"] == "a\n" and lines[3]["truncated"] == ["stdout"]
+
+
+def test_stream_then_an_error_or_ctrl_c(capsysbinary, monkeypatch) -> None:
+    """Under `--stream` a refusal is the error line after the chunks, exit 1; Ctrl-C is exit
+    130 with the chunks already written and nothing after them."""
+    _streaming(monkeypatch, ValueError("refused"))
+    code, out, _ = _main(capsysbinary, "run", "--stream", "--", "-c", "1")
+    lines = [json.loads(line) for line in out.splitlines()]
+    assert code == 1 and lines[:3] == CHUNK_LINES and lines[3]["kind"] == "ValueError"
+    _streaming(monkeypatch, KeyboardInterrupt())
+    code, out, _ = _main(capsysbinary, "run", "--stream", "--", "-c", "1")
+    assert code == 130 and [json.loads(line) for line in out.splitlines()] == CHUNK_LINES

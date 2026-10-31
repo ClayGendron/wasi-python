@@ -6,9 +6,14 @@ arguments, and without an option the argument is `run`'s default.
     {"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\\n", "trapped": null,
      "truncated": []}    (one line)
 
+With `--stream`, each piece of the guest's output is printed as it arrives, one JSON line per
+chunk (`{"stream": "stdout", "data": "..."}`, `data_base64` when it is not UTF-8, `"cut": true`
+on the piece that passes the output limit), and the result line or the error line comes last.
+
 Exit codes say whether there is a result, not how the program ended: 0, the call returned (the
 JSON says how the program ended); 1, `run` raised (one JSON object with `error` and `kind`);
-2, a usage error (argparse's message on standard error); 130, interrupted by Ctrl-C.
+2, a usage error (argparse's message on standard error); 130, interrupted by Ctrl-C, with
+nothing on standard output but the chunks `--stream` had printed.
 
 Run as its own process, the command raises its soft descriptor limit to its hard one first, so
 the cap on open files guards it; the library never changes a process's
@@ -33,6 +38,7 @@ VALUED = {
     "--deadline-s",
     "--memory-bytes",
     "--output-bytes",
+    "--output-keep",
     "--fuel",
     "--max-open-files",
     "--grant",
@@ -99,6 +105,16 @@ def _parser() -> argparse.ArgumentParser:
         "--output-bytes", type=_limit(int), metavar="BYTES", default=unset,
         help="the most bytes kept per stream; the rest is dropped and the stream is named in "
         "`truncated`; none for no limit",
+    )  # fmt: skip
+    p.add_argument(
+        "--output-keep", choices=("head", "tail"), default=unset,
+        help="what a stream past --output-bytes keeps: its first bytes (head, the default) or "
+        "its last (tail)",
+    )  # fmt: skip
+    p.add_argument(
+        "--stream", action="store_true",
+        help="print each piece of output as it arrives, one JSON line per chunk, before the "
+        "result line",
     )  # fmt: skip
     p.add_argument(
         "--fuel", type=_limit(int), metavar="N", default=unset,
@@ -196,6 +212,14 @@ def _stream(name: str, data: bytes) -> dict[str, str]:
         return {f"{name}_base64": base64.b64encode(data).decode("ascii")}
 
 
+def _chunk_line(chunk: Any) -> None:
+    """One `OutputChunk` as one JSON line, flushed: its stream, its data, and `cut` on the cut."""
+    line: dict[str, Any] = {"stream": chunk.stream, **_stream("data", chunk.data)}
+    if chunk.cut:
+        line["cut"] = True
+    _write(line)
+
+
 def _write(obj: dict[str, Any]) -> None:
     line = json.dumps(obj, sort_keys=True, ensure_ascii=True) + "\n"
     sys.stdout.buffer.write(line.encode("ascii"))
@@ -234,9 +258,10 @@ def _raise_descriptor_limit() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """The command; Ctrl-C at any point is exit 130 with nothing on standard output. Called with
-    no argument, as `wasi-python` and `python -m wasi_python` call it, it is its own process and
-    raises its soft descriptor limit first; called with arguments, it leaves the process alone."""
+    """The command; Ctrl-C at any point is exit 130, with nothing on standard output but the
+    chunks `--stream` printed. Called with no argument, as `wasi-python` and `python -m
+    wasi_python` call it, it is its own process and raises its soft descriptor limit first;
+    called with arguments, it leaves the process alone."""
     try:
         if argv is None:
             _raise_descriptor_limit()
@@ -261,9 +286,13 @@ def _main(args: list[str]) -> int:
     except SystemExit as e:  # usage errors exit 2; --help exits 0
         return int(e.code or 0)
     given: dict[str, Any] = {"cancel": threading.Event()}  # set by no one: lets Ctrl-C stop it
-    for name in ("deadline_s", "memory_bytes", "output_bytes", "fuel", "max_open_files"):
+    for name in ("deadline_s", "memory_bytes", "output_bytes", "output_keep", "fuel"):
         if hasattr(ns, name):
             given[name] = getattr(ns, name)
+    if hasattr(ns, "max_open_files"):
+        given["max_open_files"] = ns.max_open_files
+    if ns.stream:
+        given["on_output"] = _chunk_line
     if env is not None:
         given["env"] = env
     if ns.no_snapshot:
