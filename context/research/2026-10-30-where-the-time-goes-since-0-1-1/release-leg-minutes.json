@@ -1,0 +1,918 @@
+{
+"upstream-release-f": [
+3.68,
+2.02
+],
+"upstream-release-d": [
+4.17,
+3.78
+],
+"upstream-sci-release-04": [
+6.62,
+6.27
+],
+"upstream-sci-release-01": [
+11.12,
+9.57
+],
+"upstream-release-h": [
+3.42,
+3.08
+],
+"upstream-sci-release-06": [
+5.87,
+5.47
+],
+"upstream-release-c": [
+3.78,
+3.25
+],
+"upstream-sci-release-10": [
+3.87,
+3.48
+],
+"upstream-sci-release-14": [
+6.32,
+4.2
+],
+"upstream-release-k": [
+3.63,
+3.17
+],
+"upstream-sci-release-08": [
+5.87,
+5.4
+],
+"upstream-sci-release-12": [
+6.35,
+5.9
+],
+"upstream-sci-release-13": [
+2.18,
+1.75
+],
+"upstream-release-i": [
+2.28,
+1.92
+],
+"upstream-sci-release-05": [
+4.22,
+3.87
+],
+"upstream-sci-release-11": [
+3.68,
+3.33
+],
+"upstream-release-j": [
+1.98,
+1.67
+],
+"upstream-release-a": [
+2.15,
+1.75
+],
+"upstream-release-e": [
+3.42,
+3.05
+],
+"upstream-sci-release-07": [
+2.82,
+2.48
+],
+"upstream-sci-release-16": [
+4.27,
+3.85
+],
+"upstream-sci-release-15": [
+4.53,
+4.17
+],
+"upstream-sci-release-02": [
+8.17,
+7.83
+],
+"upstream-sci-release-03": [
+7.12,
+6.77
+],
+"upstream-release-l": [
+2.72,
+2.22
+],
+"upstream-release-b": [
+4.47,
+2.65
+],
+"upstream-sci-release-09": [
+2.97,
+2.65
+],
+"upstream-release-g": [
+3.87,
+3.42
+],
+"upstream-sci-release-17": [
+2.17,
+1.85
+],
+"upstream-sci-release-21": [
+3.32,
+2.73
+],
+"upstream-sci-release-20": [
+3.8,
+3.45
+],
+"upstream-sci-release-18": [
+1.78,
+1.43
+],
+"upstream-sci-release-19": [
+2.97,
+2.6
+],
+"upstream-sci-release-22": [
+2.22,
+1.85
+],
+"upstream-sci-release-24": [
+4.32,
+3.95
+],
+"upstream-sci-release-25": [
+3.07,
+2.68
+],
+"upstream-sci-release-23": [
+4.23,
+3.78
+],
+"upstream-sci-release-26": [
+2.83,
+2.43
+],
+"upstream-sci-release-27": [
+3.33,
+2.97
+],
+"upstream-sci-release-28": [
+3.75,
+3.42
+],
+"upstream-sci-release-30": [
+3.02,
+2.68
+],
+"upstream-sci-release-29": [
+4.98,
+3.72
+],
+"upstream-sci-release-31": [
+4.03,
+3.63
+],
+"upstream-sci-release-32": [
+3.75,
+3.37
+],
+"upstream-sci-release-35": [
+5.37,
+5.0
+],
+"upstream-sci-release-34": [
+2.92,
+2.58
+],
+"upstream-sci-release-33": [
+3.22,
+2.85
+],
+"upstream-sci-release-36": [
+3.15,
+2.75
+],
+"upstream-sci-release-37": [
+2.88,
+2.43
+],
+"upstream-sci-release-39": [
+3.88,
+3.38
+],
+"upstream-sci-release-40": [
+2.2,
+1.82
+],
+"upstream-sci-release-41": [
+4.6,
+4.23
+],
+"upstream-sci-release-43": [
+3.32,
+2.9
+],
+"upstream-sci-release-42": [
+5.08,
+3.47
+],
+"upstream-sci-release-44": [
+2.9,
+2.55
+],
+"upstream-sci-release-38": [
+4.15,
+2.77
+],
+"upstream-sci-release-45": [
+4.78,
+4.37
+],
+"upstream-sci-release-46": [
+5.05,
+4.37
+],
+"upstream-sci-release-47": [
+3.12,
+2.73
+],
+"upstream-sci-release-48": [
+4.42,
+3.55
+],
+"upstream-sci-release-50": [
+2.9,
+2.48
+],
+"upstream-sci-release-49": [
+4.92,
+3.1
+],
+"upstream-sci-release-51": [
+2.9,
+2.58
+],
+"upstream-sci-release-52": [
+2.42,
+2.03
+],
+"upstream-sci-release-54": [
+3.23,
+2.85
+],
+"upstream-sci-release-53": [
+2.53,
+2.2
+],
+"upstream-sci-release-55": [
+3.67,
+3.35
+],
+"upstream-sci-release-56": [
+4.43,
+3.92
+],
+"upstream-sci-release-58": [
+2.08,
+1.78
+],
+"upstream-sci-release-57": [
+3.2,
+2.77
+],
+"upstream-sci-release-59": [
+4.93,
+4.58
+],
+"upstream-sci-release-60": [
+2.35,
+1.92
+],
+"upstream-sci-release-61": [
+4.23,
+3.88
+],
+"upstream-sci-release-62": [
+2.52,
+2.12
+],
+"upstream-sci-release-64": [
+3.82,
+3.47
+],
+"upstream-sci-release-63": [
+4.0,
+3.58
+],
+"upstream-sci-release-65": [
+4.22,
+3.87
+],
+"upstream-sci-release-66": [
+2.0,
+1.68
+],
+"upstream-sci-release-67": [
+3.68,
+3.32
+],
+"upstream-sci-release-69": [
+3.23,
+2.78
+],
+"upstream-sci-release-68": [
+3.88,
+2.25
+],
+"upstream-sci-release-70": [
+3.83,
+3.38
+],
+"upstream-sci-release-71": [
+1.97,
+1.65
+],
+"upstream-sci-release-73": [
+3.13,
+2.72
+],
+"upstream-sci-release-72": [
+1.62,
+1.3
+],
+"upstream-sci-release-75": [
+4.38,
+4.02
+],
+"upstream-sci-release-74": [
+4.25,
+3.77
+],
+"upstream-sci-release-76": [
+2.9,
+2.18
+],
+"upstream-sci-release-77": [
+2.15,
+1.78
+],
+"upstream-sci-release-78": [
+2.77,
+2.38
+],
+"upstream-sci-release-80": [
+3.27,
+2.93
+],
+"upstream-sci-release-79": [
+4.82,
+4.38
+],
+"upstream-sci-release-83": [
+2.98,
+2.65
+],
+"upstream-sci-release-82": [
+3.47,
+2.93
+],
+"upstream-sci-release-81": [
+3.27,
+2.95
+],
+"upstream-sci-release-84": [
+5.17,
+4.75
+],
+"upstream-sci-release-85": [
+3.35,
+2.92
+],
+"upstream-sci-release-86": [
+4.5,
+3.25
+],
+"upstream-sci-release-87": [
+4.32,
+3.95
+],
+"upstream-sci-release-88": [
+3.18,
+2.58
+],
+"upstream-sci-release-89": [
+2.92,
+2.5
+],
+"upstream-sci-release-92": [
+3.08,
+2.68
+],
+"upstream-sci-release-91": [
+4.9,
+4.1
+],
+"upstream-sci-release-90": [
+1.52,
+1.2
+],
+"upstream-sci-release-93": [
+2.1,
+1.75
+],
+"upstream-sci-release-94": [
+4.68,
+4.28
+],
+"upstream-sci-release-95": [
+3.05,
+2.62
+],
+"upstream-sci-release-96": [
+5.2,
+4.77
+],
+"upstream-sci-release-97": [
+3.55,
+3.17
+],
+"upstream-sci-release-98": [
+2.87,
+2.43
+],
+"upstream-sci-release-101": [
+2.12,
+1.82
+],
+"upstream-sci-release-99": [
+2.85,
+2.52
+],
+"upstream-sci-release-100": [
+4.65,
+4.22
+],
+"upstream-sci-release-104": [
+3.18,
+2.82
+],
+"upstream-sci-release-103": [
+3.33,
+3.0
+],
+"upstream-sci-release-102": [
+3.02,
+2.63
+],
+"upstream-pure-r-001": [
+18.57,
+18.02
+],
+"upstream-pure-r-003": [
+6.95,
+6.52
+],
+"upstream-pure-r-002": [
+3.72,
+3.4
+],
+"upstream-pure-r-004": [
+4.62,
+4.25
+],
+"upstream-pure-r-005": [
+5.67,
+5.35
+],
+"upstream-pure-r-006": [
+4.93,
+4.58
+],
+"upstream-pure-r-007": [
+5.28,
+4.95
+],
+"upstream-pure-r-009": [
+5.32,
+4.95
+],
+"upstream-pure-r-008": [
+2.68,
+2.32
+],
+"upstream-pure-r-010": [
+5.32,
+4.87
+],
+"upstream-pure-r-011": [
+5.23,
+4.88
+],
+"upstream-pure-r-013": [
+2.68,
+2.25
+],
+"upstream-pure-r-012": [
+1.85,
+1.53
+],
+"upstream-pure-r-014": [
+2.97,
+2.6
+],
+"upstream-pure-r-015": [
+2.15,
+1.83
+],
+"upstream-pure-r-016": [
+3.63,
+3.27
+],
+"upstream-pure-r-017": [
+3.85,
+3.45
+],
+"upstream-pure-r-018": [
+4.13,
+3.75
+],
+"upstream-pure-r-019": [
+3.37,
+2.97
+],
+"upstream-pure-r-020": [
+4.07,
+3.65
+],
+"upstream-pure-r-021": [
+2.43,
+2.07
+],
+"upstream-pure-r-022": [
+3.02,
+2.65
+],
+"upstream-pure-r-023": [
+3.32,
+2.98
+],
+"upstream-pure-r-024": [
+4.1,
+3.72
+],
+"upstream-pure-r-025": [
+3.77,
+3.43
+],
+"upstream-pure-r-026": [
+2.25,
+1.95
+],
+"upstream-pure-r-027": [
+3.43,
+3.1
+],
+"upstream-pure-r-029": [
+4.03,
+3.63
+],
+"upstream-pure-r-028": [
+3.5,
+3.07
+],
+"upstream-pure-r-030": [
+2.25,
+1.92
+],
+"upstream-pure-r-031": [
+4.22,
+3.8
+],
+"upstream-pure-r-032": [
+4.0,
+3.57
+],
+"upstream-pure-r-033": [
+4.72,
+3.97
+],
+"upstream-pure-r-034": [
+3.97,
+3.62
+],
+"upstream-pure-r-035": [
+3.6,
+3.17
+],
+"upstream-pure-r-036": [
+3.02,
+2.63
+],
+"upstream-pure-r-037": [
+2.62,
+2.33
+],
+"upstream-pure-r-038": [
+2.22,
+1.9
+],
+"upstream-pure-r-039": [
+4.2,
+3.78
+],
+"upstream-pure-r-040": [
+2.3,
+1.97
+],
+"upstream-pure-r-041": [
+3.25,
+2.95
+],
+"upstream-pure-r-042": [
+3.92,
+3.5
+],
+"upstream-pure-r-043": [
+3.13,
+2.77
+],
+"upstream-pure-r-044": [
+3.82,
+3.47
+],
+"upstream-pure-r-045": [
+3.28,
+2.88
+],
+"upstream-pure-r-046": [
+4.38,
+3.68
+],
+"upstream-pure-r-048": [
+3.38,
+3.02
+],
+"upstream-pure-r-047": [
+4.42,
+3.92
+],
+"upstream-pure-r-050": [
+4.17,
+3.77
+],
+"upstream-pure-r-049": [
+2.95,
+2.57
+],
+"upstream-pure-r-052": [
+3.37,
+3.02
+],
+"upstream-pure-r-051": [
+4.2,
+3.4
+],
+"upstream-pure-r-053": [
+4.37,
+3.77
+],
+"upstream-pure-r-054": [
+4.18,
+3.85
+],
+"upstream-pure-r-055": [
+3.57,
+3.17
+],
+"upstream-pure-r-056": [
+2.63,
+2.25
+],
+"upstream-pure-r-058": [
+4.05,
+3.67
+],
+"upstream-pure-r-057": [
+3.37,
+2.95
+],
+"upstream-pure-r-060": [
+4.92,
+4.17
+],
+"upstream-pure-r-059": [
+4.68,
+4.23
+],
+"upstream-pure-r-061": [
+3.95,
+3.6
+],
+"upstream-pure-r-062": [
+3.3,
+2.88
+],
+"upstream-pure-r-063": [
+4.07,
+3.67
+],
+"upstream-pure-r-064": [
+4.97,
+4.52
+],
+"upstream-pure-r-065": [
+4.1,
+3.5
+],
+"upstream-pure-r-066": [
+3.07,
+2.65
+],
+"upstream-pure-r-067": [
+5.22,
+3.63
+],
+"upstream-pure-r-068": [
+3.0,
+2.68
+],
+"upstream-pure-r-070": [
+2.65,
+2.32
+],
+"upstream-pure-r-069": [
+3.83,
+3.43
+],
+"upstream-pure-r-071": [
+3.05,
+2.73
+],
+"upstream-pure-r-072": [
+4.35,
+3.92
+],
+"upstream-pure-r-073": [
+4.13,
+3.7
+],
+"upstream-pure-r-074": [
+4.02,
+3.6
+],
+"upstream-pure-r-075": [
+2.13,
+1.82
+],
+"upstream-pure-r-076": [
+3.97,
+3.6
+],
+"upstream-pure-r-077": [
+3.17,
+2.78
+],
+"upstream-pure-r-078": [
+4.1,
+3.7
+],
+"upstream-pure-r-079": [
+3.07,
+2.7
+],
+"upstream-pure-r-080": [
+4.1,
+3.75
+],
+"upstream-pure-r-081": [
+3.47,
+2.85
+],
+"upstream-pure-r-082": [
+2.15,
+1.83
+],
+"upstream-pure-r-083": [
+4.08,
+3.73
+],
+"upstream-pure-r-084": [
+3.52,
+3.15
+],
+"upstream-pure-r-085": [
+3.97,
+3.52
+],
+"upstream-pure-r-086": [
+4.17,
+3.77
+],
+"upstream-pure-r-087": [
+4.23,
+3.85
+],
+"upstream-pure-r-088": [
+4.52,
+4.1
+],
+"upstream-pure-r-089": [
+4.35,
+3.98
+],
+"upstream-pure-r-090": [
+2.27,
+1.93
+],
+"upstream-pure-r-092": [
+2.55,
+2.22
+],
+"upstream-pure-r-091": [
+4.0,
+3.58
+],
+"upstream-pure-r-093": [
+2.35,
+2.03
+],
+"upstream-pure-r-094": [
+3.48,
+3.17
+],
+"upstream-pure-r-095": [
+4.07,
+3.67
+],
+"upstream-pure-r-096": [
+2.43,
+2.12
+],
+"upstream-pure-r-097": [
+3.25,
+2.88
+],
+"upstream-pure-r-098": [
+3.42,
+3.0
+],
+"upstream-pure-r-099": [
+3.82,
+3.42
+],
+"upstream-pure-r-100": [
+3.28,
+2.9
+],
+"upstream-pure-r-101": [
+4.37,
+4.02
+],
+"upstream-pure-r-102": [
+2.42,
+2.08
+],
+"upstream-pure-r-103": [
+4.25,
+3.82
+],
+"upstream-pure-r-104": [
+4.2,
+3.78
+],
+"upstream-pure-r-105": [
+2.58,
+2.2
+],
+"upstream-pure-r-106": [
+3.23,
+2.83
+],
+"upstream-pure-r-107": [
+4.2,
+3.83
+],
+"upstream-pure-r-108": [
+3.45,
+3.07
+],
+"upstream-pure-r-109": [
+3.07,
+2.67
+],
+"upstream-pure-r-110": [
+4.62,
+4.3
+],
+"upstream-pure-r-111": [
+4.87,
+4.43
+],
+"upstream-pure-r-112": [
+4.75,
+4.28
+],
+"upstream-pure-r-113": [
+1.95,
+1.52
+]
+}

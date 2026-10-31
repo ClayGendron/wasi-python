@@ -4,6 +4,10 @@ The owner's answers and decisions, newest first. Until 2026-10-22 questions were
 
 The owner went through every open question on 2026-10-17. Decisions that change the constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The process changes of the 2026-10-30 memo are built (2026-10-30)
+
+Asked by the orchestrating agent after the memo `research/2026-10-30-where-the-time-goes-since-0-1-1.md` measured where the time went in the 0.1.2 cycle. **Answered 2026-10-30:** "Okay, can you implement all the recommendations?", then, on the landing shape, "Three to four PRs by kind", and on the rule changes, "Yes to all three, and I will run the command". What follows: specifications 159 (the runs' shape), 155 (the tag's run publishes what the release pull request judged), 160 (the rules) and 161 (growth reconciled at the release). Three rules of the constitution change with 155 and 160, each recorded in its Status line: §5.5, the tag's run no longer judges both tiers again; §5.7, fix-forward replaces the freeze on merges while `dev` is red; §4.14, `dev` no longer requires an up-to-date head before a merge, and the ruleset for `dev` is changed by the owner with the command 160 writes. The organization move and GitHub's merge queue are the owner's next step when the queue is busy; nothing built here would need undoing then.
+
 ### Spec 126 is dropped (2026-10-25)
 
 Asked by the orchestrating agent after 127's research measured the module drop at 22 ms under wasmtime 50 with native unwind information left on. What 126 would still buy is about 10 MB off every cached `.cwasm` and a drop of 2 to 12 ms instead of 22. **Answered 2026-10-25:** drop it. 127 gives the win that mattered; the leftover stays a benchmark fact in `research/2026-10-24-native-unwind-information-and-the-module-drop.md`. 126's file is marked superseded and its roadmap line retired.
