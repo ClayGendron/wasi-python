@@ -1,0 +1,2 @@
+xarray/tests/test_indexing.py::TestMemoryCachedArray::test_async_sub_array
+xarray/tests/test_indexing.py::TestMemoryCachedArray::test_async_wrapper

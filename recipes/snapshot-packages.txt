@@ -74,3 +74,6 @@ interface-meta: interface_meta
 wrapt: wrapt
 python-docx: docx
 python-pptx: pptx
+pdfminer-six: pdfminer pdfminer.high_level
+pdfplumber: pdfplumber
+xarray: xarray

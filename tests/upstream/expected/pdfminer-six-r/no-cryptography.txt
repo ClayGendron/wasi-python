@@ -1,0 +1,8 @@
+tests/test_tools_dumppdf.py::TestDumpPDF::test_encryption_aes128
+tests/test_tools_dumppdf.py::TestDumpPDF::test_encryption_aes256
+tests/test_tools_pdf2txt.py::TestPdf2Txt::test_encryption_aes128
+tests/test_tools_pdf2txt.py::TestPdf2Txt::test_encryption_aes128m
+tests/test_tools_pdf2txt.py::TestPdf2Txt::test_encryption_aes256
+tests/test_tools_pdf2txt.py::TestPdf2Txt::test_encryption_aes256_r6_owner
+tests/test_tools_pdf2txt.py::TestPdf2Txt::test_encryption_aes256_r6_user
+tests/test_tools_pdf2txt.py::TestPdf2Txt::test_encryption_aes256m

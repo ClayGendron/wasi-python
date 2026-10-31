@@ -32,7 +32,7 @@ A *golden job* is a fixed program whose output the project compares with native 
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx and python-pptx:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, and xarray:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -40,8 +40,10 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
 | | xlrd 2.0.2 | read old `.xls` files |
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
+| labelled arrays | xarray 2026.9.0 | n-dimensional arrays with named dimensions and labels; netCDF3 through scipy |
 | PDF | pypdf 6.21.4 | read, extract text, merge, split, encrypt (RC4) |
 | | reportlab 5.0.1 | write PDFs: text, tables, charts, Unicode text, images |
+| | pdfplumber 0.11.10, pdfminer.six 20260107 | text, words with their positions, and tables from PDF pages |
 | documents | python-docx 1.2.0 | read and write Word `.docx` |
 | | python-pptx 1.0.2 | read and write PowerPoint `.pptx`, charts included |
 | HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.4 | parse messy HTML, CSS selectors |
@@ -74,10 +76,13 @@ Each family has a golden job whose output equals native Python's at the same pin
 These are not in the set, so each raises its `ImportError`, as it does natively without it:
 
 - `pytz`: use `zoneinfo`, which reads the stdlib zip's tzdata;
-- `cryptography`, which pypdf needs for AES;
+- `cryptography`, which pypdf and pdfminer.six need for AES;
+- `pypdfium2`, for pdfplumber's page images;
 - `antlr4` and `lark`, for sympy's `parse_latex`;
 - `odfpy`, for pandas' `engine="odf"`, and `pyxlsb`, for `.xlsb` files;
 - `cssselect` and `lxml_html_clean`, for `lxml.cssselect` and `lxml.html.clean`.
+
+pdfplumber's `page.to_image()` needs pypdfium2, which is not carried; it raises `ModuleNotFoundError`. pdfminer.six reads files encrypted with RC4, and raises `ModuleNotFoundError` naming `cryptography` for one encrypted with AES. xarray's other file engines (netCDF4, h5netcdf, zarr) and its tutorial data are not carried; netCDF3 works through scipy, a file by path with `open_dataset(path, mmap=False)`.
 
 reportlab's bitmap renderer needs rlPyCairo, which is not carried either; it raises `RenderPMError`. Draw reportlab charts to PDF or SVG instead.
 
@@ -91,4 +96,4 @@ To build a package into the artifact set itself, see [Adding a package](../contr
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx and python-pptx in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, and xarray in the zip, each at one pinned version.

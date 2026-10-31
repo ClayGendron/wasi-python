@@ -352,3 +352,20 @@ kind = "suite"
 # its own suite from its test source, groups in tests/upstream/python-pptx.toml: a smoke
 # group in the normal tier, the whole suite in the release tier
 kind = "suite"
+
+# pdfplumber and pdfminer.six, each tested from its release tag's archive; xarray from its sdist.
+
+[package.pdfplumber]
+# its own suite from its test source, groups in tests/upstream/pdfplumber.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+[package.pdfminer-six]
+# its own suite from its test source, groups in tests/upstream/pdfminer-six.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+[package.xarray]
+# its own suite from its test source, groups in tests/upstream/xarray.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"

@@ -1,0 +1,6 @@
+tests/test_cmapdb_security.py::TestCMapSecurity::test_code2cid_key_conversion
+tests/test_cmapdb_security.py::TestCMapSecurity::test_json_format_loading
+tests/test_cmapdb_security.py::TestCMapSecurity::test_unicode_map_json_loading
+tests/test_highlevel_extracttext.py::TestExtractText::test_simple3_with_file
+tests/test_highlevel_extracttext.py::TestExtractText::test_simple3_with_string
+tests/test_pdffont.py::test_get_cmap

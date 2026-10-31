@@ -63,6 +63,10 @@ SOURCE_PATTERNS = {
     # python-docx and python-pptx from their sdists, so each carried patch has a tree
     "python-docx": re.compile(r"python_docx-[\w.]+\.tar\.gz"),
     "python-pptx": re.compile(r"python_pptx-[\w.]+\.tar\.gz"),
+    # pdfminer.six from its sdist, so its carried patch has a tree; xarray from its sdist, for the
+    # notices its wheel lacks
+    "pdfminer-six": re.compile(r"pdfminer_six-[\w.]+\.tar\.gz"),
+    "xarray": re.compile(r"xarray-[\w.]+\.tar\.gz"),
     # The pure-Python packages' test sources: each package's sdist, or, where the sdist carries no
     # tests, its release tag's archive (named `-tag.tar.gz`, so no pattern meets an sdist), and
     # pypdf's sample files at the commit its release tag records. They are data the judge stages,
@@ -89,6 +93,9 @@ SOURCE_PATTERNS = {
     "pyparsing": re.compile(r"pyparsing-[\w.]+\.tar\.gz"),
     "pypdf": re.compile(r"pypdf-[\w.]+\.tar\.gz"),
     "pypdf-samples": re.compile(r"pypdf-[\w.]+-sample-files-tag\.tar\.gz"),
+    # pdfplumber's and pdfminer.six's release tags: their sdists hold no PDF file the tests read
+    "pdfplumber": re.compile(r"pdfplumber-[\w.]+-tag\.tar\.gz"),
+    "pdfminer-six-tests": re.compile(r"pdfminer_six-[\w.]+-tag\.tar\.gz"),
     "python-dateutil": re.compile(r"python\-dateutil-[\w.]+\.tar\.gz"),
     "reportlab": re.compile(r"reportlab-[\w.]+\.tar\.gz"),
     "six": re.compile(r"six-[\w.]+\.tar\.gz"),

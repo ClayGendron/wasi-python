@@ -9,7 +9,10 @@ sandbox lacks raised by name. statsmodels gives native statsmodels' answers, its
 public-domain datasets read from the zip (one carried patch), the thirteen left out raising
 FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised.
 python-docx and python-pptx start from their default templates, read from the zip through one
-carried patch each, and write Word and PowerPoint files with native Python's output."""
+carried patch each, and write Word and PowerPoint files with native Python's output.
+pdfplumber reads text and tables with native Python's output, pdfminer.six without cryptography
+until a file needs AES (one carried patch), and page images name pypdfium2; xarray aligns, groups,
+interpolates and writes netCDF3 with native Python's output."""
 
 from __future__ import annotations
 
@@ -121,6 +124,22 @@ def test_pdf_reports_job_matches_native(guest) -> None:
     Unicode text in DejaVu Sans and a matplotlib image, each PDF's bytes (built invariant and
     uncompressed) or pypdf's read-back equal to the oracle's."""
     _job(guest, "pdf_reports", **MPL)
+
+
+@pytest.mark.slow
+def test_pdf_tables_job_matches_native(guest) -> None:
+    """reportlab draws a two-page ruled table; pdfplumber reads each page's text, its words'
+    boxes, its ruling lines and its tables, and opens a copy pypdf encrypted with RC4 by its
+    password, all as native pdfplumber does."""
+    _job(guest, "pdf_tables")
+
+
+@pytest.mark.slow
+def test_labelled_arrays_job_matches_native(guest) -> None:
+    """xarray aligns two arrays on their labels, groups, rolls, resamples and interpolates through
+    scipy, round-trips a DataFrame and netCDF3 bytes, and draws its HTML view from the package's
+    files, as native xarray does; an absent engine and the tutorial data fail by name."""
+    _job(guest, "labelled_arrays")
 
 
 PURE = """
@@ -913,3 +932,116 @@ def test_statsmodels_modules_are_builtin(guest, which) -> None:
     assert len(got["names"]) == SM_MODULES, got["names"]
     assert set(SM_RENAMED) <= set(got["names"]), got["names"]
     assert got["wrong"] == [], got["wrong"]
+
+
+# pdfplumber and pdfminer.six. A one-page PDF, and the same page encrypted with AES-256 (revision
+# 6), whose password check itself runs AES, are written in the program; no file is granted.
+PDF_PAGES = """
+import io, json, sys
+import pdfplumber
+from pdfminer.high_level import extract_text
+out = {"files": [pdfplumber.__file__, sys.modules["pdfminer"].__file__],
+       "cryptography": "cryptography" in sys.modules}
+
+def pdf(objs, trailer=b""):
+    data = bytearray(b"%PDF-1.7\\n")
+    offsets = []
+    for i, o in enumerate(objs, 1):
+        offsets.append(len(data))
+        data += b"%d 0 obj\\n" % i + o + b"\\nendobj\\n"
+    xref = len(data)
+    data += b"xref\\n0 %d\\n0000000000 65535 f \\n" % (len(objs) + 1)
+    for o in offsets:
+        data += b"%010d 00000 n \\n" % o
+    tail = b"trailer\\n<< /Size %d /Root 1 0 R%s >>\\nstartxref\\n%d\\n%%%%EOF\\n"
+    return bytes(data + tail % (len(objs) + 1, trailer, xref))
+
+def zeros(n):
+    return b"<" + b"00" * n + b">"
+
+PAGE = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] >>"]
+AES = (b"<< /Filter /Standard /V 5 /R 6 /Length 256 /P -4 /O " + zeros(48) + b" /U " + zeros(48)
+       + b" /OE " + zeros(32) + b" /UE " + zeros(32) + b" /Perms " + zeros(16)
+       + b" /CF << /StdCF << /CFM /AESV3 /AuthEvent /DocOpen /Length 32 >> >>"
+       + b" /StmF /StdCF /StrF /StdCF >>")
+locked = pdf(PAGE + [AES], b" /Encrypt 4 0 R /ID [" + zeros(16) + b" " + zeros(16) + b"]")
+with pdfplumber.open(io.BytesIO(pdf(PAGE))) as p:
+    page = p.pages[0]
+    out["plain"] = [len(p.pages), page.width, page.height]
+    try:
+        page.to_image()
+    except Exception as e:
+        out["to_image"] = [type(e).__name__, getattr(e, "name", None)]
+out["cryptography after a plain file"] = "cryptography" in sys.modules
+try:
+    pdfplumber.open(io.BytesIO(locked))
+except Exception as e:
+    cause = e.args[0] if e.args else None
+    out["aes"] = [type(e).__name__, type(cause).__name__, getattr(cause, "name", None)]
+try:
+    extract_text(io.BytesIO(locked))
+except Exception as e:
+    out["aes, pdfminer"] = [type(e).__name__, getattr(e, "name", None)]
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_pdfplumber_needs_cryptography_only_for_aes(guest, artifacts, which) -> None:
+    """pdfplumber and pdfminer.six import from the zip without cryptography, which the profile
+    does not carry, and read a plain file; a file encrypted with AES raises ModuleNotFoundError
+    naming it (pdfplumber wraps it in its PdfminerException), and a page image names pypdfium2,
+    which is not carried either. The zip holds none of pdfminer's predefined CJK character maps.
+    Without the carried patch `import pdfplumber` itself raises ModuleNotFoundError."""
+    r = guest(which, ["-c", PDF_PAGES], root_writable=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    zip_path = "/usr/local/lib/python315.zip/"
+    assert all(f.startswith(zip_path) for f in got.pop("files")), r.text
+    assert got == {
+        "cryptography": False,
+        "plain": [1, 200, 100],
+        "to_image": ["ModuleNotFoundError", "pypdfium2"],
+        "cryptography after a plain file": False,
+        "aes": ["PdfminerException", "ModuleNotFoundError", "cryptography"],
+        "aes, pdfminer": ["ModuleNotFoundError", "cryptography"],
+    }, got
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        assert not [n for n in z.namelist() if n.startswith("pdfminer/cmap/")]
+
+
+# xarray reads a netCDF3 file on disk through scipy, which maps a file it is given by path; the
+# guest has no mmap, so the limitations page names the two routes that read it.
+NETCDF_FILE = """
+import json, os
+import numpy as np
+import xarray as xr
+os.makedirs("/work", exist_ok=True)
+ds = xr.Dataset({"a": ("x", np.arange(3.0))}, coords={"x": [10.0, 20.0, 30.0]}, attrs={"t": "u"})
+ds.to_netcdf("/work/a.nc")
+out = {}
+try:
+    xr.open_dataset("/work/a.nc").load()
+    out["by path"] = "read"
+except OSError as e:
+    out["by path"] = str(e)
+with xr.open_dataset("/work/a.nc", mmap=False) as read:
+    out["mmap=False"] = read.load().identical(ds)
+with open("/work/a.nc", "rb") as f, xr.open_dataset(f) as read:
+    out["an open file"] = read.load().identical(ds)
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_xarray_reads_netcdf3_files_without_mmap(guest, which) -> None:
+    """A netCDF3 file written to a folder reads back identical with `mmap=False`, and through an
+    open file; opened by path alone it raises OSError naming mmap, which the guest lacks."""
+    r = guest(which, ["-c", NETCDF_FILE])
+    assert r.exit_code == 0, r.describe()
+    assert json.loads(r.text) == {
+        "by path": "mmap is unavailable on wasm32-wasi",
+        "mmap=False": True,
+        "an open file": True,
+    }, r.text

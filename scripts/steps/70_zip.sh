@@ -50,6 +50,12 @@
 # patch, which reads each template through the package's loader, so it is found in the zip; their
 # METADATA their PKG-INFO; and docx/templates/default-docx-template left out, the unpacked source
 # of default.docx, which no module reads.
+# pdfplumber: its pure wheel; pdfminer.six, which it reads PDF files with, from
+# its sdist with its carried patch, which imports cryptography only where AES runs, without its
+# cmap folder (the predefined CJK character maps, read by path; a font that names one and has no
+# ToUnicode table reads as `(cid:N)`); xarray from its sdist, whose licences folder holds the
+# notices of the code it adapts, with its entry_points.txt, as networkx's. Both sdists' METADATA
+# their PKG-INFO.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -82,9 +88,10 @@ done
 [ -n "$BUILD_PYTHON" ] || die "no build-Python under $CP/cross-build"
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
 remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" \
-  "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pure-install"
+  "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pdfminer_six-20260107" "$B/xarray-2026.9.0" \
+  "$B/pure-install"
 for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2 python_docx-1.2.0 \
-  python_pptx-1.0.2; do
+  python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -96,6 +103,8 @@ cp -R "$B/networkx-3.7/networkx" "$B/pure-install/networkx"
 cp -R "$B/seaborn-0.13.2/seaborn" "$B/pure-install/seaborn"
 cp -R "$B/python_docx-1.2.0/src/docx" "$B/pure-install/docx"
 cp -R "$B/python_pptx-1.0.2/src/pptx" "$B/pure-install/pptx"
+cp -R "$B/pdfminer_six-20260107/pdfminer" "$B/pure-install/pdfminer"
+cp -R "$B/xarray-2026.9.0/xarray" "$B/pure-install/xarray"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -151,6 +160,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned formulaic-1.2.2-py3-none-any.whl)" \
   --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
   --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
+  --wheel "$(pinned pdfplumber-0.11.10-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.4/PKG-INFO" \
   --metadata "$B/pandas-3.0.6/PKG-INFO" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
@@ -169,6 +179,9 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/statsmodels-0.15.0/PKG-INFO" \
   --metadata "$B/python_docx-1.2.0/PKG-INFO" \
   --metadata "$B/python_pptx-1.0.2/PKG-INFO" \
+  --metadata "$B/pdfminer_six-20260107/PKG-INFO" \
+  --metadata "$B/xarray-2026.9.0/PKG-INFO" \
+  --entry-points "$B/xarray-2026.9.0/PKG-INFO" "$B/xarray-2026.9.0/xarray.egg-info/entry_points.txt" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -198,6 +211,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --drop statsmodels/datasets/sunspots/src \
   --drop statsmodels/sandbox/rlsdata.txt \
   --drop docx/templates/default-docx-template \
+  --drop pdfminer/cmap \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \

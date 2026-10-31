@@ -1,0 +1,16 @@
+tests/test_display.py::Test::test__repr_png_
+tests/test_display.py::Test::test_antialias
+tests/test_display.py::Test::test_basic_conversion
+tests/test_display.py::Test::test_bytes_stream_to_image
+tests/test_display.py::Test::test_copy
+tests/test_display.py::Test::test_cropbox
+tests/test_display.py::Test::test_cropped
+tests/test_display.py::Test::test_curves
+tests/test_display.py::Test::test_debug_tablefinder
+tests/test_display.py::Test::test_decompression_bomb
+tests/test_display.py::Test::test_no_quantize
+tests/test_display.py::Test::test_outline_chars
+tests/test_display.py::Test::test_outline_words
+tests/test_display.py::Test::test_password
+tests/test_display.py::Test::test_width_height
+tests/test_display.py::Test::test_zip

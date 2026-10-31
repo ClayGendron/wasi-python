@@ -245,6 +245,12 @@ get https://files.pythonhosted.org/packages/52/a9/0c0db8d37b2b8a645666f7fd8accea
 get https://files.pythonhosted.org/packages/fc/75/0576b03f7889ad25b5385b4f6c69e0543713425a6f193b056c9b0a2e65ce/formulaic-1.2.2-py3-none-any.whl formulaic-1.2.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/a1/d3/20a61a248feb1249cd81f83ce731f0bdf5170ed96a08a298f7081cda9e90/interface_meta-2.0.1-py3-none-any.whl interface_meta-2.0.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/77/8b/1ea57b936b70f98e8e7620a352578096d778dbee95b262f73c066d210ffb/wrapt-2.5.2-py3-none-any.whl wrapt-2.5.2-py3-none-any.whl
+# pdfplumber, its pure wheel, and pdfminer.six, which it pins exactly, from its sdist, since it
+# carries a patch; xarray from its sdist, which holds the notices of the code it adapts (its wheel
+# holds one licence); all pure Python
+get https://files.pythonhosted.org/packages/a2/9a/07d658e1e7fad860f1c541ab941348125dbdab773be3a0afaf32361866c7/pdfplumber-0.11.10-py3-none-any.whl pdfplumber-0.11.10-py3-none-any.whl
+get https://files.pythonhosted.org/packages/34/a4/5cec1112009f0439a5ca6afa8ace321f0ab2f48da3255b7a1c8953014670/pdfminer_six-20260107.tar.gz pdfminer_six-20260107.tar.gz
+get https://files.pythonhosted.org/packages/ff/f5/781c70b234f54e0401f4f7c4427a7486da38d50dbb138c7d7c55144b3d86/xarray-2026.9.0.tar.gz xarray-2026.9.0.tar.gz
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)
@@ -316,6 +322,10 @@ tests https://github.com/jmcnamara/XlsxWriter/archive/refs/tags/RELEASE_3.2.9.ta
 tests https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz openpyxl-3.1.5-tag.tar.gz https://github.com/ClayGendron/wasi-python/releases/download/test-sources-2026-10-28/openpyxl-3.1.5-tag.tar.gz
 tests https://foss.heptapod.net/openpyxl/et_xmlfile/-/archive/2.0.0/et_xmlfile-2.0.0.tar.gz et_xmlfile-2.0.0-tag.tar.gz https://github.com/ClayGendron/wasi-python/releases/download/test-sources-2026-10-28/et_xmlfile-2.0.0-tag.tar.gz
 tests https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz pypdf-6.21.4-sample-files-tag.tar.gz
+# pdfplumber's and pdfminer.six's release tags: their sdists hold the tests but not the PDF files the
+# tests read
+tests https://github.com/jsvine/pdfplumber/archive/refs/tags/v0.11.10.tar.gz pdfplumber-0.11.10-tag.tar.gz
+tests https://github.com/pdfminer/pdfminer.six/archive/refs/tags/20260107.tar.gz pdfminer_six-20260107-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

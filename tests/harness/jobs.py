@@ -68,6 +68,9 @@ JOBS = (
     "statistical_models",
     # python-docx and python-pptx from their default templates
     "documents",
+    # pdfplumber's tables and xarray's labelled arrays
+    "pdf_tables",
+    "labelled_arrays",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the

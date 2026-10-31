@@ -107,6 +107,11 @@ PACKAGES = {
     # a tree to apply to
     "python-docx": "1.2.0",
     "python-pptx": "1.0.2",
+    # pdfplumber, its pure wheel, and pdfminer.six, which it pins exactly, from its sdist with its
+    # carried patch; xarray from its sdist, with the notices of the code it adapts
+    "pdfplumber": "0.11.10",
+    "pdfminer-six": "20260107",
+    "xarray": "2026.9.0",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -152,6 +157,7 @@ WHEELS = {
     "formulaic": "formulaic-1.2.2-py3-none-any.whl",
     "interface-meta": "interface_meta-2.0.1-py3-none-any.whl",
     "wrapt": "wrapt-2.5.2-py3-none-any.whl",
+    "pdfplumber": "pdfplumber-0.11.10-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -413,6 +419,23 @@ SEABORN_NOTICES = (
     "licences/PACKAGING_LICENSE",
     "licences/SCIPY_LICENSE",
 )
+# pdfminer.six's notices beside its MIT licence, comments in its code that compilation drops: each
+# (file, first line, last line, words the lines must hold). _saslprep.py is MongoDB's, under
+# Apache-2.0 (whose text follows), with Matthias Valvekens' changes under pyHanko's MIT licence;
+# glyphlist.py holds Adobe's Glyph List under its notice, fontmetrics.py the Adobe Core 35 AFM
+# files' terms; arcfour.py and runlength.py are in the public domain.
+PDFMINER_TOP = "pdfminer_six-20260107"
+PDFMINER_NOTICES = (
+    ("pdfminer/_saslprep.py", 1, 16, ("MongoDB", "Apache License, Version 2.0", "pyHanko")),
+    ("pdfminer/glyphlist.py", 16, 46, ("Adobe Systems Incorporated", "Permission is hereby")),
+    ("pdfminer/fontmetrics.py", 12, 27, ("Adobe Core 35 AFM", "paragraph is not modified")),
+    ("pdfminer/arcfour.py", 1, 3, ("public domain",)),
+    ("pdfminer/runlength.py", 1, 5, ("public domain",)),
+)
+# xarray's notice: its Apache-2.0 licence, then every file of its sdist's licenses folder, the
+# notices of the code it adapts (from dask, pandas, NumPy, seaborn, scikit-learn, anytree and
+# Python) and of its HTML view's icons (IcoMoon's, CC BY 4.0).
+XARRAY_TOP = "xarray-2026.9.0"
 # reportlab's third-party notices, comments in its code that
 # compilation drops: each file's leading comment block, byte for byte from the pinned wheel, after
 # its wheel's LICENSE. (file, words the block must hold, what the heading says.) Sarna's notice
@@ -713,6 +736,24 @@ def sklearn_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
     return parts
 
 
+def pdfminer_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/pdfminer-six.txt's parts: its licence, the notices in its code, and the plain
+    Apache-2.0 text _saslprep.py's notice names."""
+    parts = [("pdfminer.six LICENSE", (tree / "LICENSE").read_bytes())]
+    parts += [
+        (f"pdfminer.six {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
+        for n, a, b, words in PDFMINER_NOTICES
+    ]
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    parts.append(
+        (
+            f"Apache License 2.0, the full text, for pdfminer/_saslprep.py ({apache})",
+            pinned_bytes(d, apache),
+        )
+    )
+    return parts
+
+
 def dataset_copyright(tree: Path, name: str) -> str:
     """A statsmodels dataset module's COPYRIGHT string, read without running it, on one line."""
     path = tree / "statsmodels" / "datasets" / name / "data.py"
@@ -895,6 +936,12 @@ def main() -> None:
         ],
         "python-pptx": [
             ("python-pptx LICENSE", (b / "python_pptx-1.0.2" / "LICENSE").read_bytes())
+        ],
+        "pdfminer-six": pdfminer_parts(b / PDFMINER_TOP, d),
+        "xarray": [("xarray LICENSE", (b / XARRAY_TOP / "LICENSE").read_bytes())]
+        + [
+            (f"xarray licenses/{p.name}", p.read_bytes())
+            for p in licence_files(b / XARRAY_TOP / "licenses")
         ],
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
         "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],

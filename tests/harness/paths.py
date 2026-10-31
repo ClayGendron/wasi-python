@@ -183,6 +183,11 @@ LICENCE_COMPONENTS = (
     # python-docx and python-pptx, each its sdist's MIT licence
     "python-docx",
     "python-pptx",
+    # pdfplumber, its wheel's MIT licence; pdfminer.six, its MIT licence and the notices in its
+    # code; xarray, its Apache-2.0 licence and its sdist's licenses folder
+    "pdfplumber",
+    "pdfminer-six",
+    "xarray",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -255,6 +260,9 @@ PACKAGES = (
     "wrapt",
     "python-docx",
     "python-pptx",
+    "pdfplumber",
+    "pdfminer-six",
+    "xarray",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

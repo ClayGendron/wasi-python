@@ -1,0 +1,1 @@
+tests/test_oss_fuzz.py::Test::test_load
