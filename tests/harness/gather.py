@@ -3,28 +3,30 @@
     uv run python tests/harness/gather.py --records records [--out release-record]
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
-set's own `SHA256SUMS`), `RECORD_BUILD_BUILD` (the SHA-256 build-shard handed on), `TIER` (the tier
-the decision job decided), `PLAN` on a pull request into dev (the (system, shard) pairs the
-decision job selected, as a JSON list of `system/shard`), and
-`GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets them
-(a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the artifact
-its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's folder;
-the build shard's, by id, into `build-shard/`. From those it derives again whether this is a
-release run (a pushed tag, a run on main, or a pull request into main), which must have judged the
-release tier. It collects the judge once at this commit and is red, one line per reason, unless G1
-to G7 hold. On a pull request into dev, G1 to G6 hold over the selected pairs, the rows an
-acceptance needs a reason for are listed under GROWTH rather than red, and G7 is not evaluated.
-After a merge into dev G1 to G6 are whole, G7 is not evaluated, since that run makes the
-acceptance it would compare with, and the rows an acceptance needs a reason for are listed too:
-the accept job clears each with the claim of a news file, or refuses it. On both, an absent check
-a news file's claim retires is listed beside them; one no claim retires stays red, as a lost pass
-does. Each listed row names the reason a news file's claim gives (the news files at this commit),
-or `unclaimed`. The release pull request into main is judged whole, with G7 in its own form, its
-rows that a claim of the news files or of the release ledger gives a reason for listed as
-after a merge, and the rest red. It prints the merged scoreboard, writes the merged record (with
-its own red lines, the event, and each shard's commit and guards, which the acceptance from CI's
-record holds) and the job's summary, and writes nothing to the progress history. It is the
-parallel judge's controller merge, across machines.
+set's own `SHA256SUMS`), `RECORD_BUILD_BUILD` (the SHA-256 the x86-64 rebuild handed on for the
+build shard's record), `TIER` (the tier the decision job decided), `BUILD` (whether the decision
+job ran the build shard: only where a run rebuilds the set from the pins), `PLAN` on a pull request
+into dev (the (system, shard) pairs the decision job selected, as a JSON list of `system/shard`),
+and `GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets
+them (a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the
+artifact its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's
+folder; the build shard's, by id, into `rebuild-linux-x86-64/`. From those it derives again whether
+this is a release run (a pushed tag, a run on main, or a pull request into main), which must have
+judged the release tier. It collects the judge once at this commit and is red, one line per reason,
+unless G1 to G7 hold. On a pull request into dev, G1 to G6 hold over the selected pairs, the rows
+an acceptance needs a reason for are listed under GROWTH rather than red, and G7 is not evaluated.
+After a merge into dev G1 to G6 are whole but for the build shard, which runs only where the pins
+are compiled (its checks are not selected there, as the release tier's are not on a normal run); G7
+is not evaluated, since that run makes the acceptance it would compare with, and the rows an
+acceptance needs a reason for are listed too: the accept job clears each with the claim of a news
+file, or refuses it. On both, an absent check a news file's claim retires is listed beside them;
+one no claim retires stays red, as a lost pass does. Each listed row names the reason a news file's
+claim gives (the news files at this commit), or `unclaimed`. The release pull request into main is
+judged whole, with G7 in its own form, its rows that a claim of the news files or of the
+release ledger gives a reason for listed as after a merge, and the rest red. It prints the
+merged scoreboard, writes the merged record (with its own red lines, the event, and each shard's
+commit and guards, which the acceptance from CI's record holds) and the job's summary, and writes
+nothing to the progress history. It is the parallel judge's controller merge, across machines.
 """
 
 from __future__ import annotations
@@ -66,9 +68,10 @@ CI_NEEDS: dict[str, frozenset[str]] = {
 # The worst status first; `deselected` last, so a check run anywhere is never shown deselected.
 ORDER = ("fail", "unrun", "blocked", "gap", "pass", "deselected")
 UPSTREAM_SUITE = re.compile(re.escape(shards.UPSTREAM_FILE) + r"::test_upstream_suite\[(.+)\]$")
-# The build record comes from build-shard, a fresh arm64 Linux build on every run.
+# The build record comes from the x86-64 rebuild, which compiles from the pins wherever a run
+# rebuilds, and runs the build shard on its own tree.
 JOB = {
-    "build": "build-shard",
+    "build": "rebuild-linux-x86-64",
     "macos": "judge-macos",
     "linux": "judge-linux",
     "windows": "judge-windows",
@@ -82,13 +85,15 @@ def expected_keys(
     plan: dict[str, shards.Shard],
     tier: str = "normal",
     selected: list[tuple[str, str]] | None = None,
+    build: bool = True,
 ) -> list[tuple[str, str]]:
-    """(system, shard) for every record the run hands on: each system's shards, and build; the
-    release shards only when the run judged the release tier. On a pull request, exactly the
-    pairs its plan selected (`selected`), each one the plan runs on that system."""
+    """(system, shard) for every record the run hands on: each system's shards, and build when
+    the run ran the build shard (`build`); the release shards only when the run judged the
+    release tier. On a pull request, exactly the pairs its plan selected (`selected`), each one
+    the plan runs on that system."""
     if selected is not None:
         return [k for k in selected if _in_plan(plan, k)]
-    keys = [("build", "build")] if "build" in plan else []
+    keys = [("build", "build")] if "build" in plan and build else []
     keys += [(s, name) for s in shards.OWN_SYSTEMS for name in shards.on(plan, s)]
     if tier == "release":
         keys += [("release", name) for name in shards.on(plan, "release")]
@@ -127,6 +132,8 @@ class Inputs:
     release_checks: set[str] = field(default_factory=set)  # by the upstream files at this commit
     # The pairs a pull request's plan selected (PLAN); None on a run judged whole.
     selected: list[tuple[str, str]] | None = None
+    # Whether the run ran the build shard (BUILD): only where it rebuilt the set from the pins.
+    build: bool = True
     event: str = ""  # GITHUB_EVENT_NAME
     # G7's form for the event: whole, pull-request, post-merge or release-pull-request.
     g7: str = "whole"
@@ -222,7 +229,7 @@ def gather(i: Inputs) -> Verdict:
             red.append(
                 f"G1 {system}/{name}: selected, and the plan does not run {name} on {system}"
             )
-    keys = expected_keys(i.plan, i.tier, i.selected)
+    keys = expected_keys(i.plan, i.tier, i.selected, i.build)
     # What this run was asked to judge: the selected shards' goal checks, or the whole judge.
     selected_shards = {name for _, name in keys}
     # G1: every record, and only those, one to one, each under its own job's folder.
@@ -325,13 +332,15 @@ def gather(i: Inputs) -> Verdict:
         if not ran and not units.get("count"):
             red.append(f"{where}: selected nothing")
     unrun = collected - run_somewhere
-    if i.selected is not None:  # a check of a shard the plan left out was not this run's to run
-        unrun &= {n for name in selected_shards for n in goal_share.get(name, [])}
-    in_scope = (
-        collected
-        if i.selected is None
-        else {n for name in selected_shards for n in goal_share.get(name, [])}
-    )
+    # A check of a shard the plan left out was not this run's to run: on a pull request, every
+    # shard it did not select; on a run judged whole, the build shard where it did not rebuild.
+    if i.selected is not None:
+        in_scope = {n for name in selected_shards for n in goal_share.get(name, [])}
+    elif i.build:
+        in_scope = collected
+    else:  # the judge less the build shard's share: a check in no shard's share stays red
+        in_scope = collected - set(goal_share.get("build", []))
+    unrun &= in_scope
     if normal:  # the normal tier runs no release-tier check, and must not
         unrun -= i.release_checks
         red += [
@@ -915,6 +924,15 @@ def read_plan(environ) -> list[tuple[str, str]] | None:
     return [(p[0], p[1]) for p in pairs]
 
 
+def read_build(environ) -> bool:
+    """Whether the run ran the build shard, the decision job's `build` output as `BUILD`; a run
+    that hands on none (a local gather) is judged whole. A malformed BUILD stops the gather."""
+    text = environ.get("BUILD", "")
+    if text not in ("", "true", "false"):
+        raise SystemExit(f"gather: BUILD is {text[:40]!r}, not true or false")
+    return text != "false"
+
+
 def record_path(records_dir: Path, system: str, shard: str) -> Path:
     """Where a shard's record lands: the build shard's, downloaded by id, in its job's folder
     itself; every other, downloaded by its artifact's name, in a folder of that name under its
@@ -953,7 +971,8 @@ def main(argv: list[str]) -> int:
     plan = shards.load()
     tier = os.environ.get("TIER", "")
     selected = read_plan(os.environ)
-    handed = handed_from(a.records, expected_keys(plan, tier, selected))
+    build = read_build(os.environ)
+    handed = handed_from(a.records, expected_keys(plan, tier, selected, build))
     # The build shard's record also comes with the SHA-256 its job handed on: G1 holds the file
     # downloaded by its id to it.
     if os.environ.get("RECORD_BUILD_BUILD") and ("build", "build") in handed:
@@ -987,6 +1006,7 @@ def main(argv: list[str]) -> int:
             release_run=is_release_run(os.environ),
             release_checks=upstream.release_checks(upstream.load_all()),
             selected=selected,
+            build=build,
             event=os.environ.get("GITHUB_EVENT_NAME", ""),
             g7=g7_form(os.environ),
             ref=os.environ.get("GITHUB_REF", ""),

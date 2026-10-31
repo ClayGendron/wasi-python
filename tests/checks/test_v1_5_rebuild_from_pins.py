@@ -234,7 +234,7 @@ def test_stdlib_zip_names_no_build_host(artifacts) -> None:
 
 
 def test_release_workflow_rebuilds_on_two_more_hosts() -> None:
-    """An arm64 Linux runner and an x86_64 Linux runner rebuild the set beside the build, each
+    """An arm64 macOS runner and an x86_64 Linux runner rebuild the set beside the build, each
     within its own time limit and printing its core count and binfmt_misc entries, and nothing is
     signed or published until each one's SHA256SUMS and wheel equal the set's."""
     workflow = paths.REPO / ".github" / "workflows" / "release.yml"

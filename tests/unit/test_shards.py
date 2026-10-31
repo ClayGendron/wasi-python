@@ -63,6 +63,7 @@ def _plan(text: str = PLAN_TEXT, tmp: Path | None = None) -> dict:
             tuple(s.get("groups", ())),
             bool(s.get("rest", False)),
             tuple(s.get("nodes", ())),
+            s.get("minutes"),
         )
         for name, s in tomllib.loads(text)["shard"].items()
     }
@@ -413,6 +414,36 @@ def test_each_bad_node_is_named(change, error) -> None:
         assert any(e.startswith(error) for e in errors), errors
 
 
+# A shard of the build shard's file's checks that need no build tree, run where the build shard
+# is not: Linux, the build shard's own platform, and macOS.
+TREE_FREE = """[shard.own-pins]
+nodes = ["tests/checks/test_a.py::test_q"]
+systems = ["macos", "linux"]
+
+"""
+
+
+def test_a_build_shard_check_that_needs_no_tree_may_run_on_linux_and_macos() -> None:
+    """A check of the build shard's file that needs no build tree runs on every merge in a nodes
+    shard that keeps Linux, the build shard's platform: it takes the check off no platform."""
+    plan = _plan(PLAN_TEXT.replace("[shard.up-1]", TREE_FREE + "[shard.up-1]"))
+    errors = shards.plan_errors(plan, FILES, GROUPS)
+    assert not [e for e in errors if e.startswith(("(a)", "(h)"))], errors
+    got = shards.select(
+        ["tests/checks/test_a.py::test_q", "tests/checks/test_a.py::test_x"], plan, {}
+    )
+    assert got["own-pins"] == ["tests/checks/test_a.py::test_q"]
+    assert got["build"] == ["tests/checks/test_a.py::test_x"]
+
+
+def test_a_build_shard_check_taken_off_linux_is_named() -> None:
+    text = TREE_FREE.replace('["macos", "linux"]', '["windows"]')
+    plan = _plan(PLAN_TEXT.replace("[shard.up-1]", text + "[shard.up-1]"))
+    errors = shards.plan_errors(plan, FILES, GROUPS)
+    want = "(h) own-pins: takes checks of tests/checks/test_a.py, the build shard's, off Linux"
+    assert any(e.startswith(want) for e in errors), errors
+
+
 def test_a_shard_names_a_function_and_takes_every_case_of_it() -> None:
     """`file::function` takes each parameter case; the file's other checks
     stay with the file's shard; a whole node id still names one check."""
@@ -523,6 +554,7 @@ RELEASE_PLAN = (
     + """
 [shard.up-release]
 groups = ["r1", "r2"]
+minutes = 7.5
 systems = ["release"]
 """
 )
@@ -556,6 +588,18 @@ BAD_RELEASE_PLANS = [
     (('systems = ["release"]', 'systems = ["release", "linux"]'), "(i) up-release: a release"),
     # an empty release shard
     (('groups = ["r1", "r2"]', "groups = []"), "(a) up-release selects by not exactly one"),
+    # a release shard without its measured minutes, or with minutes that are no number
+    (("minutes = 7.5\n", ""), "(j) up-release: a release shard has no minutes"),
+    (("minutes = 7.5\n", 'minutes = "7.5"\n'), "(j) up-release: a release shard has no minutes"),
+    (("minutes = 7.5\n", "minutes = -1\n"), "(j) up-release: a release shard has no minutes"),
+    # minutes on a shard of the normal tier, which are measured per release leg alone
+    (
+        (
+            'groups = ["g3"]\nsystems = ["linux"]',
+            'groups = ["g3"]\nminutes = 2.0\nsystems = ["linux"]',
+        ),
+        "(j) up-2: minutes on a shard that is not a release shard",
+    ),
 ]
 
 
@@ -566,6 +610,32 @@ def test_each_bad_release_shard_is_named(change, error) -> None:
     plan = _plan(RELEASE_PLAN.replace(old, new))
     errors = shards.plan_errors(plan, FILES, [*GROUPS, "r1", "r2"], RELEASE_GROUPS)
     assert any(e.startswith(error) for e in errors), errors
+
+
+def test_at_most_eighty_release_shards() -> None:
+    """The release tier's legs are packed to about twelve measured minutes each, so their count
+    stays near the plan's sixty-five; a count past eighty is a packing undone."""
+    groups = [f"r{k}" for k in range(81)]
+    text = PLAN_TEXT + "".join(
+        f'[shard.up-release-{k}]\ngroups = ["r{k}"]\nminutes = 1.0\nsystems = ["release"]\n\n'
+        for k in range(81)
+    )
+    errors = shards.plan_errors(_plan(text), FILES, [*GROUPS, *groups], set(groups))
+    assert any(e.startswith("(j) 81 release shards, more than 80") for e in errors), errors
+    fewer = PLAN_TEXT + "".join(
+        f'[shard.up-release-{k}]\ngroups = ["r{k}"]\nminutes = 1.0\nsystems = ["release"]\n\n'
+        for k in range(80)
+    )
+    errors = shards.plan_errors(_plan(fewer), FILES, [*GROUPS, *groups[:80]], set(groups[:80]))
+    assert not any(e.startswith("(j)") for e in errors), errors
+
+
+def test_the_real_plans_release_shards_carry_their_minutes_and_are_at_most_eighty() -> None:
+    plan = shards.load()
+    release = [s for s in plan.values() if "release" in s.systems]
+    assert 0 < len(release) <= shards.MAX_RELEASE_SHARDS
+    assert all(isinstance(s.minutes, float) and s.minutes > 0 for s in release)
+    assert all(s.minutes is None for s in plan.values() if "release" not in s.systems)
 
 
 def test_a_release_group_needs_no_linux_shard_of_the_normal_tier() -> None:

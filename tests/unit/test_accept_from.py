@@ -428,6 +428,28 @@ def test_13_a_tier_move_is_cleared_by_moved(inputs) -> None:
     assert json.loads(a.line)["tier_move_reason"] == "999: its tests are slow"
 
 
+def test_a_check_the_record_did_not_select_keeps_its_accepted_row_and_its_pass(inputs) -> None:
+    """A merge's run judges no build shard: its checks ran in no record, which the gather allows
+    as not selected. The acceptance keeps their accepted rows, and their passes stay in the
+    history's passed set, as a normal run keeps the release tier's."""
+    before = copy.deepcopy(inputs.accepted["checks"][TOOLS])
+    start = json.loads(inputs.history_lines[-1])
+    inputs.record["checks"][TOOLS] = {
+        "area": AREAS[TOOLS],
+        "status": "deselected",
+        "reason": "",
+        "need": None,
+        "metrics": {},
+        "worst_platform": DARWIN,
+    }
+    inputs.record["deselected"] = [TOOLS]
+    a = accept_from.accept(inputs)
+    assert a.accepted["checks"][TOOLS] == before
+    line = json.loads(a.line)
+    assert line["passed_removed"] == []
+    assert line["counts"] == start["counts"]
+
+
 def test_14_a_history_that_does_not_replay_is_refused(inputs) -> None:
     inputs.history_errors = ["history line 1: prev does not hash line 0"]
     assert "history" in refused(inputs)

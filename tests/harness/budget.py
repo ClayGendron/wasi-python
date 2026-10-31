@@ -53,6 +53,7 @@ LANDING_LINES = 15  # its landing notes are ten lines; the history lives in the 
 LENGTH_SINCE = "2026-10-30"
 DATE = re.compile(r"^- \*\*Date:\*\*\s*(\d{4}-\d{2}-\d{2})", re.M)
 ANY_DATE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+RELEASE_WARNING = "::warning title=release leg minutes::"
 
 
 @dataclass(frozen=True)
@@ -290,6 +291,20 @@ def length_warnings(specs: Iterable[Path], summary: Path | None = None) -> list[
             f.write("### Long specifications (warnings)\n\n")
             f.write("".join(f"- {line}\n" for line in lines) + "\n")
     return [LENGTH_WARNING + line for line in lines]
+
+
+def release_minutes_warnings(plan: dict) -> list[str]:
+    """The annotation lines for each release shard whose measured minutes pass the packing's
+    cap: a group too long to share a leg, named until its suite's groups are split. Never a
+    failure, since the minutes were read from one run's host."""
+    from harness import shards
+
+    cap = shards.RELEASE_LEG_MINUTES
+    return [
+        f"{RELEASE_WARNING}{name}: {s.minutes} measured minutes, past the release legs' {cap}"
+        for name, s in plan.items()
+        if "release" in s.systems and isinstance(s.minutes, int | float) and s.minutes > cap
+    ]
 
 
 def main(argv: list[str]) -> int:

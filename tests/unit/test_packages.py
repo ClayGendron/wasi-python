@@ -262,7 +262,7 @@ def test_the_upstream_stage_never_takes_a_package_family(monkeypatch, tmp_path) 
         ("upstream-plot-b", ["matplotlib", "pillow", "regex"]),
         ("upstream-plot-a", ["contourpy", "matplotlib"]),
         ("upstream-plot-i", ["contourpy"]),
-        ("upstream-release-a", ["cpython"]),
+        ("upstream-release-004", ["scipy", "statsmodels"]),
         ("upstream-numpy-a", ["cpython", "numpy", "pandas"]),
         ("upstream-sci-smoke-a", ["scipy"]),
         ("upstream-sci-smoke-b", ["scikit_learn", "statsmodels"]),

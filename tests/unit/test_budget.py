@@ -150,6 +150,23 @@ def test_a_time_past_the_seconds_is_a_warning_and_never_a_failure(tmp_path: Path
     ]
 
 
+def test_a_release_shard_past_its_minutes_is_a_warning_and_never_a_failure() -> None:
+    """The release legs are packed to twelve measured minutes; a shard past that, a group too
+    long to share a leg, is named as a warning annotation, never a failure: a duration depends on
+    the host that measured it."""
+    from harness import shards
+
+    plan = {
+        "a": shards.Shard("a", ("release",), groups=("g1",), minutes=18.0),
+        "b": shards.Shard("b", ("release",), groups=("g2",), minutes=12.0),
+        "c": shards.Shard("c", ("linux",), groups=("g3",)),
+    }
+    lines = budget.release_minutes_warnings(plan)
+    assert lines == [
+        budget.RELEASE_WARNING + "a: 18.0 measured minutes, past the release legs' 12.0"
+    ]
+
+
 def test_an_entry_needs_its_reason_and_a_specification_still_to_land(tmp_path: Path) -> None:
     line = f"{A}: fuel 101 is past its family test_v1_2_hostile_guest's cap 100"
     number = "150"

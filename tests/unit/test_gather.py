@@ -39,7 +39,7 @@ PLAN = {
     "up-l": shards.Shard("up-l", ("linux",), groups=("g1",)),
     "up-w": shards.Shard("up-w", ("windows",), groups=("g1",)),
 }
-PLATFORM = {"build": "linux-aarch64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
+PLATFORM = {"build": "linux-x86_64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
 PLATFORM["windows"] = "win32-amd64"
 PLATFORM["release"] = "linux-x86_64"
 MAY_BLOCK = {ART: frozenset({"prior-art clones"}), DESC: frozenset({"descriptor limit"})}
@@ -670,8 +670,8 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     assert merged["checks"][PROBE]["source"]["status"] == "pass"
     assert "metrics" not in merged["checks"][PROBE]["source"]
     assert merged["checks"][SUITE]["source"]["platform"] == "linux-x86_64"  # no darwin run
-    # The build's, from build-shard's arm64 Linux build.
-    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "linux-aarch64"
+    # The build shard's, from the x86-64 rebuild's own tree.
+    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "linux-x86_64"
 
 
 def test_a_ci_need_block_is_no_source(case) -> None:
@@ -712,11 +712,11 @@ def test_only_a_pushed_tag_is_a_tag(environ, tag) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The build record comes from build-shard on arm64 Linux; where the set came from
+# The build record comes from the x86-64 rebuild; where the set came from
 
 
-def test_the_build_record_is_build_shards_on_linux(case) -> None:
-    assert gather.JOB["build"] == "build-shard"
+def test_the_build_record_is_the_x86_64_rebuilds_on_linux(case) -> None:
+    assert gather.JOB["build"] == "rebuild-linux-x86-64"
     assert case.records[("build", "build")]["meta"]["platform"].startswith("linux-")
     assert case.run().red == []
 
@@ -728,7 +728,7 @@ def test_a_build_record_from_darwin_is_red_at_g2(case) -> None:
 
 def test_a_build_record_under_the_build_jobs_folder_is_red_at_g1(case) -> None:
     def move(d: Path, h: dict) -> None:
-        old = d / "build-shard" / "latest.json"
+        old = d / "rebuild-linux-x86-64" / "latest.json"
         (d / "build").mkdir()
         old.rename(d / "build" / "latest.json")
 
@@ -1068,7 +1068,80 @@ def test_the_same_records_without_plan_are_red(tmp_path) -> None:
     )
     want = "G1 macos/own-a: no SHA-256 handed on (no judge-macos/record-macos-own-a/latest.json)"
     assert want in red, red
-    assert "G1 build/build: no SHA-256 handed on (no build-shard/latest.json)" in red
+    assert "G1 build/build: no SHA-256 handed on (no rebuild-linux-x86-64/latest.json)" in red
+
+
+class PostMergeCase(Case):
+    """A merge into dev's records: every own shard on its systems and no build shard, which runs
+    only where the pins are compiled (BUILD false)."""
+
+    def __init__(self, tmp: Path) -> None:
+        super().__init__(tmp)
+        self.build = False
+        self.records = {k: _record(*k) for k in gather.expected_keys(PLAN, build=False)}
+
+    def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
+        i = super().inputs(records_dir, handed)
+        i.event, i.g7, i.ref, i.build = "push", "post-merge", "refs/heads/dev", self.build
+        return i
+
+
+def test_a_run_without_the_build_shard_expects_no_build_record() -> None:
+    assert ("build", "build") in gather.expected_keys(PLAN)
+    assert ("build", "build") not in gather.expected_keys(PLAN, build=False)
+    assert gather.expected_keys(PLAN, build=False) == gather.expected_keys(PLAN)[1:]
+
+
+def test_a_post_merge_gather_without_the_build_shard_is_green(tmp_path) -> None:
+    """The build shard's checks were not selected: G3 leaves them unrun and G5 leaves their
+    accepted passes alone, as a normal run leaves the release tier's."""
+    case = PostMergeCase(tmp_path)
+    assert ("build", "build") not in case.records
+    assert case.accepted["checks"][BUILD_NODE]["status"] == "pass"
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.merged["checks"][BUILD_NODE]["status"] == "deselected"
+    assert BUILD_NODE in v.merged["deselected"]
+
+
+def test_a_check_in_no_share_is_red_on_a_run_without_the_build_shard(tmp_path) -> None:
+    """After a merge the gather's scope is the judge less the build shard's share: a collected
+    check no shard takes is still red, never quietly unselected."""
+    case = PostMergeCase(tmp_path)
+    case.plan = {k: s for k, s in PLAN.items() if k != "own-rest"}
+    case.records = {
+        k: _record(*k, plan=case.plan) for k in gather.expected_keys(case.plan, build=False)
+    }
+    red = case.run().red
+    assert f"G3 {RULE_NODE}: collected, run in no record" in red, red
+
+
+def test_a_build_record_on_a_run_without_the_build_shard_is_red(tmp_path) -> None:
+    case = PostMergeCase(tmp_path)
+    case.records[("build", "build")] = _record("build", "build")
+    red = case.run().red
+    assert any(e.startswith("G1 rebuild-linux-x86-64/latest.json: a file no job") for e in red), red
+
+
+def test_a_run_with_the_build_shard_still_expects_its_record(tmp_path) -> None:
+    case = PostMergeCase(tmp_path)
+    case.build = True
+    red = case.run().red
+    assert any(e.startswith("G1 build/build: no SHA-256 handed on") for e in red), red
+    assert f"G3 {BUILD_NODE}: collected, run in no record" in red
+
+
+@pytest.mark.parametrize(
+    ("value", "build"), [("true", True), ("false", False), ("", True), (None, True)]
+)
+def test_build_is_read_from_the_plans_output(value, build) -> None:
+    environ = {} if value is None else {"BUILD": value}
+    assert gather.read_build(environ) is build
+
+
+def test_a_malformed_build_stops_the_gather() -> None:
+    with pytest.raises(SystemExit):
+        gather.read_build({"BUILD": "yes"})
 
 
 def test_plan_on_a_run_judged_whole_is_red(tmp_path) -> None:
@@ -1355,7 +1428,7 @@ def test_each_record_is_found_under_its_jobs_folder_by_its_artifact_name(tmp_pat
     lin = tmp_path / "judge-linux" / "record-linux-own-a" / "latest.json"
     lin.parent.mkdir(parents=True)
     lin.write_text("{}")
-    build = tmp_path / "build-shard" / "latest.json"
+    build = tmp_path / "rebuild-linux-x86-64" / "latest.json"
     build.parent.mkdir(parents=True)
     build.write_text("[]")
     keys = [("linux", "own-a"), ("build", "build"), ("macos", "own-a")]
