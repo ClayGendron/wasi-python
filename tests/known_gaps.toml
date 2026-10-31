@@ -66,7 +66,7 @@ closes_with = "context/roadmap.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]"
-match = "40 finding(s), digest bb867a100101"
+match = "57 finding(s), digest 7ede498225b5"
 reason = "no mmap on WASI"
 closes_with = "docs/reference/limitations.md"
 
@@ -536,6 +536,18 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]"
 match = "6 finding(s), digest 010a91a8c398"
 reason = "no threads"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]"
+match = "9 finding(s), digest 8ae56a683eb8"
+reason = "no mmap on WASI"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]"
+match = "3 finding(s), digest 2aaf3dec51e5"
+reason = "numpy's default integer is 32 bits on wasm32"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
