@@ -28,7 +28,7 @@ The snapshot is the same bytes on every build, from any supported build host. Wh
 
 `MANIFEST` is a text file of lines. Among them:
 
-- a `python` line naming the guest's CPython version, such as `python 3.15.0`;
+- a `python` line naming the guest's CPython version, such as `python 3.15.2`;
 - a `pin` line for each pinned input. It names every supported build host's inputs, not only the ones one build used, and the line `x-pins every-supported-build-host` says so. So `MANIFEST` is the same file from every host;
 - a hash for each recipe file the build used;
 - an `x-preimport` line that records what the snapshot pre-imports;
