@@ -241,7 +241,9 @@ def plan_errors(
             errors.append(f"(e) {name} does not run on macos and linux")
     # (h) Checks named by node id or by function: each once, each a check of a tracked test file.
     # A shard other than build that names checks runs on exactly the systems of the shard whose
-    # files hold them, so a split never takes a check off a system.
+    # files hold them, so a split never takes a check off a system; one that names checks of the
+    # build shard's files, those that need no build tree, runs on Linux, the build shard's own
+    # platform, so they run on every merge and still where they ran.
     named: set[str] = set()
     file_shard = {f: n for n, s in plan.items() for f in s.files}
     for name, s in plan.items():
@@ -249,7 +251,12 @@ def plan_errors(
             file, _, test = n.partition("::")
             func = test.split("[", 1)[0]
             holder = plan.get(file_shard.get(file, ""))
-            if name != "build" and holder is not None and set(s.systems) != set(holder.systems):
+            if name != "build" and holder is not None and holder.name == "build":
+                if "linux" not in s.systems or not set(s.systems) <= set(OWN_SYSTEMS):
+                    errors.append(
+                        f"(h) {name}: takes checks of {file}, the build shard's, off Linux"
+                    )
+            elif name != "build" and holder is not None and set(s.systems) != set(holder.systems):
                 errors.append(
                     f"(h) {name}: runs on {sorted(s.systems)}, not on {holder.name}'s systems "
                     f"{sorted(holder.systems)}, which hold {file}"

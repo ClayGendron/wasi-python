@@ -30,17 +30,18 @@ nodes = [
 systems = ["build"]
 
 [shard.own-embedding]
-# The embedding file but the functions own-embedding-a, -b and -c name: its first 66 checks in
-# collection order once those are taken. On macOS the whole file took 11.8 test minutes at wave 07
-# (run 39442080658), the longest single file; before this split this shard's median legs took 6.4
-# minutes on Linux and 8.2 on Windows, so its later half is own-embedding-c. A function added to
-# the file goes here unless named in one of the three.
+# The embedding file but the functions own-embedding-a, -b and -c name: 54 checks. On macOS the
+# whole file took 11.8 test minutes at wave 07 (run 39442080658), the longest single file; in run
+# 41153418045 this shard's legs took 7.6 minutes on Windows with twelve tool-call checks more,
+# which own-embedding-a now takes. A function added to the file goes here unless named in one of
+# the three.
 files = ["tests/checks/test_v1_4_embedding.py"]
 systems = ["macos", "linux", "windows"]
 
 [shard.own-embedding-a]
-# The embedding file's first 16 functions, its first 32 checks in collection order: half of what
-# this shard held before, whose median legs took 7.0 minutes on Linux and 8.8 on Windows.
+# The embedding file's first 16 functions, then twelve tool-call checks from own-embedding and
+# six from own-embedding-c: 50 checks. Its legs took 4.7 minutes on Windows and 3.6 on Linux in
+# run 41153418045 with the first 32 alone.
 nodes = [
   "tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so",
   "tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host",
@@ -58,6 +59,24 @@ nodes = [
   "tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata",
   "tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run",
   "tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count",
+  "tests/checks/test_v1_4_embedding.py::test_a_guest_calls_a_tool",
+  "tests/checks/test_v1_4_embedding.py::test_a_huge_frame_is_answered_unread",
+  "tests/checks/test_v1_4_embedding.py::test_a_gate_refuses_before_the_tool_runs",
+  "tests/checks/test_v1_4_embedding.py::test_a_tool_fault_stays_on_the_host",
+  "tests/checks/test_v1_4_embedding.py::test_the_tool_call_limit_holds",
+  "tests/checks/test_v1_4_embedding.py::test_a_tool_timeout_ends_the_call_not_the_run",
+  "tests/checks/test_v1_4_embedding.py::test_a_tool_blocking_past_the_deadline_is_answered",
+  "tests/checks/test_v1_4_embedding.py::test_abandoned_tools_are_bounded_per_call",
+  "tests/checks/test_v1_4_embedding.py::test_one_calls_stalled_tools_do_not_starve_another",
+  "tests/checks/test_v1_4_embedding.py::test_a_cancel_during_a_tool_call_is_named",
+  "tests/checks/test_v1_4_embedding.py::test_ctrl_c_during_a_tool_call",
+  "tests/checks/test_v1_4_embedding.py::test_cancelling_an_async_call_during_a_tool_call",
+  "tests/checks/test_v1_4_embedding.py::test_tools_run_off_the_guests_thread",
+  "tests/checks/test_v1_4_embedding.py::test_fuel_is_exact_across_tool_calls",
+  "tests/checks/test_v1_4_embedding.py::test_no_tools_no_protocol",
+  "tests/checks/test_v1_4_embedding.py::test_abandoned_calls_are_counted_past_the_listed_outcomes",
+  "tests/checks/test_v1_4_embedding.py::test_a_partials_bound_keywords_are_fixed",
+  "tests/checks/test_v1_4_embedding.py::test_bound_keywords_are_fixed_however_the_partial_is_reached",
 ]
 systems = ["macos", "linux", "windows"]
 
@@ -94,14 +113,9 @@ nodes = [
 systems = ["macos", "linux", "windows"]
 
 [shard.own-embedding-c]
-# The later 43 functions of what own-embedding held before, 67 checks.
+# The later functions of what own-embedding held before but its first six, 61 checks: its legs
+# took 6.2 minutes on Linux in run 41153418045 with them.
 nodes = [
-  "tests/checks/test_v1_4_embedding.py::test_tools_run_off_the_guests_thread",
-  "tests/checks/test_v1_4_embedding.py::test_fuel_is_exact_across_tool_calls",
-  "tests/checks/test_v1_4_embedding.py::test_no_tools_no_protocol",
-  "tests/checks/test_v1_4_embedding.py::test_abandoned_calls_are_counted_past_the_listed_outcomes",
-  "tests/checks/test_v1_4_embedding.py::test_a_partials_bound_keywords_are_fixed",
-  "tests/checks/test_v1_4_embedding.py::test_bound_keywords_are_fixed_however_the_partial_is_reached",
   "tests/checks/test_v1_4_embedding.py::test_a_class_tools_construction_keywords_are_fixed",
   "tests/checks/test_v1_4_embedding.py::test_a_generic_alias_of_a_class_tool_has_its_keywords_fixed",
   "tests/checks/test_v1_4_embedding.py::test_a_delegating_metaclass_does_not_hide_the_constructor",
@@ -143,15 +157,16 @@ nodes = [
 systems = ["macos", "linux", "windows"]
 
 [shard.own-hostile]
-# The hostile-guest file but the functions own-hostile-b names: its first 43 functions, 108
-# checks. 9.0 of own-guest's 17.1 macOS test minutes at wave 07; before this split the whole
-# file's median legs took 7.2 minutes on Linux and 9.1 on Windows. A function added to the file
-# goes here.
+# The hostile-guest file but the functions own-hostile-b names: its first 43 functions and the
+# three deepest recursion checks, 146 checks. 9.0 of own-guest's 17.1 macOS test minutes at wave
+# 07; in run 41153418045 this shard's legs took 3.7 minutes on Windows and own-hostile-b's 9.3,
+# which held every slow recursion, thread and Ctrl-C check. A function added to the file goes here.
 files = ["tests/checks/test_v1_2_hostile_guest.py"]
 systems = ["macos", "linux", "windows"]
 
 [shard.own-hostile-b]
-# The hostile-guest file's later 30 functions, 110 checks.
+# The hostile-guest file's later functions but the three deepest recursion checks: the deep data,
+# thread and Ctrl-C checks, 72 checks.
 nodes = [
   "tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded",
   "tests/checks/test_v1_2_hostile_guest.py::test_a_trailing_slash_symlink_rename_cannot_escape",
@@ -163,9 +178,6 @@ nodes = [
   "tests/checks/test_v1_2_hostile_guest.py::test_the_import_path_writes_nothing",
   "tests/checks/test_v1_2_hostile_guest.py::test_a_writable_place_never_serves_the_import_path",
   "tests/checks/test_v1_2_hostile_guest.py::test_a_guest_at_the_open_file_cap_leaves_the_host_descriptors",
-  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises",
-  "tests/checks/test_v1_2_hostile_guest.py::test_pickling_a_deep_list_raises",
-  "tests/checks/test_v1_2_hostile_guest.py::test_the_c_stack_window_is_128_kib",
   "tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_on_wasmtimes_default_engine",
   "tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits",
   "tests/checks/test_v1_2_hostile_guest.py::test_deep_data_raises",
@@ -187,11 +199,11 @@ nodes = [
 systems = ["macos", "linux", "windows"]
 
 [shard.own-guest-a]
-# The product's other checks, in three shards of about a third of their 461 checks each (one
-# shard's median legs took 11.3 minutes on Linux and 13.7 on Windows). A first plan folded
-# own-runner's files in here; the reuse run 39475482749 then lost its Linux own-guest leg to the
-# 30-minute limit with no log, on the bytes run 39468404589 had judged there in 6.5 minutes, so
-# own-runner stays a shard of its own. 155 checks.
+# The product's other checks, in four shards balanced by the Windows judge minutes of run
+# 41153418045 (the guest checks set the time; the runner's unit files take seconds): this one's
+# leg took 5.0 minutes. A first plan folded own-runner's files in here; the reuse run
+# 39475482749 then lost its Linux own-guest leg to the 30-minute limit with no log, on the bytes
+# run 39468404589 had judged there in 6.5 minutes, so own-runner stays a shard of its own.
 files = [
   "tests/unit/test_runner_mounts.py",
   "tests/checks/test_v1_1_artifact_set.py",
@@ -200,26 +212,32 @@ files = [
 systems = ["macos", "linux", "windows"]
 
 [shard.own-guest-b]
-# 151 checks.
+# default_profile took 5.5 minutes on Windows in run 41153418045, the grants 0.1.
 files = [
   "tests/unit/test_runner_grants.py",
   "tests/checks/test_v1_3_default_profile.py",
-  "tests/checks/test_v1_3_data_stack.py",
 ]
 systems = ["macos", "linux", "windows"]
 
 [shard.own-guest-c]
-# 155 checks.
+# data_stack took 3.8 minutes on Windows in run 41153418045; three small files join it.
+files = [
+  "tests/checks/test_v1_3_data_stack.py",
+  "tests/checks/test_v1_3_lxml.py",
+  "tests/checks/test_v1_3_regex.py",
+  "tests/checks/test_v1_2_portable_and_sealed.py",
+]
+systems = ["macos", "linux", "windows"]
+
+[shard.own-guest-d]
+# The rest of what took 6.8 judge minutes on Windows in run 41153418045 with the three above.
 files = [
   "tests/checks/test_v1_4_sessions.py",
-  "tests/checks/test_v1_3_lxml.py",
   "tests/checks/test_v1_3_the_zips_directory.py",
   "tests/checks/test_v1_4_starting_image.py",
   "tests/checks/test_v1_4_prepare.py",
   "tests/checks/test_v1_3_matplotlib.py",
   "tests/checks/test_v1_4_public_api.py",
-  "tests/checks/test_v1_3_regex.py",
-  "tests/checks/test_v1_2_portable_and_sealed.py",
 ]
 systems = ["macos", "linux", "windows"]
 
@@ -259,6 +277,29 @@ systems = ["macos", "linux", "windows"]
 # self-tests) run where the lane and the rebuild hosts run. Not on Windows: the branch dry run
 # 39182550825 found 112 failures there, every one in this tooling, none in a product check.
 rest = true
+systems = ["macos", "linux"]
+
+[shard.own-pins]
+# The build shard's file's checks that read no build tree (the pins, the download script and
+# its mirrors, the recipes' repository paths, the toolchain and pure-Python pins, two workflow
+# rules): taken from the build shard, which runs only where a run rebuilds from the pins, so they
+# run on every merge, on Linux, the build shard's own platform, and on macOS, as own-rest does.
+nodes = [
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_pin_list_is_well_formed",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_pin_is_fetched_from_a_literal_url",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_download_script_verifies_and_never_writes_the_pins",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_fetched_file_is_pinned",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_mirror_is_this_repositorys_release_asset_of_its_pin",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_test_source_is_pinned_and_named",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_download_step_fails_on_a_fetched_file_with_no_pin",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_no_build_script_fetches_outside_the_download_script",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_repository_path_a_recipe_names_exists",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_toolchain_is_pinned_for_linux_and_macos",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_cpp_is_compiled_with_exceptions",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_pure_python_packages_are_pinned",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_runs_the_zero_patch_check",
+  "tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_two_more_hosts",
+]
 systems = ["macos", "linux"]
 
 [shard.upstream-groupby]

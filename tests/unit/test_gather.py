@@ -1104,6 +1104,18 @@ def test_a_post_merge_gather_without_the_build_shard_is_green(tmp_path) -> None:
     assert BUILD_NODE in v.merged["deselected"]
 
 
+def test_a_check_in_no_share_is_red_on_a_run_without_the_build_shard(tmp_path) -> None:
+    """After a merge the gather's scope is the judge less the build shard's share: a collected
+    check no shard takes is still red, never quietly unselected."""
+    case = PostMergeCase(tmp_path)
+    case.plan = {k: s for k, s in PLAN.items() if k != "own-rest"}
+    case.records = {
+        k: _record(*k, plan=case.plan) for k in gather.expected_keys(case.plan, build=False)
+    }
+    red = case.run().red
+    assert f"G3 {RULE_NODE}: collected, run in no record" in red, red
+
+
 def test_a_build_record_on_a_run_without_the_build_shard_is_red(tmp_path) -> None:
     case = PostMergeCase(tmp_path)
     case.records[("build", "build")] = _record("build", "build")

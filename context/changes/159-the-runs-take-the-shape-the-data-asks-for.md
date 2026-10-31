@@ -18,10 +18,10 @@ None.
 [[claim]]
 spec = "159"
 new = ["tests/checks/test_rules.py::test_the_review_job_fails_on_a_review_refusal_or_no_plan*"]
-units = 63
+units = 68
 [claim.judge]
-"tests/release_shards.toml" = "the shard plan is reshaped and no check moves between tiers or leaves the judge: own-guest is three files shards (own-guest-a, -b, -c), own-hostile and own-embedding each give their later functions to a nodes shard (own-hostile-b, own-embedding-c), own-embedding-a gives its later half to own-embedding-b, and the 229 release shards are 65, whole earlier shards packed by their measured judge-step minutes to at most twelve each, each with a `minutes` key"
-"tests/harness/shards.py" = "rule (j): every release shard carries its measured minutes, no other shard does, and there are at most 80 release shards; the build shard runs on the x86_64 rebuild"
+"tests/release_shards.toml" = "the shard plan is reshaped and no check moves between tiers or leaves the judge: own-guest is four files shards (own-guest-a to -d) balanced by the measured Windows minutes, own-hostile and own-embedding each give functions to a nodes shard (own-hostile-b, own-embedding-c), own-embedding-a gives its later half to own-embedding-b and takes eighteen tool-call checks, the build shard's sixteen checks that read no build tree run on Linux and macOS in own-pins on every merge, and the 229 release shards are 65, whole earlier shards packed by their measured judge-step minutes to at most twelve each, each with a `minutes` key"
+"tests/harness/shards.py" = "rule (j): every release shard carries its measured minutes, no other shard does, and there are at most 80 release shards; rule (h): a shard may take checks of the build shard's file, those that need no build tree, only if it runs on Linux, the build shard's platform; the build shard runs on the x86_64 rebuild"
 "tests/harness/gather.py" = "BUILD, the plan's build output, tells the gather whether the build shard ran: where it did not (a merge into dev, which no longer rebuilds), expected_keys omits build/build and G3 and G5 leave the build shard's checks unselected, as a normal run leaves the release tier's; its record comes from rebuild-linux-x86-64"
 "tests/harness/scoreboard.py" = "an acceptance from CI's record keeps the passes of checks the record did not select in the history's passed set, as a normal run keeps the release tier's"
 "tests/harness/accept_from.py" = "a check no shard of the record ran (the build shard on a merge's run) keeps its accepted row and its pass"

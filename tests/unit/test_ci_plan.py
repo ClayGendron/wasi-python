@@ -916,6 +916,16 @@ def test_the_review_check_asks_nothing_of_documentation_or_of_main() -> None:
     assert json.loads(missing["review_refusals"])  # code with no review file
 
 
+def test_a_pull_request_whose_base_cannot_be_read_is_refused_its_review() -> None:
+    """With no change read, no review file was read either: the review check fails closed
+    rather than saying a review it never read holds."""
+    d = ci_plan.decide(None, PR_DEV)
+    refused = ci_plan.review_check(d, PR_DEV, None, None)
+    assert refused and "could not be read" in refused[0]
+    assert refused[0] in ci_plan.refusals(d, PR_DEV, None, None)
+    assert ci_plan.review_check(ci_plan.decide(None, PR_MAIN), PR_MAIN, None, None) == []
+
+
 def test_a_reused_run_still_reads_the_review() -> None:
     """The review file's push re-uses the code head's run, every output false, and the review
     job reads that push's review file."""

@@ -69,8 +69,10 @@ COVERAGE_SHARDS = (
     "own-guest-a",
     "own-guest-b",
     "own-guest-c",
+    "own-guest-d",
     "own-runner",
     "own-rest",
+    "own-pins",
 )
 OWN_SYSTEMS = ("macos", "linux", "windows")
 # The two workflows whose top-level env the set's key holds.
@@ -567,7 +569,10 @@ def review_check(
     """What the review job refuses: on a pull request into dev that is not documentation only
     (nor the release's preparation), and whose commits and description are read (`pr`), the
     review file's refusals; nothing on any other run, so a documentation-only pull request and
-    the release pull request ask no review of it. A re-used run reads it as any other."""
+    the release pull request ask no review of it. A re-used run reads it as any other. A pull
+    request into dev whose base cannot be read had no review file read, so it is refused."""
+    if into_dev(event) and changed is None:
+        return ["the pull request's base could not be read, so its review file was not read"]
     documented = changed is not None and (docs_only(changed) or d.release_preparation)
     if into_dev(event) and changed is not None and not documented and pr is not None:
         return review_refusals(changed, pr)

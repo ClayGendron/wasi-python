@@ -334,11 +334,12 @@ def gather(i: Inputs) -> Verdict:
     unrun = collected - run_somewhere
     # A check of a shard the plan left out was not this run's to run: on a pull request, every
     # shard it did not select; on a run judged whole, the build shard where it did not rebuild.
-    in_scope = (
-        collected
-        if i.selected is None and i.build
-        else {n for name in selected_shards for n in goal_share.get(name, [])}
-    )
+    if i.selected is not None:
+        in_scope = {n for name in selected_shards for n in goal_share.get(name, [])}
+    elif i.build:
+        in_scope = collected
+    else:  # the judge less the build shard's share: a check in no shard's share stays red
+        in_scope = collected - set(goal_share.get("build", []))
     unrun &= in_scope
     if normal:  # the normal tier runs no release-tier check, and must not
         unrun -= i.release_checks

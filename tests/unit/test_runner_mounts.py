@@ -665,15 +665,30 @@ def test_an_abi_error_keeps_the_grants_fuel(placeholder, tmp_path) -> None:
     assert ends[0] == ends[1] and ends[0][1] is not None and ends[0][1] > 0, ends
 
 
-def test_a_listing_is_counted_as_what_it_holds() -> None:
-    """A kept listing holds what the staging bound counts for it (its
-    encoded entries and their offsets, measured by tracemalloc, within a small constant), and
-    gathering one past the bound peaks near the bound, not several times it."""
+_LISTED_NAMES = 20_000
+
+
+def _listing_gathered(staging: int, neighbour=None) -> tuple[int, int, int, int]:
+    """(errno, bytes held, bytes the listing's own code keeps, peak) for one listing of
+    _LISTED_NAMES generated names under `staging`. tracemalloc counts every allocation the
+    process makes while it traces, by any thread or any finalizer the collector runs, so what the
+    listing keeps is counted as the traces allocated in the mount table's own code, where its
+    buffer and its offsets are made, with the collector run first and paused: what an earlier
+    check left alive in the process is no part of it. `neighbour`, when given, runs on another
+    thread as the listing starts, as such a leftover would."""
+    import gc
     import tracemalloc
 
+    from wasi_python import _fs_table
     from wasi_python._fs_table import _Files
 
-    names = 20_000
+    def generated():
+        if neighbour is not None:
+            thread = threading.Thread(target=neighbour)
+            thread.start()
+            thread.join()
+        for i in range(_LISTED_NAMES):
+            yield f"n{i:07}", "file"
 
     class Generated:
         def stat(self, path):
@@ -683,28 +698,50 @@ def test_a_listing_is_counted_as_what_it_holds() -> None:
             return Errno.EISDIR
 
         def list(self, path):
-            return ((f"n{i:07}", "file") for i in range(names))
+            return generated()
 
-    def gathered(staging: int) -> tuple[int, int, int, int]:
-        table = _Files(
-            [(Mount(Generated(), "/m"), 3)], [], None, staging, False, context=files.FakeContext()
+    table = _Files(
+        [(Mount(Generated(), "/m"), 3)], [], None, staging, False, context=files.FakeContext()
+    )
+    paused = gc.isenabled()
+    gc.collect()
+    gc.disable()
+    tracemalloc.start()
+    try:
+        errno, listing, held = table._list(None, table.mounts[0], "/", 1)
+        _, peak = tracemalloc.get_traced_memory()
+        kept = tracemalloc.take_snapshot().filter_traces(
+            [tracemalloc.Filter(True, _fs_table.__file__)]
         )
-        tracemalloc.start()
-        try:
-            errno, listing, held = table._list(None, table.mounts[0], "/", 1)
-            now, peak = tracemalloc.get_traced_memory()
-        finally:
-            tracemalloc.stop()
-        del listing
-        return errno, held, now, peak
+        now = sum(stat.size for stat in kept.statistics("filename"))
+    finally:
+        tracemalloc.stop()
+        if paused:
+            gc.enable()
+    del listing
+    return errno, held, now, peak
 
-    errno, held, now, peak = gathered(1 << 30)
-    assert errno == 0 and held > names * 32
+
+def test_a_listing_is_counted_as_what_it_holds() -> None:
+    """A kept listing holds what the staging bound counts for it (its
+    encoded entries and their offsets, measured by tracemalloc, within a small constant), and
+    gathering one past the bound peaks near the bound, not several times it."""
+    errno, held, now, peak = _listing_gathered(1 << 30)
+    assert errno == 0 and held > _LISTED_NAMES * 32
     assert held <= now <= held + 4096, (held, now)  # what is kept is what is counted
     bound = held // 2
-    errno, _, now, peak = gathered(bound)
+    errno, _, now, peak = _listing_gathered(bound)
     assert errno == 22  # EFBIG, judged while gathering
     assert peak <= bound * 1.25 + 65536, (bound, peak)  # the gathering is counted too
+
+
+def test_what_another_thread_keeps_is_no_part_of_a_listings_count() -> None:
+    """Another thread that allocates 48 KiB and keeps it while the listing is gathered, as a
+    thread an earlier check left running would, moves the listing's count by nothing."""
+    kept: list[bytearray] = []
+    errno, held, now, _ = _listing_gathered(1 << 30, lambda: kept.append(bytearray(48 * 1024)))
+    assert errno == 0 and len(kept) == 1
+    assert held <= now <= held + 4096, (held, now)
 
 
 class _StandInMemory:
