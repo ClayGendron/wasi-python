@@ -1942,3 +1942,27 @@ reason = "find_stack_level counts a frame in xarray's own tests folder as xarray
 closes_with = "context/roadmap.md"
 
 # The pure-Python packages' own tests. (end)
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pandas-categories]"
+match = "27 finding(s), digest 8c1a60010878"
+reason = "pandas 3.1.0 infers numeric categories, which scikit-learn 1.9.1's ARFF parser passes to re.search; the same natively"
+closes_with = "context/roadmap.md (scikit-learn's next release after 1.9.1)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-pandas-inplace-deprecated]"
+match = "1 finding(s), digest 82bac031654f"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-1-pandas-inplace-deprecated]"
+match = "12 finding(s), digest 76bd163207a3"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-2-pandas-inplace-deprecated]"
+match = "1 finding(s), digest f67d1c49b4ee"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"

@@ -151,7 +151,7 @@ get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libcla
 get https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz Python-3.15.2.tar.xz
 get https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz numpy-2.5.4.tar.gz
 get https://files.pythonhosted.org/packages/55/b1/a10c0d1a7e3ce44eb42635771004aa503e3b9ddde0bd39c524dda65f7eff/pandas-3.1.0.tar.gz pandas-3.1.0.tar.gz
-get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
+get https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz zlib-1.3.2.tar.gz
 # The C libraries of _bz2, _lzma and _sqlite3: host-neutral sources, like zlib's
 get https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz bzip2-1.0.8.tar.gz
 get https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.gz xz-5.8.4.tar.gz
