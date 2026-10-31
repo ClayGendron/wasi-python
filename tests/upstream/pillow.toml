@@ -98,7 +98,7 @@ group = "pillow"
 outcome = "failed"
 match = "^AssertionError: assert (\\{|set\\(\\) ==)"
 reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib and JPEG only (specs 023 and 170)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "fli-overflow-native"
