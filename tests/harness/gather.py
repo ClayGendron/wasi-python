@@ -27,6 +27,16 @@ release ledger gives a reason for listed as after a merge, and the rest red. It 
 merged scoreboard, writes the merged record (with its own red lines, the event, and each shard's
 commit and guards, which the acceptance from CI's record holds) and the job's summary, and writes
 nothing to the progress history. It is the parallel judge's controller merge, across machines.
+
+    uv run python tests/harness/gather.py --prove-set <set-sums-sha256> <wasm-sha256>
+    uv run python tests/harness/gather.py --prove-set --tree-only
+
+is a pushed tag's proof that it publishes what the release pull request judged, since its run
+judges nothing again: the newest acceptance is a release pull request's, whole and clean, made on
+the tagged commit's parent, and on these bytes (the set's own SHA256SUMS and python.wasm, each
+hashed from the build's files); and the tagged commit adds that acceptance and nothing else. The
+tree alone needs no compile, so the build job runs it before its own; it exits non-zero with one
+line naming the first mismatch.
 """
 
 from __future__ import annotations
@@ -879,6 +889,83 @@ def collect(
     return goal, [n for n, area in c.items if area is None], c.may_block
 
 
+# The acceptance commit a release's tag sits on changes these two files and nothing else, the rule
+# the push of the release's acceptance holds.
+ACCEPTED_FILE = "context/progress/accepted.json"
+HISTORY_VOLUME = re.compile(r"context/progress/history(-\d{5,})?\.jsonl")
+
+
+def prove_set(repo: Path, sums: tuple[str, str] | None = None) -> str | None:
+    """The first reason the commit checked out in `repo` may not publish, or None: its parent is
+    the commit the newest acceptance judged, that acceptance is a release pull request's (from
+    CI, the release tier and a pull request's event: only its acceptance writes them), whole and
+    made on a clean tree,
+    and the commit changes accepted.json and one history volume alone, so the tagged tree is the
+    judged one plus its record; `sums` (the set's own SHA256SUMS' SHA-256 and python.wasm's) are
+    the bytes it accepted. None for `sums` holds the tree alone."""
+
+    def git(*args: str) -> str | None:
+        r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+        return r.stdout.strip() if r.returncode == 0 else None
+
+    parent = git("rev-parse", "--verify", "-q", "HEAD^")
+    if not parent:
+        return "the tagged commit has no parent in this checkout"
+    lines = history.lines(repo / "context" / "progress")
+    try:
+        newest = json.loads(lines[-1]) if lines else {}
+        accepted = json.loads((repo / ACCEPTED_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return f"the accepted state cannot be read ({e})"
+    # A line from before the event was recorded has none; CI's source and the release tier
+    # name the release pull request's acceptance alone.
+    made = (newest.get("source"), newest.get("tier"), newest.get("event", "pull_request"))
+    if made != ("ci", "release", "pull_request"):
+        return (
+            "the newest acceptance is not a release pull request's: source, tier and event "
+            f"{made}, not ('ci', 'release', 'pull_request')"
+        )
+    if newest.get("commit") != parent or accepted.get("commit") != parent:
+        return (
+            f"the newest acceptance judged {newest.get('commit')} (accepted.json says "
+            f"{accepted.get('commit')}), not {parent}, the tagged commit's parent"
+        )
+    if newest.get("partial_reason"):
+        return "the newest acceptance is partial"
+    if newest.get("dirty") is not False:
+        return "the newest acceptance was not made on a clean tree"
+    changed = sorted((git("diff", "--name-only", "--no-renames", "HEAD^", "HEAD") or "").split())
+    volumes = [p for p in changed if HISTORY_VOLUME.fullmatch(p)]
+    if len(changed) != 2 or ACCEPTED_FILE not in changed or len(volumes) != 1:
+        return (
+            f"the tagged commit must change {ACCEPTED_FILE} and one history volume alone, "
+            f"not: {' '.join(changed) or 'nothing'}"
+        )
+    if sums is not None:
+        set_sums, wasm = sums
+        if newest.get("set_sums") != set_sums:
+            accepted_sums = newest.get("set_sums")
+            return f"the set's own SHA256SUMS is {set_sums}, not {accepted_sums}, the set accepted"
+        if newest.get("artifact") != wasm:
+            return f"python.wasm is {wasm}, not {newest.get('artifact')}, the python.wasm accepted"
+    return None
+
+
+def prove_main(hashes: list[str], tree_only: bool) -> int:
+    """`--prove-set`: one line, and 0 when the tagged commit may publish."""
+    if tree_only == bool(hashes) or not (tree_only or len(hashes) == 2):
+        raise SystemExit("gather: --prove-set takes the two SHA-256 values, or --tree-only alone")
+    if not all(HEX64.fullmatch(h) for h in hashes):
+        raise SystemExit(f"gather: --prove-set's values are not SHA-256 hex: {hashes}")
+    reason = prove_set(paths.REPO, None if tree_only else (hashes[0], hashes[1]))
+    if reason:
+        print(f"prove-set: {reason}")
+        return 1
+    held = "the tree" if tree_only else "the tree and the bytes"
+    print(f"prove-set: {held} are the ones the release pull request judged and accepted")
+    return 0
+
+
 def is_tag(environ) -> bool:
     """A pushed tag, as the runner names it: only then must the judge be the accepted one (G7)."""
     return environ.get("GITHUB_EVENT_NAME") == "push" and environ.get("GITHUB_REF_TYPE") == "tag"
@@ -963,9 +1050,15 @@ def main(argv: list[str]) -> int:
     from harness import plugin
 
     ap = argparse.ArgumentParser(prog="gather.py")
-    ap.add_argument("--records", required=True, type=Path)
+    ap.add_argument("--records", type=Path)
     ap.add_argument("--out", default="release-record", type=Path)
+    ap.add_argument("--prove-set", nargs="*", metavar="SHA256")
+    ap.add_argument("--tree-only", action="store_true")
     a = ap.parse_args(argv)
+    if a.prove_set is not None:
+        return prove_main(a.prove_set, a.tree_only)
+    if a.records is None or a.tree_only:
+        ap.error("the gather takes --records; --tree-only goes with --prove-set")
     from harness import upstream
 
     plan = shards.load()

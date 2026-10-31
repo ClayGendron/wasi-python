@@ -353,6 +353,9 @@ class Decision:
     full: bool = False  # the merge-grade set: every normal-tier shard on its systems
     # The release shape: both rebuilds, the build shard in the x86-64 one, and same-bytes.
     rebuild: bool = False
+    # A pushed tag: it compiles and rebuilds, proves the bytes are the ones the release pull
+    # request accepted on the tree it judged, attests and publishes, and judges nothing again.
+    publish: bool = False
     tier: str = "normal"
     # A merge into dev, or the release pull request: accept-record follows a green gather. The
     # push onto dev is accept-push's after a merge, and after the release pull request the
@@ -367,8 +370,13 @@ class Decision:
 
     @property
     def judge(self) -> bool:
-        """Any judge job, verify or the gather runs."""
-        return not self.quiet and (self.full or not (self.docs_only or self.agents_only))
+        """Any judge job or the gather runs (and verify, which a tag's run has too). A tag's run
+        judges nothing: its tree is the release pull request's plus that run's acceptance."""
+        return (
+            not self.quiet
+            and not self.publish
+            and (self.full or not (self.docs_only or self.agents_only))
+        )
 
 
 def decide(
@@ -427,9 +435,12 @@ def decide(
             d.full = True
             d.why.append("the workflow or release/ changed")
     elif event.tag:
-        d.full = d.rebuild = True
-        d.tier = "release"
-        d.why.append("a pushed tag: build, judge both tiers, attest, publish")
+        d.rebuild = d.publish = True
+        d.tier = ""
+        d.why.append(
+            "a pushed tag: build and rebuild from the pins, prove these are the bytes the release"
+            " pull request accepted, attest, publish; no judge"
+        )
     elif event.name == "push":
         d.full = d.accept = True
         d.why.append("a merge into dev: the merge-grade set, then the acceptance")
@@ -475,7 +486,8 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
     """The shards each judge job runs, the build shard, verify's runners, the Linux legs that run
     under coverage.py, and every selected (system, shard) pair as `system/shard`, which the
     gather reads as PLAN. A pull request takes macOS legs only when the platform module or the
-    engine's pin changed; the build shard runs where the rebuild compiles from the pins."""
+    engine's pin changed; the build shard runs where the rebuild compiles from the pins and the
+    run judges. Every run that rebuilds installs the wheel on the three systems, a tag's too."""
     sel: dict = {s: [] for s in (*OWN_SYSTEMS, "release")}
     sel.update(build=False, verify=[], coverage=[])
     if d.judge:
@@ -499,6 +511,8 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
         sel["verify"] = list(VERIFY_RUNNERS) if d.full else [RUNNER["linux"]]
         if d.full:
             sel["coverage"] = [n for n in COVERAGE_SHARDS if n in sel["linux"]]
+    if d.rebuild and not d.quiet:
+        sel["verify"] = list(VERIFY_RUNNERS)
     sel["selected"] = [f"{s}/{n}" for s in (*OWN_SYSTEMS, "release") for n in sel[s]]
     sel["selected"] += ["build/build"] if sel["build"] else []
     return sel
@@ -722,6 +736,7 @@ def outputs(
         docs_only=_bool(d.docs_only),
         full=_bool(d.full),
         rebuild=_bool(d.rebuild),
+        publish=_bool(d.publish),
         judge=_bool(d.judge),
         accept=_bool(d.accept),
         acceptance=_bool(d.acceptance),
@@ -1133,7 +1148,8 @@ def from_runner(
 
 
 def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | None) -> str:
-    rows = [f"| {name} | {getattr(d, name)} |" for name in (*FLAGS, "docs_only", "full", "rebuild")]
+    names = (*FLAGS, "docs_only", "full", "rebuild", "publish")
+    rows = [f"| {name} | {getattr(d, name)} |" for name in names]
     lines = ["### The plan", "", "| output | value |", "|---|---|", *rows, f"| tier | {d.tier} |"]
     lines += ["", f"Why: {'; '.join(d.why) or 'the changed paths'}."]
     count = "not read: the run is whole" if changed is None else len(changed)
