@@ -14,6 +14,7 @@
 - **CPython 3.15.2 and numpy 2.5.4 inside.** Bug-fix releases, from 3.15.0 and 2.5.2. [Packages](https://claygendron.github.io/wasi-python/reference/packages/)
 - **soupsieve, wrapt and tzdata move to their newest fixes.** soupsieve 3.0.4, wrapt 2.5.2 and tzdata 2026.6, from 3.0.3, 2.5.1 and 2026.5. [Packages](https://claygendron.github.io/wasi-python/reference/packages/)
 - **Saved snapshots are made again.** The binary and the zip change, so a `Snapshot` saved with 0.1.2 raises `SnapshotMismatch`. Make it again after you upgrade. [Snapshots](https://claygendron.github.io/wasi-python/how-to/snapshots/)
+- **Hashing a deeply nested tuple raises sooner.** CPython 3.15.2 checks the C stack while it hashes a tuple, so a tuple nested more than a few thousand levels deep raises `RecursionError`, as `repr` and `==` already did. 0.1.2 hashed about 40,000 levels, then ended the call with a trap. [Limitations](https://claygendron.github.io/wasi-python/reference/limitations/)
 
 ### For contributors
 
