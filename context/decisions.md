@@ -547,3 +547,8 @@ The code stays embedder-neutral (§4.5). The capabilities that agent use needs a
 - **The owner's decision (what is listed):** Python packages only: every distribution the guest can import, with its version, as the guest's `importlib.metadata` sees it. Not the C libraries and not the interpreter's components in `MANIFEST`.
 - **The owner's decision (import names):** each entry carries the names a program imports (`sklearn` for scikit-learn, `bs4` for beautifulsoup4, `yaml` for pyyaml). The build records each package's top-level names in the zip, so the artifact set changes and the specification is reviewed before it is built (constitution §5.6).
 - **The owner's decision (the command):** a `wasi-python packages` subcommand, plain text by default and one JSON line with `--json`.
+
+## sympy's test_uniform_P becomes a trap
+
+- **Asked:** 2026-10-31, by the orchestrating session, with the AskUserQuestion tool, after the weekly-shape run 41201012715 (on `dev` at `30566232`, CPython 3.15.2) cancelled `upstream-release-033` at the release judge job's 30 minutes. That shard held one group, `sympy-r-stats-4-continuous-rv-2`, which is one test, `test_uniform_P`, so it cannot be split; measured locally at 3,542,150,840,058 fuel, +23.6% over its accepted 2,865,017,063,969.
+- **The owner's decision:** make `test_uniform_P` a `[[trap]]`, as its six sympy siblings past the bound for one test are: run alone to the 50 G trap cap, a gap closed by `docs/reference/limitations.md`. The group and its shard are retired; the job's 30-minute timeout stays. Built under specification 159's news file; the landing notes say how.

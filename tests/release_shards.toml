@@ -687,8 +687,10 @@ systems = ["release"]
 # --- the pure-Python packages' own tests: begin
 # Each package's smoke group in the normal tier, on Linux; every other group of its whole
 # suite in the release tier, packed by measured minutes as above (first by measured fuel, 725 G
-# a shard, which each comment keeps); sympy's longest group, 18 minutes, is a shard alone until
-# its suite's groups are split. The release tier runs only before a publication.
+# a shard, which each comment keeps). sympy's longest single test, test_uniform_P, was a group and
+# a shard of its own at 18 minutes; past the job's 30 minutes under CPython 3.15.2, it is a trap
+# run to its 50 G cap with sympy-r-stats-4-continuous-rv-3. The release tier runs only before a
+# publication.
 
 [shard.upstream-pure-smoke-a]
 # 724.8 G measured
@@ -700,12 +702,6 @@ systems = ["linux"]
 # on darwin-arm64
 groups = ["tomli-w-smoke", "charset-normalizer-smoke", "markupsafe-smoke", "more-itertools-smoke", "tzdata-smoke", "defusedxml-smoke", "interface-meta-smoke", "xlrd-smoke", "webencodings-smoke", "cycler-smoke", "cloudpickle-smoke", "python-docx-smoke", "python-pptx-smoke"]
 systems = ["linux"]
-
-[shard.upstream-release-033]
-# From upstream-pure-r-001 (2865.0 G measured, 18.02 min).
-groups = ["sympy-r-stats-4-continuous-rv-2"]
-minutes = 18.0
-systems = ["release"]
 
 [shard.upstream-release-034]
 # From upstream-pure-r-003 (2561.9 G measured, 6.52 min),
@@ -765,7 +761,8 @@ systems = ["release"]
 [shard.upstream-release-041]
 # From upstream-pure-r-088 (724.6 G measured, 4.1 min),
 # upstream-pure-r-101 (705.2 G measured, 4.02 min),
-# upstream-pure-r-054 (721.9 G measured, 3.85 min).
+# upstream-pure-r-054 (721.9 G measured, 3.85 min);
+# then the trap sympy-slow-uniform-P, at most 50 G.
 groups = ["sympy-r-stats-4-continuous-rv-3", "fonttools-r-rest", "sympy-r-solvers-5-1c", "packaging-r-property-3", "networkx-r-doc", "sympy-r-matrices-6-2", "sympy-r-combinatorics-1-s2-1", "sympy-r-series-5", "networkx-r-approximation-1", "sympy-r-integrals-7-1", "sympy-r-solvers-16-14", "sympy-r-doc-13", "sympy-r-physics-6"]
 minutes = 12.0
 systems = ["release"]
