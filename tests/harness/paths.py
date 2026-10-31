@@ -107,6 +107,7 @@ LICENCE_COMPONENTS = (
     "bzip2",
     "xz",
     "sqlite",  # public domain: its tarball has no licence file, so its blessing is checked
+    "zstd",  # BSD-3-Clause, the side of its dual licence the set takes (TOP_LICENCE)
     "python-dateutil",
     "tzdata",
     "six",
@@ -201,6 +202,7 @@ PACKAGES = (
     "bzip2",
     "xz",
     "sqlite-autoconf",
+    "zstd",
     "python-dateutil",
     "tzdata",
     "six",
@@ -693,9 +695,20 @@ def manifest_recipe_errors(m: Manifest, tree: dict[str, str]) -> list[str]:
 # Licences
 
 
-def _top_level_licence(archive: Path) -> bytes | None:
-    """The top-level LICENSE / LICENSE.txt / COPYING of a source tarball or wheel."""
+# A component whose tarball holds more than one top-level licence file, each a licence the user
+# may choose, names the one the set takes; the first match in the tarball's order is read
+# otherwise. zstd is BSD-3-Clause or GPLv2 at the user's choice, and its tarball lists COPYING
+# (GPLv2) before LICENSE (BSD-3-Clause). The set takes BSD-3-Clause and does not ship GPLv2's
+# text, which would suggest the set is under GPLv2.
+TOP_LICENCE = {"zstd": "LICENSE"}
+
+
+def _top_level_licence(archive: Path, component: str | None = None) -> bytes | None:
+    """The top-level LICENSE / LICENSE.txt / COPYING of a source tarball or wheel, or the file
+    TOP_LICENCE names for the component."""
     names = re.compile(r"(LICEN[CS]E(\.txt|\.rst|\.md)?|COPYING)", re.I)
+    if component in TOP_LICENCE:
+        names = re.compile(re.escape(TOP_LICENCE[component]))
     if archive.suffix == ".whl" or archive.suffix == ".zip":
         with zipfile.ZipFile(archive) as z:
             for n in sorted(z.namelist()):
@@ -816,7 +829,7 @@ def licence_errors(directory: Path, m: Manifest | None) -> tuple[list[str], list
         except ValueError as e:
             errors.append(f"LICENSES/{c}.txt: {e}")
             continue
-        text = _top_level_licence(src) if src else None
+        text = _top_level_licence(src, c) if src else None
         wanted = ([text] if text is not None else []) + (_more_licence(c, src) if src else [])
         try:
             borrowed = _borrowed_licence(c, m) if src else []

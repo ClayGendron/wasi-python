@@ -16,7 +16,7 @@
 #               repository's tag again and rewrites `reason`.
 # A specification that adds a package adds its entry (AGENTS.md).
 
-stdlib_modules = ["zlib", "bz2", "lzma", "sqlite3"]
+stdlib_modules = ["zlib", "bz2", "lzma", "sqlite3", "compression.zstd"]
 
 [package.numpy]
 kind = "suite"
@@ -52,6 +52,12 @@ via = "lzma"
 [package.sqlite-autoconf]
 kind = "via"
 via = "sqlite3"
+
+[package.zstd]
+# libzstd, linked into _zstd: CPython's test_zstd reaches it, and the zstd cases of test_tarfile,
+# test_zipfile, test_zipfile64, test_zipimport and test_shutil.
+kind = "via"
+via = "compression.zstd"
 
 [package.freetype]
 kind = "via"

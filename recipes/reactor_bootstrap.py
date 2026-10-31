@@ -35,7 +35,7 @@ import sys
 
 VERSION = (
     f"Python {sys.version.split()[0]} (wasm32-wasip1: numpy's default integer is "
-    "32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; "
+    "32-bit; no threads; no ctypes, mmap, sockets, ssl or scipy.odr; "
     "compute about 1.3 to 2.3 times slower than native)"
 )
 IGNORED = {"-I", "-E", "-s", "-B"}

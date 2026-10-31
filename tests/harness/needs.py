@@ -154,6 +154,7 @@ SOURCE_COMPONENTS = (
     "bzip2",
     "xz",
     "sqlite",
+    "zstd",
     "regex",
     "freetype",
     "harfbuzz",

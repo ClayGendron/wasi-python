@@ -11,6 +11,7 @@ zlib: zlib
 bzip2: bz2
 xz: lzma
 sqlite-autoconf: sqlite3
+zstd: compression.zstd
 python-dateutil: dateutil dateutil.parser
 tzdata: tzdata
 six: six

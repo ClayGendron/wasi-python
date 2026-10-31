@@ -27,6 +27,7 @@ PIN_FILES = {
     "bzip2-1.0.8.tar.gz": b"bzip2 source",
     "xz-5.8.4.tar.gz": b"xz source",
     "sqlite-autoconf-3540100.tar.gz": b"sqlite source",
+    "zstd-1.5.7.tar.gz": b"zstd source",
     "python_dateutil-2.9.0.post0-py2.py3-none-any.whl": b"dateutil wheel",
     "tzdata-2026.5-py2.py3-none-any.whl": b"tzdata wheel",
     "six-1.17.0-py2.py3-none-any.whl": b"six wheel",
@@ -106,6 +107,7 @@ PACKAGES = {
     "bzip2": "1.0.8",
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",
+    "zstd": "1.5.7",
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
@@ -478,6 +480,29 @@ def test_xz_and_sqlite_notices_must_hold_their_whole_licence(good, work, monkeyp
         "LICENSES/xz.txt does not contain the licence of xz-5.8.4.tar.gz"
         in paths.licence_errors(good, m)[0]
     )
+
+
+def test_zstds_notice_holds_the_bsd_licence_the_set_takes_not_gplv2(
+    good, work, monkeypatch
+) -> None:
+    """zstd is BSD-3-Clause or GPLv2 at the user's choice, and its tarball lists COPYING (GPLv2)
+    before LICENSE. The set takes BSD-3-Clause, so its notice must hold LICENSE, and GPLv2's text
+    alone does not pass (TOP_LICENCE)."""
+    downloads = work / "downloads"
+    downloads.mkdir()
+    bsd, gpl = b"BSD License\nFor Zstandard software\n", b"GNU GENERAL PUBLIC LICENSE\n"
+    _tar(downloads / "zstd-1.5.7.tar.gz", "zstd-1.5.7", {"COPYING": gpl, "LICENSE": bsd})
+    sha = paths.sha256_file(downloads / "zstd-1.5.7.tar.gz")
+    (downloads / "SHA256SUMS").write_text(f"{sha}  zstd-1.5.7.tar.gz\n")
+    monkeypatch.setattr(paths, "DOWNLOADS", downloads)
+    m = paths.parse_manifest(manifest_text())
+    (good / "LICENSES" / "zstd.txt").write_bytes(bsd + b"divsufsort's MIT notice\n")
+    errors, content, _ = paths.licence_errors(good, m)
+    assert "zstd" in content, content
+    assert not [e for e in errors if "zstd" in e], errors
+    (good / "LICENSES" / "zstd.txt").write_bytes(gpl)
+    errors = paths.licence_errors(good, m)[0]
+    assert "LICENSES/zstd.txt does not contain the licence of zstd-1.5.7.tar.gz" in errors, errors
 
 
 # A cut of GIST's notice as matplotlib ships it in LICENSE/LICENSE_YORICK.

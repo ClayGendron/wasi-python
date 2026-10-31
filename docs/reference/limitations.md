@@ -8,7 +8,7 @@ A known failure in a package's own test suite, or in one of the project's checks
 
 `python.wasm -V` prints them after its version:
 
-> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
+> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
 - **numpy's default integer is 32-bit.** `wasm32`'s C `long` is 32 bits, and numpy's default integer follows it. So `np.arange(1_000_000).sum()` wraps; pass `dtype=np.int64`.
 - **No threads.** `wasm32-wasip1` has no threads. Code that starts one fails, and nothing runs in parallel inside the guest.
@@ -16,7 +16,8 @@ A known failure in a package's own test suite, or in one of the project's checks
 - **No network.** The guest has no sockets. Data comes in through a grant, a mount, standard input or a host tool.
 - **No `_ctypes`.** WASI has no `dlopen`, so no library can be loaded. `import ctypes` works: it sizes wasm32's C types and gives numpy their dtypes, but loading a library or calling through a pointer raises `OSError`.
 - **No `mmap`.** WASI cannot map a file into memory. A memory map (joblib's `mmap_mode`, for one) raises `OSError`, and Pillow falls back to reading the file, silently. pandas' parallel `read_csv`, chosen by setting `mode.max_threads` above 1, maps its file and raises `OSError`; leave the option unset.
-- **No `_ssl` and no `_zstd`.** There is no network for TLS to protect, and libzstd is not built.
+- **No `_ssl`.** There is no network for TLS to protect.
+- **`compression.zstd` runs on one thread, without legacy frames.** A compressor given `nb_workers` above 0 raises `ValueError`, and frames written by zstd before 0.8 (2016) do not decode.
 - **No `scipy.odr`.** It needs ODRPACK, which is Fortran, and scipy has deprecated it for removal. `import scipy.odr` raises `ImportError` saying so.
 - **No `dup`.** WASI cannot duplicate a descriptor. `os.dup`, `os.dup2` and `os.pipe2` exist and raise `OSError` (`ENOTSUP`); `os.pipe` is absent. `ndarray.tofile` and `np.fromfile` on real files fail for the same reason; use `tobytes()` and `np.frombuffer`, or `io.BytesIO`. `np.save` and `np.load` of paths and open files work.
 - **No `resource` module.** WASI has no `getrusage` or `setrlimit`, so `import resource` raises `ModuleNotFoundError`.
