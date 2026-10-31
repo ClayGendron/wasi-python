@@ -181,8 +181,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/statsmodels-0.15.0/PKG-INFO=statsmodels" \
   --metadata "$B/python_docx-1.2.0/PKG-INFO=docx" \
   --metadata "$B/python_pptx-1.0.2/PKG-INFO=pptx" \
-  --metadata "$B/pdfminer_six-20260107/PKG-INFO" \
-  --metadata "$B/xarray-2026.9.0/PKG-INFO" \
+  --metadata "$B/pdfminer_six-20260107/PKG-INFO=pdfminer" \
+  --metadata "$B/xarray-2026.9.0/PKG-INFO=xarray" \
   --entry-points "$B/xarray-2026.9.0/PKG-INFO" "$B/xarray-2026.9.0/xarray.egg-info/entry_points.txt" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
