@@ -770,3 +770,27 @@ outcome = "error"
 match = "FileNotFoundError: .*statsmodels/datasets/\\w+/"
 reason = "the test loads one of the thirteen datasets the product leaves out for their terms, at setup or teardown (README)"
 closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "pandas-inplace-deprecated"
+group = "statsmodels-graphics-to-multivariate-factor_rotation"
+outcome = "failed"
+match = "Pandas4Warning: The inplace keyword in"
+reason = "pandas 3.1.0 deprecates the inplace keyword (Pandas4Warning), which statsmodels 0.15.0 passes, and the test sees the warning as an error; the same natively (upstream: statsmodels' next release)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "pandas-inplace-deprecated"
+group = "statsmodels-tsa-statespace-1"
+outcome = "error"
+match = "Pandas4Warning: The inplace keyword in"
+reason = "pandas 3.1.0 deprecates the inplace keyword (Pandas4Warning), which statsmodels 0.15.0 passes, and the test sees the warning as an error; the same natively (upstream: statsmodels' next release)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "pandas-inplace-deprecated"
+group = "statsmodels-tsa-statespace-2"
+outcome = "failed"
+match = "Pandas4Warning: The inplace keyword in"
+reason = "pandas 3.1.0 deprecates the inplace keyword (Pandas4Warning), which statsmodels 0.15.0 passes, and the test sees the warning as an error; the same natively (upstream: statsmodels' next release)"
+closes_with = "context/roadmap.md"

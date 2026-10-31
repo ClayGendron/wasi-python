@@ -1,5 +1,5 @@
 - **Project:** pandas (https://github.com/pandas-dev/pandas)
-- **Against:** 3.0.6 (the pinned tarball)
+- **Against:** 3.1.0 (the pinned tarball; re-made from the 3.0.6 patch with the same changed lines, 2026-10-31)
 - **Status:** drafted
 - **Title:** BUG: Styler cannot find its templates when pandas is imported from a zip archive
 - **Files:** pandas/io/formats/style_render.py
@@ -95,4 +95,4 @@ It passed on a patched wheel install and failed on stock (EXECUTED; the review's
 
 Whether to offer it is your call.
 
-**Base.** The carried patch is against 3.0.6. pandas' `main` has the same three lines, with two `#:` comments added above `loader` and `env` (READ 2026-10-17). When you ask, an agent rebases the change onto `main` in a scratch clone and hands you the branch and these facts. It never writes the description and never touches GitHub.
+**Base.** The carried patch was made against 3.0.6 and is re-made against 3.1.0 with the same changed lines (3.1.0's `style_render.py` has the same three lines at the same place). pandas' `main` has the same three lines, with two `#:` comments added above `loader` and `env` (READ 2026-10-17). When you ask, an agent rebases the change onto `main` in a scratch clone and hands you the branch and these facts. It never writes the description and never touches GitHub.

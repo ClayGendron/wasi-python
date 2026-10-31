@@ -44,7 +44,7 @@ fuel = 160_000_000_000
 
 [groups.pandas-io-parser]
 paths = ["pandas/tests/io/parser"]
-fuel = 135_000_000_000
+fuel = 261_000_000_000
 
 [groups.pandas-io-formats]
 paths = ["pandas/tests/io/formats"]
@@ -170,4 +170,20 @@ group = "pandas-slow-b"
 outcome = "failed"
 match = "module 'os' has no attribute 'pipe'"
 reason = "no threads: pandas' multi-thread reader starts a thread pool, which needs os.pipe (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-mmap"
+group = "pandas-slow-b"
+outcome = "failed"
+match = 'mmap is unavailable'
+reason = "no mmap on WASI: pandas 3.1.0's parallel read_csv maps the file, and its slow tests call it directly"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm32-int32"
+group = "pandas-slow-b"
+outcome = "failed"
+match = 'Attributes of DataFrame\.iloc\[:, 0\] \(column name="a"\) are different'
+reason = "numpy's default integer is 32 bits on wasm32: pandas 3.1.0's test builds its expected categories with numpy's default integer, while read_csv infers int64 categories, as it does natively (README)"
 closes_with = "docs/reference/limitations.md"

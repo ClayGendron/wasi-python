@@ -38,3 +38,31 @@ new = [
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
 growth = "python-docx 1.2.0 and python-pptx 1.0.2 join the zip, 214 members, so every guest's zip directory is larger: a plain start +1.93% and a snapshot start +1.01% in fuel (darwin arm64). Their whole suites measure 105.8 G (1,571 passes) and 150.0 G (2,677 passes) on darwin arm64; six tests that patch io.BytesIO for the whole interpreter fail under the driver's sys capture, as natively under --capture=sys"
+
+[[claim]]
+spec = "166"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pandas-categories]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-pandas-inplace-deprecated]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-1-pandas-inplace-deprecated]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-2-pandas-inplace-deprecated]",
+]
+changed = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-a]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-b]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-datasets]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-graphics-to-multivariate-factor_rotation]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-tsa-statespace-1]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-tsa-statespace-2]",
+]
+fewer = "pandas 3.1.0, the second pull request: pandas-slow-a 2,259 -> 2,256 and pandas-slow-b 28 -> 26. 3.1.0 drops the slow mark from test_where_inplace_casting, test_unstack_number_of_levels_larger_than_int32_warns, test_pivot_number_of_levels_larger_than_int32_warns and test_isocalendar, so their six nodes move to the normal groups; beyond the owner's 41, slow-b's three test_categorical_dtype_high_cardinality_numeric cases ([c_high], [c_low], [python]), which 3.1.0 rewrote, fail as its wasm32-int32 class says, numpy's 32-bit default integer confirmed in the guest (the test's expected categories take numpy's 32-bit default integer; read_csv's int64 categories are native's); four new parallel-read tests pass. Known upstream failures the owner accepted on 2026-10-31 with pandas 3.1.0, the same natively: scikit-learn-datasets 356 -> 329 (27 openml tests: pandas 3.1.0 infers numeric categories, which scikit-learn 1.9.1's ARFF parser passes to re.search; class pandas-categories, closed by scikit-learn's next release), and statsmodels' graphics-to-multivariate-factor_rotation 423 -> 422, tsa-statespace-1 1,049 -> 1,037 and tsa-statespace-2 591 -> 590 (14 tests: pandas 3.1.0's Pandas4Warning on the inplace keyword statsmodels 0.15.0 passes; class pandas-inplace-deprecated, closed by statsmodels' next release)"
+[claim.judge]
+"tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "CPython 3.15.2 (166's first pull request) collects the stray event loops of jinja2's async tests at other moments: four tests join the failed class (two that errored at teardown, two that see an earlier test's loop) and two leave it, passing; 106 members, jinja2-r's pass count unchanged; the weekly-shape run 41201012715 (shard upstream-release-039) saw it"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop-error.txt" = "the same trade: two tests join the teardown-error class and two leave it for the failed class; 13 members"
+"tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop counts 106 findings and jinja2-r-no-asyncio-loop-error 13, their digests following the trade"

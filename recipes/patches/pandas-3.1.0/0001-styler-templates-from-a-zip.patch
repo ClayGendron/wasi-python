@@ -1,5 +1,5 @@
 diff --git a/pandas/io/formats/style_render.py b/pandas/io/formats/style_render.py
-index a42fcf9..a6374aa 100644
+index a53c8e9..874d93e 100644
 --- a/pandas/io/formats/style_render.py
 +++ b/pandas/io/formats/style_render.py
 @@ -73,7 +73,12 @@ class StylerRenderer:

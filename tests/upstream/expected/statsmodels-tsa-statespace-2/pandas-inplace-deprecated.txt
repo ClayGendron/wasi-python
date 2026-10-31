@@ -1,0 +1,1 @@
+statsmodels/tsa/statespace/tests/test_news.py::test_news_summary_methods
