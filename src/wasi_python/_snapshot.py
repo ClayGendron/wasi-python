@@ -425,13 +425,13 @@ def _header_origin(header: Any, where: Path) -> SnapshotOrigin:
 
 
 def _check_kind(values: dict[str, Any], where: Path) -> None:
-    """A header's kind, parent and HOME, each one this reader knows: a making's HOME is the
-    image's fixed path, and a checkpoint's is that or a session's own, which every call from it
-    preopens again."""
+    """A header's kind, parent and HOME, each one this reader knows: only a checkpoint has a
+    parent; a making's HOME is the image's fixed path, and a checkpoint's is that or a
+    session's own, which every call from it preopens again."""
     kind, parent, home = values["kind"], values["parent_sha256"], values["home"]
     if kind not in KINDS:
         raise SnapshotMismatch(f"{where} has a damaged header: kind {kind!r}")
-    if parent is not None and not SHA256.match(parent):
+    if parent is not None and (kind != "checkpoint" or not SHA256.match(parent)):
         raise SnapshotMismatch(f"{where} has a damaged header: parent_sha256 {parent!r}")
     if home != IMAGE_HOME and not (kind == "checkpoint" and SESSION_HOME.match(home)):
         raise SnapshotMismatch(f"{where} has a damaged header: home {home!r}")

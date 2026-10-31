@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import copy
+import ctypes
 import dataclasses
 import hashlib
 import json
@@ -36,8 +37,21 @@ WINDOWS = pytest.mark.skipif(sys.platform != "win32", reason="Windows' own rule"
 NO_PREPARE = wat.SNAPSHOT.replace(
     '(func (export "prepare") (param i32 i32) (result i32) (i32.const -1))', ""
 )
-NO_CHECKPOINT = wat.SNAPSHOT.replace(
-    '(func (export "checkpoint") (param i32) (result i32) (i32.const 0))', ""
+CHECKPOINT = '(func (export "checkpoint") (param i32) (result i32) (i32.const 0))'
+NO_CHECKPOINT = wat.SNAPSHOT.replace(CHECKPOINT, "")
+# A stand-in whose `turn` returns the last argument `checkpoint` was given: 0 once it has left.
+CHECKPOINT_LEFT = wat.SNAPSHOT.replace(
+    CHECKPOINT,
+    "(global $cp (mut i32) (i32.const 0))\n"
+    '  (func (export "checkpoint") (param i32) (result i32)'
+    " (global.set $cp (local.get 0)) (i32.const 0))",
+).replace(
+    '(func (export "turn") (param i32 i32) (result i32) (i32.const 0))',
+    '(func (export "turn") (param i32 i32) (result i32) (global.get $cp))',
+)
+CHECKPOINT_REFUSING = wat.SNAPSHOT.replace(CHECKPOINT, CHECKPOINT.replace("0))", "-1))"))
+CHECKPOINT_TRAPPING = wat.SNAPSHOT.replace(
+    CHECKPOINT, CHECKPOINT.replace("(i32.const 0)", "unreachable")
 )
 
 
@@ -567,6 +581,7 @@ CHECKPOINT_REFUSALS = {
     "a checkpoint at /": dict(kind="checkpoint", home="/"),
     "a checkpoint's HOME of another shape": dict(kind="checkpoint", home="/tmp/.home-xyz"),
     "a prelude at a session's HOME": dict(home=SESSION_HOME),
+    "a prelude with a parent": dict(parent_sha256="c" * 64),
 }
 
 
@@ -619,6 +634,51 @@ def test_a_checkpoint_keeps_the_sessions_memory_and_origin(work) -> None:
         child = fork.checkpoint()
     assert child.origin.parent_sha256 == o.image_sha256
     assert child.origin.home == o.home  # a start keeps the session's HOME path
+
+
+def test_no_memory_for_the_image_leaves_the_session_going_on(work, monkeypatch) -> None:
+    """A `MemoryError` from the read between the two calls is raised once the guest has left:
+    the stand-in's next turn reports that `checkpoint(0)` ran, and a later checkpoint is made."""
+    given = _given(_stand_in_set(work, CHECKPOINT_LEFT))
+    copy_out = ctypes.string_at
+
+    def no_memory(address: int, size: int = -1) -> bytes:
+        if size >= PAGE:  # the image's copy alone: wasmtime-py's own short reads go on
+            raise MemoryError
+        return copy_out(address, size)
+
+    with wasi_python.Session(artifacts=given, cache_dir=False) as session:
+        assert session.run("pass").exit_code == 0
+        monkeypatch.setattr(ctypes, "string_at", no_memory)
+        with pytest.raises(MemoryError, match="the session goes on"):
+            session.checkpoint()
+        monkeypatch.undo()
+        assert session.ended is None
+        assert session.run("pass").exit_code == 0  # the stand-in's last checkpoint argument
+        assert session.checkpoint().origin.kind == "checkpoint"
+
+
+def test_a_refused_checkpoint_call_ends_the_session(work) -> None:
+    """A -1 from the export, past every refusal the host made first, is the runner losing
+    track of the guest: `RuntimeError`, and the session ends "error"."""
+    given = _given(_stand_in_set(work, CHECKPOINT_REFUSING))
+    with wasi_python.Session(artifacts=given, cache_dir=False) as session:
+        assert session.run("pass").exit_code == 0
+        with pytest.raises(RuntimeError, match="lost track"):
+            session.checkpoint()
+        assert session.ended == "error"
+
+
+def test_a_trapped_checkpoint_fails_and_ends_the_session(work) -> None:
+    given = _given(_stand_in_set(work, CHECKPOINT_TRAPPING))
+    with wasi_python.Session(artifacts=given, cache_dir=False) as session:
+        assert session.run("pass").exit_code == 0
+        with pytest.raises(wasi_python.SnapshotFailed) as failed:
+            session.checkpoint()
+        assert failed.value.reason == "trapped"
+        assert failed.value.completed is not None
+        assert failed.value.completed.trapped == "unreachable"
+        assert session.ended == "unreachable"
 
 
 def test_checkpoint_refusals_come_in_order_before_any_guest_code(work, monkeypatch) -> None:

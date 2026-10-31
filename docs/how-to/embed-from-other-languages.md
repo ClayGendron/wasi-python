@@ -134,7 +134,7 @@ A session's state after its turns can be an image too, as `Session.checkpoint` m
 2. **Read the memory whole.** Those bytes are the image. Refuse first if the guest holds a file or folder open: a start cannot reopen it.
 3. **Call `checkpoint(0)`** on every path after a 0, so the live instance goes on as it was. While entered, `shutdown` and `prepare` refuse.
 
-An instance the image is copied into resumes at its first `run` or `turn`: its import path is the stdlib zip's again, a first turn reads its own argv and environment and reseeds the generators, its monotonic clock never reads below the session's last reading, and it ends as a call from a starting image ends. The image holds every byte the session read.
+An instance the image is copied into resumes at its first `run` or `turn`: its import path is the stdlib zip's again, a first turn reads its own argv and environment and reseeds the generators, its monotonic clock never reads below the session's last reading, and it ends as a call from a starting image ends. Until that first `run` or `turn`, its `shutdown`, `prepare` and `checkpoint` refuse; an instance that ran nothing needs no shutdown. The image holds every byte the session read.
 
 ### What you give up
 

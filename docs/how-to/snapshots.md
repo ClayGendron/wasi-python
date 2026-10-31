@@ -147,7 +147,9 @@ What a start from a checkpoint carries:
 - every name, import and object the session's turns made, a hook a turn put on `builtins` or an `atexit` handler included;
 - the working folder a turn chose with `os.chdir`;
 - the session's `HOME` path, with an empty folder of its own there;
-- a generator held in a name, such as `np.random.default_rng()` or a `random.Random()`, and every value drawn before the checkpoint: these are the same in every start.
+- a generator held in a name, such as `np.random.default_rng()` or a `random.Random()`, and every value drawn before the checkpoint: these are the same in every start;
+- bytes left unflushed in a writer on descriptor 1 or 2 other than `sys.stdout` and `sys.stderr`, which every start flushes at its end;
+- the session's uncollected cyclic garbage, frozen at the start and never collected there.
 
 What is fresh in every start:
 

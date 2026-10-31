@@ -27,7 +27,7 @@ new = [
 ]
 grows = ["tests/checks/test_v1_*"]
 growth = "the reactor gains the export `checkpoint`, a resume check at the start of every `run` and `turn`, an offset on each monotonic clock read and a wrapper of `poll_oneoff`, so both binaries are larger and every call runs a few more instructions"
-units = 12
+units = 16
 [claim.judge]
 "tests/public_api.txt" = "the public API gains `Session.checkpoint` and `SnapshotOrigin`'s two defaulted fields, `kind` and `parent_sha256`"
 "tests/release_shards.toml" = "the new check file test_v1_4_checkpoint.py joins the own-guest-d shard on all three systems, beside test_v1_4_prepare.py"
