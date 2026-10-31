@@ -41,6 +41,9 @@ changed = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]",
 ]
 passes = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-frame]",
@@ -62,7 +65,7 @@ growth = "pandas 3.1.0, from 3.0.6, with its C++20 tokenizer (fast_float 8.2.10)
 "tests/upstream/expected/pandas-io-parser/no-mmap.txt" = "sixteen of pandas 3.1.0's new test_parallel_read.py tests and test_memory_map_multichar_sep[python] fail on the missing mmap, the class's cause, and match its pattern: 57 members"
 "tests/upstream/expected/pandas-slow-b/no-mmap.txt" = "a new class: nine slow tests of pandas 3.1.0's test_parallel_read.py call the parallel reader, which maps its file"
 "tests/upstream/expected/pandas-slow-b/wasm32-int32.txt" = "a new class: test_categorical_dtype_high_cardinality_numeric's three cases build their expected categories with numpy's default integer, 32 bits on wasm32, while read_csv infers int64 categories as natively"
-"tests/known_gaps.toml" = "pandas-io-parser-no-mmap counts its 57 findings; pandas-slow-b-no-mmap (9) and pandas-slow-b-wasm32-int32 (3) are new gaps closed by docs/reference/limitations.md; four gaps for the scikit-learn and statsmodels classes pandas 3.1.0 brings (27, 1, 12 and 1 findings), closed by their next releases; jinja2-r's two asyncio classes trade tests under CPython 3.15.2, their digests move (no-asyncio-loop 106 findings, no-asyncio-loop-error 13)"
+"tests/known_gaps.toml" = "pandas-io-parser-no-mmap counts its 57 findings; pandas-slow-b-no-mmap (9) and pandas-slow-b-wasm32-int32 (3) are new gaps closed by docs/reference/limitations.md; four gaps for the scikit-learn and statsmodels classes pandas 3.1.0 brings (27, 1, 12 and 1 findings), closed by their next releases; jinja2-r's two asyncio classes trade tests under CPython 3.15.2, their digests move (no-asyncio-loop 106 findings, no-asyncio-loop-error 13); tqdm-smoke's three classes trade two tests of tests_perf.py back, their digests move (11, 99 and 117 findings)"
 "tests/upstream/scikit-learn.toml" = "a new class, pandas-categories, in scikit-learn-datasets: 27 openml tests fail because pandas 3.1.0 infers numeric categories, which scikit-learn 1.9.1's ARFF parser passes to re.search; the same natively; the owner accepted them as known upstream failures on 2026-10-31, closed by scikit-learn's next release"
 "tests/upstream/statsmodels.toml" = "a new class, pandas-inplace-deprecated, in three groups: 14 tests see pandas 3.1.0's Pandas4Warning on the inplace keyword statsmodels 0.15.0 passes; the same natively; the owner accepted them on 2026-10-31, closed by statsmodels' next release"
 "tests/upstream/expected/scikit-learn-datasets/pandas-categories.txt" = "the class's 27 members"
@@ -71,5 +74,8 @@ growth = "pandas 3.1.0, from 3.0.6, with its C++20 tokenizer (fast_float 8.2.10)
 "tests/upstream/expected/statsmodels-tsa-statespace-2/pandas-inplace-deprecated.txt" = "the class's one member, test_news_summary_methods"
 "tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "under CPython 3.15.2 the stray event loops of jinja2's async tests are collected at other moments: test_custom_async_iteratable_filter[asyncio-<lambda>0] and test_sum[<lambda>1] now fail with OSError [Errno 58] instead of erroring at teardown, test_extend_late and test_line_syntax fail with multiple unraisable exception warnings from an earlier test's loop, and test_streamfilter_extension and test_balancing now pass; each member with this class's cause and pattern (106)"
 "tests/upstream/expected/jinja2-r/no-asyncio-loop-error.txt" = "the trade above: test_custom_async_filter[asyncio] and test_sum[<lambda>0] now error at teardown with the stray loop, and the two that moved to no-asyncio-loop leave (13)"
+"tests/upstream/expected/tqdm-smoke/no-asyncio-loop-error.txt" = "with pandas 3.1.0 and zlib 1.3.2 in the set, the stray event loop of tqdm's asyncio tests is collected during test_iter_basic_overhead (an unraisable BaseEventLoop.__del__) again, no longer during test_iter_overhead_simplebar_hard, so the two trade places back, each with this class's cause and pattern"
+"tests/upstream/expected/tqdm-smoke/no-threads-error.txt" = "test_iter_overhead_simplebar_hard now errors with the monitor thread's cause (instances still in existence) and test_iter_basic_overhead leaves, the trade above"
+"tests/upstream/expected/tqdm-smoke/no-threads.txt" = "test_iter_overhead_simplebar_hard now fails with TqdmMonitorWarning (no threads) and test_iter_basic_overhead leaves, the trade above"
 "context/release-claims.toml" = "166's second pull request appends its release-tier claim block: pandas-slow-a's and pandas-slow-b's pass counts, slow-b's two new classes, and the four scikit-learn and statsmodels groups whose passes fall to pandas 3.1.0, with their classes"
 ```
