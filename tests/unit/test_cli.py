@@ -1,5 +1,6 @@
 """`wasi-python run`: parsing, the output line and the exit codes, with a fake `run`
-that records its arguments. Real calls are in tests/checks/test_v1_4_embedding.py."""
+that records its arguments. Real calls are in tests/checks/test_v1_4_embedding.py.
+`wasi-python packages`: its lines, its JSON line and its exit codes, over a set each row writes."""
 
 from __future__ import annotations
 
@@ -7,6 +8,7 @@ import base64
 import json
 import sys
 import threading
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -440,3 +442,72 @@ def test_stream_then_an_error_or_ctrl_c(capsysbinary, monkeypatch) -> None:
     _streaming(monkeypatch, KeyboardInterrupt())
     code, out, _ = _main(capsysbinary, "run", "--stream", "--", "-c", "1")
     assert code == 130 and [json.loads(line) for line in out.splitlines()] == CHUNK_LINES
+
+
+def _a_set(folder: Path) -> Path:
+    """A set of two packages, with a MANIFEST so `artifacts()` finds it: one with names to
+    import, one with none."""
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "MANIFEST").write_text("python 3.15.2\n")
+    members = {
+        "scikit_learn-1.9.1.dist-info/METADATA": "Name: scikit-learn\nVersion: 1.9.1\n\n",
+        "scikit_learn-1.9.1.dist-info/top_level.txt": "sklearn\n",
+        "attrs-26.1.0.dist-info/METADATA": "Name: attrs\nVersion: 26.1.0\n\n",
+        "attrs-26.1.0.dist-info/top_level.txt": "attrs\nattr\n",
+        "bare-1.dist-info/METADATA": "Name: bare\nVersion: 1\n\n",
+    }
+    with zipfile.ZipFile(folder / "python-stdlib.zip", "w") as z:
+        for name, text in members.items():
+            z.writestr(name, text)
+    return folder
+
+
+def test_packages_prints_a_line_per_package(capsysbinary, monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("WASI_PYTHON_ARTIFACTS", str(_a_set(tmp_path)))
+    code, out, err = _main(capsysbinary, "packages")
+    assert (code, err) == (0, b"")
+    assert out.decode().splitlines() == [
+        "attrs 26.1.0 (import attr, attrs)",
+        "bare 1",
+        "scikit-learn 1.9.1 (import sklearn)",
+    ]
+
+
+def test_packages_json_is_one_line_of_one_object(capsysbinary, monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("WASI_PYTHON_ARTIFACTS", str(_a_set(tmp_path)))
+    code, out, err = _main(capsysbinary, "packages", "--json")
+    assert (code, err) == (0, b"") and out.count(b"\n") == 1 and out.endswith(b"\n")
+    assert json.loads(out) == {
+        "packages": [
+            {"imports": ["attr", "attrs"], "name": "attrs", "version": "26.1.0"},
+            {"imports": [], "name": "bare", "version": "1"},
+            {"imports": ["sklearn"], "name": "scikit-learn", "version": "1.9.1"},
+        ]
+    }
+
+
+def test_packages_exits_1_when_there_is_no_set(capsysbinary, monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("WASI_PYTHON_ARTIFACTS", str(tmp_path / "absent"))
+    code, out, err = _main(capsysbinary, "packages")
+    assert (code, out) == (1, b"") and err.startswith(b"wasi-python packages: ")
+    assert err.count(b"\n") == 1 and b"MANIFEST" in err
+    code, out, err = _main(capsysbinary, "packages", "--json")
+    assert (code, err) == (1, b"") and out.count(b"\n") == 1
+    line = json.loads(out)
+    assert list(line) == ["error", "kind"] and line["kind"] == "ArtifactsMissing"
+
+
+@pytest.mark.parametrize("args", [["--jsn"], ["--js"], ["extra"], ["--json=1"]])
+def test_packages_usage_error_exits_2(capsysbinary, monkeypatch, tmp_path, args) -> None:
+    monkeypatch.setenv("WASI_PYTHON_ARTIFACTS", str(_a_set(tmp_path)))
+    code, out, err = _main(capsysbinary, "packages", *args)
+    assert (code, out) == (2, b"") and b"usage: wasi-python packages [--json]" in err
+
+
+def test_the_usage_names_both_commands(fake, capsysbinary) -> None:
+    both = b"usage: wasi-python run [OPTIONS] [--] ARG...\n       wasi-python packages [--json]\n"
+    code, out, err = _main(capsysbinary, "--help")
+    assert code == 0 and out.startswith(both) and err == b""
+    code, out, err = _main(capsysbinary, "walk")
+    assert (code, out) == (2, b"") and err.startswith(both) and b"`run` and `packages`" in err
+    assert _main(capsysbinary, "packages", "--help")[0] == 0

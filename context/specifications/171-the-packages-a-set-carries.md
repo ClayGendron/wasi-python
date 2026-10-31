@@ -131,4 +131,22 @@ The news file's CHANGELOG lines, in the shape of `../changes/README.md`:
 
 ## Landing notes
 
-To be written at the landing.
+Built 2026-10-31 by an agent (Claude Opus 5.5), a builder sub-agent of the orchestrating session, on `spec/171-the-packages-a-set-carries` from `dev` at `117bcd67`. The pre-build review is `../reviews/171-the-packages-a-set-carries-spec-2026-10-31.md`; the pull request's review is to come. Everything below is EXECUTED on an arm64 Mac (Darwin 25.5.0) unless labelled.
+
+**The set**, built whole from the pinned sources with this branch's recipe (`scripts/build.sh`, 34 min 55 s): `python.wasm` is byte for byte dev's (`a1137950…`), so the base is dev's set; the zip (`667ae839…`) and the snapshot (`c3f8ef89…`) change, and so do `MANIFEST` (the two recipe lines and `x-snapshot-zip`) and `SHA256SUMS`. Each of the 55 `.dist-info` folders (53 at 0.1.2, and 165's two) carries its `top_level.txt`: matplotlib's `matplotlib`, `mpl_toolkits`, `pylab`; pyyaml's `yaml`; scikit-learn's `sklearn`; toolz's `tlz`, `toolz`; sympy's `isympy`, `sympy`; python-docx's `docx` and python-pptx's `pptx`, whose `--metadata` lines 165 put on `dev`.
+
+**Criterion 6, against dev's set** (the 165 worktree's build at `dev`'s sources, read-only): the zip 54,960,042 → 54,969,118 bytes (+9,076), 6,476 → 6,531 members (+55); `python-snapshot.wasm` 104,660,252 → 104,684,438 (+24,186); `python.wasm` unchanged. A plain start (`-c pass`, the judge's driver) 277,589,139 → 279,014,133 fuel (+1,424,994, +0.51%); a snapshot start 54,177,689 → 54,209,973 (+32,284, +0.06%), not unchanged as criterion 6 expected: INFERRED, the snapshot start's exit frees zipimport's directory, now 55 entries larger. One `packages_distributions()` on the snapshot 241,418,304 → 799,553,249 fuel: it answered `{}` and now reads 55 files and answers 60 names. **The wheel**, built by hand from each set: 99,478,845 → 99,487,321 bytes (+8,476), 5,370,279 under 104,857,600. Each growth is claimed in the news file.
+
+**Seen failing first.** The unit, build and command rows were run against `dev`'s code (an export of `117bcd67` with this branch's `tests/`): `tests/unit/test_package_list.py` fails to import `Package`, and the 23 new or changed rows of `test_cli.py`, `test_cli_doc.py` and `test_build_scripts.py` fail, among them each of the review's three rules (a name a wheel and a tree own, a distribution left with no name, `--metadata` without `=<names>`). Criterion 4: on dev's set both checks fail, the oracle on both binaries with every package nameless (the host's list equal to the guest's, both empty of names) and the coverage with every package name unclaimed; on the new set both pass, plain and snapshot, as do `test_the_snapshot_pre_imports_no_package` and `test_packages_carry_their_metadata`.
+
+**Where the build differs from the text.**
+- The unit rows are `tests/unit/test_package_list.py`: `tests/unit/test_packages.py` already holds the compiled packages' family rows.
+- Name and Version are read with `PackageMetadata.get_all(...)[0]`, not `.get`: the protocol's `get` is not in Python 3.11's typing, and mypy's strict check runs at 3.11. It answers a missing key with `None` on every host Python, as `.get` would.
+- Decision 3's rules hold two more cases: two trees that pack one name stop the build too, and a root member that is not a module (`w.pth`) is no name.
+- `tests/harness/cli_doc.py` gains `live_parsers()` and `live_block()`, and `test_generated_pages_are_current` reads the block through `live_block()`. `docs/reference/cli.md` gains a short section, "List the packages", beside the generated block, and `docs/contributing/adding-a-package.md` a paragraph on `--metadata`'s names.
+- `_Process.__init__` stays at its listed 84 lines (Decision 4), checked by `test_no_function_is_over_eighty_lines`.
+- `tests/checks/test_v1_4_public_api.py`'s `TOP`, the names `from wasi_python import *` must bind, gains `Package` and `packages`: the Design did not list it, and the fast tier's first run at the head failed that row until it did.
+
+**Sibling work.** 167 also edits step 70's `--metadata` lines. Whichever lands second rebases and writes its names in Decision 3's form; the build stops on a tree's name no `--metadata` claims, so a missed line cannot pass.
+
+**Local runs at the head**: `ruff` check and format clean; `tests/lint` green (14 passed); the fast tier (`uv run pytest -m "not slow"`, 27 min 58 s) 4,435 passed with one failure, `test_public_modules_export_exactly_their_all`, then fixed as above and its file re-run green (11 passed); blocked locally only by the prior-art clones and the wheel, as on `dev`. The ratchet lists 231 growths, every one a check whose start reads the larger zip, claimed by the news file's `grows`.

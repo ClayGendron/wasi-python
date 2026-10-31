@@ -5,7 +5,9 @@
 # to fixed values, and the text rewrites below, computed from what the build knows and applied in
 # this order (the triple appears only inside the build-Python's path, which goes first), replace
 # the rest. Each Python distribution's METADATA rides along: a wheel's from the wheel,
-# numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
+# numpy's and pandas' from their pinned sdists' PKG-INFO, and beside it the top_level.txt of the
+# names to import: a wheel's are what it packs, and each --metadata names its own after its `=`,
+# since a tree may hold several sdists' packages. CPython's own ctypes stays out (no libffi
 # in wasi-sdk); the recipe's stand-in package takes its place. The tool protocol's guest package,
 # `host`, rides along as the project's own code, with `host.display` and the figures backend
 # `host.figures` for a call that asks for results; the snapshot does not pre-import it.
@@ -161,24 +163,24 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
   --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
   --wheel "$(pinned pdfplumber-0.11.10-py3-none-any.whl)" \
-  --metadata "$B/numpy-2.5.4/PKG-INFO" \
-  --metadata "$B/pandas-3.0.6/PKG-INFO" \
-  --metadata "$B/pillow-13.0.0/PKG-INFO" \
-  --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \
-  --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
-  --metadata "$B/contourpy-1.4.0/PKG-INFO" \
-  --metadata "$B/lxml-6.1.3/PKG-INFO" \
-  --metadata "$B/regex-2026.9.29/PKG-INFO" \
-  --metadata "$B/pyyaml-6.0.3/PKG-INFO" \
-  --metadata "$B/markupsafe-3.0.4/PKG-INFO" \
-  --metadata "$B/networkx-3.7/PKG-INFO" \
+  --metadata "$B/numpy-2.5.4/PKG-INFO=numpy" \
+  --metadata "$B/pandas-3.0.6/PKG-INFO=pandas" \
+  --metadata "$B/pillow-13.0.0/PKG-INFO=PIL" \
+  --metadata "$B/kiwisolver-1.5.1/PKG-INFO=kiwisolver" \
+  --metadata "$B/matplotlib-3.11.2/PKG-INFO=matplotlib,mpl_toolkits,pylab" \
+  --metadata "$B/contourpy-1.4.0/PKG-INFO=contourpy" \
+  --metadata "$B/lxml-6.1.3/PKG-INFO=lxml" \
+  --metadata "$B/regex-2026.9.29/PKG-INFO=regex" \
+  --metadata "$B/pyyaml-6.0.3/PKG-INFO=yaml" \
+  --metadata "$B/markupsafe-3.0.4/PKG-INFO=markupsafe" \
+  --metadata "$B/networkx-3.7/PKG-INFO=networkx" \
   --entry-points "$B/networkx-3.7/PKG-INFO" "$B/networkx-3.7/networkx.egg-info/entry_points.txt" \
-  --metadata "$B/scipy-1.18.1/PKG-INFO" \
-  --metadata "$B/scikit_learn-1.9.1/PKG-INFO" \
-  --metadata "$B/seaborn-0.13.2/PKG-INFO" \
-  --metadata "$B/statsmodels-0.15.0/PKG-INFO" \
-  --metadata "$B/python_docx-1.2.0/PKG-INFO" \
-  --metadata "$B/python_pptx-1.0.2/PKG-INFO" \
+  --metadata "$B/scipy-1.18.1/PKG-INFO=scipy" \
+  --metadata "$B/scikit_learn-1.9.1/PKG-INFO=sklearn" \
+  --metadata "$B/seaborn-0.13.2/PKG-INFO=seaborn" \
+  --metadata "$B/statsmodels-0.15.0/PKG-INFO=statsmodels" \
+  --metadata "$B/python_docx-1.2.0/PKG-INFO=docx" \
+  --metadata "$B/python_pptx-1.0.2/PKG-INFO=pptx" \
   --metadata "$B/pdfminer_six-20260107/PKG-INFO" \
   --metadata "$B/xarray-2026.9.0/PKG-INFO" \
   --entry-points "$B/xarray-2026.9.0/PKG-INFO" "$B/xarray-2026.9.0/xarray.egg-info/entry_points.txt" \

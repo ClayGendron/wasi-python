@@ -50,6 +50,7 @@ KEPT = {
     "handlers": {"dladdr": "a function"},
     "check_modules": {True: "a module"},
     "versions": {"a manifest": "314"},
+    "packages": {("a zip", 1, 2): ("a package",)},
     "guest_packages": {"a path": ((1, 2), True)},
     "digests": {("a path", 1, 2): "a digest"},
     "engines": {True: "an engine"},

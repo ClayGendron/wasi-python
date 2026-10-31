@@ -16,6 +16,11 @@ embedder that runs them through its own wasmtime binding::
     paths.stdlib_zip    # the stdlib plus the packages' pure-Python parts
     paths.manifest      # every pinned source and recipe hash the build used
 
+`packages()` lists the Python packages the set carries, each with its version and the names to
+import, read from the zip without starting a guest::
+
+    "\n".join(map(str, packages()))    # "scikit-learn 1.9.1 (import sklearn)", one per line
+
 The public API is this module's `__all__`, the module `wasi_python.tools` (host functions a
 guest may call), the `wasi-python` command, and the environment variables
 `WASI_PYTHON_ARTIFACTS` and `WASI_PYTHON_CACHE`. Everything else is internal, the modules
@@ -30,6 +35,7 @@ from __future__ import annotations
 from . import _process
 from . import runner as _runner
 from ._artifacts import Artifacts, ArtifactsMissing, artifact_dir, artifacts
+from ._packages import Package, packages
 from ._results import Display
 from ._snapshot import Snapshot, SnapshotFailed, SnapshotMismatch, SnapshotOrigin
 from ._snapshot_make import make_package_snapshot, make_snapshot
@@ -111,6 +117,7 @@ __all__ = [
     "Mount",
     "OutputChunk",
     "OutputFeed",
+    "Package",
     "RefusedWrite",
     "Session",
     "SessionEnded",
@@ -125,6 +132,7 @@ __all__ = [
     "defaults",
     "make_package_snapshot",
     "make_snapshot",
+    "packages",
     "run",
     "run_async",
     "set_defaults",
