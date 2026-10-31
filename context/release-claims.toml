@@ -26,3 +26,15 @@ grows = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-*",
 ]
 growth = "the pins move for 0.1.3's first pull request: CPython 3.15.2, numpy 2.5.4, pypdf 6.21.4, soupsieve 3.0.4, wrapt 2.5.2, tzdata 2026.6. Measured on darwin arm64 against dev's set: numpy's, pandas' and CPython's 18 release groups +0.199% in sum (median +0.134%, from -0.130% to +1.108%, cpython-release-b-inline the most), every pass count the same; pypdf-r -2.417% with 1,695 passes (1,474: three releases' new tests); soupsieve-r 31.4 G to 185.8 G (cap 280 G) with 400 passes (322): 3.0.4's new tests, and test_api.py, whole, moved to it from soupsieve-smoke, whose two new exhaustive tests measure about 141 G, past a smoke group's 100 G. The release groups over numpy (scipy, scikit-learn, statsmodels, matplotlib, contourpy) are read at the first weekly run after the merge, numpy 2.5.4 under each"
+
+[[claim]]
+spec = "165"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[python-docx-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[python-pptx-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-docx-r-bytesio-mocked-in-a-fixture]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-fixture]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-test]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "python-docx 1.2.0 and python-pptx 1.0.2 join the zip, 214 members, so every guest's zip directory is larger: a plain start +1.93% and a snapshot start +1.01% in fuel (darwin arm64). Their whole suites measure 105.8 G (1,571 passes) and 150.0 G (2,677 passes) on darwin arm64; six tests that patch io.BytesIO for the whole interpreter fail under the driver's sys capture, as natively under --capture=sys"
