@@ -30,3 +30,19 @@ new = [
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
 growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the zip, 185 members, so every guest's zip directory is larger: a plain start +1.68% and a snapshot start +0.77% in fuel (darwin arm64). Their release groups measure pdfplumber-r 171.5 G (104 passes), pdfminer-six-r 86.9 G (184 passes) and xarray's eight 1,536.7 G (7,712 passes) on darwin arm64; the failures fall in sixteen classes, each named in its family's TOML"
+
+[[claim]]
+spec = "167"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[plotly-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-read-only-source]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-anywidget]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-scikit-image]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-ipython]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-polars-pyarrow]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-requests]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-wasm32-maxsize]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-fails-natively-in-one-session]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "plotly 7.1.0 joins the zip, 1,528 members, so every guest's zip directory is larger: a plain start +14.7% and a snapshot start +7.0% in fuel (darwin arm64). Its release group, plotly-r, measures 214.4 G with 2,062 passes on darwin arm64; its 36 failures fall in eight classes, each named in its TOML"
