@@ -7,3 +7,22 @@
 # release/version.py date moves the blocks under "## <version>" in
 # context/release-claims-history.md, and this file starts empty again. Until 0.1.2 this file was
 # context/release-tier-claims.toml and carried release-tier claims alone.
+
+[[claim]]
+spec = "166"
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pypdf-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
+]
+grows = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-slow-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scipy-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-*",
+]
+growth = "the pins move for 0.1.3's first pull request: CPython 3.15.2, numpy 2.5.4, pypdf 6.21.4, soupsieve 3.0.4, wrapt 2.5.2, tzdata 2026.6. Measured on darwin arm64 against dev's set: numpy's, pandas' and CPython's 18 release groups +0.199% in sum (median +0.134%, from -0.130% to +1.108%, cpython-release-b-inline the most), every pass count the same; pypdf-r -2.417% with 1,695 passes (1,474: three releases' new tests); soupsieve-r +17.69%, 36.9 G under its 48 G cap, with 342 passes (322), 3.0.4's new tests. The release groups over numpy (scipy, scikit-learn, statsmodels, matplotlib, contourpy) are read at the first weekly run after the merge, numpy 2.5.4 under each"
