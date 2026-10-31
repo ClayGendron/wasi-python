@@ -3,7 +3,7 @@
 - **Status:** drafted 2026-10-30, to be reviewed before it is built (the guest's imports and the build recipe: constitution §5.6). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). Revised the same day against its pre-build review, `../reviews/167-pdfplumber-plotly-xarray-and-zstd-spec-2026-10-30.md` (its Disposition). It waits on the owner: the licences of choice 1 are not yet approved under constitution §4.12, and plotly waits on PyPI (choice 2).
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
-- **Kind:** **build-class**, **a judge change**, three carried patches; not structural: nothing under `src/` changes. Two parts: A, the packages, is this specification's pull request; B, libzstd, is a decision block that the lane's next free number takes whole (Decision 10).
+- **Kind:** **build-class**, **a judge change**, three carried patches; not structural: nothing under `src/` changes. Two parts: A, the packages, is this specification's pull request; B, libzstd, is a decision block that specification 169 takes whole (Decision 10; `169-zstd-built-in.md`).
 - **Depends on:** landed: 007, 020, 035 (the zip's resource reader), 041 (Decision 4), 042 (an sdist for its notices; growth measured from the pins), 063 and 067, 157. Siblings: 166 lands first (pandas' patch folder, the oracle; B rechecks the oracle's libzstd on 3.15.2, and makes its patch against whichever pandas 166 pins). 165 shares files; the second to land rebases. 162 to 164 and 168 touch `src/` only.
 - **Research it stands on:** `../research/2026-10-30-what-0-1-3-could-carry.md`, items E and F; `../decisions.md` line 529 and question 64 (line 245); `../roadmap.md` line 89. **Drafting reads** (2026-10-30): the four wheels and pypdfium2's in uv's cache (READ); each tree compiled with Python 3.14 and deflated (EXECUTED, a scratch script, not step 70's); the oracle CPython's libzstd (EXECUTED: `1.5.7`); the 0.1.2 wheel (EXECUTED).
 
@@ -73,7 +73,7 @@ About 1,750 more members cost about 45 M of fuel on every plain start, now about
 
 ### 10. Part B, libzstd: a block the next number takes
 
-B changes the binaries, A the zip. One news file and one review belong to one number (`../changes/README.md`), so B takes the next free number with these decisions, and may land first once libzstd is approved.
+B changes the binaries, A the zip. One news file and one review belong to one number (`../changes/README.md`), so B is specification 169, with these decisions; the owner approved libzstd on 2026-10-31.
 
 - **B1. libzstd 1.5.7 as `_zstd`.** The pin is zstd 1.5.7's release tarball, the oracle's version, so the golden compares compressed bytes. Step 35 compiles `lib/common`, `compress`, `decompress` and `dictBuilder` outside the tree, as bzip2 (`35_stdlib_libs.sh:26-38`), with `-O2 -DZSTD_DISABLE_ASM -DXXH_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=0`, without `ZSTD_MULTITHREAD`. Step 60 adds `_zstd` from CPython's four files (`Modules/Setup.stdlib.in:69`), `libzstd.a` to the weak-duplicate gate (`60_link.sh:98-100`) and `_zstd` to the dropped-module check (`:139-141`). `nb_workers` above 0 raises `ValueError`. The `-V` line drops "zstd" (`recipes/reactor_bootstrap.py:24-28`).
 - **B2. pandas' `compression="zstd"`.** A carried patch: without `zstandard`, `get_handle` opens `compression.zstd.ZstdFile` with `level`; any other key raises `TypeError` naming it. pandas' own zstd tests skip without `zstandard` (INFERRED), so B's golden is this path's only test.
