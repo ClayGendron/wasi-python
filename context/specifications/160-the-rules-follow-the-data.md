@@ -1,6 +1,6 @@
 # 160: The rules follow the data
 
-- **Status:** drafted 2026-10-30. The owner asked for it on 2026-10-30 ("can you implement all the recommendations") and agreed the same day to the three rule changes it carries (constitution §4.14, §5.7; the repository ruleset for `dev`).
+- **Status:** built 2026-10-30 on `spec/160-the-rules-follow-the-data`, not landed; the ruleset change waits on the owner's command (below). Drafted 2026-10-30. The owner asked for it on 2026-10-30 ("can you implement all the recommendations") and agreed the same day to the three rule changes it carries (constitution §4.14, §5.7; the repository ruleset for `dev`).
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
 - **Kind:** documents and the repository's settings: `AGENTS.md`, the constitution, `context/README.md`, `reviews/README.md`, `changes/README.md`, `docs/contributing/`, the pull request template, one job of the release workflow (the issue on a red post-merge run), one lint warning; not structural; parallel-safe with 159 and 161.
@@ -65,4 +65,11 @@ In: the seven decisions. Out: the organization move; the merge queue; rewriting 
 
 ## Landing notes
 
-To be written at the landing.
+- Branch `spec/160-the-rules-follow-the-data` from the docs branch at `7f145fa5`: `16cf0147` (the change), `a7608ce4` (two docstrings rewrapped), then these notes. No pull request yet.
+- Seen failing first (EXECUTED): the 16 new unit rows and the two new rules checks failed before the code, on the missing `scan.release_notes_read_errors`, `scan.red_run_issue_errors`, `scan.red_run_issue_acts` and `budget.length_over`.
+- Decision 1 as built: `weekly-issue` is now `red-run-issue`, with `issues: write` (alone in the workflow) and `actions: read` to name the red legs. It opens or comments on a red run after a merge or a red weekly run, and a green run after a merge closes the issue. So criterion 3 reads: it opens on a red push and a red weekly run, and closes on a green push; nothing else touches an issue. The open and close scripts were run in bash against a stub `gh`.
+- Decision 2: §4.14 did not carry the quoted words; the new sentence is added there, and the old words in `release.yml`'s header and one rules docstring are replaced. One `gh api` read of ruleset 25925120 gave `build/rulesets/dev.json` in this worktree: everything kept, strict off, `review` added.
+- The owner runs: `gh api -X PUT repos/ClayGendron/wasi-python/rulesets/25925120 --input /Users/claygendron/Git/Repos/wasi_python-wt/160-the-rules-follow-the-data/build/rulesets/dev.json`, only once 159's `review` job is on `dev`, since a required check no run reports holds every pull request. The read-back goes here.
+- Decision 4: 0.1.2's security review has no `## Release notes` section, so the rule also admits a release up to 0.1.2 whose own `-release-notes-review-` file ends with its verdict; 0.1.2 passes unchanged.
+- Decision 5: the warning leaves out specifications dated before 2026-10-30, by the Date line or the header's first date. On this tree it names one: 159 at 2,009 words. Without that limit it named 248 lines.
+- Results (EXECUTED, 2026-10-30): fast tier 3431 passed, 769 skipped, 0 fail, 654 blocked by the absent artifact set (environmental); `tests/unit tests/lint tests/checks/test_rules.py` 3384 passed, 79 skipped, rules 126/128 (2 blocked: artifact dir, prior-art clones); `tests/lint` 13 passed; ruff clean.
