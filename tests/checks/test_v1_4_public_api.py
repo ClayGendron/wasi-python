@@ -34,6 +34,8 @@ TOP = [
     "FileRecord",
     "Grant",
     "Mount",
+    "OutputChunk",  # output while the guest runs
+    "OutputFeed",
     "RefusedWrite",
     "Session",  # bounded sessions
     "SessionEnded",

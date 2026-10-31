@@ -61,7 +61,7 @@ Fuel counts operations, not time, so a fuel cap does not depend on how fast the 
 
 ## Cap the output
 
-Output past `output_bytes` is dropped, and the stream's name is put in `truncated`. The guest runs on. A call with no truncated output reports an empty `truncated`, as in this command's result:
+Output past `output_bytes` is dropped, and the stream's name is put in `truncated`. The guest runs on. A stream keeps its first bytes; pass `output_keep="tail"` to keep its last, where a traceback is (see [Read output while the guest runs](output-while-it-runs.md)). A call with no truncated output reports an empty `truncated`, as in this command's result:
 
 ```
 $ wasi-python run -- -c "print(1)"

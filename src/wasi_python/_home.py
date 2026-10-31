@@ -92,6 +92,16 @@ class _Done:
 _DONE = _Done()
 
 
+class _Post:
+    """A hand-off the guest side does not wait for: `fn` run on the home thread, its value
+    dropped."""
+
+    __slots__ = ("fn",)
+
+    def __init__(self, fn: Callable[[], Any]) -> None:
+        self.fn = fn
+
+
 class _Box:
     """One hand-off: a function and its arguments, run on the home thread; the guest thread waits
     on `lock`, which `answer` releases once."""
@@ -190,7 +200,7 @@ class _Home:
 
     def __init__(self) -> None:
         self.ident = threading.get_ident()
-        self.inbox: queue.SimpleQueue[_Box | _Done] = queue.SimpleQueue()
+        self.inbox: queue.SimpleQueue[_Box | _Done | _Post] = queue.SimpleQueue()
         self.lock = threading.Lock()
         self.raised: BaseException | None = None
         self.watched = False  # this thread's _ctrl_c_watched(), for its guest thread
@@ -240,16 +250,28 @@ class _Home:
             raise box.error
         return box.value
 
+    def post(self, fn: Callable[[], Any]) -> None:
+        """fn() on the home thread, in its turn among the hand-offs, with nobody waiting for it.
+        An exception from it is the call's stop, as one raised into the home is; once the home
+        has stopped, nothing is posted."""
+        if self.raised is None:
+            self.inbox.put(_Post(fn))
+
     def serve(self) -> None:
         """Run what the guest thread hands home until it is done. An exception raised into this
         loop is kept as the call's stop, and the hand-off in flight is answered with a stop."""
-        item: _Box | _Done | None = None
+        item: _Box | _Done | _Post | None = None
         while True:
             try:
                 item = None
                 item = self.inbox.get(timeout=_GUEST_SLICE)
                 if isinstance(item, _Done):  # the guest thread has ended
                     return
+                if isinstance(item, _Post):  # nobody waits: nothing to answer
+                    posted, item = item, None
+                    if self.raised is None:
+                        posted.fn()
+                    continue
                 if self.raised is not None:  # stopped: answered, never run
                     item.answer(error=_Stopped())
                 else:
@@ -261,7 +283,7 @@ class _Home:
                 self.stop(e)
                 if isinstance(item, _Done):
                     return
-                if item is not None:
+                if isinstance(item, _Box):
                     item.answer(error=_Stopped())
 
     def finish(self, step: Callable[[], Any]) -> bool:

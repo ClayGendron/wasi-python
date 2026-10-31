@@ -103,6 +103,8 @@ class _CheckedCall:
     deadline_s: float | None
     memory_bytes: int | None
     output_bytes: int | None
+    output_keep: str  # "head" or "tail"
+    on_output: Callable[[_outputs.OutputChunk], object] | None
     argv: tuple[str, ...]
     env: dict[str, str] | None  # never mutated after the check
     stdin: bytes | None
@@ -457,7 +459,7 @@ def _instance(
     if tool_host is not None:
         host, admit = tool_host, tool_host.admit
 
-    out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
+    out, err, feed = _outputs._feed_for(c.on_output, c.output_keep, output_bytes, ht, loop)
     wasi = wt.WasiConfig()
     origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here
     wasi.argv = [ARGV0, *_import_prelude(c.import_path), *argv]
@@ -547,18 +549,38 @@ def _instance(
                 scratch.remove()
 
         ht.finish(release)  # never while a guest thread runs
-    truncated = tuple(s.name for s in (out, err) if s.dropped)
     record = None if tool_host is None else tool_host.record  # on every ending
+    sha = None if c.start is None else c.start.sha256
+    return _completed(out, err, feed, done.exit_code, done.trapped, fuel_used, files, record, sha)
+
+
+def _completed(
+    out: _Stream,
+    err: _Stream,
+    feed: _outputs._Feed | None,
+    exit_code: int | None,
+    trapped: str | None,
+    fuel_used: int | None,
+    files: FileRecord | None,
+    tools: ToolRecord | None,
+    image_sha256: str | None,
+) -> Completed:
+    """A call's or a turn's result, on its home once every byte the guest wrote is in its
+    streams: the last output delivered first, so every chunk reaches `on_output` before the
+    result is returned, then each stream as its keep reads it."""
+    if feed is not None:
+        feed.close()
+    truncated = tuple(s.name for s in (out, err) if s.dropped)
     return Completed(
-        done.exit_code,
-        bytes(out.data),
-        bytes(err.data),
-        done.trapped,
+        exit_code,
+        out.kept(),
+        err.kept(),
+        trapped,
         fuel_used,
         truncated,
         files,
-        record,
-        None if c.start is None else c.start.sha256,
+        tools,
+        image_sha256,
     )
 
 

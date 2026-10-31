@@ -67,6 +67,7 @@ nav:
       - how-to/snapshots.md
       - how-to/limits.md
       - how-to/async.md
+      - how-to/output-while-it-runs.md
       - how-to/tools.md
       - how-to/matplotlib.md
       - how-to/excel-pdf-xml.md

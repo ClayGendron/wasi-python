@@ -28,6 +28,8 @@ wasi-python run [OPTIONS] [--] ARG...
 | `--deadline-s` | `SECONDS` | `run`'s default | the wall-clock seconds the call may run; none for no limit |
 | `--memory-bytes` | `BYTES` | `run`'s default | the most linear memory the guest may hold, in bytes; none for no limit |
 | `--output-bytes` | `BYTES` | `run`'s default | the most bytes kept per stream; the rest is dropped and the stream is named in `truncated`; none for no limit |
+| `--output-keep` |  | `run`'s default | what a stream past --output-bytes keeps: its first bytes (head, the default) or its last (tail) |
+| `--stream` |  | off | print each piece of output as it arrives, one JSON line per chunk, before the result line |
 | `--fuel` | `N` | `run`'s default | a cap on the guest's executed instructions; past it the call ends "out of fuel"; none for no cap |
 | `--max-open-files` | `N` | `run`'s default | the most files and folders the guest holds open at once; none for no limit |
 | `--no-snapshot` |  | off | run the plain reactor, python.wasm, instead of the snapshot |
