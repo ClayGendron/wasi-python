@@ -655,12 +655,38 @@ def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path)
     assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
 
 
+REVIEW_CASES = {
+    "the review file holds": ("[]", 0),
+    "a refusal": ('["context/reviews/x-pr-2026-10-30.md: its Reviewer: line is empty"]', 1),
+    "no plan": ("", 1),
+}
+
+
+@pytest.mark.parametrize("case", REVIEW_CASES)
+def test_the_review_job_fails_on_a_review_refusal_or_no_plan(case, tmp_path) -> None:
+    """The review job's own step, run in bash: green only when the plan's review_refusals is the
+    empty list, so a plan that failed leaves it red rather than skipped."""
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(), scan.REVIEW_JOB, "The plan refused no review file"
+    )
+    refusals, want = REVIEW_CASES[case]
+    (tmp_path / "review.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "review.sh")],
+        env={"PATH": "/usr/bin:/bin", "REVIEW_REFUSALS": refusals},
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
+
+
 def test_one_required_check_holds_every_job() -> None:
-    """ci-status is the one required check: it always runs, needs every other job, and passes
-    only when each succeeded or was skipped by the plan and the plan refused nothing; every other
-    job gates on the decision job's outputs with if:, never a paths: filter, so a skipped job
-    reports success and the check is always reported; only a pull request's older run is
-    cancelled."""
+    """ci-status is the one required check: it always runs, needs every other job but the
+    review, and passes only when each succeeded or was skipped by the plan and the plan refused
+    nothing; every other job gates on the decision job's outputs with if:, never a paths: filter,
+    so a skipped job reports success and the check is always reported; only a pull request's
+    older run is cancelled. The review job is a check of its own on every pull request into dev:
+    it needs the plan alone and fails while the plan refuses the review file."""
     errors = scan.ci_status_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
@@ -1606,8 +1632,9 @@ def test_the_set_key_names_every_build_input() -> None:
 
 def test_the_release_reuses_a_set_only_on_a_branch() -> None:
     """Only a dispatch on a branch other than main reuses a set; the build job's conditional
-    steps, build-shard, the cache's readers and writers, and set-cache.yml follow the reuse
-    rules: where a set may be reused, how it is checked, who writes the cache and who reads it."""
+    steps, the rebuild jobs (the build shard in the x86_64 one, on its clean tree), what the
+    gather waits for, the cache's readers and writers, and set-cache.yml follow the reuse rules:
+    where a set may be reused, how it is checked, who writes the cache and who reads it."""
     errors = scan.release_reuse_errors(
         RELEASE_WORKFLOW.read_text(),
         SET_CACHE_WORKFLOW.read_text() if SET_CACHE_WORKFLOW.is_file() else "",

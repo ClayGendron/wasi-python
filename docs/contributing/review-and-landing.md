@@ -23,20 +23,21 @@ A branch need not be up to date with `dev` to merge. Its head is judged as it is
 
 The changed files choose the run:
 
-- **Always**: lint, formatting, the type checker, the pure-Python unit tests and the writing rules (the `quick` job).
+- **Always**: lint, formatting, the type checker, the pure-Python unit tests and the writing rules (the `quick` job). It runs beside the tests, not before them.
+- **On every pull request into `dev`**: the `review` check, which reads the review file.
 - **Unless the change is documentation only**: the product's own tests on Linux and Windows, from the artifact set already built for `dev`, and a fresh install of the wheel on Linux.
 - **A change to the agents' settings or instructions** (`.claude/`, `.agents/`, `AGENTS.md`, `CLAUDE.md`) runs the `quick` job alone, as documentation does, but it is not documentation only: it carries a news file and gets a review.
-- **macOS**, when the runner, the build or the test harness changed.
+- **macOS**, when the platform module (`src/wasi_python/_platform*.py`) or the engine's pin (`uv.lock`) changed. Any other change runs on macOS after the merge.
 - **The packages' own test suites**, on Linux, when the build, the suites or the harness changed.
 - **Everything a merge runs**, when the pull request carries the label `ci:full`.
 
-A pull request never rebuilds the release from the pins and never runs the release tier. Those run before a release, and weekly on `dev`.
+A pull request never rebuilds the release from the pins, never runs the build shard and never runs the release tier. Those run before a release, and weekly on `dev`.
 
 The verdict covers what ran. A lost pass is red. Fuel or bytes that grow, fewer passes in a package's suite, and a test moved between tiers are listed under `GROWTH` with the reason the news file gives. When the news file explains one, it is not red on the pull request. When no news file explains it, it is red, named, in the part of the run that saw it. After the merge such a row is listed as unclaimed, not red, and the release asks for its reason.
 
 ## After a merge
 
-Each merge into `dev` runs the whole normal tier on macOS, Linux and Windows. When it is green, a job records the result in the repository's accepted state and pushes one commit to `dev`. A red run after a merge means `dev` is broken on the lines it names. The run opens an issue titled by those lines, or comments on the one already open. The author of the merged change fixes it forward the same day or reverts it. Other pull requests keep merging meanwhile: the next run after a merge judges everything since the last record, so a second red names both causes. The next green run after a merge closes the issue. A red run is never recorded.
+Each merge into `dev` runs the whole normal tier on macOS, Linux and Windows, but not the build shard, which needs a build from the pins. When it is green, a job records the result in the repository's accepted state and pushes one commit to `dev`. A red run after a merge means `dev` is broken on the lines it names. The run opens an issue titled by those lines, or comments on the one already open. The author of the merged change fixes it forward the same day or reverts it. Other pull requests keep merging meanwhile: the next run after a merge judges everything since the last record, so a second red names both causes. The next green run after a merge closes the issue. A red run is never recorded.
 
 The job takes every reason it needs from the news files merged since the last record: a growth, fewer passes, a changed test file, a test moved between tiers, a test removed. A test a news file removes is listed, not red, on its pull request and after its merge, so the job can record its removal. A growth, fewer passes, a changed test file or a move between tiers that no news file explains does not stop the record. The record names it as unclaimed. The release asks for the reason of each unclaimed row and waits until it has one. Write the reason in the news file at the merge, or in the release ledger in the release's preparation. A lost pass, or a removed test no news file names, still stops the record.
 
@@ -50,9 +51,9 @@ The reason is simple. An author reads the change they meant to write. A fresh re
 
 There is one review per pull request, one fix commit per review round, and one signature. The author answers each finding in the pull request and fixes a round's findings in one commit on the same branch. A Low finding answered in writing, or one that changes only the project's records, needs no second signing. Every finding fixed in code, a Low among them, goes into the round's one fix commit, and the reviewer reads that commit before signing once more. The review file is committed after the last code commit, so the review covers the code that merges. A review is at most 800 words outside its findings.
 
-`ci-status` holds the review. It is red unless the branch carries a review file, named after its news file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". The author is the one the pull request's description names, and the session on each code commit. A reviewer that the author's session started fresh, given only the specification and the diff, says so on its reviewer line. This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
+The `review` check holds the review, and `ci-status` holds it too. Each is red unless the branch carries a review file, named after its news file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". The author is the one the pull request's description names, and the session on each code commit. A reviewer that the author's session started fresh, given only the specification and the diff, says so on its reviewer line. This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
 
-The review file's own push runs only the `quick` job. Every other job's result is the run of the head it follows, which is re-used, since nothing but documentation changed.
+The review file's own push runs only the `quick` job and the `review` check. Every other job's result is the run of the head it follows, which is re-used, since nothing but documentation changed. A run that is red only in `review` and `ci-status` counts as green for that re-use.
 
 ## Some changes are reviewed before they are built
 

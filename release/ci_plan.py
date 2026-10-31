@@ -38,7 +38,17 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SHARD_PLAN = REPO / "tests" / "release_shards.toml"
 # The outputs a path can set, in the table's order.
-FLAGS = ("set", "runner", "harness", "upstream", "workflow", "progress", "news", "agents")
+FLAGS = (
+    "set",
+    "runner",
+    "platform",
+    "harness",
+    "upstream",
+    "workflow",
+    "progress",
+    "news",
+    "agents",
+)
 # The folders whose paths set no output of their own: not docs_only, so the own shards run.
 OWN_ONLY = ("tests/", "fixtures/")
 # Each system's runner, as the judge jobs and verify run on it.
@@ -52,8 +62,13 @@ VERIFY_RUNNERS = ("ubuntu-24.04", "windows-2025", "macos-15")
 COVERAGE_SHARDS = (
     "own-embedding",
     "own-embedding-a",
+    "own-embedding-b",
+    "own-embedding-c",
     "own-hostile",
-    "own-guest",
+    "own-hostile-b",
+    "own-guest-a",
+    "own-guest-b",
+    "own-guest-c",
     "own-runner",
     "own-rest",
 )
@@ -104,6 +119,11 @@ DOCS_FILES = ("README.md", "CHANGELOG.md", "SECURITY.md", "mkdocs.yml", ".gitign
 AGENTS_DIRS = (".claude", ".agents")
 AGENTS_FILES = ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
+# The host-specific code (the platform module and its families) and the engine's pin: a pull
+# request that changes either keeps its macOS legs, since that is where macOS alone can fail.
+PLATFORM_DIR = "src/wasi_python/"
+PLATFORM_PREFIX = "_platform"
+ENGINE_PIN = "uv.lock"
 # The judge's code and data folders; tests/judge_options registers an option every pytest run
 # reads before any conftest, so it steers the judge as tests/conftest.py does.
 HARNESS_DIRS = ("tests/harness/", "tests/judge_options/", "context/upstream/")
@@ -136,8 +156,14 @@ def classify(path: str) -> frozenset[str]:
     out = set()
     if path in SET_FILES or path.startswith(("scripts/", "recipes/", "tests/harness/constructors")):
         out.add("set")
-    if path.startswith("src/") or path in ("pyproject.toml", "uv.lock"):
+    if path.startswith("src/") or path in ("pyproject.toml", ENGINE_PIN):
         out.add("runner")
+    if path == ENGINE_PIN or (
+        path.startswith(PLATFORM_DIR)
+        and "/" not in path[len(PLATFORM_DIR) :]
+        and path[len(PLATFORM_DIR) :].startswith(PLATFORM_PREFIX)
+    ):
+        out.add("platform")
     if path.startswith(HARNESS_DIRS) or path in HARNESS_FILES:
         out.add("harness")
     if path.startswith("tests/upstream/") or path == "tests/checks/test_v1_3_upstream_suites.py":
@@ -313,6 +339,7 @@ class PullRequest:
 class Decision:
     set: bool = False
     runner: bool = False
+    platform: bool = False  # the platform module or the engine's pin: macOS legs on a pull request
     harness: bool = False
     upstream: bool = False
     workflow: bool = False
@@ -321,8 +348,9 @@ class Decision:
     agents: bool = False
     docs_only: bool = False
     agents_only: bool = False  # the agents' files and documentation alone: quick, and reviewed
-    full: bool = False  # the merge-grade set: every normal-tier shard on its systems, build too
-    rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
+    full: bool = False  # the merge-grade set: every normal-tier shard on its systems
+    # The release shape: both rebuilds, the build shard in the x86-64 one, and same-bytes.
+    rebuild: bool = False
     tier: str = "normal"
     # A merge into dev, or the release pull request: accept-record follows a green gather. The
     # push onto dev is accept-push's after a merge, and after the release pull request the
@@ -444,7 +472,8 @@ def load_shards(path: Path = SHARD_PLAN) -> dict[str, Shard]:
 def select(d: Decision, plan: dict[str, Shard]) -> dict:
     """The shards each judge job runs, the build shard, verify's runners, the Linux legs that run
     under coverage.py, and every selected (system, shard) pair as `system/shard`, which the
-    gather reads as PLAN."""
+    gather reads as PLAN. A pull request takes macOS legs only when the platform module or the
+    engine's pin changed; the build shard runs where the rebuild compiles from the pins."""
     sel: dict = {s: [] for s in (*OWN_SYSTEMS, "release")}
     sel.update(build=False, verify=[], coverage=[])
     if d.judge:
@@ -454,15 +483,17 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
                     continue
                 if d.full:
                     take = True
+                elif system == "macos":
+                    take = d.platform
                 elif s.kind == "own":
-                    take = system != "macos" or d.runner or d.set or d.harness
+                    take = True
                 else:  # the upstream groups: on Linux, when something they read changed
                     take = system == "linux" and (d.set or d.upstream or d.harness)
                 if take:
                     sel[system].append(s.name)
         if d.tier == "release":
             sel["release"] = [s.name for s in plan.values() if s.kind == "release"]
-        sel["build"] = d.full and any(s.kind == "build" for s in plan.values())
+        sel["build"] = d.rebuild and any(s.kind == "build" for s in plan.values())
         sel["verify"] = list(VERIFY_RUNNERS) if d.full else [RUNNER["linux"]]
         if d.full:
             sel["coverage"] = [n for n in COVERAGE_SHARDS if n in sel["linux"]]
@@ -507,8 +538,9 @@ def refusals(
             "a pull request that is not documentation only carries its news file, "
             "context/changes/NNN-<slug>.md: its CHANGELOG line, its package rows and its claims"
         )
-    if into_dev(event) and changed is not None and not documented and pr is not None:
-        out += review_refusals(changed, pr)
+    # ci-status keeps the review's refusals beside the review job's until the ruleset requires
+    # that job, so no pull request can merge unreviewed in between.
+    out += review_check(d, event, changed, pr)
     if into_dev(event) and pr is not None:
         said = f"{pr.title}\n{pr.body or ''}".lower()
         for word in SKIP_WORDS:
@@ -527,6 +559,19 @@ def refusals(
                 "and accepts the merge; quote it another way"
             )
     return out
+
+
+def review_check(
+    d: Decision, event: Event, changed: list[str] | None, pr: PullRequest | None
+) -> list[str]:
+    """What the review job refuses: on a pull request into dev that is not documentation only
+    (nor the release's preparation), and whose commits and description are read (`pr`), the
+    review file's refusals; nothing on any other run, so a documentation-only pull request and
+    the release pull request ask no review of it. A re-used run reads it as any other."""
+    documented = changed is not None and (docs_only(changed) or d.release_preparation)
+    if into_dev(event) and changed is not None and not documented and pr is not None:
+        return review_refusals(changed, pr)
+    return []
 
 
 def release_refusals(pr: PullRequest) -> list[str]:
@@ -662,8 +707,11 @@ def _json(value) -> str:
     return json.dumps(value, separators=(",", ":"))
 
 
-def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
-    """Every output as the workflow reads it: one line each."""
+def outputs(
+    d: Decision, sel: dict, refused: list[str], review_refused: list[str] = ()
+) -> dict[str, str]:
+    """Every output as the workflow reads it: one line each. `review_refused` is the review job's
+    (`review_check`); ci-status reads `refused`, which holds them too for now."""
     out = {name: _bool(getattr(d, name) and not d.quiet) for name in FLAGS}
     out.update(
         docs_only=_bool(d.docs_only),
@@ -679,6 +727,7 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         coverage=_json(sel["coverage"]),
         selected=_json(sel["selected"]),
         refusals=_json(refused),
+        review_refusals=_json(list(review_refused)),
     )
     for system in (*OWN_SYSTEMS, "release"):
         out[system] = _json(sel[system])
@@ -689,7 +738,9 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
 # A push of documentation alone onto a green head re-uses that head's run
 
 GATHER_JOB = "gather the shards' records"  # the gather's display name in a run's jobs
-REQUIRED_JOB = "ci-status"
+# The two checks whose verdict a run's re-use does not carry over: the required check, and the
+# review, which waited for the review file; both read the newer run's own plan.
+NOT_THE_CODES = ("ci-status", "review")
 LOOKED_AT = 5  # runs whose head is behind this one by documentation alone, at most
 
 
@@ -712,8 +763,8 @@ def find_reusable(
 ) -> tuple[int | None, str]:
     """The newest completed run of this pull request whose head is an ancestor of `head` by a
     change `allowed` admits (documentation alone, unless the release pull request's rule is
-    given) and whose gather passed with every other job but ci-status green or skipped
-    (ci-status waited for the review file); its id and why, or (None, "")."""
+    given) and whose gather passed with every other job but ci-status and review green or
+    skipped (both waited for the review file); its id and why, or (None, "")."""
     looked = 0
     what = "the accepted state" if allowed is is_acceptance else "documentation"
     for run in runs:
@@ -728,7 +779,7 @@ def find_reusable(
         jobs = jobs_of(int(run_id)) if isinstance(run_id, int) else None
         if not jobs or jobs.get(GATHER_JOB) != "success":
             continue
-        if any(c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB):
+        if any(c not in ("success", "skipped") for n, c in jobs.items() if n not in NOT_THE_CODES):
             continue
         return run_id, (
             f"re-uses run {run_id}, green on {sha[:12]}: every path changed since is {what}"
@@ -744,16 +795,16 @@ def reusable_after_edit(
 ) -> tuple[int | None, str]:
     """The run an edit that left the base alone re-uses: the newest run of this pull request
     other than this one, when it is completed, on this head, and every job of it but ci-status
-    succeeded or was skipped; its id and why, or (None, ""). Never an older run behind it: a base
-    change starts a run of its own, so the run before an edit is the one that judged this base, and
-    when that run did not finish green the edit runs the selection again."""
+    and review succeeded or was skipped; its id and why, or (None, ""). Never an older run behind
+    it: a base change starts a run of its own, so the run before an edit is the one that judged
+    this base, and when that run did not finish green the edit runs the selection again."""
     newest = next((r for r in runs if r.get("databaseId") != this_run), None)
     if newest is None or newest.get("headSha") != head or newest.get("status") != "completed":
         return None, ""
     run_id = newest.get("databaseId")
     jobs = jobs_of(int(run_id)) if isinstance(run_id, int) else None
     if not jobs or any(
-        c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB
+        c not in ("success", "skipped") for n, c in jobs.items() if n not in NOT_THE_CODES
     ):
         return None, ""
     return run_id, (
@@ -1113,7 +1164,8 @@ def main(argv: list[str]) -> int:
     d = decide(changed, event, moved, reused, preparation, refused_preparation)
     sel = select(d, load_shards())
     refused = refusals(d, event, changed, pr)
-    text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused).items())
+    review = review_check(d, event, changed, pr)
+    text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused, review).items())
     target = os.environ.get("GITHUB_OUTPUT")
     if target:
         with open(target, "a", encoding="utf-8") as f:

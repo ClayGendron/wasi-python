@@ -42,7 +42,10 @@ The local acceptance's guards, in their form for a record:
 - a history that does not replay, or breaks its chain or its volume rule, is refused.
 
 It also refuses a record of any event but a push to dev or a pull request into main, and one
-whose set was neither built in its run nor reused by its key. Every refusal is named at once.
+whose set was neither built in its run nor reused by its key. Every refusal is named at once. A
+check no shard of the record ran, which the gather lets pass only when the run did not select it
+(the build shard on a merge's run, which does not rebuild; the release tier on a normal run),
+keeps its accepted row, and its pass stays in the history's passed set.
 
 The record is read as the darwin run it contains, as the gather and sameness read it: each check
 as the record that ran it saw it, darwin first. A check darwin ran is applied with darwin's
@@ -251,6 +254,13 @@ def run_from_record(i: Inputs) -> dict:
         "collected_files": list(r.get("collected_files", [])),
         "suite": {},
     }
+
+
+def _not_selected(record: dict) -> set[str]:
+    """The checks no shard of the record ran (its `deselected`): a check of a shard the run did
+    not select, which the gather lets pass only so (the build shard where the run did not
+    rebuild, the release tier on a normal run). Their accepted rows and passes stand."""
+    return {n for n in record.get("deselected", []) if isinstance(n, str)}
 
 
 def _node(row: str) -> str:
@@ -485,6 +495,7 @@ def accept(i: Inputs) -> Acceptance:
                 "event": i.record["meta"].get("event"),
             },
             unclaimed=unclaimed,
+            kept=_not_selected(i.record),
         )
     except scoreboard.AcceptRefused as e:
         raise Refused([str(e)]) from None

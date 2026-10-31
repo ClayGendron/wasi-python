@@ -21,10 +21,14 @@ PLAN = paths.REPO / "tests" / "release_shards.toml"
 PACKAGES_FILE = paths.REPO / "tests" / "upstream" / "packages.toml"
 UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 OWN_SYSTEMS = ("macos", "linux", "windows")
-# Two pseudo-systems: the build shard, which runs on a fresh arm64 Linux build on every run, and
-# the release tier's shards, which run on Linux only before a publication and hold the
-# release-tier groups alone.
+# Two pseudo-systems: the build shard, which runs on the x86-64 Linux rebuild from the pins
+# wherever a run rebuilds, and the release tier's shards, which run on Linux only before a
+# publication and hold the release-tier groups alone.
 SYSTEMS = (*OWN_SYSTEMS, "build", "release")
+# The release legs are packed by their measured judge-step minutes into shards of at most this
+# many; the count bounds a packing undone, which would take the account's job slots for longer.
+RELEASE_LEG_MINUTES = 12.0
+MAX_RELEASE_SHARDS = 80
 # Each system's platform, as a run record's `meta.platform` begins (sys.platform).
 PLATFORM = {
     "macos": "darwin",
@@ -45,6 +49,9 @@ class Shard:
     # Single checks by node id, or every case of a function by `file::function`: the
     # build shard's that need the build host, and a split of one file across shards.
     nodes: tuple[str, ...] = ()
+    # A release shard's judge-step minutes, summed from the run its packing was measured in:
+    # data the packing reads and a warning names, never a verdict.
+    minutes: object = None
 
 
 def load(path: Path = PLAN) -> dict[str, Shard]:
@@ -59,6 +66,7 @@ def load(path: Path = PLAN) -> dict[str, Shard]:
             groups=tuple(s.get("groups", ())),
             rest=bool(s.get("rest", False)),
             nodes=tuple(s.get("nodes", ())),
+            minutes=s.get("minutes"),
         )
     return plan
 
@@ -284,6 +292,7 @@ def plan_errors(
         n = sum(g in s.groups for s in plan.values() if "release" in s.systems)
         if n != 1:
             errors.append(f"(i) release group {g} is in {n} release shards, not one")
+    errors += _minutes_errors(plan)
     for system in SYSTEMS:
         taken: dict[str, str] = {}
         for name in on(plan, system):
@@ -291,6 +300,25 @@ def plan_errors(
                 if g in taken:
                     errors.append(f"(f) on {system}, {g} is in {taken[g]} and {name}")
                 taken[g] = name
+    return errors
+
+
+def _minutes_errors(plan: dict[str, Shard]) -> list[str]:
+    """(j) Every release shard carries its measured minutes, a positive number, and no other
+    shard does; and there are at most MAX_RELEASE_SHARDS of them."""
+    errors = []
+    count = 0
+    for name, s in plan.items():
+        if "release" not in s.systems:
+            if s.minutes is not None:
+                errors.append(f"(j) {name}: minutes on a shard that is not a release shard")
+            continue
+        count += 1
+        number = isinstance(s.minutes, int | float) and not isinstance(s.minutes, bool)
+        if not number or s.minutes <= 0:
+            errors.append(f"(j) {name}: a release shard has no minutes (a positive number)")
+    if count > MAX_RELEASE_SHARDS:
+        errors.append(f"(j) {count} release shards, more than {MAX_RELEASE_SHARDS}")
     return errors
 
 

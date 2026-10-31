@@ -249,13 +249,16 @@ def accept(
     tier_move_reason: str | None = None,
     extra: dict | None = None,
     unclaimed: list[dict] | None = None,
+    kept: frozenset[str] | set[str] = frozenset(),
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused. The line is
     in format 2: the change in the passed set since the newest of
     `history_lines`, and a digest of the whole set. `extra`: fields an acceptance from CI's
     record adds to its line (where it came from, the systems whose probe passed). `unclaimed`,
     given by that acceptance alone, makes the line format 3: the rows it accepted with no claim,
-    each with its values, which the release's acceptance asks a reason for."""
+    each with its values, which the release's acceptance asks a reason for. `kept`: checks
+    the run did not select (an acceptance from CI's record: the build shard's, where the run did
+    not rebuild), whose accepted rows and passes stand as a normal run's release tier's do."""
     refusals = []
     if not green:
         refusals.append("the run is not green (or PYTEST_ADDOPTS or a foreign plugin is set)")
@@ -337,12 +340,14 @@ def accept(
     prev = history_lines[-1] if history_lines else None
     passes = {n for n, c in run["checks"].items() if c["status"] == "pass"}
     counted = run["checks"]
-    if run_tier(run) == "normal":
-        # A release-tier pass this run could not run stays in the passed set, so the line names
-        # only what the normal tier changed; the counts take such a row at its accepted status.
-        passes |= release & before
+    # A release-tier pass a normal run could not run, or a pass of a check the run did not select,
+    # stays in the passed set, so the line names only what the run changed; the counts take such
+    # a row at its accepted status.
+    not_run = set(kept) | (release if run_tier(run) == "normal" else set())
+    if not_run:
+        passes |= not_run & before
         counted = dict(counted)
-        for node in release & set(counted):
+        for node in not_run & set(counted):
             if counted[node]["status"] not in ("pass", "fail", "gap") and node in checks:
                 counted[node] = {**counted[node], "status": checks[node]["status"]}
     counts = {area: f"{n_pass}/{n_all}" for area, (n_pass, n_all) in area_counts(counted).items()}

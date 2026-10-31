@@ -63,6 +63,7 @@ def _plan(text: str = PLAN_TEXT, tmp: Path | None = None) -> dict:
             tuple(s.get("groups", ())),
             bool(s.get("rest", False)),
             tuple(s.get("nodes", ())),
+            s.get("minutes"),
         )
         for name, s in tomllib.loads(text)["shard"].items()
     }
@@ -523,6 +524,7 @@ RELEASE_PLAN = (
     + """
 [shard.up-release]
 groups = ["r1", "r2"]
+minutes = 7.5
 systems = ["release"]
 """
 )
@@ -556,6 +558,18 @@ BAD_RELEASE_PLANS = [
     (('systems = ["release"]', 'systems = ["release", "linux"]'), "(i) up-release: a release"),
     # an empty release shard
     (('groups = ["r1", "r2"]', "groups = []"), "(a) up-release selects by not exactly one"),
+    # a release shard without its measured minutes, or with minutes that are no number
+    (("minutes = 7.5\n", ""), "(j) up-release: a release shard has no minutes"),
+    (("minutes = 7.5\n", 'minutes = "7.5"\n'), "(j) up-release: a release shard has no minutes"),
+    (("minutes = 7.5\n", "minutes = -1\n"), "(j) up-release: a release shard has no minutes"),
+    # minutes on a shard of the normal tier, which are measured per release leg alone
+    (
+        (
+            'groups = ["g3"]\nsystems = ["linux"]',
+            'groups = ["g3"]\nminutes = 2.0\nsystems = ["linux"]',
+        ),
+        "(j) up-2: minutes on a shard that is not a release shard",
+    ),
 ]
 
 
@@ -566,6 +580,32 @@ def test_each_bad_release_shard_is_named(change, error) -> None:
     plan = _plan(RELEASE_PLAN.replace(old, new))
     errors = shards.plan_errors(plan, FILES, [*GROUPS, "r1", "r2"], RELEASE_GROUPS)
     assert any(e.startswith(error) for e in errors), errors
+
+
+def test_at_most_eighty_release_shards() -> None:
+    """The release tier's legs are packed to about twelve measured minutes each, so their count
+    stays near the plan's sixty-five; a count past eighty is a packing undone."""
+    groups = [f"r{k}" for k in range(81)]
+    text = PLAN_TEXT + "".join(
+        f'[shard.up-release-{k}]\ngroups = ["r{k}"]\nminutes = 1.0\nsystems = ["release"]\n\n'
+        for k in range(81)
+    )
+    errors = shards.plan_errors(_plan(text), FILES, [*GROUPS, *groups], set(groups))
+    assert any(e.startswith("(j) 81 release shards, more than 80") for e in errors), errors
+    fewer = PLAN_TEXT + "".join(
+        f'[shard.up-release-{k}]\ngroups = ["r{k}"]\nminutes = 1.0\nsystems = ["release"]\n\n'
+        for k in range(80)
+    )
+    errors = shards.plan_errors(_plan(fewer), FILES, [*GROUPS, *groups[:80]], set(groups[:80]))
+    assert not any(e.startswith("(j)") for e in errors), errors
+
+
+def test_the_real_plans_release_shards_carry_their_minutes_and_are_at_most_eighty() -> None:
+    plan = shards.load()
+    release = [s for s in plan.values() if "release" in s.systems]
+    assert 0 < len(release) <= shards.MAX_RELEASE_SHARDS
+    assert all(isinstance(s.minutes, float) and s.minutes > 0 for s in release)
+    assert all(s.minutes is None for s in plan.values() if "release" not in s.systems)
 
 
 def test_a_release_group_needs_no_linux_shard_of_the_normal_tier() -> None:

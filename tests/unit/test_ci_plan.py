@@ -44,8 +44,13 @@ ROWS = [
     ("release/build-constraints.txt", {"set", "workflow"}),
     ("tests/harness/constructors.py", {"set", "harness"}),
     ("src/wasi_python/runner.py", {"runner"}),
+    # The platform module and the engine's pin: the host-specific code, which keeps its macOS legs.
+    ("src/wasi_python/_platform.py", {"runner", "platform"}),
+    ("src/wasi_python/_platform_windows.py", {"runner", "platform"}),
+    ("src/wasi_python/_platform_common.py", {"runner", "platform"}),
+    ("src/x/_platform.py", {"runner"}),
     ("pyproject.toml", {"runner"}),
-    ("uv.lock", {"runner"}),
+    ("uv.lock", {"runner", "platform"}),
     ("tests/harness/gather.py", {"harness"}),
     ("tests/conftest.py", {"harness"}),
     ("tests/judge_options/wasi_python_judge_options.py", {"harness"}),
@@ -153,11 +158,13 @@ def _own_on(system: str) -> list[str]:
     return [n for n in OWN if system in PLAN[n].systems]
 
 
-def test_a_src_only_pull_request_runs_own_on_three_systems_and_verify_on_linux() -> None:
+def test_a_src_only_pull_request_runs_own_on_linux_and_windows_and_verify_on_linux() -> None:
+    """A change to the runner alone takes no macOS leg on a pull request: the post-merge run
+    judges it on macOS within the hour."""
     d = ci_plan.decide(["src/wasi_python/runner.py"], PR_DEV)
-    assert d.runner and not d.full and d.tier == "normal" and not d.rebuild
+    assert d.runner and not d.platform and not d.full and d.tier == "normal" and not d.rebuild
     sel = ci_plan.select(d, PLAN)
-    assert sel["macos"] == _own_on("macos")
+    assert sel["macos"] == []
     assert sel["linux"] == _own_on("linux")
     assert sel["windows"] == _own_on("windows")
     assert sel["release"] == [] and sel["build"] is False
@@ -183,9 +190,9 @@ def test_an_upstream_only_pull_request_runs_the_groups_on_linux_and_no_macos_leg
 @pytest.mark.parametrize(
     "path", ["scripts/build.sh", "tests/harness/plugin.py", "downloads/SHA256SUMS"]
 )
-def test_set_or_harness_runs_macos_and_the_upstream_groups(path) -> None:
+def test_set_or_harness_runs_the_upstream_groups_and_no_macos_leg(path) -> None:
     sel = ci_plan.select(ci_plan.decide([path], PR_DEV), PLAN)
-    assert sel["macos"] == _own_on("macos")
+    assert sel["macos"] == []
     assert set(UPSTREAM_LINUX) <= set(sel["linux"])
     assert sel["build"] is False and sel["release"] == []
 
@@ -196,7 +203,40 @@ def test_a_moved_key_sets_set_with_no_path_of_its_own() -> None:
     assert not ci_plan.decide(["tests/unit/test_x.py"], PR_DEV).set
     d = ci_plan.decide(["tests/unit/test_x.py"], PR_DEV, key_moved=True)
     assert d.set
-    assert ci_plan.select(d, PLAN)["macos"] == _own_on("macos")
+    assert set(UPSTREAM_LINUX) <= set(ci_plan.select(d, PLAN)["linux"])
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/wasi_python/_platform.py",
+        "src/wasi_python/_platform_windows.py",
+        "src/wasi_python/_platform_common.py",
+        "uv.lock",
+    ],
+)
+def test_the_platform_module_or_the_engine_pin_keeps_its_macos_legs(path) -> None:
+    """The host-specific code and the engine's pin: a pull request that changes either runs every
+    own shard on macOS, and the macOS upstream shard, beside Linux and Windows."""
+    d = ci_plan.decide([path], PR_DEV)
+    assert d.platform and not d.full
+    sel = ci_plan.select(d, PLAN)
+    assert sel["macos"] == [n for n in shards.on(shards.load(), "macos")]
+    assert sel["linux"] == _own_on("linux")
+    assert sel["build"] is False
+
+
+def test_the_macos_upstream_shard_runs_on_full_or_the_platform_alone() -> None:
+    macos_upstream = [n for n, s in PLAN.items() if s.kind == "upstream" and "macos" in s.systems]
+    assert macos_upstream
+    for path in ("src/wasi_python/runner.py", "tests/harness/plugin.py", "scripts/build.sh"):
+        sel = ci_plan.select(ci_plan.decide([path], PR_DEV), PLAN)
+        assert not set(macos_upstream) & set(sel["macos"]), path
+    for d in (
+        ci_plan.decide(["uv.lock"], PR_DEV),
+        ci_plan.decide(["src/x.py"], PUSH_DEV),
+    ):
+        assert set(macos_upstream) <= set(ci_plan.select(d, PLAN)["macos"])
 
 
 def _whole(tier: str) -> dict:
@@ -223,8 +263,42 @@ def test_full_runs_the_merge_grade_set(changed, event, labels, messages) -> None
     assert d.full and d.judge and not d.docs_only and d.tier == "normal" and not d.rebuild
     sel = ci_plan.select(d, PLAN)
     assert {s: sel[s] for s in (*shards.OWN_SYSTEMS, "release")} == _whole("normal")
-    assert sel["build"] is True
+    assert sel["build"] is False  # the build shard runs where the pins are compiled alone
+    assert "build/build" not in sel["selected"]
     assert sel["verify"] == list(ci_plan.VERIFY_RUNNERS)
+
+
+@pytest.mark.parametrize(
+    ("event", "build"),
+    [
+        (PR_DEV, False),
+        (PUSH_DEV, False),
+        (PR_MAIN, True),
+        (SCHEDULE, True),
+        (DISPATCH, True),
+        (ci_plan.Event("workflow_dispatch", DISPATCH.ref, weekly=True), True),
+        (TAG, True),
+    ],
+    ids=[
+        "pull-request",
+        "push-to-dev",
+        "release-pull-request",
+        "weekly",
+        "dispatch",
+        "weekly-dispatch",
+        "tag",
+    ],  # fmt: skip
+)
+def test_the_build_shard_runs_exactly_where_the_rebuilds_compile(event, build) -> None:
+    """The build shard reads a build tree, which the x86-64 rebuild compiles from the pins
+    exactly when the plan rebuilds: the release pull request, the weekly run, a dispatch and a
+    tag; never a push to dev or a pull request into dev."""
+    changed = None if event in (TAG, SCHEDULE, DISPATCH) or event.weekly else ["src/x.py"]
+    d = ci_plan.decide(changed, event)
+    sel = ci_plan.select(d, PLAN)
+    assert sel["build"] is build and d.rebuild is build
+    assert ("build/build" in sel["selected"]) is build
+    assert ci_plan.outputs(d, sel, [])["build"] == ("true" if build else "false")
 
 
 @pytest.mark.parametrize("message", ["citest:fullness", "say citest:full here", "ci:full"])
@@ -522,7 +596,8 @@ def test_the_command_line_reads_paths_and_writes_github_output(tmp_path) -> None
     assert r.returncode == 0, r.stderr
     got = dict(line.split("=", 1) for line in out.read_text().splitlines())
     assert got["full"] == "true" and got["runner"] == "true" and got["docs_only"] == "false"
-    assert json.loads(got["selected"]) and got["build"] == "true"
+    assert json.loads(got["selected"]) and got["build"] == "false"
+    assert json.loads(got["review_refusals"]) == []
 
 
 def test_the_top_level_env_is_read_as_the_workflow_writes_it() -> None:
@@ -599,7 +674,7 @@ def test_a_pull_request_whose_base_cannot_be_read_is_judged_whole() -> None:
     assert d.full and d.judge and not d.docs_only
     assert "the pull request's base could not be read: the run is whole" in d.why
     sel = ci_plan.select(d, PLAN)
-    assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is True
+    assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is False
 
 
 # ---------------------------------------------------------------------------------------------
@@ -804,6 +879,53 @@ def test_the_review_is_not_asked_of_documentation_or_of_main() -> None:
     assert ci_plan.refusals(ci_plan.decide(code, PR_MAIN), PR_MAIN, code, _pr()) == []
 
 
+def _plan_outputs(changed: list[str], event, pr) -> dict[str, str]:
+    """The outputs the decision job writes for a pull request read whole, as `main` makes them."""
+    d = ci_plan.decide(changed, event)
+    refused = ci_plan.refusals(d, event, changed, pr)
+    return ci_plan.outputs(
+        d, ci_plan.select(d, PLAN), refused, ci_plan.review_check(d, event, changed, pr)
+    )
+
+
+def test_the_review_check_is_an_output_of_its_own_and_ci_status_still_reads_it() -> None:
+    """The review job reads review_refusals alone: the review file's refusals, never a missing
+    news file or a skip word. ci-status keeps them among its own refusals until the ruleset
+    requires the review job."""
+    changed = ["src/x.py", NEWS, REVIEW]
+    pr = _pr(review=_review(verdict="Does not land."))
+    out = _plan_outputs(changed, PR_DEV, pr)
+    review = json.loads(out["review_refusals"])
+    assert review and all("Lands" in r for r in review)
+    assert set(review) <= set(json.loads(out["refusals"]))
+    no_news = _plan_outputs(["src/x.py", REVIEW], PR_DEV, _pr())
+    assert not any(
+        "news file" in r and "CHANGELOG" in r for r in json.loads(no_news["review_refusals"])
+    )
+    assert any("CHANGELOG" in r for r in json.loads(no_news["refusals"]))
+    skip = _pr()
+    skip.title = "x [skip ci]"
+    assert json.loads(_plan_outputs(changed, PR_DEV, skip)["review_refusals"]) == []
+
+
+def test_the_review_check_asks_nothing_of_documentation_or_of_main() -> None:
+    assert json.loads(_plan_outputs(["docs/index.md"], PR_DEV, _pr())["review_refusals"]) == []
+    out = _plan_outputs(["src/x.py"], PR_MAIN, _pr(review=_review(verdict="No.")))
+    assert json.loads(out["review_refusals"]) == []
+    missing = _plan_outputs(["src/x.py", NEWS], PR_DEV, _pr())
+    assert json.loads(missing["review_refusals"])  # code with no review file
+
+
+def test_a_reused_run_still_reads_the_review() -> None:
+    """The review file's push re-uses the code head's run, every output false, and the review
+    job reads that push's review file."""
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV, reused=(7, "run 7, green on 111111111111"))
+    bad = _pr(review=_review(verdict="Does not land."))
+    assert ci_plan.review_check(d, PR_DEV, changed, bad)
+    assert ci_plan.review_check(d, PR_DEV, changed, _pr()) == []
+
+
 def test_the_pull_requests_commits_trailers_and_review_are_read_with_git(
     tmp_path, monkeypatch
 ) -> None:
@@ -897,6 +1019,19 @@ def test_a_docs_only_push_onto_a_green_head_reuses_its_run() -> None:
     judge and gather passed, so the review's push re-uses them."""
     run, why = _reuse([{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}], {7: GREEN})
     assert run == 7 and CODE_HEAD[:12] in why
+
+
+def test_a_run_red_only_on_its_review_and_ci_status_is_reused() -> None:
+    """The review job's verdict is not the code's: a run whose only red jobs are review and
+    ci-status, which waited for the review file, is re-used by the review file's push and by an
+    edit."""
+    waiting = {**GREEN, "review": "failure"}
+    runs = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}]
+    assert _reuse(runs, {7: waiting})[0] == 7
+    assert _edit([_run(THIS_RUN, status="in_progress"), _run(7)], {7: waiting})[0] == 7
+    judge_red = {**waiting, "judge (windows-2025, own-a)": "failure"}
+    assert _reuse(runs, {7: judge_red})[0] is None
+    assert _edit([_run(7)], {7: judge_red}) == (None, "")
 
 
 def test_a_run_whose_gather_did_not_pass_is_not_reused() -> None:
