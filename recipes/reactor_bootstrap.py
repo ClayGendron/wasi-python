@@ -232,7 +232,7 @@ def _show(value):
     import builtins
 
     builtins._ = None
-    _shown._value(value)
+    _shown._value(value, repr(value))  # taken here, as the hook takes it: no helper's frame
     builtins._ = value
 
 

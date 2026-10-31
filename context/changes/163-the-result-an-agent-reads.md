@@ -25,9 +25,9 @@ new = [
   "tests/checks/test_v1_4_results.py",
   "tests/unit/test_results.py",
 ]
-units = 35
+units = 39
 grows = ["tests/checks/test_v1_*"]
-growth = "the bootstrap reads the results flag at every call's start and every session's setup, and clears a checkpoint's mode, so every call runs a few more instructions; both binaries grow by the bootstrap's code and the zip by host/display.py and host/figures.py (measured on the pins before 0.1.3's move: python.wasm 4,736 bytes, the snapshot 8,726, the zip 6,794)"
+growth = "the bootstrap reads the results flag at every call's start and every session's setup, and clears a checkpoint's mode, so every call runs a few more instructions; both binaries grow by the bootstrap's code and the zip by host/display.py and host/figures.py (measured against the same build without them on 0.1.3's pins: python.wasm 4,800 bytes, the snapshot 7,095, the zip 7,004; of 80 fuel and bytes rows sampled from five files, 75 grew by 0.002 to 2.7 percent, the most on the shortest calls from an image, and three fell by at most 0.012 percent). Only rows under tests/checks/ carry fuel or bytes, so tests/upstream/ has none to claim"
 [claim.judge]
 "tests/checks/test_rules.py" = "LONG_FUNCTIONS: runner.py:run 173 to 182, run_async 208 to 217 and Session.__init__ 178 to 187 take results and figures with their docstrings and pass them to _checked; _call.py:_instance falls 147 to 146 as the door's hosts are made in _results._door_hosts"
 "tests/public_api.txt" = "the public class Display, Completed's two defaulted fields value and displays, and the keywords results and figures on run, run_async and Session"

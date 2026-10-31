@@ -88,6 +88,13 @@ def test_a_display_is_read_only_and_holds_what_it_was_given() -> None:
         d.stdout_at = 9  # type: ignore[misc]
 
 
+def test_a_display_is_compared_by_value_and_not_hashable() -> None:
+    a, b = Display({"text/plain": "1"}), Display({"text/plain": "1"})
+    assert a == b and Display.__hash__ is None
+    with pytest.raises(TypeError, match="unhashable type: 'Display'"):
+        hash(a)
+
+
 def test_a_completed_carries_the_value_and_the_displays_after_image_sha256() -> None:
     names = [f.name for f in _call.Completed.__dataclass_fields__.values()]
     assert names[-3:] == ["image_sha256", "value", "displays"]
@@ -309,6 +316,40 @@ def test_admit_refuses_unread_past_six_times_the_room_and_counts_it() -> None:
     assert tools.record.frames == 0  # the tool host's admit is never asked
 
 
+def test_past_the_last_record_a_frame_longer_than_its_keys_is_not_read() -> None:
+    host, _ = result_host(room=1 << 24)
+    for _ in range(R.RECORDS):
+        host(frame())
+    assert host.admit(R.ENVELOPE) is None
+    a = answer(host.admit(R.ENVELOPE + 1))
+    assert (a["id"], a["ok"], a["kept"], host.cut) == (None, True, False, True)
+    unbounded, _ = result_host(room=None)
+    for _ in range(R.RECORDS):
+        unbounded(frame())
+    assert answer(unbounded.admit(R.ENVELOPE + 1))["kept"] is False
+    with_tools, _ = result_host(room=1 << 24, tools=H._ToolHost([lookup]))
+    for _ in range(R.RECORDS):
+        with_tools(frame())
+    assert with_tools.admit(H._TOOL_REQUEST_BYTES) is None  # a tool frame the tool host reads
+    assert kind(with_tools.admit(H._TOOL_REQUEST_BYTES + 1)) == "too_large"
+
+
+def test_under_tools_a_frame_past_both_caps_is_not_called_a_display() -> None:
+    host, _ = result_host(room=1000, tools=H._ToolHost([lookup]))
+    raw = host.admit(2 << 20)
+    message = answer(raw)["error"]["message"]
+    assert kind(raw) == "too_large" and "display" not in message and "at most" in message
+    assert host.cut is False
+
+
+def test_the_value_is_sent_with_the_text_the_bootstrap_took(load) -> None:
+    host, _ = result_host()
+    _, display = load(host)
+    display._on = True
+    display._value(BadRepr(), "taken")  # its repr is never called again
+    assert host.value is not None and dict(host.value.data) == {"text/plain": "taken"}
+
+
 def test_a_display_frame_spends_no_tool_frame_and_a_tool_frame_spends_as_today() -> None:
     tools = H._ToolHost([lookup], max_calls=1, max_bytes=10_000)
     host, _ = result_host(tools=tools)
@@ -373,7 +414,7 @@ def test_once_the_host_keeps_no_more_the_cell_sends_and_prints_nothing(load, cap
     display.display("x")  # 3 bytes: cut to "'" (1 byte), kept
     display.display("y")  # no room: not kept
     display.display("z")
-    display._value("w")
+    display._value("w", "'w'")
     assert (len(sent), capsys.readouterr().out, display._stopped) == (3, "", True)
     display._begin()  # the next cell may send again
     display.display("v")

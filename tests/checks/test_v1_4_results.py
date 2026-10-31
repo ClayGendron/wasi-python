@@ -150,6 +150,21 @@ def test_figures_are_sent_at_show_and_at_the_end_of_a_cell(fact) -> None:
     fact("fuel", shown.fuel_used)
 
 
+def test_a_repr_that_raises_is_reported_as_the_hook_reports_it(metric) -> None:
+    """A last expression whose repr raises is reported with the same traceback in results mode
+    as without it: the user's frames only, and no value."""
+    wp = _wp()
+    code = "class Bad:\n    def __repr__(self):\n        raise ValueError('no repr')\nBad()"
+    with wp.Session(results=True, fuel=FUEL) as s:
+        sent = s.run(code)
+    with wp.Session(fuel=FUEL) as s:
+        printed = s.run(code)
+    assert (sent.exit_code, sent.value, sent.stdout) == (1, None, b"")
+    assert sent.stderr == printed.stderr and b"ValueError: no repr" in sent.stderr
+    assert b"host" not in sent.stderr, sent.stderr
+    metric("fuel", sent.fuel_used)
+
+
 def test_without_results_stdout_is_todays(metric) -> None:
     """Without `results=`, a turn's last expression is printed as before, `display` is not
     bound, and the result has no value and no displays."""

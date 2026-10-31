@@ -56,7 +56,11 @@ class Display:
         stdout_at: The bytes the guest had written to stdout before it, kept or not: under the
             "head" keep, `stdout[:stdout_at]` is what printed before it.
         stderr_at: The same for stderr.
+
+    Two are equal when their fields are; a display is not hashable, since `data` is a mapping.
     """
+
+    __hash__ = None  # type: ignore[assignment]  # unhashable, as a dict is
 
     data: Mapping[str, str | bytes]
     truncated: tuple[str, ...] = ()
@@ -137,16 +141,21 @@ class _ResultHost:
 
     def admit(self, length: int) -> bytes | None:
         """None to read the frame; else the answer to one too long to be a display that fits,
-        nor, under tools, a tool frame the tool host would read."""
-        if self._room is None:
+        nor, under tools, a tool frame the tool host would read. Once the records are spent, a
+        display keeps nothing, so a frame longer than its keys is answered unread."""
+        spent = self._records >= RECORDS
+        if self._room is None and not spent:
             return None
-        bound = ESCAPE * self._room + ENVELOPE
-        if self._tools is not None:
-            bound = max(bound, self._wire._TOOL_REQUEST_BYTES)
-        if length <= bound:
+        bound = ENVELOPE if spent or self._room is None else ESCAPE * self._room + ENVELOPE
+        cap = self._wire._TOOL_REQUEST_BYTES if self._tools is not None else 0
+        if length <= max(bound, cap):
             return None
         self._records += 1
+        if cap:  # past the tool frame's cap too: refused as a frame, not judged a display
+            return self._too_large(None, f"the frame is {length} bytes; at most {cap}", False)
         self.cut = True
+        if spent:
+            return self._encoded({"id": None, "ok": True, "kept": False})
         return self._too_large(None, f"the frame is {length} bytes; a display has room for")
 
     def __call__(self, frame: bytes) -> bytes:
@@ -217,10 +226,10 @@ class _ResultHost:
         refused: bytes = self._wire._error(frame_id, "protocol", message)
         return refused
 
-    def _too_large(self, frame_id: int | None, said: str) -> bytes:
+    def _too_large(self, frame_id: int | None, said: str, room_said: bool = True) -> bytes:
         """`too_large`, with the room left, so the guest can send the text alone, cut to fit."""
         room = self._room or 0
-        error = {"kind": "too_large", "message": f"{said} {room}"}
+        error = {"kind": "too_large", "message": f"{said} {room}" if room_said else said}
         return self._encoded({"id": frame_id, "ok": False, "error": error, "room": room})
 
 

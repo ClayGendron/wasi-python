@@ -50,10 +50,11 @@ def _begin():
     _stopped = False
 
 
-def _value(obj):
-    """A cell's last expression, sent as its value."""
+def _value(obj, text):
+    """A cell's last expression, sent as its value; `text` is its repr, which the bootstrap
+    takes, so a repr that raises shows no frame of this module, as sys.displayhook shows none."""
     if not _stopped:
-        _send(_bundle(obj), True)
+        _send(_bundle(obj, text), True)
 
 
 def _figure(fig):
@@ -65,12 +66,12 @@ def _figure(fig):
         _send(data, False)
 
 
-def _bundle(obj):
-    """The object's views by MIME type. Its repr comes first, so a repr that raises raises here,
-    as it does from sys.displayhook; then `_repr_mimebundle_`, then each `_repr_*_` method for a
-    type still missing, and a matplotlib figure's PNG. A method that raises an Exception or
-    answers the wrong type is skipped."""
-    data = {_TEXT: repr(obj)}
+def _bundle(obj, text=None):
+    """The object's views by MIME type. Its repr comes first, `text` when it is given, so a repr
+    that raises raises before any other method runs; then `_repr_mimebundle_`, then each
+    `_repr_*_` method for a type still missing, and a matplotlib figure's PNG. A method that
+    raises an Exception or answers the wrong type is skipped."""
+    data = {_TEXT: repr(obj) if text is None else text}
     if isinstance(obj, type):
         return data  # a class's methods are its instances'
     bundle = _ask(obj, "_repr_mimebundle_")
