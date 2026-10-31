@@ -12,6 +12,10 @@
  *                     nothing, with the clocks and entropy pinned, then the instance left as
  *                     wizer.initialize leaves the snapshot: the host reads its memory whole as a
  *                     starting image and copies it into each later instance before run or turn
+ *   checkpoint        called twice around the host's read of a live session's memory, after a
+ *                     turn returned: checkpoint(1) leaves the instance ready to be imaged, and
+ *                     checkpoint(0) puts the live instance back as it was; an instance the image
+ *                     is copied into resumes as a fresh start at its first run or turn
  *
  * run and turn exclude each other in one instance (spec 055, Decision 2). A turn never finalizes;
  * only shutdown does, and after it every export refuses. In a prepared instance (an image's), run
@@ -70,8 +74,9 @@ static const struct _frozen recipe_modules[] = {
  * the times, inodes and devices of the files that importing stats (and anything a pre-imported
  * module reads from the clock or entropy at import), and a directory's size and link count,
  * which each build host's file system answers its own way. The reactor's link wraps the four
- * WASI calls (scripts/steps/60_link.sh, --wrap); run() unpins before Python starts, and
- * wizer.initialize unpins once the imports are done, so a program only ever sees real values.
+ * WASI calls, and poll_oneoff for the monotonic offset below (scripts/steps/60_link.sh, --wrap);
+ * run() unpins before Python starts, and wizer.initialize unpins once the imports are done, so a
+ * program only ever sees real values.
  * prepare pins the clocks and entropy alone while the host's code runs: no time the image holds
  * then lies in a later call's future, and file metadata stays real, since under PIN_FILES every
  * file has inode 0 on device 0 and any two are one file to os.path.samefile and shutil. */
@@ -86,16 +91,60 @@ __wasi_errno_t __real___wasi_random_get(uint8_t *, __wasi_size_t);
 __wasi_errno_t __real___wasi_path_filestat_get(__wasi_fd_t, __wasi_lookupflags_t, const char *,
                                                __wasi_filestat_t *);
 __wasi_errno_t __real___wasi_fd_filestat_get(__wasi_fd_t, __wasi_filestat_t *);
+__wasi_errno_t __real___wasi_poll_oneoff(const __wasi_subscription_t *, __wasi_event_t *,
+                                         __wasi_size_t, __wasi_size_t *);
+
+/* The monotonic clock never runs backwards across a checkpoint. Each store's monotonic clock
+ * starts near zero, so an instance resumed from a checkpoint would read times below those the
+ * session's heap already holds. checkpoint(1) records the session's reading as the floor; the
+ * resume sets the offset that lifts the new store's clock to it, and every monotonic read adds
+ * the offset, while every absolute monotonic wait subtracts it before the host sees it. Zero, the
+ * usual case, costs each one comparison. */
+static __wasi_timestamp_t monotonic_offset = 0;
+static __wasi_timestamp_t monotonic_floor = 0;
 
 __wasi_errno_t
 __wrap___wasi_clock_time_get(__wasi_clockid_t id, __wasi_timestamp_t precision,
                              __wasi_timestamp_t *time)
 {
     if (!(pinned & PIN_CLOCKS)) {
-        return __real___wasi_clock_time_get(id, precision, time);
+        __wasi_errno_t err = __real___wasi_clock_time_get(id, precision, time);
+        if (monotonic_offset != 0 && err == __WASI_ERRNO_SUCCESS
+            && id == __WASI_CLOCKID_MONOTONIC) {
+            *time += monotonic_offset;
+        }
+        return err;
     }
     *time = id == __WASI_CLOCKID_REALTIME ? PINNED_REALTIME_NS : 0;
     return __WASI_ERRNO_SUCCESS;
+}
+
+/* An absolute monotonic wait, on a copy of the subscriptions, in the store's own time: the
+ * offset taken off, saturating at zero, so a deadline already past returns at once. */
+__wasi_errno_t
+__wrap___wasi_poll_oneoff(const __wasi_subscription_t *in, __wasi_event_t *out,
+                          __wasi_size_t count, __wasi_size_t *events)
+{
+    if (monotonic_offset == 0 || count == 0) {
+        return __real___wasi_poll_oneoff(in, out, count, events);
+    }
+    __wasi_subscription_t *copy = malloc(count * sizeof *copy);
+    if (copy == NULL) {
+        return __WASI_ERRNO_NOMEM;
+    }
+    memcpy(copy, in, count * sizeof *copy);
+    for (__wasi_size_t i = 0; i < count; i++) {
+        __wasi_subscription_clock_t *clock = &copy[i].u.u.clock;
+        if (copy[i].u.tag == __WASI_EVENTTYPE_CLOCK && clock->id == __WASI_CLOCKID_MONOTONIC
+            && (clock->flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME)) {
+            clock->timeout = clock->timeout > monotonic_offset
+                                 ? clock->timeout - monotonic_offset
+                                 : 0;
+        }
+    }
+    __wasi_errno_t err = __real___wasi_poll_oneoff(copy, out, count, events);
+    free(copy);
+    return err;
 }
 
 __wasi_errno_t
@@ -161,6 +210,12 @@ static int session_set_up = 0;
 static int preparing = 0;
 static int prepare_called = 0;
 static int prepared = 0;
+/* imageable: set only by wizer.initialize, so only the snapshot binary, whose memory an instance
+ * of the same binary can be given, answers checkpoint(1). checkpointing: between checkpoint(1)
+ * and checkpoint(0) in the live instance, and in every instance the image is copied into, where
+ * it means "resume at the first run or turn". */
+static int imageable = 0;
+static int checkpointing = 0;
 /* Strong references the C side calls through, so replacing _reactor.turn or gc.unfreeze, or
  * deleting the module, changes nothing (spec 055, the review's F1 and the re-review's N1). On the
  * snapshot, wizer.initialize takes unfreeze_function before any guest code exists, and run or
@@ -205,6 +260,7 @@ static void show_and_drop(void);
 static void drop_stdin(void);
 static void freeze_for_image(void);
 static int end_prepared(void);
+static int resume_if_restored(void);
 
 static void
 init_interpreter(int fixed_hash_seed)
@@ -337,6 +393,7 @@ wizer_initialize(void)
         abort();
     }
     freeze_for_image();
+    imageable = 1;
 }
 
 /* What the build-time snapshot and a starting image both end with: what the code left behind
@@ -421,6 +478,9 @@ __attribute__((export_name("run")))
 int
 run(void)
 {
+    if (resume_if_restored() < 0) {
+        return 70;
+    }
     if (preparing || (prepare_called && !prepared)) {
         return 70;
     }
@@ -534,7 +594,7 @@ int
 reactor_turn(int32_t ptr, int32_t len)
 {
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
-    if (preparing || (prepare_called && !prepared)) {
+    if (resume_if_restored() < 0 || preparing || (prepare_called && !prepared)) {
         free(code);
         drop_stdin();
         return -1;
@@ -656,7 +716,7 @@ int
 reactor_shutdown(void)
 {
     drop_stdin(); /* a stdin no turn took */
-    if (preparing) {
+    if (preparing || checkpointing) {
         return -1;
     }
     pinned = 0;
@@ -717,7 +777,8 @@ reactor_prepare(int32_t ptr, int32_t len)
 {
     char *code = (char *)(uintptr_t)(uint32_t)ptr;
     drop_stdin(); /* a stdin no turn took: the image never holds one */
-    if (!initialized || prepare_called || run_called || turned || shut || len < 0) {
+    if (!initialized || prepare_called || run_called || turned || shut || checkpointing
+        || len < 0) {
         free(code);
         return -1;
     }
@@ -765,4 +826,73 @@ reactor_prepare(int32_t ptr, int32_t len)
     pinned = 0;
     preparing = 0;
     return rc;
+}
+
+/* A live session's memory as a starting image, read by the host between two calls, after a turn
+ * returned. checkpoint(1) records the monotonic floor, zeros the dead stack and sets
+ * checkpointing, which the image keeps; checkpoint(0) clears it, so the live instance goes on
+ * unchanged. Returns 0, or -1 for a refusal, which changes nothing: checkpoint(1) on the plain
+ * reactor, before a turn returned, after run, during a turn, a prepare or a shutdown, and while
+ * entered; checkpoint(0) unless entered; any other argument. */
+__attribute__((export_name("checkpoint")))
+int
+reactor_checkpoint(int32_t enter)
+{
+    if (enter == 1) {
+        if (!imageable || !turned || in_turn || shut || preparing || run_called || checkpointing
+            || (prepare_called && !prepared)) {
+            return -1;
+        }
+        __wasi_timestamp_t now = 0;
+        if (__real___wasi_clock_time_get(__WASI_CLOCKID_MONOTONIC, 1, &now)
+            != __WASI_ERRNO_SUCCESS) {
+            return -1;
+        }
+        monotonic_floor = now + monotonic_offset;
+        drop_stdin(); /* a checkpoint never holds a turn's stdin */
+        checkpointing = 1;
+        clear_unused_stack();
+        return 0;
+    }
+    if (enter == 0 && checkpointing) {
+        checkpointing = 0;
+        return 0;
+    }
+    return -1;
+}
+
+/* The first run or turn of an instance a checkpoint's image was copied into: the clock lifted
+ * to the floor, the preopens forgotten so the table is rebuilt from this store's, the next turn
+ * a first turn (its setup reads this start's argv and environment and reseeds), the call ended
+ * as a starting image's call ends, and _reactor._resume, which puts the import path back and
+ * takes the checkpoint's __main__ as the image's. Returns 0, or -1 when the resume raised. */
+static int
+resume_if_restored(void)
+{
+    if (!checkpointing) {
+        return 0;
+    }
+    checkpointing = 0;
+    __wasi_timestamp_t now = 0;
+    if (__real___wasi_clock_time_get(__WASI_CLOCKID_MONOTONIC, 1, &now) != __WASI_ERRNO_SUCCESS) {
+        now = monotonic_floor;
+    }
+    monotonic_offset = monotonic_floor > now ? monotonic_floor - now : 0;
+    __wasilibc_reset_preopens();
+    turned = 0;
+    session_set_up = 0;
+    prepared = 1;
+    PyObject *reactor = PyImport_ImportModule("_reactor");
+    if (end_function == NULL && reactor != NULL) {
+        end_function = PyObject_GetAttrString(reactor, "_end");
+    }
+    PyObject *done = reactor != NULL ? PyObject_CallMethod(reactor, "_resume", NULL) : NULL;
+    Py_XDECREF(reactor);
+    if (done == NULL || end_function == NULL) {
+        Py_XDECREF(done);
+        show_and_drop();
+        return -1;
+    }
+    Py_DECREF(done);
+    return 0;
 }

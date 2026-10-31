@@ -16,6 +16,10 @@ A call from a starting image runs in the image's own `__main__`, the module the 
 in, so a call means what one program of the code and the call's means. It ends through `_end`,
 without Python's teardown of every module the image holds: the call's own names are dropped and
 collected, so what they held is finalized, and a writer it hung elsewhere is flushed.
+
+A start from a checkpoint, a live session's memory after its turns, is a starting image's call
+too: its first run or turn calls `_resume`, which takes the session's `__main__` as the image's
+and puts the import path back, and its first turn sets up as a session's first turn does.
 """
 
 import os
@@ -31,6 +35,7 @@ IGNORED = {"-I", "-E", "-s", "-B"}
 # module type): captured once, before any program, so a nested run (spec 054's prelude) cannot
 # carry a program's names into the next __main__ (spec 073, Decision 1).
 _MAIN_NAMES = dict(sys.modules["__main__"].__dict__)
+_BASE_PATH = tuple(sys.path)  # the stdlib zip alone: a start from a checkpoint imports from it
 _prepared = False  # the host's code ran here through prepare: this instance is a starting image
 _NOTHING = object()
 _image_underscore = _NOTHING  # builtins._ as the image holds it
@@ -411,6 +416,26 @@ def prepare(source, environ):
         _image_underscore = builtins.__dict__.get("_", _NOTHING)
         _prepared = True
     return status
+
+
+def _resume():
+    """The start of an instance a checkpoint's image was copied into, before its first run or
+    turn: the import path the bootstrap began with, and the importer cache without the session's
+    other entries, so the start imports only from its own path; the session's `__main__` taken
+    as the image's, with every name it holds, so a call's end drops only what the call bound; and
+    the session's heap frozen out of the collector's way, as a starting image's is."""
+    global _MAIN_NAMES, _prepared, _image_underscore, _image_main
+    import builtins
+    import gc
+
+    sys.path = list(_BASE_PATH)
+    for key in [k for k in sys.path_importer_cache if k not in _BASE_PATH]:
+        del sys.path_importer_cache[key]
+    _image_main = sys.modules["__main__"]
+    _MAIN_NAMES = dict(_image_main.__dict__)
+    _image_underscore = builtins.__dict__.get("_", _NOTHING)
+    _prepared = True
+    gc.freeze()
 
 
 def _end():
