@@ -74,6 +74,20 @@ def test_a_cap_for_a_new_check_file_waits_for_its_first_acceptance() -> None:
     ]
 
 
+def test_a_cap_for_a_new_package_suite_waits_for_its_first_acceptance() -> None:
+    """A package whose suite no accepted check comes from is new: its family's cap is not stale
+    before its first acceptance, and a package with an accepted check has no such allowance."""
+    new = f"{budget.UPSTREAM_FILE}::test_upstream_suite[newpkg-smoke]"
+    families = {**FAMILIES, new: "newpkg"}
+    accepted = {"checks": {A: entry(1), U: entry(1)}}
+    assert budget.new_upstream_families(accepted, families) == {"newpkg"}
+    assert budget.new_upstream_families({"checks": {new: entry(1), U: entry(1)}}, families) == set()
+    with_new = caps(newpkg=10, oldpkg=10)
+    assert budget.stale_caps(accepted, with_new, family, {"newpkg"}) == [
+        "the cap for oldpkg names no family with fuel"
+    ]
+
+
 def _junit(*cases: tuple[str, str, float]) -> str:
     rows = "".join(f'<testcase classname="{c}" name="{n}" time="{t}"/>' for c, n, t in cases)
     return f'<testsuites><testsuite name="pytest">{rows}</testsuite></testsuites>'

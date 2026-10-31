@@ -1,0 +1,36 @@
+# python-docx's own tests in the guest, from its test source, the pinned sdist with its carried
+# patch. A judge file: every edit is a judge change. The whole suite runs in the release tier, a
+# smoke group in the normal tier: each test in exactly one tier. The sdist's features/ folder
+# holds the project's acceptance tests, which run under behave; the kit has no behave, so they
+# are not staged.
+
+package = "python-docx"
+driver = "package"
+grant = "/upstream-python-docx"
+test_source = true
+budget = 188_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.python-docx-smoke]
+paths = ["tests/test_api.py", "tests/test_document.py"]
+smoke = "the unit tests of the entry points and the document object, the package from the zip"
+fuel = 28_000_000_000
+measured = 18_643_624_003
+
+[groups.python-docx-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 160_000_000_000
+measured = 105_760_153_903
+
+[[expected]]
+id = "bytesio-mocked-in-a-fixture"
+group = "python-docx-r"
+outcome = "error"
+match = "isinstance\\(\\) arg 2 must be a type"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock. Native pytest with --capture=sys fails the same tests (README)"
+closes_with = "docs/reference/limitations.md"

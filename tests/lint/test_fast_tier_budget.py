@@ -26,7 +26,9 @@ def test_no_normal_tier_check_is_past_its_familys_fuel_cap() -> None:
 
     over = budget.fuel_over(accepted, plan.caps, family)
     files = [f"{budget.GOAL_DIR}{p.name}" for p in (paths.REPO / budget.GOAL_DIR).glob("test_*.py")]
-    stale = budget.stale_caps(accepted, plan.caps, family, budget.new_families(accepted, files))
+    pending = budget.new_families(accepted, files)
+    pending |= budget.new_upstream_families(accepted, upstream)
+    stale = budget.stale_caps(accepted, plan.caps, family, pending)
     assert not stale, scan.report(stale)
     specs = budget.spec_status(paths.CONTEXT / "specifications")
     bad, reported = budget.findings(over, plan, specs)
