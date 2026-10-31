@@ -222,22 +222,6 @@ reason = "no threads: starting one raises RuntimeError (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[expected]]
-id = "pillow-zlib-only"
-group = "matplotlib-render-2b"
-outcome = "failed"
-match = '(en|de)coder jpeg not available'
-reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
-
-[[expected]]
-id = "pillow-zlib-only"
-group = "matplotlib-rest-a"
-outcome = "failed"
-match = '(en|de)coder jpeg not available'
-reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
-
-[[expected]]
 id = "no-processes"
 group = "matplotlib-rest-a"
 outcome = "failed"

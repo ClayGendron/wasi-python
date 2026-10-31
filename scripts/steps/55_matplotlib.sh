@@ -1,6 +1,6 @@
 #!/bin/sh
 # Step 55: the plot packages for wasm32-wasip1: Pillow 13.0.0's _imaging, _imagingmath
-# and _imagingmorph (zlib only) and kiwisolver 1.5.1's _cext, compiled directly from their source
+# and _imagingmorph (zlib and JPEG) and kiwisolver 1.5.1's _cext, compiled directly from their source
 # lists, matplotlib 3.11.2 (with its two carried patches) through meson and
 # recipes/wasi-matplotlib.cross against step 37's libraries, and contourpy 1.4.0's _contourpy
 # through meson and the same cross file. Each extension module becomes a static
@@ -15,7 +15,7 @@ MODS="$B/plot-modules"
 INST="$B/plot-install"
 TOOLS="$B/plot-tools"
 SUFFIX=".cpython-$PYTHON_TAG-wasm32-wasi.so"
-for lib in libfreetype.a libharfbuzz.a libSheenBidi.a libraqm.a libqhull_r.a; do
+for lib in libfreetype.a libharfbuzz.a libSheenBidi.a libraqm.a libqhull_r.a libjpeg.a; do
   [ -s "$B/plot-libs/lib/$lib" ] || die "build/plot-libs/lib/$lib is missing: run step 37"
 done
 [ -s "$B/zlib-wasi/lib/libz.a" ] || die "build/zlib-wasi has no libz.a: run step 30"
@@ -71,8 +71,13 @@ print("\n".join(sorted(files)))
 EOF_PIL
 PIL_VERSION=$(sed -n 's/^Version: //p' "$P/PKG-INFO" | head -n 1)
 [ "$PIL_VERSION" = 13.0.0 ] || die "pillow's PKG-INFO says version $PIL_VERSION"
+# JPEG through step 37's libjpeg. Its error handler longjmps out of the codec, so every Pillow file
+# is compiled with setjmp through exception handling, as for C in the cross file; -lsetjmp on the
+# link provides it.
 pil_cc() { # source, object
   $CC -O2 -DNDEBUG $MAP $PYINC -I"$P/src/libImaging" -I"$B/zlib-wasi/include" -DHAVE_LIBZ \
+    -I"$B/plot-libs/include" -DHAVE_LIBJPEG \
+    -fwasm-exceptions -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false \
     "-DPILLOW_VERSION=\"$PIL_VERSION\"" -c "$P/$1" -o "$2"
 }
 objs=""
@@ -84,7 +89,8 @@ done < "$B/pillow-build/sources.txt"
 pil_cc src/libImaging/Mode.c "$B/pillow-build/mode.o"
 "$AR" rcD "$B/pillow-build/libpil_imaging_mode.a" "$B/pillow-build/mode.o"
 "$AR" rcD "$MODS/pillow/PIL/_imaging$SUFFIX" $objs
-printf '%s\n' "$B/pillow-build/libpil_imaging_mode.a" "$B/zlib-wasi/lib/libz.a" > "$MODS/pillow/PIL/_imaging$SUFFIX.deps"
+printf '%s\n' "$B/pillow-build/libpil_imaging_mode.a" "$B/zlib-wasi/lib/libz.a" \
+  "$B/plot-libs/lib/libjpeg.a" > "$MODS/pillow/PIL/_imaging$SUFFIX.deps"
 for m in _imagingmath _imagingmorph; do
   pil_cc "src/$m.c" "$B/pillow-build/$m.o"
   "$AR" rcD "$MODS/pillow/PIL/$m$SUFFIX" "$B/pillow-build/$m.o"

@@ -30,6 +30,7 @@ packaging: packaging packaging.version
 fonttools: fontTools fontTools.ttLib
 contourpy: contourpy
 qhull:
+libjpeg-turbo:
 libxml2:
 libxslt:
 lxml: lxml lxml.etree lxml.html
