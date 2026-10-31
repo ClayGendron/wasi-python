@@ -1,15 +1,15 @@
 # 168: The POSIX hosts have a module of their own
 
-- **Status:** drafted 2026-10-30, to be reviewed before it is built (structural). The owner chose 0.1.3's scope on 2026-10-30 (decisions.md, "The scope of 0.1.3"), which carries this split from 0.1.2 (`../roadmap.md`, 0.1.3, "Carried from 0.1.2"). Its numbers were measured on a prototype of the split in a scratch copy of the package, outside the repository.
+- **Status:** built 2026-10-30 on `spec/168-the-posix-hosts-have-a-module-of-their-own`, not landed; reviewed before it was built (structural), `../reviews/168-the-posix-hosts-have-a-module-of-their-own-spec-2026-10-30.md` ("Fit to build", five Lows, each taken as its fix text says in the build). Drafted 2026-10-30. The owner chose 0.1.3's scope on 2026-10-30 (decisions.md, "The scope of 0.1.3"), which carries this split from 0.1.2 (`../roadmap.md`, 0.1.3, "Carried from 0.1.2"). Its numbers were measured on a prototype of the split in a scratch copy of the package, outside the repository.
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
 - **Kind:** **structural**, runner code, parallel-safe, **a judge change** for the package's shape lists. By AGENTS.md's letter it adds no mutable, lock, private-API use, platform read or seam. It is structural by its subject: host code leaves `_platform.py`, the import graph gains a module, and it closes a structural review's Medium. Its pre-build review reads it against rows R3, R5 and R7 of `../reviews/README.md`. Code: `src/wasi_python/_platform.py`, a new `_platform_posix.py`, `_platform_common.py` (one function), `_private_dirs.py` (two calls). Judge: `ORDER`, `RUNNER_FILES`, `PLATFORM_HALVES`, their comments, and four unit files that name a moved name. Nothing an embedder sees changes.
-- **Depends on:** nothing unlanded. Landed: 104 (the shape checks), 107 (one interface, chosen once), 108 (the structural rules), 116 (the two type-checker passes), 131 (the split this mirrors), 141 and 147 (code that moves here unchanged). Lands before 162, which adds the copy-on-write restore behind the platform object: its protocol line goes in `_platform.py`, its POSIX half in `_platform_posix.py`. A branch that changes the POSIX classes rebases onto this one. 159's `platform` flag reads changed paths under `src/wasi_python/` that begin `_platform`, so the new module keeps macOS on a pull request.
+- **Depends on:** nothing unlanded. Landed: 104 (the shape checks), 107 (one interface, chosen once), 108 (the structural rules), 116 (the two type-checker passes), 131 (the split this mirrors), 141 and 147 (code that moves here unchanged). Lands before the copy-on-write restore's specification (162, Decision 10): its protocol line goes in `_platform.py`, its POSIX half in `_platform_posix.py`. 162 itself does not wait on this one. A branch that changes the POSIX classes rebases onto this one. 159's `platform` flag reads changed paths under `src/wasi_python/` that begin `_platform`, so the new module keeps macOS on a pull request.
 - **Research it stands on:** `../reviews/0.1.2-structural-review-2026-10-28.md` (Medium M1, rows R5 and R7); `131-the-platform-module-is-split.md` (the shape, and the proof of a move).
 
 ## The problem
 
-`src/wasi_python/_platform.py` is 1,351 lines of its 1,500-line ceiling (EXECUTED, `wc -l` on `dev` `b6c4c899`). It stood at 1,016 at 0.1.1. In 0.1.2 it grew by 335 lines, almost all in the POSIX classes and their helpers (147, 150, 141). The 0.1.2 structural review's Medium M1 says the next POSIX change takes it past the ceiling, and the split is then done under pressure. 162's copy-on-write restore is that next change.
+`src/wasi_python/_platform.py` is 1,351 lines of its 1,500-line ceiling (EXECUTED, `wc -l` on `dev` `b6c4c899`). It stood at 1,016 at 0.1.1. In 0.1.2 it grew by 335 lines, almost all in the POSIX classes and their helpers (147, 150, 141). The 0.1.2 structural review's Medium M1 says the next POSIX change takes it past the ceiling, and the split is then done under pressure. 162's copy-on-write follow-up is that next change.
 
 By `ast` (EXECUTED, a scratch script over each top-level node): `_Posix` is 444 lines, `_Linux` 144, `_Darwin` 142, and the helpers only they run about 400 more. The interface, the choice and what callers read are about 200.
 
@@ -27,7 +27,7 @@ On the prototype (EXECUTED, after `ruff format`): `_platform.py` **211** lines, 
 
 A name moves when only the POSIX classes run it, or such a name needs it. It stays when a caller outside the platform modules reads it from `_platform`, or it is the interface or the choice.
 
-**To `_platform_posix.py`, forty names, byte for byte** (`_platform.py:112–190` and `:255–1308`), each with its comment:
+**To `_platform_posix.py`, forty names, byte for byte, but for `_flags`, read as `_platform_common._flags` in `_DIR`, `_DIR_OPEN`, `_CACHE_DIR_OPEN`, `_CACHE_FILE_OPEN` and `_fd_name`, which step 4 reads back** (`_platform.py:112–190` and `:255–1308`), each with its comment:
 
 - the classes `_Posix`, `_Linux`, `_Darwin`, `_Entry`;
 - `_DIR`, `_DIR_OPEN`, `MAX_LINKS`, `_CACHE_DIR_OPEN`, `_CACHE_FILE_OPEN`, `_FD_NAMES`;
@@ -71,7 +71,7 @@ No expectation changes. Every `_platform._WASM_STACK` in the judge stays. `_not_
 
 ### 7. The next cut is named, not made (decided; the owner's alternative is to make it now)
 
-The POSIX module starts 335 lines under the ceiling, and 0.1.2 alone added 335 lines of POSIX code. So the next cut is named now. `_Linux` with its trap-check helpers goes to `_platform_linux.py`, about 230 lines. `_Darwin` with the four `_ACL_*` constants only it reads goes to `_platform_darwin.py`, about 180. `_platform_posix.py` is left near 805 (estimated from `ast` sizes). The rule: a specification that would take `_platform_posix.py` past 1,350 lines makes that cut first, as 129's review made 131 a precondition.
+The POSIX module starts 335 lines under the ceiling, and 0.1.2 alone added 335 lines of POSIX code. So the next cut is named now. `_Linux` with its trap-check helpers goes to `_platform_linux.py`, about 230 lines. `_Darwin` with the four `_ACL_*` constants only it reads goes to `_platform_darwin.py`, about 180. `_platform_posix.py` is left near 805 (estimated from `ast` sizes). The rule: a specification that would take `_platform_posix.py` past 1,350 lines makes that cut first, as 129's review made 131 a precondition. The per-host cut extends `_platform_hits` to the POSIX classes.
 
 Reason: this specification is one move of whole classes, with every verdict the same before and after, so one script proves it. The per-host cut is a second move of the same kind. The owner's alternative, three modules now, costs two more `ORDER` entries, two more `PLATFORM_HALVES` rows and two docstrings, and saves a later specification.
 
@@ -87,7 +87,7 @@ The POSIX hosts live in one file of their own, as Windows does. `_platform.py` k
 - `src/wasi_python/_platform.py` (about 211): the rest, Decisions 3 and 4.
 - `src/wasi_python/_platform_common.py`: `_flags`; its docstring names it.
 - `src/wasi_python/_private_dirs.py`: two calls.
-- The judge: Decisions 5 and 6.
+- The judge: Decisions 5 and 6. `ORDER` is in `tests/unit/test_runner_package.py`, `RUNNER_FILES` in `tests/harness/api.py`, `PLATFORM_HALVES` and the rule comments in `tests/checks/test_rules.py`; the news file's `[claim.judge]` gives each its reason.
 - `context/changes/168-the-posix-hosts-have-a-module-of-their-own.md`: the news file.
 
 Comments and docstrings name no specification, review or `context/` path.
@@ -102,7 +102,7 @@ Comments and docstrings name no specification, review or `context/` path.
 
 ### The news file
 
-Under `### Changed`: **The POSIX hosts have a module of their own** (spec 168). `_platform.py` held the POSIX, Linux and macOS hosts at 1,351 of its 1,500 lines; they are now `_platform_posix.py`, and `_platform.py` keeps the interface, the choice and the door at about 210. Nothing an embedder sees changes. No package row. Every claim list empty; the judge-hash line names the changed judge files.
+Under `### For contributors`: **The platform code is split by host family.** The POSIX, Linux and macOS hosts now have a file of their own beside the Windows one, and the interface and the choice stay where they were. Nothing an embedder sees changes. [Your first change](https://claygendron.github.io/wasi-python/contributing/first-change/). No package row. Every claim list empty; `[claim.judge]` names each changed judge file with its reason.
 
 ## Scope
 
@@ -124,4 +124,8 @@ Under `### Changed`: **The POSIX hosts have a module of their own** (spec 168). 
 
 ## Landing notes
 
-To be written at the landing.
+- **Built on `spec/168-the-posix-hosts-have-a-module-of-their-own`, rebased onto #58's merge `0070b04e`: `91b9ab19` (the build) and the commit of these notes.** Steps 1 to 5 as written. The pre-build review's five Lows taken as their fix text says: 1 in the news file (`### For contributors`, no spec or private module named) and in "The news file" above; 2, 3 and 4 in the Depends line, The problem, Decision 2 and Design's judge line; 5 in Decision 7.
+- **Sizes (criterion 1, EXECUTED, `wc -l`):** `_platform.py` 213, `_platform_posix.py` 1,166, `_platform_common.py` 366, `_platform_windows.py` 502. `_platform.py` gains a one-line comment above `_TRAP_HANDLERS_REPLACED`, whose old comment moved with `_TRAP_SIGNALS`.
+- **Seen failing first (criterion 3):** with `from . import _platform, _platform_posix` planted at `_home.py:14` and no `_platform_posix` row, `test_only_the_platform_modules_import_its_halves` missed it (it named only the new module's own imports of `_platform_common`); with the row, it failed on "_home.py:14: imports _platform_posix past the platform module"; with the fault removed, green. `git diff -U0` shows no line of `_select`.
+- **The move (criterion 4, EXECUTED):** "55 top-level names on the base; 40 moved to _platform_posix.py; differ: []; gone: []; new: ['_open_flags']". The 55 count `PLATFORM` and `_conforms`, which the prototype's 53 left out; `_flags` is the 41st moved name, to `_platform_common.py`.
+- **Types, public, tests (criteria 5 to 8):** `tests/harness/typecheck.py` "both passes are clean"; `type: ignore` 3; `tests/harness/api.py --check` exit 0, `tests/public_api.txt` unchanged. The seven unit files of criterion 8, with the artifact set: 282 passed, 6 skipped on the branch and on the base `d4b7d928`, each. `tests/unit tests/lint tests/checks/test_rules.py` (fast tier) after the rebase: 3486 passed, 14 skipped, no red. `SEAM_ALLOWED`, `LONG_FUNCTIONS`, `LATE` unchanged.

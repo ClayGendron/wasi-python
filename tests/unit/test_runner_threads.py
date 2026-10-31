@@ -11,7 +11,7 @@ import threading
 
 import pytest
 
-from wasi_python import _call, _home, _platform, _platform_windows, runner
+from wasi_python import _call, _home, _platform, _platform_posix, _platform_windows, runner
 from wasi_python._process import process
 
 MIB = 1 << 20
@@ -98,7 +98,7 @@ def test_windows_counts_its_stack_conservatively() -> None:
 def test_an_unknown_platform_cannot_be_read() -> None:
     """FreeBSD's bounds are not read, so its calls are
     refused by the stack check."""
-    assert _platform._Posix().stack_bounds() is None
+    assert _platform_posix._Posix().stack_bounds() is None
 
 
 def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
@@ -116,15 +116,15 @@ def test_the_interpreter_is_told_its_stack_where_it_guesses() -> None:
             raise AttributeError(name)
         return lambda: 0xABC
 
-    linux, musl = _platform._Linux(), dict(implementation="cpython", libc="musl")
+    linux, musl = _platform_posix._Linux(), dict(implementation="cpython", libc="musl")
     assert linux.tell_interpreter(4096, 9 * MIB, version=(3, 14, 1), resolve=resolve, **musl)
     assert told == [(0xABC, 4096, 9 * MIB)]
     with pytest.raises(RuntimeError, match="use CPython 3.14.1 or later"):
         linux.tell_interpreter(4096, 9 * MIB, version=(3, 14, 0), resolve=missing, **musl)
     for host, other in (
         (linux, dict(implementation="cpython", libc="glibc", version=(3, 14, 2))),
-        (_platform._Posix(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
-        (_platform._Darwin(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
+        (_platform_posix._Posix(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
+        (_platform_posix._Darwin(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
         (_platform_windows._Windows(), dict(implementation="cpython", libc="", version=(3, 14, 2))),
         (linux, dict(implementation="cpython", libc="musl", version=(3, 13, 9))),
     ):
@@ -137,10 +137,10 @@ def test_the_interpreter_prototypes_are_private() -> None:
     argtypes on ctypes.pythonapi's shared attributes."""
     shared = ctypes.pythonapi.PyThreadState_Get
     before = (shared.restype, shared.argtypes)
-    _platform._pyapi("PyThreadState_Get", ctypes.c_void_p)
+    _platform_posix._pyapi("PyThreadState_Get", ctypes.c_void_p)
     assert (shared.restype, shared.argtypes) == before
     with pytest.raises(AttributeError):
-        _platform._pyapi("NoSuchFunction_078", ctypes.c_int)
+        _platform_posix._pyapi("NoSuchFunction_078", ctypes.c_int)
 
 
 def test_a_hand_off_runs_on_the_home_and_carries_its_exception(roomy) -> None:
@@ -397,7 +397,7 @@ def _windows_limits(low: object, high: object) -> None:
 
 RESOLVE_ONCE = {
     "linux stack": (
-        lambda: _platform._Linux(),
+        lambda: _platform_posix._Linux(),
         lambda p: p.stack_bounds(),
         {
             "pthread_self": lambda: 1,
@@ -409,7 +409,7 @@ RESOLVE_ONCE = {
         (STACK_BASE + GUARD, STACK_SIZE - GUARD),
     ),
     "macos stack": (
-        lambda: _platform._Darwin(),
+        lambda: _platform_posix._Darwin(),
         lambda p: p.stack_bounds(),
         {
             "pthread_self": lambda: 1,
@@ -419,7 +419,7 @@ RESOLVE_ONCE = {
         (STACK_BASE, STACK_SIZE),
     ),
     "macos access list": (
-        lambda: _platform._Darwin(),
+        lambda: _platform_posix._Darwin(),
         lambda p: p._access_list(0, is_dir=True),
         {
             "acl_get_fd_np": lambda fd, kind: 1,
