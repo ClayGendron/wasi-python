@@ -130,7 +130,7 @@ closes_with = "context/specifications/002-the-progress-harness.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-test-modules]"
-match = "140 finding(s), digest 6aa3974a625c"
+match = "143 finding(s), digest d96604159ccf"
 reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
 closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
 

@@ -63,6 +63,7 @@ test_flufl
 test_fork1
 test_fractions
 test_free_threading.test_bisect
+test_free_threading.test_bytes_object
 test_free_threading.test_bz2
 test_free_threading.test_capi
 test_free_threading.test_code
@@ -70,6 +71,7 @@ test_free_threading.test_collections
 test_free_threading.test_context
 test_free_threading.test_cprofile
 test_free_threading.test_csv
+test_free_threading.test_datetime
 test_free_threading.test_dbm_gnu
 test_free_threading.test_dict
 test_free_threading.test_dict_watcher
@@ -93,6 +95,7 @@ test_free_threading.test_lzma
 test_free_threading.test_methodcaller
 test_free_threading.test_mmap
 test_free_threading.test_monitoring
+test_free_threading.test_os
 test_free_threading.test_pickle
 test_free_threading.test_pwd
 test_free_threading.test_races
@@ -113,6 +116,7 @@ test_free_threading.test_tokenize
 test_free_threading.test_type
 test_free_threading.test_types
 test_free_threading.test_uuid
+test_free_threading.test_weakref
 test_free_threading.test_zip
 test_free_threading.test_zlib
 test_functools
