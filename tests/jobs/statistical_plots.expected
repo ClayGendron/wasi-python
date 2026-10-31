@@ -1,4 +1,4 @@
-versions numpy=2.5.4 pandas=3.0.6 matplotlib=3.11.2 seaborn=0.13.2
+versions numpy=2.5.4 pandas=3.1.0 matplotlib=3.11.2 seaborn=0.13.2
 frame 120x4 107.110699 1.36572316
 palette deep #4c72b0 #dd8452 #55a868 husl #f77189 #50b131 #3ba3ec
 scatterplot rgba 240x320x4 b957c9c6d42b6083b7b86d2ec24ea353c9b1217b45e05569eb45d169628e4813 svg 67400 c9d9e9e08bbdb75c3c7b743c687df0296369c4f508c27ecab69ab65594c3f2c1
