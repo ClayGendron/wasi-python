@@ -3381,7 +3381,7 @@ def test_recursion_raises_under_the_wasmtime_cli(guest_workdir) -> None:
 # hosts with a quarter of room, and one at least 40% past the higher host's edge that ends in the
 # named trap; then the next call works. The structure is built, acted on, and either freed (`del`)
 # or left (os._exit) so freeing is not what is measured. Edges, arm64 / x86_64 (the research's
-# edges-8m-*.jsonl): freeing a list 37,433 / 32,753; a dict 22,785 / 20,962; hash 40,313 / 40,312;
+# edges-8m-*.jsonl): freeing a list 37,433 / 32,753; a dict 22,785 / 20,962;
 # compiling terms 58,227 / 52,402; C14N 23,818 / 23,817; a raised recursion limit 47,642 / 43,670.
 DONE = "print('ok', flush=True)\nos._exit(0)"
 LIMIT_FREE = (
@@ -3391,7 +3391,6 @@ LIMIT_FREE_DICT = (
     "import os\nN = {n}\nx = {{}}\nfor i in range(N): x = {{'k': x}}\ndel x\n"
     "print('ok', flush=True)"
 )
-LIMIT_HASH = "import os\nN = {n}\nx = ()\nfor i in range(N): x = (x,)\nhash(x)\n" + DONE
 LIMIT_COMPILE = (
     "import os\nN = {n}\ntry:\n    compile('+'.join(['1'] * N), 's', 'eval')\n"
     "except RecursionError:\n    pass\n" + DONE
@@ -3415,7 +3414,6 @@ LIMIT_RAISED = (
 LIMITS = {
     "free-list": (LIMIT_FREE, 24_000, 52_500),
     "free-dict": (LIMIT_FREE_DICT, 15_000, 32_000),
-    "hash-tuple": (LIMIT_HASH, 30_000, 57_000),
     "compile-terms": (LIMIT_COMPILE, 39_000, 82_000),
     "c14n-deep-tree": (LIMIT_C14N, 17_000, 34_000),
     "relaxng-deep-tree": (LIMIT_RELAXNG, 4_300, 9_000),  # edges 6,388 / 5,756 (the build)
@@ -3503,6 +3501,9 @@ RAISES = {
         "RecursionError",
     ),
     "repr-list": (400_000, NEST, "repr(x)", "RecursionError"),
+    # CPython 3.15.2 guards hashing a tuple with its C-stack check (gh-154318): a deep tuple
+    # raises RecursionError where 3.15.0 recursed until the stack overflowed and trapped
+    "hash-tuple": (400_000, "x = ()\nfor i in range(N): x = (x,)", "hash(x)", "RecursionError"),
     "json-dumps": (400_000, "import json\n" + NEST, "json.dumps(x)", "RecursionError"),
     "json-default": (2_000, HOOK, "json.dumps(O(N), default=dflt)", "RecursionError"),
     "eval-parens": (199, "s = '(' * N + '1' + ')' * N", "eval(s)", "MemoryError Parser stack"),

@@ -31,8 +31,8 @@ tests/tests_pandas.py::test_pandas_groupby_apply
 tests/tests_pandas.py::test_pandas_leave
 tests/tests_pandas.py::test_pandas_series
 tests/tests_pandas.py::test_pandas_setup
+tests/tests_perf.py::test_iter_basic_overhead
 tests/tests_perf.py::test_iter_overhead_hard
-tests/tests_perf.py::test_iter_overhead_simplebar_hard
 tests/tests_perf.py::test_lock_args
 tests/tests_perf.py::test_manual_basic_overhead
 tests/tests_perf.py::test_manual_overhead_hard
