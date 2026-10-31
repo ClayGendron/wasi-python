@@ -17,6 +17,8 @@ None.
 spec = "161"
 new = ["tests/checks/test_rules.py::test_the_release_ledger_holds_claim_blocks_in_their_shape"]
 units = 35
+# After the merge, the plugin's rows met the runner's own push-to-dev variables and judged as a
+# merge; their fixture now clears them, so they judge as a local run unless a row sets them.
 [claim.judge]
 "context/release-claims.toml" = "the release-tier ledger is renamed the release ledger and widened to carry any claim block; it holds its header comments alone, rewritten, and no block"
 ```

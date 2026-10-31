@@ -35,7 +35,11 @@ def test_failing():
 
 
 @pytest.fixture
-def inner(pytester: pytest.Pytester):
+def inner(pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch):
+    # The inner session judges as a local run unless a row says otherwise. On the runner after a
+    # merge into dev these are set, and the plugin would list a growth where the row expects red.
+    for name in ("GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_REF_TYPE", "GITHUB_BASE_REF"):
+        monkeypatch.delenv(name, raising=False)
     progress = pytester.path / "progress"
     progress.mkdir()
     latest = pytester.path / "latest.json"
