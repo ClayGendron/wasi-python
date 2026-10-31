@@ -57,6 +57,8 @@ class Completed:
     files: FileRecord | None = None
     tools: ToolRecord | None = None
     image_sha256: str | None = None
+    value: Display | None = None
+    displays: tuple[Display, ...] = ()
 ```
 
 How one program ended: what `run` returns.
@@ -68,10 +70,12 @@ How one program ended: what `run` returns.
 - `stderr`: What the guest wrote to standard error, up to the output limit.
 - `trapped`: `None` when the program ended by itself. Otherwise one of four fixed strings, "out of fuel", "deadline", "cancelled" or "out of file calls", or wasmtime's words: a trap's plain name ("stack overflow"), or an error's first line. The four strings are promised; wasmtime's words are not.
 - `fuel_used`: The guest's instructions spent, when a `fuel` cap was given and no deadline hit; else `None`.
-- `truncated`: The streams ("stdout", "stderr") whose output passed the limit.
+- `truncated`: The streams ("stdout", "stderr") whose output passed the limit, and "displays" when a display was cut or not kept for want of room.
 - `files`: For a call with mounts, its provider calls, faults and refused writes; else `None`.
 - `tools`: For a call with tools, every frame counted and the first 1,000 listed; else `None`.
 - `image_sha256`: The SHA-256 of the snapshot's image a call or turn started from, or `None`.
+- `value`: With `results=True`, a turn's or a `-c` program's last expression, when it is not `None`; else `None`.
+- `displays`: With `results=True`, what the guest passed to `display()`, and with `figures=True` its matplotlib figures, in order.
 
 #### `wasi_python.Defaults`
 
@@ -106,6 +110,26 @@ The limits a call has when it names none: `defaults()` returns the ones in force
 - `session_idle_s`: The longest a `Session` may rest between turns before it ends "idle".
 - `session_lifetime_s`: How long after its opening a `Session`'s turns may run; then it ends "lifetime".
 - `session_shutdown_s`: The seconds a `Session`'s ending has to run Python's shutdown (`atexit` handlers, then finalization); past them the session is simply stopped. 0 skips the shutdown; it cannot be `None`.
+
+#### `wasi_python.Display`
+
+```python
+@dataclass(frozen=True)
+class Display:
+    data: Mapping[str, str | bytes]
+    truncated: tuple[str, ...] = ()
+    stdout_at: int = 0
+    stderr_at: int = 0
+```
+
+One value or display a guest handed the host, as a notebook keeps it.
+
+**Attributes:**
+
+- `data`: The content by MIME type, read-only: "text/plain" always (the object's `repr`), and any of "text/html", "text/markdown", "image/svg+xml" and "application/json" as `str`, and "image/png" as `bytes`. HTML and SVG are the guest's: render them in a sandboxed frame.
+- `truncated`: The MIME types cut or left out because the call's room for displays ran short.
+- `stdout_at`: The bytes the guest had written to stdout before it, kept or not: under the "head" keep, `stdout[:stdout_at]` is what printed before it.
+- `stderr_at`: The same for stderr.
 
 #### `wasi_python.Errno`
 
@@ -320,6 +344,8 @@ class Session:
         idle_s: float | None = <default>,
         lifetime_s: float | None = <default>,
         shutdown_s: float = <default>,
+        results: bool = False,
+        figures: bool = False,
     ) -> None
     def __enter__(self) -> Session
     def __exit__(self, *exc: object) -> None
@@ -382,6 +408,8 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `idle_s`: The longest the session may rest between turns; then it ends "idle". Default: `defaults().session_idle_s`, 900. `None` means no bound.
   - `lifetime_s`: How long after the opening the session's turns may run: no turn starts at or after it, and each turn's deadline is capped at what is left; then it ends "lifetime". Default: `defaults().session_lifetime_s`, 3,600. `None` means no bound.
   - `shutdown_s`: The seconds the session's ending has to run Python's shutdown, capped so it ends by the opening plus the lifetime plus this; past it the session is stopped. Default: `defaults().session_shutdown_s`, 5. 0 skips the shutdown; `None` is refused.
+  - `results`: `True` returns each turn's last expression as `Completed.value`, not printed, and what it passes to `display()` as `Completed.displays`; they share one more `output_bytes`. Fixed for the session. Excludes `host`.
+  - `figures`: `True` adds each matplotlib figure a turn shows or leaves open, as a PNG display. Needs `results`.
 - `Session.__enter__`: Enter a `with` block; the session is closed when the block is left.
 - `Session.__exit__`: Close the session as the `with` block is left, however it is left.
   - `exc`: The exception leaving the block, if any; it is never suppressed.
@@ -718,6 +746,8 @@ def run(
     max_open_files: int | None = <default>,
     on_output: Callable[[OutputChunk], object] | None = None,
     output_keep: Literal['head', 'tail'] = 'head',
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed
 ```
 
@@ -749,6 +779,8 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
 - `on_output`: Called with each `OutputChunk` of the guest's stdout and stderr while it runs: under `run`, on the thread that made the call, in turn with your `host` and providers, which wait while it runs; under `run_async`, on the event loop's thread. Keep it short. At most `output_bytes` of each stream are delivered, every chunk before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and ends delivery for the call, which goes on; any other `BaseException` stops the call and is raised. It must be synchronous: an async one raises `TypeError`. An `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run` refuses one, and a feed serves one call.
 - `output_keep`: What a stream past `output_bytes` keeps: "head" (the default) its first bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes past `output_bytes` and the line takes the place of the tail's first bytes. Anything else raises `ValueError`.
+- `results`: `True` returns a `-c` program's last expression as `Completed.value`, not printed, and what it passes to `display()` as `Completed.displays`; they share one more `output_bytes`. Excludes `host`.
+- `figures`: `True` adds each matplotlib figure the program shows or leaves open, as a PNG display. Needs `results`.
 
 **Raises:**
 
@@ -791,6 +823,8 @@ async def run_async(
     max_open_files: int | None = <default>,
     on_output: Callable[[OutputChunk], object] | None = None,
     output_keep: Literal['head', 'tail'] = 'head',
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed
 ```
 

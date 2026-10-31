@@ -20,6 +20,14 @@ collected, so what they held is finalized, and a writer it hung elsewhere is flu
 A start from a checkpoint, a live session's memory after its turns, is a starting image's call
 too: its first run or turn calls `_resume`, which takes the session's `__main__` as the image's
 and puts the import path back, and its first turn sets up as a session's first turn does.
+
+Results (spec 163). A host that asks for a cell's value and displays puts `-Xhost-results`, or
+`-Xhost-results=figures`, first after the program's name. `run` and a session's setup read it
+and take it out before the program sees its arguments, and set the mode both ways, so a start
+from a checkpoint has its own: `display` bound into builtins or unbound, matplotlib's backend
+set to `host.figures` or put back. In the mode, a turn's or a `-c` program's last expression goes
+to the host as its value, not printed, and in figures mode the figures a cell leaves open are
+sent at its end.
 """
 
 import os
@@ -40,6 +48,10 @@ _prepared = False  # the host's code ran here through prepare: this instance is 
 _NOTHING = object()
 _image_underscore = _NOTHING  # builtins._ as the image holds it
 _image_main = None  # the __main__ the host's code ran in
+_MODES = {"-Xhost-results": "results", "-Xhost-results=figures": "figures"}
+_FIGURES = "module://host.figures"  # matplotlib's backend in figures mode
+_mode = None  # this start's results mode: None, "results" or "figures"
+_shown = None  # host.display, once results mode imported it
 
 
 def _fresh_main():
@@ -169,7 +181,76 @@ def _only_runpy(tb):
     return True
 
 
+def _take_mode(argv):
+    """(the results mode the host put first after the program's name, argv without it)."""
+    if len(argv) > 1 and argv[1] in _MODES:
+        return _MODES[argv[1]], [argv[0], *argv[2:]]
+    return None, argv
+
+
+def _set_mode(mode):
+    """This start's results mode, set both ways over whatever the instance held before:
+    `display` bound into builtins or unbound, and matplotlib's backend set to `host.figures`,
+    unless the environment names one, or put back to Agg."""
+    global _mode, _shown
+    import builtins
+
+    _mode = mode
+    if mode is not None and _shown is None:
+        import host.display
+
+        _shown = host.display
+    if _shown is not None:
+        _shown._on = mode is not None
+        if mode is not None:
+            builtins.display = _shown.display
+        elif builtins.__dict__.get("display") is _shown.display:
+            del builtins.display
+    if mode == "figures" and "MPLBACKEND" not in os.environ:
+        os.environ["MPLBACKEND"] = _FIGURES
+    mpl = sys.modules.get("matplotlib")
+    if mpl is not None:  # imported before this start: its backend is already chosen
+        want = os.environ.get("MPLBACKEND") or "agg"
+        if (mpl.rcParams._get_backend_or_none() == _FIGURES) != (want == _FIGURES):
+            mpl.use(want)
+
+
+def _cell_begin():
+    if _mode is not None:
+        _shown._begin()
+
+
+def _show(value):
+    """A cell's last expression: printed by `sys.displayhook`, or in results mode sent to the
+    host as the cell's value and `builtins._` bound, as the hook binds it. A program that
+    replaced the hook has it called, as the interactive interpreter does."""
+    if _mode is None or sys.displayhook is not sys.__displayhook__:
+        sys.displayhook(value)
+        return
+    if value is None:
+        return
+    import builtins
+
+    builtins._ = None
+    _shown._value(value, repr(value))  # taken here, as the hook takes it: no helper's frame
+    builtins._ = value
+
+
+def _cell_end():
+    """In figures mode, the figures a cell left open, sent at its end, after an exception too,
+    only if it imported pyplot; an exception sending them is reported."""
+    if _mode != "figures" or "matplotlib.pyplot" not in sys.modules:
+        return
+    try:
+        import host.figures
+
+        host.figures._send_open()
+    except Exception as exc:
+        _report(exc, False)
+
+
 def run(argv, environ):
+    results, argv = _take_mode(argv)
     sys.orig_argv = list(argv)
     os.environ.clear()
     os.environ.update(environ)
@@ -207,8 +288,13 @@ def run(argv, environ):
         break
     _refresh(unbuffered)
     try:
+        _set_mode(results)
+        _cell_begin()
         main = _image_main if _prepared else _fresh_main()
-        if mode == "-c":
+        if mode == "-c" and results is not None:
+            sys.argv = ["-c", *rest]
+            _run_turn(target, "<string>")  # its last expression is the value
+        elif mode == "-c":
             sys.argv = ["-c", *rest]
             code = compile(target, "<string>", "exec")
             import linecache  # as CPython's -c: tracebacks show the source line
@@ -251,6 +337,7 @@ def run(argv, environ):
         _report(exc, mode == "script")
         return 1
     finally:
+        _cell_end()
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.flush()
@@ -263,12 +350,13 @@ _turns = 0  # the turns run in this instance: each one's code is named <turn N>
 _quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
 def _setup(environ):
     """The first turn's setup, once and unnumbered: the environment, the import path from argv,
-    argv as the interactive interpreter has it, exit() and quit() rebound, and the reseed."""
+    argv as the interactive interpreter has it, exit() and quit() rebound, the reseed, and the
+    results mode."""
     argv, env = environ
     if env is not None:
         os.environ.clear()
         os.environ.update(env)
-    argv = list(argv or [])
+    mode, argv = _take_mode(list(argv or []))
     for entry in argv[1:]:
         if entry.startswith("/"):  # absolute, read-only folders only; anything else is skipped
             sys.path.append(entry)
@@ -289,11 +377,12 @@ def _setup(environ):
         eof = getattr(old, "eof", "Ctrl-D (i.e. EOF)")
         setattr(builtins, name, _SessionQuitter(name, eof))
     _refresh(False)
+    _set_mode(mode)
 
 
 def _run_turn(text, name):
     """Run a turn's source in __main__, echoing a final expression as the interactive
-    interpreter does."""
+    interpreter does, or in results mode sending it as the value."""
     import linecache
 
     try:
@@ -310,7 +399,7 @@ def _run_turn(text, name):
     if last is not None:
         expr = compile(last, name, "eval")
         linecache._register_code(expr, text, name)
-        sys.displayhook(eval(expr, main))
+        _show(eval(expr, main))
 
 
 def _compiled(text, name):
@@ -357,6 +446,7 @@ def turn(source, environ, stdin=None):
         if stdin is not None:
             old = sys.stdin
             given = sys.stdin = _turn_reader(stdin, old)
+        _cell_begin()
         _run_turn(source.decode("utf-8"), f"<turn {_turns}>")
     except SystemExit as exc:
         status = _exit_code(exc)
@@ -370,6 +460,7 @@ def turn(source, environ, stdin=None):
     finally:
         if given is not None and sys.stdin is given:
             sys.stdin = old
+        _cell_end()
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.flush()

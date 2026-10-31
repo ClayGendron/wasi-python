@@ -30,6 +30,7 @@ from __future__ import annotations
 from . import _process
 from . import runner as _runner
 from ._artifacts import Artifacts, ArtifactsMissing, artifact_dir, artifacts
+from ._results import Display
 from ._snapshot import Snapshot, SnapshotFailed, SnapshotMismatch, SnapshotOrigin
 from ._snapshot_make import make_package_snapshot, make_snapshot
 from .mounts import (
@@ -101,6 +102,7 @@ __all__ = [
     "ArtifactsMissing",
     "Completed",
     "Defaults",
+    "Display",
     "Errno",
     "FileFault",
     "FileProvider",

@@ -1,9 +1,9 @@
 """A checked call for the judge's stand-ins: the one place in the harness a call is built by hand.
 
 `BASE_CALL` is a `_CheckedCall` written out with every field explicit: no limit, nothing granted,
-no tools, `argv` the one-line `pass`. `checked_call(**fields)` is a copy with the named fields
-changed; an unknown name is `dataclasses.replace`'s own `TypeError`, so a stand-in can never
-carry a field the runner does not know.
+no tools, no results, `argv` the one-line `pass`. `checked_call(**fields)` is a copy with the
+named fields changed; an unknown name is `dataclasses.replace`'s own `TypeError`, so a stand-in
+can never carry a field the runner does not know.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ BASE_CALL = _call._CheckedCall(
     open_files=None,
     binary="snapshot",
     start=None,
+    results=None,
 )
 
 

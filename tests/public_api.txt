@@ -15,6 +15,8 @@ dataclass Completed: frozen
   field files: FileRecord | None = None
   field tools: ToolRecord | None = None
   field image_sha256: str | None = None
+  field value: Display | None = None
+  field displays: tuple[Display, ...] = ()
 dataclass Defaults: frozen
   field memory_bytes: int | None = required
   field deadline_s: float | None = required
@@ -27,6 +29,11 @@ dataclass Defaults: frozen
   field session_idle_s: float | None = 900.0
   field session_lifetime_s: float | None = 3600.0
   field session_shutdown_s: float = 5.0
+dataclass Display: frozen
+  field data: Mapping[str, str | bytes] = required
+  field truncated: tuple[str, ...] = ()
+  field stdout_at: int = 0
+  field stderr_at: int = 0
 enum Errno(IntEnum)
   member EACCES = 2
   member EBUSY = 10
@@ -114,6 +121,8 @@ class Session
     param idle_s: float | None = <default>  keyword-only
     param lifetime_s: float | None = <default>  keyword-only
     param shutdown_s: float = <default>  keyword-only
+    param results: bool = False  keyword-only
+    param figures: bool = False  keyword-only
   def __enter__ -> Session
   def __exit__ -> None
     param *exc: object  var-positional
@@ -242,6 +251,8 @@ def run -> Completed
   param max_open_files: int | None = <default>  keyword-only
   param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
   param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
+  param results: bool = False  keyword-only
+  param figures: bool = False  keyword-only
 async def run_async -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
@@ -267,6 +278,8 @@ async def run_async -> Completed
   param max_open_files: int | None = <default>  keyword-only
   param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
   param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
+  param results: bool = False  keyword-only
+  param figures: bool = False  keyword-only
 def set_defaults -> Defaults
   param new: Defaults  positional
 def stats -> dict[str, int]

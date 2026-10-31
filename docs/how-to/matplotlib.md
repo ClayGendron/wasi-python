@@ -25,6 +25,10 @@ The plot lands in `/tmp/job-17/plot.png` on the host. Its pixels are native matp
 
 For files that are the same on every run, set `rcParams["svg.hashsalt"]` and pass `metadata={"Date": None}` (SVG) or `metadata={"CreationDate": None}` (PDF), or set `SOURCE_DATE_EPOCH`, as natively.
 
+## Get the figures back without a file
+
+Pass `results=True, figures=True`, and `plt.show()`, or a figure a cell leaves open, comes back as a PNG in `Completed.displays`. No writable grant is needed for the image, only for matplotlib's cache. See [Read a cell's value and displays](results.md#add-figurestrue).
+
 ## Keep the font cache between calls
 
 matplotlib writes its font list to `MPLCONFIGDIR`, else to `$HOME/.matplotlib`. The runner makes `HOME` fresh on every call, so each call that imports matplotlib rebuilds the list. To keep it, set `MPLCONFIGDIR` in `env=` to a writable grant you keep across calls.

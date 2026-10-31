@@ -8,7 +8,7 @@ This page is the wire format through which guest code calls the host's tools. Re
 
 The tool protocol is one meaning for them. Guest code writes `from host import tools`, then calls a tool such as `tools.lookup_region("EMEA")`. The guest's half is the pure-Python package `host`, in the stdlib zip. The host's half in Python is `wasi_python.tools`. Another host serves the protocol from its own door function, by the rules below.
 
-The protocol is optional. If the door never answers it, `from host import tools` raises `ImportError`.
+The protocol is optional. If the door never answers it, `from host import tools` raises `ImportError`. It is used when the embedder passes tools or asks for results; every tool call is gated by the embedder, and a display calls nothing of the host's.
 
 ## Version
 
@@ -42,6 +42,26 @@ There are two operations:
 - `call` calls one tool by name with its arguments in `args`. The answer holds the tool's result in `value`, or an `error` with a `kind` and a `message`.
 
 Bytes travel as an object with exactly one key, `$bytes`, holding strict base64.
+
+## Displays
+
+A call that asks for results (`run(..., results=True)`) has a third operation, `display`, through which the guest hands the host a value or a display:
+
+```text
+request    {"v": 1, "id": 9, "op": "display", "value": false,
+            "data": {"text/plain": "...", "image/png": {"$bytes": "..."}}, "truncated": []}
+answer     {"v": 1, "id": 9, "ok": true, "kept": true}
+           {"v": 1, "id": 9, "ok": true, "kept": false}
+           {"v": 1, "id": 9, "ok": false, "error": {"kind": "too_large", "message": "..."}, "room": 120}
+```
+
+- `value` is `true` for a cell's last expression and `false` for `display()`. Of several value frames in a cell, the host keeps the last.
+- `data` holds `text/plain`, and any of `text/html`, `text/markdown`, `image/svg+xml` and `application/json`, each a string, and `image/png` as `$bytes`. `truncated` may name only those six types.
+- The host judges every display frame, whoever sent it. Any other type, a value of the wrong form, or a `value` that is not `true` or `false` is answered `protocol` and kept nowhere.
+- A call's displays share `output_bytes` decoded bytes and 1,000 records. A display over the room left is answered `too_large` with `room`, the bytes left; the guest then sends its text alone, cut to fit. A frame longer than six times the room, plus a kibibyte for its keys, is refused the same way before it is read. Once the records or the room are spent, a display is answered `"kept": false`, and the guest sends nothing more in that cell; past the records, a frame longer than a kibibyte is answered so unread. With tools, a frame is read up to the larger of that bound and the tool request cap; one past both is refused `too_large` unread, and counted in neither the tool record nor the displays.
+- A display spends no tool frame and no tool request byte. Without tools, `list` and `call` are answered `protocol`, so `from host import tools` still raises `ImportError`.
+
+The guest learns the mode from its first argument after the program's name: `-Xhost-results`, or `-Xhost-results=figures` for matplotlib's figures. It reads that argument as one, and takes it out before the program sees `sys.argv` or `sys.orig_argv`. A host of your own that passes neither gets no display frames. Against a host that answers `display` with anything but `ok` or `too_large`, the guest prints the text.
 
 ## Kinds of failure
 
@@ -144,4 +164,4 @@ Frames are opaque bytes to the door. To serve tools, read and write them by the 
 
 ## In one line
 
-One compact JSON object per door call each way, `v` 1, two operations (`list` and `call`), nine kinds of failure, strict request rules and a small JSON Schema subset, all fixed by `PROTOCOL`.
+One compact JSON object per door call each way, `v` 1, two operations (`list` and `call`) and a third (`display`) when results are asked, nine kinds of failure, strict request rules and a small JSON Schema subset, all fixed by `PROTOCOL`.

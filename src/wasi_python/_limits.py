@@ -8,6 +8,7 @@ import math
 import numbers
 import operator
 import os
+import threading
 from collections.abc import Iterable, Mapping
 from typing import Any, NamedTuple
 
@@ -177,6 +178,13 @@ def _check_output_keep(value: Any) -> str:
     """`output_keep` as "head" or "tail"; anything else is a ValueError."""
     if not isinstance(value, str) or value not in KEEPS:
         raise ValueError(f'output_keep must be "head" or "tail"; got {value!r}')
+    return value
+
+
+def _check_cancel(value: Any) -> threading.Event | None:
+    """`cancel` as a `threading.Event` or None; anything else is a TypeError."""
+    if value is not None and not isinstance(value, threading.Event):
+        raise TypeError(f"cancel must be a threading.Event, or None; got {type(value).__name__}")
     return value
 
 
