@@ -7,12 +7,16 @@ scikit-learn gives native scikit-learn's answers serially: no OpenMP, joblib in 
 calling thread, its datasets and style sheets read from the zip (one carried patch), and what the
 sandbox lacks raised by name. statsmodels gives native statsmodels' answers, its
 public-domain datasets read from the zip (one carried patch), the thirteen left out raising
-FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised."""
+FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised.
+python-docx and python-pptx start from their default templates, read from the zip through one
+carried patch each, and write Word and PowerPoint files with native Python's output."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -38,6 +42,16 @@ def test_files_from_the_zip_job_matches_native(guest) -> None:
     Equal output shows the patches change no result on these calls; the Styler check
     below shows the patched branch served them."""
     _job(guest, "files_from_the_zip")
+
+
+@pytest.mark.slow
+def test_documents_job_matches_native(guest) -> None:
+    """python-docx writes a Word document (a heading, bold and italic runs, a table, a picture, a
+    section's own header and footer, and a comment) and python-pptx a deck (a title slide, a
+    bullet slide, a table, a column chart, a picture and a notes slide), each from its default
+    template; each file is saved, reopened and read back as native Python reads it. Equal output
+    shows the patches change no result on these calls."""
+    _job(guest, "documents")
 
 
 @pytest.mark.slow
@@ -384,6 +398,130 @@ def test_networkx_atlas_reads_from_the_zip(guest, which) -> None:
     the patch, `gzip.open` refuses the zip's Traversable with TypeError."""
     findings = _findings(guest, which, ATLAS)
     assert not findings, scan.report(findings)
+
+
+# python-docx's six template sites and python-pptx's three, each called as the package calls it.
+# A site that returns a path (as an install from files does) is opened, so the check reads what the
+# package would read; each result is hashed. parse_from_template's result is compared with the
+# zip's member parsed by parse_xml, both serialised; the icon by the blob of the image part an OLE
+# object adds. Then a document and a deck are made from the defaults and saved in memory.
+OFFICE = """
+import hashlib, io, json, zipfile
+from lxml import etree
+import docx, pptx
+from docx import api as docx_api
+from docx.parts.comments import CommentsPart
+from docx.parts.hdrftr import FooterPart, HeaderPart
+from docx.parts.settings import SettingsPart
+from docx.parts.styles import StylesPart
+from pptx import api as pptx_api
+from pptx.enum.shapes import PROG_ID
+from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+from pptx.oxml import parse_from_template, parse_xml
+from pptx.util import Inches
+
+def digest(call):
+    try:
+        got = call()
+        if isinstance(got, str):
+            with open(got, "rb") as f:
+                got = f.read()
+        elif not isinstance(got, bytes):
+            got = got.read()
+        return hashlib.sha256(got).hexdigest()
+    except Exception as e:
+        return type(e).__name__
+
+def icon(prog_id):
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.shapes.add_ole_object(io.BytesIO(b"object"), prog_id, Inches(1), Inches(1))
+    (blob,) = [r.target_part.blob for r in slide.part.rels.values() if r.reltype == RT.IMAGE]
+    return blob
+
+def saved(make):
+    try:
+        out = io.BytesIO()
+        make().save(out)
+        return out.getvalue()[:2].decode()
+    except Exception as e:
+        return type(e).__name__
+
+def document():
+    d = docx.Document()
+    d.add_paragraph("body")
+    d.sections[0].header.paragraphs[0].text = "header"
+    d.sections[0].footer.paragraphs[0].text = "footer"
+    d.add_comment(d.paragraphs[0].runs, text="a comment", author="judge")
+    return d
+
+def deck():
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
+    slide.notes_slide.notes_text_frame.text = "notes"
+    return prs
+
+sites = {
+    "docx/templates/default.docx": lambda: docx_api._default_docx_path(),
+    "docx/templates/default-settings.xml": SettingsPart._default_settings_xml,
+    "docx/templates/default-styles.xml": StylesPart._default_styles_xml,
+    "docx/templates/default-comments.xml": CommentsPart._default_comments_xml,
+    "docx/templates/default-footer.xml": FooterPart._default_footer_xml,
+    "docx/templates/default-header.xml": HeaderPart._default_header_xml,
+    "pptx/templates/default.pptx": lambda: pptx_api._default_pptx_path(),
+    "pptx/templates/generic-icon.emf": lambda: icon("Foo.Bar.18"),
+    "pptx/templates/docx-icon.emf": lambda: icon(PROG_ID.DOCX),
+    "pptx/templates/pptx-icon.emf": lambda: icon(PROG_ID.PPTX),
+    "pptx/templates/xlsx-icon.emf": lambda: icon(PROG_ID.XLSX),
+}
+out = {"files": [docx.__file__, pptx.__file__]}
+out["sites"] = {member: digest(call) for member, call in sites.items()}
+out["parsed"] = {}
+with zipfile.ZipFile("/usr/local/lib/python315.zip") as z:
+    for name in ("theme", "notesMaster", "notes"):
+        member = parse_xml(z.read(f"pptx/templates/{name}.xml"))
+        out["parsed"][name] = [
+            digest(lambda: etree.tostring(parse_from_template(name))),
+            digest(lambda: etree.tostring(member)),
+        ]
+out["saved"] = {"docx": saved(document), "pptx": saved(deck)}
+print(json.dumps(out))
+"""
+OFFICE_MEMBERS = (
+    "docx/templates/default.docx",
+    "docx/templates/default-settings.xml",
+    "docx/templates/default-styles.xml",
+    "docx/templates/default-comments.xml",
+    "docx/templates/default-footer.xml",
+    "docx/templates/default-header.xml",
+    "pptx/templates/default.pptx",
+    "pptx/templates/generic-icon.emf",
+    "pptx/templates/docx-icon.emf",
+    "pptx/templates/pptx-icon.emf",
+    "pptx/templates/xlsx-icon.emf",
+)
+
+
+@BINARY
+def test_office_templates_read_from_the_zip(guest, artifacts, which) -> None:
+    """python-docx's and python-pptx's nine template sites each read their template from the zip,
+    the bytes the zip holds (parse_from_template's three XML templates parse to the zip member's
+    tree, and each OLE object's default icon is the zip's), and a document and a deck made from
+    the defaults save in memory, with nothing granted. Both packages are imported from the zip.
+    Without the carried patches each site opens a path inside the zip, and `Document()` and
+    `Presentation()` raise PackageNotFoundError."""
+    r = guest(which, ["-c", OFFICE], root_writable=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    zip_path = "/usr/local/lib/python315.zip/"
+    assert all(f.startswith(zip_path) for f in got["files"]), got["files"]
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        want = {m: hashlib.sha256(z.read(m)).hexdigest() for m in OFFICE_MEMBERS}
+    assert got["sites"] == want
+    assert sorted(got["parsed"]) == ["notes", "notesMaster", "theme"]
+    for name, (template, member) in got["parsed"].items():
+        assert len(template) == 64 and template == member, (name, template, member)
+    assert got["saved"] == {"docx": "PK", "pptx": "PK"}
 
 
 # scikit-learn. Each behaviour check runs as an embedder calls it, nothing

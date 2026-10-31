@@ -1,0 +1,109 @@
+versions python-docx=1.2.0 python-pptx=1.0.2 lxml=6.1.3 pillow=13.0.0 xlsxwriter=3.2.9
+docx members:
+  member [Content_Types].xml
+  member _rels/.rels
+  member customXml/_rels/item1.xml.rels
+  member customXml/item1.xml
+  member customXml/itemProps1.xml
+  member docProps/app.xml
+  member docProps/core.xml
+  member docProps/thumbnail.jpeg
+  member word/_rels/document.xml.rels
+  member word/comments.xml
+  member word/document.xml
+  member word/fontTable.xml
+  member word/footer1.xml
+  member word/header1.xml
+  member word/media/image1.png
+  member word/numbering.xml
+  member word/settings.xml
+  member word/styles.xml
+  member word/stylesWithEffects.xml
+  member word/theme/theme1.xml
+  member word/webSettings.xml
+  paragraph Heading 1 'Quarterly report' [('Quarterly report', None, None)]
+  paragraph Normal 'Sales were up in the north.' [('Sales were ', None, None), ('up', True, None), ('', None, None), (' in the ', None, None), ('north', None, True), ('.', None, None)]
+  paragraph Normal '' [('', None, None)]
+  table [['r0c0', 'r0c1', 'r0c2'], ['r1c0', 'r1c1', 'r1c2'], ['r2c0', 'r2c1', 'r2c2']]
+  inline shape 914400 457200
+  image image/png 40 20
+  header False ['the header']
+  footer False ['the footer']
+  comment Reviewer RV 'check this figure'
+  styles 164 default font None
+  settings odd and even pages False
+pptx members:
+  member [Content_Types].xml
+  member _rels/.rels
+  member docProps/app.xml
+  member docProps/core.xml
+  member docProps/thumbnail.jpeg
+  member ppt/_rels/presentation.xml.rels
+  member ppt/charts/_rels/chart1.xml.rels
+  member ppt/charts/chart1.xml
+  member ppt/embeddings/Microsoft_Excel_Sheet1.xlsx
+  member ppt/media/image1.png
+  member ppt/notesMasters/_rels/notesMaster1.xml.rels
+  member ppt/notesMasters/notesMaster1.xml
+  member ppt/notesSlides/_rels/notesSlide1.xml.rels
+  member ppt/notesSlides/notesSlide1.xml
+  member ppt/presProps.xml
+  member ppt/presentation.xml
+  member ppt/printerSettings/printerSettings1.bin
+  member ppt/slideLayouts/_rels/slideLayout1.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout10.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout11.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout2.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout3.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout4.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout5.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout6.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout7.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout8.xml.rels
+  member ppt/slideLayouts/_rels/slideLayout9.xml.rels
+  member ppt/slideLayouts/slideLayout1.xml
+  member ppt/slideLayouts/slideLayout10.xml
+  member ppt/slideLayouts/slideLayout11.xml
+  member ppt/slideLayouts/slideLayout2.xml
+  member ppt/slideLayouts/slideLayout3.xml
+  member ppt/slideLayouts/slideLayout4.xml
+  member ppt/slideLayouts/slideLayout5.xml
+  member ppt/slideLayouts/slideLayout6.xml
+  member ppt/slideLayouts/slideLayout7.xml
+  member ppt/slideLayouts/slideLayout8.xml
+  member ppt/slideLayouts/slideLayout9.xml
+  member ppt/slideMasters/_rels/slideMaster1.xml.rels
+  member ppt/slideMasters/slideMaster1.xml
+  member ppt/slides/_rels/slide1.xml.rels
+  member ppt/slides/_rels/slide2.xml.rels
+  member ppt/slides/_rels/slide3.xml.rels
+  member ppt/slides/slide1.xml
+  member ppt/slides/slide2.xml
+  member ppt/slides/slide3.xml
+  member ppt/tableStyles.xml
+  member ppt/theme/theme1.xml
+  member ppt/theme/theme2.xml
+  member ppt/viewProps.xml
+  slide size 9144000 6858000
+  slide 0 Title Slide notes False
+    shape PLACEHOLDER (14) Title 1 685800 2130425 7772400 1470025
+      paragraph 0 'Quarterly report'
+    shape PLACEHOLDER (14) Subtitle 2 1371600 3886200 6400800 1752600
+      paragraph 0 'Sales by region'
+  slide 1 Title and Content notes False
+    shape PLACEHOLDER (14) Title 1 457200 274638 8229600 1143000
+      paragraph 0 'Highlights'
+    shape PLACEHOLDER (14) Content Placeholder 2 457200 1600200 8229600 4525963
+      paragraph 0 'North up'
+      paragraph 0 'South flat'
+      paragraph 1 'East new'
+  slide 2 Blank notes True
+    shape TABLE (19) Table 1 457200 457200 5486400 914400
+      table [['r0c0', 'r0c1', 'r0c2'], ['r1c0', 'r1c1', 'r1c2']]
+    shape CHART (3) Chart 2 457200 1828800 5486400 3657600
+      chart COLUMN_CLUSTERED (51) ['north', 'south', 'east']
+      series units [3.0, 5.0, 2.0]
+      series returns [1.0, 0.0, 1.0]
+    shape PICTURE (13) Picture 3 6400800 457200 914400 457200
+      image image/png (40, 20)
+    notes 'Say the totals.'
