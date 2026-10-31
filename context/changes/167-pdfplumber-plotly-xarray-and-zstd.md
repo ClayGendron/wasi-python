@@ -32,6 +32,9 @@ new = [
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[pdfminer-six]",
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[xarray]",
 ]
+# matplotlib-rest-a gains two passes: test_cbook.py::test_reshape2d_xarray and ::test_index_of_xarray use
+# matplotlib's xr fixture, which skips without xarray; xarray is now in the zip (pytz stays test-only).
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-rest-a]"]
 grows = ["tests/checks/*"]
 growth = "pdfplumber 0.11.10, pdfminer.six 20260107 (without its cmap folder) and xarray 2026.9.0 join the zip: 185 members (180 package files, three METADATA, two entry_points.txt), so every guest's zip directory is larger. Measured on darwin arm64 against dev's set with 165: the zip 54,960,042 to 57,051,943 bytes (+2,091,901, +3.81%), 6,476 to 6,661 members; python-snapshot.wasm 104,660,252 to 104,864,834 (+204,582), the zip's directory being in the image; a plain start (-c pass) 277,589,139 to 282,253,209 fuel (+4,664,070, +1.68%, 25.2 k a member) and a snapshot start 54,177,689 to 54,596,257 (+0.77%); the wheel, built by hand as the release workflow builds it, 101,631,881 bytes, 3,225,719 under PyPI's 104,857,600"
 units = 1
