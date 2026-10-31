@@ -28,5 +28,11 @@ skip_sanity_check = true
 # -ffile-prefix-map: no builder's path in __FILE__ strings, so the binary's hash does not depend on the checkout.
 c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-include', '@ROOT@/recipes/pandas_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
 # C++ exceptions in their standard form (wasi-sdk's CppExceptions.md, 33 and 34; spec 005, Decision 3).
-cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
+# XSIMD_WITH_EMULATED: pandas builds its moments for wasm32 on its scalar path, but its shared header
+# names xsimd's batch API, which xsimd declares only when it finds a SIMD architecture; the guest
+# is built without SIMD128, so xsimd's emulated architecture, plain scalar code, declares it.
+# fast_float=pandas_fast_float: pandas' CSV tokenizer compiles fast_float 8.2.10, and scipy's
+# fast_matrix_market an older single-header fast_float; their templates and tables are weak and
+# not the same code, so in one python.wasm pandas' copy takes its own namespace.
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-DXSIMD_WITH_EMULATED=1', '-Dfast_float=pandas_fast_float', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
 # No link args: every extension module becomes an archive, and the one real link is python.wasm's own (Setup.local carries the libs).
