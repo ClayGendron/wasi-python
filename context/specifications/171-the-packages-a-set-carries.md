@@ -147,6 +147,8 @@ Built 2026-10-31 by an agent (Claude Opus 5.5), a builder sub-agent of the orche
 - `_Process.__init__` stays at its listed 84 lines (Decision 4), checked by `test_no_function_is_over_eighty_lines`.
 - `tests/checks/test_v1_4_public_api.py`'s `TOP`, the names `from wasi_python import *` must bind, gains `Package` and `packages`: the Design did not list it, and the fast tier's first run at the head failed that row until it did.
 
+**Review round 1** (`../reviews/171-the-packages-a-set-carries-pr-2026-10-31.md`). Medium 1: a member the zip module cannot read raised `zlib.error`, `NotImplementedError` or `RuntimeError`; `packages()` now re-raises `ArtifactsMissing` and wraps every other error of the read in it, the cause chained, and a row over the three broken zips failed first with those three types. Low 2: both stamps are taken before the read, as `_digest` takes them. Low 3: a `[[claim]]` block for the release groups' start growth joins `../release-claims.toml`.
+
 **Sibling work.** 167 also edits step 70's `--metadata` lines. Whichever lands second rebases and writes its names in Decision 3's form; the build stops on a tree's name no `--metadata` claims, so a missed line cannot pass.
 
 **Local runs at the head**: `ruff` check and format clean; `tests/lint` green (14 passed); the fast tier (`uv run pytest -m "not slow"`, 27 min 58 s) 4,435 passed with one failure, `test_public_modules_export_exactly_their_all`, then fixed as above and its file re-run green (11 passed); blocked locally only by the prior-art clones and the wheel, as on `dev`. The ratchet lists 231 growths, every one a check whose start reads the larger zip, claimed by the news file's `grows`.

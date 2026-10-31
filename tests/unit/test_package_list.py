@@ -119,6 +119,36 @@ def test_a_zip_that_cannot_be_read_raises(tmp_path) -> None:
         packages(found)
 
 
+def _broken(path: Path, how: str) -> None:
+    """A one-member zip whose METADATA cannot be read: its deflated bytes are not a deflate
+    stream, its central header names compression method 99, or it sets the encrypted flag."""
+    member = "x-1.dist-info/METADATA"
+    method = zipfile.ZIP_DEFLATED if how == "bad deflate" else zipfile.ZIP_STORED
+    with zipfile.ZipFile(path, "w", method) as z:
+        z.writestr(member, _metadata("x", "1") * 4)
+    data = bytearray(path.read_bytes())
+    central = data.index(b"PK\x01\x02")
+    if how == "bad deflate":
+        start = 30 + len(member)  # the one local header, which carries no extra field
+        data[start : start + 8] = b"\xff" * 8  # block type 3, which deflate reserves
+    elif how == "method 99":
+        data[central + 10 : central + 12] = (99).to_bytes(2, "little")
+    else:
+        data[central + 8] |= 0x01
+    path.write_bytes(bytes(data))
+
+
+@pytest.mark.parametrize("how", ["bad deflate", "method 99", "encrypted"])
+def test_a_member_that_cannot_be_read_raises_artifacts_missing(tmp_path, how) -> None:
+    """Whatever the zip module raises for a member it cannot read, `packages()` raises the one
+    error it promises, with the cause chained."""
+    found = _set(tmp_path, {})
+    _broken(found.stdlib_zip, how)
+    with pytest.raises(ArtifactsMissing, match="cannot be read") as raised:
+        packages(found)
+    assert raised.value.__cause__ is not None
+
+
 def test_a_second_call_on_the_same_zip_opens_nothing(tmp_path, monkeypatch) -> None:
     opened = []
 
