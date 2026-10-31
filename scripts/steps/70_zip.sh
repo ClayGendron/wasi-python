@@ -69,6 +69,10 @@
 # exactly those files and the stand-in, or the step stops. CairoSVG's Python source rides beside its
 # bytecode (`--source`), as its licence, LGPL-3.0, asks. tinycss2, cssselect2 and imageio: their
 # pure wheels.
+# plotly: its two packages from its sdist with its carried patch, which reads the
+# validators' table and the datasets through the package's loader, so they are found in the zip;
+# its METADATA its PKG-INFO; and left out, its JupyterLab extension and the widget's script, which
+# only FigureWidget in a notebook loads.
 # Last, make_stdlib_zip.py writes the folder table into the zip's archive comment: each top-level
 # folder's run of the directory, which a plain start reads only when a program first uses that
 # folder. The snapshot reads the whole directory at build time, as before.
@@ -106,9 +110,10 @@ done
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
 remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" \
   "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pdfminer_six-20260107" "$B/xarray-2026.9.0" \
-  "$B/cairosvg-2.9.1" "$B/pure-install"
+  "$B/cairosvg-2.9.1" "$B/plotly-7.1.0" "$B/pure-install"
 for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2 python_docx-1.2.0 \
-  python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0 cairosvg-2.9.1; do
+  python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0 cairosvg-2.9.1 \
+  plotly-7.1.0; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -165,6 +170,8 @@ stage "$B/cairocffi-1.7.1/cairocffi" "$B/pure-install/cairocffi" \
   "ffi.py test_cairo.py test_numpy.py test_pixbuf.py test_xcb.py" \
   "ffi.py=$HERE/recipes/cairocffi_ffi_stand_in.py"
 stage "$B/cairosvg-2.9.1/cairosvg" "$B/pure-install/cairosvg" "test_api.py"
+cp -R "$B/plotly-7.1.0/plotly" "$B/pure-install/plotly"
+cp -R "$B/plotly-7.1.0/_plotly_utils" "$B/pure-install/_plotly_utils"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -249,6 +256,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/cairocffi-1.7.1/PKG-INFO=cairocffi" \
   --metadata "$B/cairosvg-2.9.1/PKG-INFO=cairosvg" \
   --source cairosvg \
+  --metadata "$B/plotly-7.1.0/PKG-INFO=plotly,_plotly_utils" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -279,6 +287,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --drop statsmodels/sandbox/rlsdata.txt \
   --drop docx/templates/default-docx-template \
   --drop pdfminer/cmap \
+  --drop plotly/labextension \
+  --drop plotly/package_data/widgetbundle.js \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \
