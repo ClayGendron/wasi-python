@@ -507,8 +507,10 @@ def test_a_turns_stdin_answers_input() -> None:
             stdin=b"first\nsecond\n",
         )
         assert (given.exit_code, given.stdout) == (0, b"first second\neof\n"), given
-        leftover = s.run("import sys\nprint(repr(sys.stdin.read()))", stdin=b"one\ntwo\n")
-        assert leftover.stdout == b"'one\\ntwo\\n'\n", leftover
+        partly = s.run("print(input())", stdin=b"one\ntwo\n")  # "two" is left unread
+        assert partly.stdout == b"one\n", partly
+        after = s.run("import sys\nprint(repr(sys.stdin.read()))")
+        assert after.stdout == b"''\n", after
         empty = s.run("try:\n    input()\nexcept EOFError:\n    print('eof')")
         assert (empty.exit_code, empty.stdout) == (0, b"eof\n"), empty
         no_fd = s.run(

@@ -69,7 +69,7 @@ Past `output_bytes`, a stream keeps its first bytes by default. Pass `output_kee
 done = run(["script.py"], output_bytes=4096, output_keep="tail")
 ```
 
-When bytes were cut, the result starts with a line `[N bytes cut]`, and the rest is the tail, so `stdout` is never longer than `output_bytes`. Trust `truncated`, not the marker: a guest could print that line itself. The chunks `on_output` gets are still the start of the output. A reader who wants the traceback reads the result.
+When bytes were cut, the result starts with a line `[N bytes cut]`, and the rest is the tail, so `stdout` is never longer than `output_bytes`. N counts the bytes past `output_bytes`; the line itself takes the place of the tail's first bytes. Trust `truncated`, not the marker: a guest could print that line itself. The chunks `on_output` gets are still the start of the output. A reader who wants the traceback reads the result.
 
 On the command line, `--output-keep tail` keeps the tail, and `--stream` prints one JSON line per chunk before the result line.
 

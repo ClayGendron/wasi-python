@@ -123,6 +123,55 @@ def test_the_sink_is_handed_the_cap_and_one_mark() -> None:
     assert unbounded.pieces == [("stdout", b"a" * 50, False)]
 
 
+def test_the_last_delivery_never_waits_for_a_blocked_loop() -> None:
+    """The last batch under an event loop is handed to the loop and `close` returns, even while
+    the loop's thread is held in a callback that waits for the call (as `Session.close()` from
+    the loop's thread waits for its turn). The join is a fail-safe, not a timing."""
+    from wasi_python import _home
+
+    loop = asyncio.new_event_loop()
+    held, release = threading.Event(), threading.Event()
+    runner = threading.Thread(target=loop.run_forever, daemon=True)
+    runner.start()
+    try:
+        loop.call_soon_threadsafe(lambda: (held.set(), release.wait()))
+        assert held.wait(FAIL_SAFE_S)
+        delivered: list[OutputChunk] = []
+        feed = _outputs._Feed(delivered.append, _home._Home(), loop)
+        feed.add("stdout", b"late", False)
+        closer = threading.Thread(target=feed.close, daemon=True)
+        closer.start()
+        closer.join(FAIL_SAFE_S)
+        returned = not closer.is_alive()
+        release.set()
+        assert returned, "close waited for a loop whose thread was held"
+        done = threading.Event()
+        loop.call_soon_threadsafe(done.set)
+        assert done.wait(FAIL_SAFE_S)
+        assert delivered == [OutputChunk("stdout", b"late")]  # the loop ran it once free
+    finally:
+        release.set()
+        loop.call_soon_threadsafe(loop.stop)
+        runner.join(FAIL_SAFE_S)
+        loop.close()
+
+
+def test_a_base_exception_from_the_last_chunk_is_raised_by_run_async() -> None:
+    """A `BaseException` from the chunk that arrives at the guest's end, delivered on the loop
+    after the worker returned, is raised by the await all the same."""
+    wasi = _wasi()
+
+    def on_output(chunk: OutputChunk) -> None:
+        if b"last" in chunk.data:
+            raise Stop()
+
+    async def main() -> None:
+        await wasi.run_async(["-c", "print('last')"], on_output=on_output)
+
+    with pytest.raises(Stop):
+        asyncio.run(main())
+
+
 def test_the_two_new_keywords_are_checked() -> None:
     """`output_keep` is "head" or "tail" and nothing else; `on_output` is a synchronous
     callable, and a feed is refused where no event loop delivers to it."""

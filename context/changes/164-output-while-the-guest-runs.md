@@ -18,8 +18,9 @@ None.
 [[claim]]
 spec = "164"
 new = ["tests/unit/test_runner_streaming.py", "tests/unit/test_home.py"]
-units = 28
+units = 30
 [claim.judge]
+"tests/checks/test_rules.py" = "LONG_FUNCTIONS: runner.py:run 156 to 173 and run_async 181 to 208 take on_output and output_keep with their docstrings, and run_async the feed's try and finally around its body and the late exception's holder; Session.run_async 81 to 102 takes stdin, on_output and output_keep, the same finally and holder; _sessions.py:_open_session 142 to 143 sets takes_stdin; _call.py:_instance falls 157 to 147 as _completed takes its end"
 "tests/release_shards.toml" = "the two new unit files, test_runner_streaming.py and test_home.py, join the own-runner shard on all three systems, as every runner unit file is in a files shard"
 "tests/public_api.txt" = "the public names OutputChunk and OutputFeed, and the keywords on_output and output_keep on run, run_async, Session.run and Session.run_async, and stdin on the two Session methods"
 ```

@@ -26,7 +26,7 @@ import queue
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, cast
 
 from . import _call, _engines, _limits, _outputs, _places, _platform, _private_dirs, _sessions
@@ -240,8 +240,9 @@ def run(
             `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run`
             refuses one, and a feed serves one call.
         output_keep: What a stream past `output_bytes` keeps: "head" (the default) its first
-            bytes, "tail" its last, after a first line `[N bytes cut]`. Anything else raises
-            `ValueError`.
+            bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
+            past `output_bytes` and the line takes the place of the tail's first bytes. Anything
+            else raises `ValueError`.
 
     Returns:
         How the program ended.
@@ -429,8 +430,9 @@ async def run_async(
             `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run`
             refuses one, and a feed serves one call.
         output_keep: What a stream past `output_bytes` keeps: "head" (the default) its first
-            bytes, "tail" its last, after a first line `[N bytes cut]`. Anything else raises
-            `ValueError`.
+            bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
+            past `output_bytes` and the line takes the place of the tail's first bytes. Anything
+            else raises `ValueError`.
 
     Returns:
         How the program ended.
@@ -484,6 +486,8 @@ async def run_async(
             output_keep=output_keep,
             asynchronous=True,
         )
+        late = _outputs._Late.around(checked.on_output)  # the coroutine's: raised after the await
+        checked = replace(checked, on_output=late)
         cache = _engines._cache_given(cache_dir)
         _check_executor(executor)
         loop = asyncio.get_running_loop()  # async tools await here
@@ -499,7 +503,9 @@ async def run_async(
             args = (_run_checked_flushed, wt, checked, host, cache, artifacts, loop)
             future = _submit(executor, work, *args)
             try:
-                return await asyncio.wrap_future(future)
+                done: Completed = await asyncio.wrap_future(future)
+                _outputs._Late.check(late)
+                return done
             except asyncio.CancelledError:
                 if future.cancel():  # still queued: it never starts
                     raise
@@ -1307,6 +1313,8 @@ class Session:
                 code, fuel, deadline_s, output_bytes, None
             )
             io = self._turn_io(stdin, on_output, output_keep, asynchronous=True)
+            late = _outputs._Late.around(io.on_output)  # the coroutine's: raised after the await
+            io = io._replace(on_output=late)
             _check_executor(executor)
             loop = asyncio.get_running_loop()
             _register_exit_hook()
@@ -1330,7 +1338,9 @@ class Session:
             _keep_release(event, future, self._release_claim)
             try:
                 try:
-                    return await asyncio.wrap_future(future)
+                    done: Completed = await asyncio.wrap_future(future)
+                    _outputs._Late.check(late)
+                    return done
                 except asyncio.CancelledError:
                     if future.cancel():  # still queued: it never starts, the session is untouched
                         _take_live(event)()  # its claim released, unless the exit hook did it

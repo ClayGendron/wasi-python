@@ -63,7 +63,6 @@ if TYPE_CHECKING:
 READ_BYTES = 65536  # one read takes a pipe's whole buffer on macOS and Linux
 SETTLE, STOP = b"s", b"x"  # what the wake pipe carries to the reader
 SLOW_WAIT_S = 0.001  # the slow loop's sleep when no end had bytes
-WAIT_SLICE_S = 0.05  # how often the last delivery under a loop looks whether the loop still runs
 
 
 class _Stream:
@@ -131,7 +130,8 @@ class _Stream:
 
     def kept(self) -> bytes:
         """What the result holds. Under "tail" with bytes cut, it starts `[N bytes cut]` and a
-        newline, N the bytes the stream dropped, and the rest of the cap is the tail; a cap
+        newline, N the bytes past the cap (`written` less the cap the buffer holds), and the line
+        takes the place of the tail's first bytes, so the result stays within the cap; a cap
         shorter than that line holds the tail alone."""
         data = bytes(self.data[self.at :] + self.data[: self.at]) if self.at else bytes(self.data)
         if self.keep == "head" or not self.dropped:
@@ -244,6 +244,37 @@ def _check_on_output(value: object, *, asynchronous: bool) -> Any:
     return value
 
 
+class _Late:
+    """`on_output` under an event loop, as the awaiting coroutine owns it: the embedder's
+    callback, and the first `BaseException` that is not an `Exception` it raised, which the
+    coroutine raises after its await. A batch the loop runs after the worker has returned can
+    stop no call; this is how its exception still reaches the caller."""
+
+    def __init__(self, fn: Callable[[OutputChunk], object]) -> None:
+        self.fn = fn
+        self.raised: BaseException | None = None
+
+    @classmethod
+    def around(cls, fn: Callable[[OutputChunk], object] | None) -> _Late | None:
+        return None if fn is None else cls(fn)
+
+    def __call__(self, chunk: OutputChunk) -> object:
+        try:
+            return self.fn(chunk)
+        except Exception:
+            raise  # the feed warns of it and stops delivery
+        except BaseException as e:
+            if self.raised is None:
+                self.raised = e
+            raise
+
+    @staticmethod
+    def check(late: _Late | None) -> None:
+        """Raise what the callback raised, if it raised anything but an `Exception`."""
+        if late is not None and late.raised is not None:
+            raise late.raised
+
+
 class _Feed:
     """One call's or turn's delivery to `on_output`. The bytes a stream admits are queued here on
     the thread that read them, joined to the last queued piece of the same stream, and a delivery
@@ -264,7 +295,6 @@ class _Feed:
         self.posted = False  # a delivery is in the home's inbox
         self.off = False  # nothing more is queued: a fault, a closed loop, or the last delivery
         self.faulted = False  # the callback raised an Exception: it is not called again
-        self.raised: BaseException | None = None  # a BaseException the loop's callback raised
 
     def add(self, stream: str, data: bytes, cut: bool) -> None:
         with self.lock:
@@ -293,43 +323,33 @@ class _Feed:
         if batch and self.loop is None:
             self._call(batch)
         elif batch:
-            self._to_loop(batch, None)
+            self._to_loop(batch)
 
     def close(self) -> None:
         """The last delivery, on the home, after every byte is in: skipped when the home has
-        stopped. Under a loop it is waited for while the loop runs, so a `BaseException` the
-        callback raised there is raised here."""
+        stopped. Under a loop it is handed to the loop and not waited for, since the loop's
+        thread may itself be waiting for this call; the loop runs it before it resumes the
+        awaiting coroutine, which raises a `BaseException` it kept (`_Late`)."""
         batch = self._take(last=True)
         if batch and not self.home.stopped():
             if self.loop is None:
                 self._call(batch)
             else:
-                done = threading.Event()
-                if self._to_loop(batch, done):
-                    while not done.wait(WAIT_SLICE_S) and self.loop.is_running():
-                        pass
-        if self.raised is not None:
-            raise self.raised
+                self._to_loop(batch)
 
-    def _to_loop(self, batch: list[OutputChunk], done: threading.Event | None) -> bool:
+    def _to_loop(self, batch: list[OutputChunk]) -> None:
         assert self.loop is not None
         try:
-            self.loop.call_soon_threadsafe(self._on_loop, batch, done)
+            self.loop.call_soon_threadsafe(self._on_loop, batch)
         except RuntimeError:  # the loop is closed: nothing more can be delivered
             with self.lock:
                 self.off = True
-            return False
-        return True
 
-    def _on_loop(self, batch: list[OutputChunk], done: threading.Event | None) -> None:
+    def _on_loop(self, batch: list[OutputChunk]) -> None:
         try:
             self._call(batch)
         except BaseException as e:  # not an Exception: `_call` keeps those
-            self.raised = e
-            self.home.stop(e)
-        finally:
-            if done is not None:
-                done.set()
+            self.home.stop(e)  # a running call stops; after it, `_Late` holds it
 
     def _call(self, batch: list[OutputChunk]) -> None:
         for chunk in batch:
