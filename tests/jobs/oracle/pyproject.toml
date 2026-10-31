@@ -1,12 +1,12 @@
 # The native oracle for the golden jobs: the guest's package pins, natively.
 # Python is the line's own pinned host Python (scripts/line.conf), which tests/harness/jobs.py
 # unpacks under build/oracle/python/ after checking its hash: the pinned uv (0.9.22) cannot install
-# 3.15.0. Run it through tests/jobs/regen.py, which keeps every download
+# 3.15.2. Run it through tests/jobs/regen.py, which keeps every download
 # under build/.
 [project]
 name = "wasi-python-oracle"
 version = "0"
-requires-python = "==3.15.0"
+requires-python = "==3.15.2"
 dependencies = [
     # numpy on OpenBLAS everywhere, as the guest's numpy is: on macOS arm64
     # the macosx_11_0 wheel, which bundles scipy-openblas (left to itself uv would take the

@@ -13,8 +13,8 @@ fd82e26c0706ad4ab88e5fdd26f3fab0a987a90f810160f6c322e752c6af298b  ninja-1.13.2-p
 a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427  python_dateutil-2.9.0.post0-py2.py3-none-any.whl
 b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac  tzdata-2026.5-py2.py3-none-any.whl
 4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274  six-1.17.0-py2.py3-none-any.whl
-ba4bed1ba346b916890b76d9e320451420aa69f6408997d33c66482eeae3d575  Python-3.15.0.tar.xz
-3fb079450ee57075a790b94634206759501166e0a99de459cdad095f6c158d39  cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
+8b5536d280142ecf6cdfe15d12a21ba1c65e300bbf7b28a8d0cdb849575797de  Python-3.15.2.tar.xz
+285a6b924713bec9c1cdf442ba5ebfbafbab070060b34d607c30546b758e64a6  cpython-3.15.2+20261026-aarch64-apple-darwin-install_only.tar.gz
 596e8df019372a2cd417805015022d42cb8ee4e1803ccdc11ed00e451625fb66  cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
 2711a8b5a5cdfef0e639f96c1aca12ae23d7d64a02d0507f1bdf14d2b27bbc3a  wasi-libc-2e6fb9d8-LICENSE
 a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2  wasi-libc-2e6fb9d8-LICENSE-APACHE
@@ -30,8 +30,8 @@ f7e243dff54d60bcc576e94d6166b69f410f2500ae4a9ceef34315be10e77971  wasi-sdk-34.0-
 b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4  wasi-sdk-34.0-x86_64-linux.tar.gz
 880fcb026da88ad7fc1713d572b0d03d139758b7da96cd3cb8c9cbf847a521df  wasmtime-v49.0.3-aarch64-linux.tar.xz
 4001225413f208345b980525f31c4080e1873808b38d0ddc7918497340667fbb  wasmtime-v49.0.3-x86_64-linux.tar.xz
-f02953d2c56c7eaa2fa3a21f2680a823b8748959c571ac149cd76b0fd1a1c33c  cpython-3.15.0+20261009-aarch64-unknown-linux-gnu-install_only.tar.gz
-95ba085863806dacf0fd7119c590154bbcd3351099e55c0808a9c61603e320a8  cpython-3.15.0+20261009-x86_64-unknown-linux-gnu-install_only.tar.gz
+6fc73e8a4c80a65d2a0ed21535c65383f7b9f96bb58a5f40ed035bd7ee318616  cpython-3.15.2+20261026-aarch64-unknown-linux-gnu-install_only.tar.gz
+08d4ae9024a7cfbd3b70e559241afa2571cd3208d7bd5f96f88e0080dd4092aa  cpython-3.15.2+20261026-x86_64-unknown-linux-gnu-install_only.tar.gz
 4a36c34d1950845b8ac148653b07cdc62421a4b0d9abfcc849e69f1c4ff9919d  cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
 b447f6906e0555f05dc4742ef1f99091b1e5d9aa9f16616e772fbf9ff6271616  cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
 d775a5e43e9088f507a6250d57fcf5678eb31268c545feb5064ffeee33735622  ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl

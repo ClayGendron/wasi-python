@@ -104,7 +104,7 @@ case "$HOST_KEY" in
   MACOS_ARM64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-macos.tar.gz wasi-sdk-34.0-arm64-macos.tar.gz
     get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-macos.tar.xz wasmtime-v49.0.3-aarch64-macos.tar.xz
-    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
+    get https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2%2B20261026-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.2+20261026-aarch64-apple-darwin-install_only.tar.gz
     get https://files.pythonhosted.org/packages/ea/45/7f6988070013e16918e39b1b3dab9c5f2c8e404253a7fd10ee685bbd6902/cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
     get https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
     get https://files.pythonhosted.org/packages/bf/67/fcd20a9e78fd6bba952e982a86e98e0240a95a216143eab389cbef045d43/pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl
@@ -114,7 +114,7 @@ case "$HOST_KEY" in
   LINUX_AARCH64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-linux.tar.gz wasi-sdk-34.0-arm64-linux.tar.gz
     get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-linux.tar.xz wasmtime-v49.0.3-aarch64-linux.tar.xz
-    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.0+20261009-aarch64-unknown-linux-gnu-install_only.tar.gz
+    get https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2%2B20261026-aarch64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.2+20261026-aarch64-unknown-linux-gnu-install_only.tar.gz
     get https://files.pythonhosted.org/packages/6e/5d/afb6866ab10236bb208dff0f172ea4b397c9693c5250280c4d9d26057218/cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
     get https://files.pythonhosted.org/packages/35/54/7368ce188625e39acc03ee362bb86cc9bfa6ad15e25c50889ae36e2889b3/ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
     get https://files.pythonhosted.org/packages/42/b9/6c5293a5c65de1152db827cffaaede42a001c5913927e1ef2e8e8aae139f/pkgconf-3.0.7.post0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
@@ -123,7 +123,7 @@ case "$HOST_KEY" in
   LINUX_X86_64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz wasi-sdk-34.0-x86_64-linux.tar.gz
     get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-x86_64-linux.tar.xz wasmtime-v49.0.3-x86_64-linux.tar.xz
-    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-x86_64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.0+20261009-x86_64-unknown-linux-gnu-install_only.tar.gz
+    get https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2%2B20261026-x86_64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.2+20261026-x86_64-unknown-linux-gnu-install_only.tar.gz
     get https://files.pythonhosted.org/packages/c9/aa/4c0b6773ecf6bc1ec6cda7db8312a566611b330fb6dae87d740e44a47822/cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
     get https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     get https://files.pythonhosted.org/packages/6c/eb/4a4fe6c178d4447f3a3189b5fb740a76dc7ef8846a57886270315f22f7ee/pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -148,7 +148,7 @@ get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-s
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libclang_rt-34.0.tar.gz libclang_rt-34.0.tar.gz
 
 # Sources
-get https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz Python-3.15.0.tar.xz
+get https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz Python-3.15.2.tar.xz
 get https://files.pythonhosted.org/packages/9a/80/db0b4559e57ec36362bedbb05530a87fafbcb6067708c946967a41d449e7/numpy-2.5.2.tar.gz numpy-2.5.2.tar.gz
 get https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz pandas-3.0.6.tar.gz
 get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
