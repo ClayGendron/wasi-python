@@ -32,7 +32,7 @@ The changed files choose the run:
 
 A pull request never rebuilds the release from the pins and never runs the release tier. Those run before a release, and weekly on `dev`.
 
-The verdict covers what ran. A lost pass is red. Fuel or bytes that grow, fewer passes in a package's suite, and a test moved between tiers are listed under `GROWTH` with the reason the news file gives. When the news file explains one, it is not red on the pull request. When no news file explains it, it is red, named, in the part of the run that saw it. When the result is recorded, each needs its reason.
+The verdict covers what ran. A lost pass is red. Fuel or bytes that grow, fewer passes in a package's suite, and a test moved between tiers are listed under `GROWTH` with the reason the news file gives. When the news file explains one, it is not red on the pull request. When no news file explains it, it is red, named, in the part of the run that saw it. After the merge such a row is listed as unclaimed, not red, and the release asks for its reason.
 
 ## After a merge
 

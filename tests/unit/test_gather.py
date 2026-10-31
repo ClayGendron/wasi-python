@@ -1400,7 +1400,8 @@ def _claiming(case: Case, claims: list) -> Case:
 def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) -> None:
     """The run after a merge is the one the accept job accepts from: a growth a news file claims
     is the acceptance's to consume, so the gather lists it with the claim's reason and stays
-    green, as on the pull request; an unclaimed one is red there, named."""
+    green, as on the pull request; an unclaimed one is listed `unclaimed` and stays green too,
+    since the acceptance records it for the release to reconcile; a lost pass stays red."""
     case = _post_merge(tmp_path)
     case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
     claim = news.Claim(spec="999", grows=[PROBE], growth="the probe does more")
@@ -1411,7 +1412,8 @@ def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) 
     case = _post_merge(tmp_path / "unclaimed")
     case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
     v = case.run()
-    assert f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70" in v.red and v.growth == []
+    assert v.red == [], v.red
+    assert f"  G5 macos/own-a: grew {PROBE}: fuel 7 -> 70 · unclaimed" in v.lines
     case = _post_merge(tmp_path / "lost")
     case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
     case.gaps = {DESC}
@@ -1421,7 +1423,8 @@ def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) 
 def test_a_dropped_metric_a_news_file_claims_is_listed_not_red(tmp_path) -> None:
     """A check that stops recording its fuel on every system, with a news file's claim naming
     it, is listed for the acceptance with the claim's reason, as the ratchet reads the same
-    claim; with no claim, every system's record that drops it stays red."""
+    claim; with no claim it is listed `unclaimed` after a merge, and on a pull request every
+    system's record that drops it stays red."""
     own = [("macos", "own-a"), ("linux", "own-a"), ("windows", "own-a")]
     claim = news.Claim(spec="999", grows=[PROBE], growth="the probe's fuel is a fact now")
     case = _post_merge(tmp_path)
@@ -1435,9 +1438,44 @@ def test_a_dropped_metric_a_news_file_claims_is_listed_not_red(tmp_path) -> None
     case = _post_merge(tmp_path / "unclaimed")
     for key in own:
         case.records[key]["checks"][PROBE]["metrics"] = {}
+    v = case.run()
+    assert v.red == [] and f"  {row} · unclaimed" in v.lines, v.red
+    case = PRCase(tmp_path / "pull request")
+    own = [k for k in own if k in case.records]
+    for key in own:
+        case.records[key]["checks"][PROBE]["metrics"] = {}
     red = case.run().red
+    assert own, "the pull request selects an own shard"
     for system, shard in own:
         assert f"G5 {system}/{shard}: {PROBE} records no fuel (accepted.json has it)" in red, red
+
+
+def test_an_unclaimed_tier_move_after_a_merge_is_listed_not_red(tmp_path) -> None:
+    case = _post_merge(tmp_path)
+    case.accepted["checks"][DESC]["tier"] = "release"
+    v = case.run()
+    row = f"G5 {DESC}: accepted in the release tier, normal-tier now"
+    assert v.red == [] and f"  {row} · unclaimed" in v.lines, v.red
+
+
+def test_an_unclaimed_growth_on_a_release_pull_request_is_still_red(tmp_path) -> None:
+    """Only the run after a merge into dev lists an unclaimed row: the release pull request's
+    own rows still need their claim."""
+    case = ReleasePRCase(tmp_path)
+    case.records[("release", "up-r")]["checks"][R_SUITE]["metrics"] = {"passes": 5, "fuel": 900}
+    case.accepted["checks"][R_SUITE]["metrics"]["linux-x86_64"] = {"fuel": 100, "wasmtime": WT}
+    assert f"G5 release/up-r: grew {R_SUITE}: fuel 100 -> 900" in case.run().red
+
+
+def test_a_lost_pass_or_an_absent_check_after_a_merge_is_still_red(tmp_path) -> None:
+    case = _post_merge(tmp_path)
+    case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
+    case.gaps = {DESC}
+    assert f"G5 linux/own-a: lost {DESC}" in case.run().red
+    case = _post_merge(tmp_path / "absent")
+    for r in case.records.values():
+        r["checks"].pop(DESC, None)
+    assert any(DESC in line and "absent" in line for line in case.run().red)
 
 
 def test_a_claimed_growth_is_listed_with_its_news_files_reason(tmp_path) -> None:
@@ -1511,7 +1549,8 @@ def test_an_absent_check_no_news_file_retires_is_red(tmp_path, shape) -> None:
 
 def test_a_fall_in_passes_after_a_merge_is_listed_only_with_its_claim(tmp_path) -> None:
     """The same for an upstream group's pass count: claimed by `passes` with its `fewer`, listed
-    with that reason; with no claim, red after the merge (on the pull request it is listed)."""
+    with that reason; with no claim, listed `unclaimed` after the merge too, for the acceptance
+    to record and the release to reconcile."""
     case = _post_merge(tmp_path)
     for r in case.records.values():
         if SUITE in r["checks"] and r["checks"][SUITE]["status"] == "pass":
@@ -1526,7 +1565,8 @@ def test_a_fall_in_passes_after_a_merge_is_listed_only_with_its_claim(tmp_path) 
         if SUITE in r["checks"] and r["checks"][SUITE]["status"] == "pass":
             r["checks"][SUITE]["metrics"] = {"passes": 4, "fuel": 100}
     v = case.run()
-    assert any("fewer" in r or "is not accepted" in r for r in v.red), v.red
+    assert v.red == [] and v.growth, v.red
+    assert all("· unclaimed" in line for line in v.lines if SUITE in line and "·" in line)
 
 
 def _budgeted(case: Case, over: tuple = ()) -> None:

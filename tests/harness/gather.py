@@ -194,12 +194,15 @@ def gather(i: Inputs) -> Verdict:
     # release-tier ledger's too), a row that needs one is listed, not red: the acceptance clears it
     # with its claim, or refuses it, named. A lost pass stays red everywhere.
     listed = pull_request or i.g7 in ("post-merge", "release-pull-request")
+    # After a merge into dev a row no claim gives a reason for is listed too: the acceptance
+    # records it unclaimed, and the release pull request's acceptance asks for its reason.
+    post_merge = i.g7 == "post-merge"
 
     def claimed(kind: str, key: str) -> bool:
         """A row a news file's claim gives its reason for: listed on a pull request and after a
-        merge; with no claim, listed on a pull request (named `unclaimed`) and red after a merge,
-        where the accept job would have nothing to consume."""
-        return pull_request or news.reason(i.claims, kind, key) is not None
+        merge; with no claim, listed (named `unclaimed`) on a pull request and after a merge into
+        dev, and red on the release pull request, whose own rows need their claim."""
+        return pull_request or post_merge or news.reason(i.claims, kind, key) is not None
 
     def retired(node: str) -> bool:
         """An absent check a news file's claim retires: the acceptance consumes the claim, so
@@ -391,8 +394,8 @@ def gather(i: Inputs) -> Verdict:
             acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
             want = set(acc.get("darwin-arm64", {})) - set(scoreboard.LABELS)
             dropped = sorted(want - set(have))
-            if dropped and news.reason(i.claims, "grows", node) is not None:
-                dropped = []  # claimed, and listed by the ratchet with its reason
+            if dropped and (post_merge or news.reason(i.claims, "grows", node) is not None):
+                dropped = []  # listed by the ratchet, with its claim's reason or `unclaimed`
             for name in dropped:
                 red.append(f"G5 {system}/{shard}: {node} records no {name} (accepted.json has it)")
             for name, value in sorted(have.items()):

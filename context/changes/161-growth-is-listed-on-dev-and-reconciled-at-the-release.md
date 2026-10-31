@@ -16,7 +16,7 @@ None.
 [[claim]]
 spec = "161"
 new = ["tests/checks/test_rules.py::test_the_release_ledger_holds_claim_blocks_in_their_shape"]
-units = 27
+units = 35
 [claim.judge]
 "context/release-claims.toml" = "the release-tier ledger is renamed the release ledger and widened to carry any claim block; it holds its header comments alone, rewritten, and no block"
 ```
