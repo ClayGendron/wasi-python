@@ -160,4 +160,4 @@ Built 2026-10-31 by an agent (Claude Opus 5.5), a builder sub-agent of the orche
 
 **Two findings for 166, not changed here.** `test_upstream_files_are_well_formed` fails here, and on #67's head too: soupsieve-smoke measures 164.8 G, past the 100 G a smoke group may measure (the finding reads only `soupsieve.toml`, which this branch does not change). With this specification's two smoke groups (32.0 G) the test-source smoke groups sum to 1,027.0 G, past the 1 T bound (995.0 G on #67's head). The follow-up 166's review asks for (soupsieve's two heavy tests to the release tier) clears both.
 
-**Local runs at the head**: `ruff` clean; the fast tier's unit, lint and rules rows green but the prior-art row (blocked); `tests/lint` green; `--shard=build` green. Pull request: a draft, stacked on #67.
+**Local runs at the head**: `ruff` clean; the fast tier's unit, lint and rules rows green but the prior-art row (blocked); `tests/lint` green; `--shard=build` green. Pull request: #70, a draft, stacked on #67.
