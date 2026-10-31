@@ -1,4 +1,4 @@
-versions networkx=3.7 patsy=1.0.3 numpy=2.5.4 pandas=3.0.6
+versions networkx=3.7 patsy=1.0.3 numpy=2.5.4 pandas=3.1.0
 34 78 [0, 8, 33]
 [0, 33, 32] 0.437635
 [4, 6, 10, 14]

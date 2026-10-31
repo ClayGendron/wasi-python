@@ -13,7 +13,7 @@ dependencies = [
     # macosx_14_0 wheel there, which links Apple's Accelerate); elsewhere the wheels bundle it.
     "numpy @ https://files.pythonhosted.org/packages/be/75/fee0b8c6d94b44b2fdfae74f6a4ad5a138739589a8aebaec28ce4e713ed5/numpy-2.5.4-cp315-cp315-macosx_11_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "numpy==2.5.4 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
-    "pandas==3.0.6",
+    "pandas==3.1.0",
     "python-dateutil==2.9.0.post0",
     "tzdata==2026.6",
     "six==1.17.0",
