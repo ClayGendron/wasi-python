@@ -12,6 +12,15 @@ news files changed since the last acceptance, never from a flag. It writes accep
 one line to the newest history volume, and writes the acceptance commit's message beside the run
 record; the job after it commits those two files alone and pushes them.
 
+On a push to dev a merge is accepted when its run is green: a growth, a fall in a pass count, a
+tier move or a verdict-bearing judge file that no claim gives a reason for is accepted, and written
+into the history line under `unclaimed` with its values, so the reason is written once, by the
+person who knows it, at the merge or at the release. The release pull request's acceptance asks
+for it: it is refused while a row written unclaimed since the last release's acceptance has no
+claim among the release's, which are the release ledger's, the news files that bump (or date)
+removed since that release, read back from git at the commit before the one that removed them,
+and the news files still in the folder.
+
 The local acceptance's guards, in their form for a record:
 
 - a linked worktree is no refusal: CI's checkout is a fresh clone, and the record, not the tree,
@@ -28,7 +37,8 @@ The local acceptance's guards, in their form for a record:
 - an accepted pass blocked, or an accepted upstream check not run, is always refused: a run that
   blocks an accepted pass is a broken run, and no claim clears it;
 - a growth is cleared by `grows` with its `growth`, a fall in a pass count by `passes` with its
-  `fewer`, a changed judge file by `judge`, a tier move by `moved`; an unclaimed row refuses, named;
+  `fewer`, a changed judge file by `judge`, a tier move by `moved`; an unclaimed one is recorded
+  on dev and refused, named, on the release pull request;
 - a history that does not replay, or breaks its chain or its volume rule, is refused.
 
 It also refuses a record of any event but a push to dev or a pull request into main, and one
@@ -122,12 +132,16 @@ def _merged(record: dict) -> bool:
     return isinstance(meta, dict) and "records" in meta and isinstance(record.get("runs"), dict)
 
 
+def _release_pr(meta: dict) -> bool:
+    """The record is the release pull request's, from dev into main."""
+    return meta.get("event") == "pull_request" and meta.get("base_ref") == "main"
+
+
 def _event_refusal(meta: dict) -> str | None:
     push_to_dev = (
         meta.get("event") == "push" and meta.get("ref") == "refs/heads/dev" and not meta.get("tag")
     )
-    release_pr = meta.get("event") == "pull_request" and meta.get("base_ref") == "main"
-    if push_to_dev or release_pr:
+    if push_to_dev or _release_pr(meta):
         return None
     return (
         f"the record is of a {meta.get('event')!r} on {meta.get('ref')!r}: only a push to dev or "
@@ -257,11 +271,15 @@ class Claimed:
     judge: list[str] = field(default_factory=list)
     moved: list[str] = field(default_factory=list)
     refusals: list[str] = field(default_factory=list)
+    # Rows no claim gives a reason for: (the claim's kind, the check or file, the ratchet's row).
+    # Recorded unclaimed on dev; refused, named, on the release pull request.
+    missing: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool) -> Claimed:
-    """Each row the acceptance needs a reason for, with the claim that gives it, or a refusal
-    naming the row. `judged`: there is an accepted judge to have changed."""
+    """Each row the acceptance needs a reason for, with the claim that gives it; a loss, or a
+    claim that names nothing, as a refusal; a row no claim gives a reason for, as missing.
+    `judged`: there is an accepted judge to have changed."""
     c = Claimed()
     if ratchet.lost:
         c.refusals.append(f"lost passes, which no claim clears: {', '.join(ratchet.lost[:3])}")
@@ -280,16 +298,16 @@ def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool)
         for entry in claim.retired:
             if not any(news.names(entry, n) for n in ratchet.absent):
                 c.refusals.append(f"{claim.spec}: retired names {entry}, which is not absent")
-    for kind, rows, into, what in (
-        ("grows", ratchet.growth, c.growth, "a growth"),
-        ("passes", ratchet.fewer, c.fewer, "a pass count that fell"),
+    for kind, rows, into in (
+        ("grows", ratchet.growth, c.growth),
+        ("passes", ratchet.fewer, c.fewer),
     ):
         for row in rows:
             why = news.reason(claims, kind, _node(row))
             if why:
                 into.append(why)
             else:
-                c.refusals.append(f"{what}, unclaimed: {row}")
+                c.missing.append((kind, _node(row), row))
     # Only a judge file that moves a verdict needs its reason; the judge's hash in the history
     # records every other change, and a claim for one is not passed on.
     verdict = [f for f in ratchet.judge_changed if paths.is_verdict_bearing(f)]
@@ -299,14 +317,101 @@ def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool)
             spec, text = why.split(": ", 1)
             c.judge.append(f"{spec}: {f}: {text}")
         else:
-            c.refusals.append(f"the judge changed, unclaimed: {f}")
+            c.missing.append(("judge", f, f))
     for node in ratchet.moved:
         why = news.reason(claims, "moved", node)
         if why:
             c.moved.append(why)
         else:
-            c.refusals.append(f"a check moved between tiers, unclaimed: {node}")
+            c.missing.append(("moved", node, node))
     return c
+
+
+# How the release pull request names a row no claim gives a reason for.
+MISSING = {
+    "grows": "a growth, unclaimed: {}",
+    "passes": "a pass count that fell, unclaimed: {}",
+    "judge": "the judge changed, unclaimed: {}",
+    "moved": "a check moved between tiers, unclaimed: {}",
+}
+# The reason a row accepted unclaimed on dev takes in the history line's own reason fields.
+UNCLAIMED = "unclaimed: its reason is due by the release"
+# The history line's reason field each kind of row is accepted under.
+REASON_OF = {"grows": "growth", "passes": "fewer", "judge": "judge", "moved": "tier move"}
+VALUES = re.compile(r"(?P<metric>\S+) (?P<old>\S+) -> (?P<new>\S+)")
+
+
+def _value(text: str):
+    """A metric's value as a ratchet row prints it: a number, or None for `none`."""
+    try:
+        return json.loads(text)
+    except ValueError:
+        return None
+
+
+def unclaimed_row(kind: str, key: str, row: str, accepted: dict | None, judge: dict) -> dict:
+    """A row accepted with no claim, as the history line keeps it: its kind, its check (or, for
+    a judge file, its file) and the values before and after."""
+    acc = accepted or {}
+    if kind == "judge":
+        old = acc.get("judge", {}).get("files", {}).get(key)
+        return {"kind": kind, "file": key, "old": old, "new": judge.get("files", {}).get(key)}
+    if kind == "moved":
+        was = acc.get("checks", {}).get(key, {}).get("tier") or "normal"
+        now = "normal" if was == "release" else "release"
+        return {"kind": kind, "check": key, "old": was, "new": now}
+    rest = row.split(": ", 1)[1]
+    m = VALUES.fullmatch(rest)
+    if m is not None:
+        metric, old, new = m["metric"], _value(m["old"]), _value(m["new"])
+    else:  # "<metric> is no longer recorded"
+        metric, new = rest.split(" ", 1)[0], None
+        old = acc.get("checks", {}).get(key, {}).get("metrics", {}).get(DARWIN, {}).get(metric)
+    return {"kind": kind, "check": key, "metric": metric, "old": old, "new": new}
+
+
+def _said(row: dict) -> str:
+    """One unclaimed row in words: its kind, its subject and how it moved."""
+    key = row.get("check") or row.get("file")
+    if row.get("kind") == "judge":
+        return f"judge {key}: changed"
+    old, new = ("none" if v is None else v for v in (row.get("old"), row.get("new")))
+    metric = f"{row['metric']} " if "metric" in row else ""
+    return f"{row.get('kind')} {key}: {metric}{old} -> {new}"
+
+
+def _is_release_line(entry: dict) -> bool:
+    """A history line the release pull request's acceptance wrote. A line from before the event
+    was written names it by CI's source and the release tier, which only that acceptance judges."""
+    if "event" in entry:
+        return entry["event"] == "pull_request"
+    return entry.get("source") == "ci" and entry.get("tier") == "release"
+
+
+def since_release(history_lines: list[str]) -> tuple[list[tuple[int, dict]], str | None]:
+    """Each row accepted unclaimed since the last release's acceptance, with its line's number,
+    oldest first, and the commit that acceptance judged; None for the commit when no release was
+    accepted, so the whole history is read."""
+    rows: list[tuple[int, dict]] = []
+    for line in reversed(history_lines):
+        entry = json.loads(line)
+        if _is_release_line(entry):
+            return rows, entry.get("commit")
+        rows[:0] = [(entry.get("n"), r) for r in entry.get("unclaimed") or []]
+    return rows, None
+
+
+def reconciled(history_lines: list[str], claims: list[news.Claim]) -> list[str]:
+    """The release's refusals: each row accepted unclaimed since the last release that no claim
+    of the release's gives a reason for, named with its line and the ledger that would clear it."""
+    out = []
+    for n, row in since_release(history_lines)[0]:
+        if news.reason(claims, str(row.get("kind")), row.get("check") or row.get("file")) is None:
+            out.append(
+                f"history line {n} accepted {_said(row)} with no claim, and the release has none: "
+                f"write its [[claim]] block in {news.LEDGER}"
+            )
+    return out
 
 
 def _budget() -> tuple[budget.Budget, dict[str, str], dict[str, str]]:
@@ -331,6 +436,11 @@ def accept(i: Inputs) -> Acceptance:
     run = run_from_record(i)
     ratchet = scoreboard.compare(run, i.accepted, i.repo)
     c = claimed(ratchet, i.claims, judged=bool(i.accepted))
+    release = _release_pr(i.record["meta"])
+    unclaimed = [] if release else [unclaimed_row(*m, i.accepted, i.judge) for m in c.missing]
+    if release:
+        c.refusals += [MISSING[kind].format(row) for kind, _, row in c.missing]
+        c.refusals += reconciled(i.history_lines, i.claims)
     if i.budget is not None:  # no check is accepted past its family's fuel cap unless listed
         plan_budget, families, specs = i.budget
         over = budget.run_fuel_over(
@@ -344,11 +454,15 @@ def accept(i: Inputs) -> Acceptance:
         raise Refused(c.refusals)
     runs = i.record["runs"].values()
     platforms = sorted({str(x.get("platform")) for x in runs if x.get("probe") == "pass"})
+    late = {REASON_OF[r["kind"]] for r in unclaimed}
     reasons = {
-        "judge": _joined(c.judge),
-        "growth": _joined(c.growth),
-        "fewer": _joined(c.fewer),
-        "tier move": _joined(c.moved),
+        k: _joined(v + ([UNCLAIMED] if k in late else []))
+        for k, v in (
+            ("judge", c.judge),
+            ("growth", c.growth),
+            ("fewer", c.fewer),
+            ("tier move", c.moved),
+        )
     }
     why = f"from CI's record of {i.head[:12]}: {i.subject}"
     try:
@@ -364,12 +478,19 @@ def accept(i: Inputs) -> Acceptance:
             retire=c.retire,
             fewer_reason=reasons["fewer"],
             tier_move_reason=reasons["tier move"],
-            extra={"source": "ci", "record": i.record_sha256, "platforms": platforms},
+            extra={
+                "source": "ci",
+                "record": i.record_sha256,
+                "platforms": platforms,
+                "event": i.record["meta"].get("event"),
+            },
+            unclaimed=unclaimed,
         )
     except scoreboard.AcceptRefused as e:
         raise Refused([str(e)]) from None
     listed = [f"{k}: {v}" for k, v in reasons.items() if v]
     listed += [f"retired: {n}" for n in c.retire]
+    listed += [f"unclaimed: {_said(r)}" for r in unclaimed]
     return Acceptance(new, line, message(i.subject, listed), listed)
 
 
@@ -421,7 +542,7 @@ def subject_of(record: dict, head_subject: str, version: str) -> str:
     the release pull request's record, whose head is dev's tip and so itself an acceptance, the
     version and both tiers."""
     meta = record.get("meta") if isinstance(record.get("meta"), dict) else {}
-    if meta.get("event") == "pull_request" and meta.get("base_ref") == "main":
+    if _release_pr(meta):
         return f"the release pull request of {version} into main, both tiers"
     return head_subject
 
@@ -430,14 +551,46 @@ def _version() -> str:
     return news.package_version(paths.REPO) or "an unknown version"
 
 
-def release_claims(record: dict, repo: Path) -> list[news.Claim]:
-    """The release-tier ledger's claims, for the release pull request's record alone: the news
-    files that claimed a release-tier row were assembled and removed by bump before it, and the
-    run after each merge judged the normal tier alone, so the ledger carries their reasons."""
+def removed_news(repo: Path, since: str | None) -> list[news.Claim]:
+    """The claims of every news file a commit after `since` removed (bump, or date for one merged
+    after bump), each read at the parent of the commit that removed it, so a reason written at the
+    merge still counts at the release; every removed one when `since` is None."""
+    if since and _git(repo, "merge-base", "--is-ancestor", since, "HEAD").returncode != 0:
+        raise Refused([f"the last release's commit {since[:12]} is not in this commit's history"])
+    span = f"{since}..HEAD" if since else "HEAD"
+    out = _git(
+        repo, "log", "--diff-filter=D", "--no-renames", "--name-only", "--format=%x01%H", span,
+        "--", news.CHANGES,
+    )  # fmt: skip
+    if out.returncode != 0:
+        raise Refused([f"git log of the removed news files failed: {out.stderr.strip()[:120]}"])
+    claims = []
+    for chunk in out.stdout.split("\x01")[1:]:
+        commit, *removed = chunk.split()
+        for rel in (r for r in removed if news.is_news_path(r)):
+            shown = _git(repo, "show", f"{commit}^:{rel}")
+            if shown.returncode != 0:
+                raise Refused(
+                    [f"git show {commit[:12]}^:{rel} failed: {shown.stderr.strip()[:80]}"]
+                )
+            claims += news.claims_only(rel.rsplit("/", 1)[-1], shown.stdout)
+    return claims
+
+
+def release_claims(
+    record: dict, repo: Path, history_lines: list[str], folder: Path | None = None
+) -> list[news.Claim]:
+    """The release's claims, for the release pull request's record alone: the release ledger's,
+    the news files removed since the last release's acceptance (bump assembled and removed them
+    before this run, and the runs after their merges judged the normal tier alone) and any news
+    file still in `folder`."""
     meta = record.get("meta") if isinstance(record.get("meta"), dict) else {}
-    if meta.get("event") == "pull_request" and meta.get("base_ref") == "main":
-        return news.ledger_claims(repo)
-    return []
+    if not _release_pr(meta):
+        return []
+    found = news.ledger_claims(repo) + removed_news(repo, since_release(history_lines)[1])
+    if folder is not None:
+        found += [c for n in news.folder(folder) for c in n.claims]
+    return found
 
 
 def _dirty() -> str | None:
@@ -492,7 +645,7 @@ def main(config) -> int:
             wasmtime=_wasmtime(),
             claims=(
                 news_since(paths.REPO, since, Path(claims_dir).resolve())
-                + release_claims(record, paths.REPO)
+                + release_claims(record, paths.REPO, lines, Path(claims_dir).resolve())
                 if not errors
                 else []
             ),

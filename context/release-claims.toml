@@ -1,0 +1,9 @@
+# The release claims ledger: between two releases, one [[claim]] block, in the news files' claim
+# shape (context/changes/README.md), for each reason the release must read whose news file will
+# not be there. A pull request that changes a release-tier row, or what one runs, appends its
+# block, since the run after its merge judges the normal tier alone. The release's preparation
+# appends the reason for each row an acceptance on dev recorded as unclaimed, which the release
+# pull request's acceptance asks for (context/progress/README.md). Nobody edits an earlier block.
+# release/version.py date moves the blocks under "## <version>" in
+# context/release-claims-history.md, and this file starts empty again. Until 0.1.2 this file was
+# context/release-tier-claims.toml and carried release-tier claims alone.

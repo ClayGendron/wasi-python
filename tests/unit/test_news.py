@@ -298,15 +298,15 @@ def test_the_reason_a_claim_gives_for_each_kind_of_row() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The release-tier ledger: a pull request that moves a release-tier row appends its block; the
+# The release ledger: a pull request, or the release's preparation, appends a claim block; the
 # date before the release moves the blocks under the version; the release's acceptance reads both
 
-HEADER = "# The release-tier claims ledger.\n# Each block is appended by its pull request.\n"
+HEADER = "# The release claims ledger.\n# Each block is appended by its pull request.\n"
 BLOCK = (
     '[[claim]]\nspec = "140"\ngrows = ["tests/checks/test_v1_3_x.py::test_slow"]\n'
     'growth = "a pin moved"\n'
 )
-HISTORY = "# The release-tier claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n\n```toml\n" + (
+HISTORY = "# The release claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n\n```toml\n" + (
     '[[claim]]\nspec = "102"\nnew = ["tests/checks/test_v1_3_x.py::test_old"]\n```\n'
 )
 
@@ -351,3 +351,29 @@ def test_a_broken_ledger_block_is_refused(tmp_path: Path) -> None:
     repo = _ledger_repo(tmp_path, HEADER + '[[claim]]\nspec = "140"\ngrows = ["x"]\n', HISTORY)
     with pytest.raises(news.NewsError, match="grows needs growth"):
         news.ledger_claims(repo)
+
+
+def test_a_removed_news_files_claims_are_read_whatever_its_changelog(tmp_path: Path) -> None:
+    """The release reads back the news files bump removed, whose changelog was assembled and
+    checked then; an older file's changelog may be in a shape since retired, so only its claims
+    are read, and a broken claim block is still refused."""
+    old = (
+        "# 120: an older change\n\n## Changelog\n\n### Changed\n\n- It changed.\n\n"
+        '## README rows\n\nNone.\n\n## Claims\n\n```toml\n[[claim]]\nspec = "120"\n'
+        'grows = ["x"]\ngrowth = "it grew"\n```\n'
+    )
+    assert [c.growth for c in news.claims_only("120-an-older-change.md", old)] == ["it grew"]
+    assert news.claims_only("121-none.md", "# 121: none\n\n## Changelog\n") == []
+    with pytest.raises(news.NewsError, match="growth"):
+        news.claims_only("120-broken.md", old.replace('growth = "it grew"\n', ""))
+    with pytest.raises(news.NewsError, match="not the file's 123"):
+        news.claims_only("123-other.md", old)
+
+
+def test_the_blocks_date_moved_under_a_version_are_read_back() -> None:
+    moved = news.move_ledger(HEADER + "\n" + BLOCK, HISTORY, "0.1.1", "2026-10-30")[1]
+    assert news.moved_blocks(moved, "0.1.1") == BLOCK.strip()
+    assert news.moved_blocks(moved, "0.1.0").startswith("[[claim]]")
+    assert news.moved_blocks(moved, "0.0.9") == ""
+    empty = news.move_ledger(HEADER, HISTORY, "0.1.1", "2026-10-30")[1]
+    assert news.moved_blocks(empty, "0.1.1") == ""

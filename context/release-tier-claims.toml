@@ -1,7 +1,0 @@
-# The release-tier claims ledger: between two releases, one [[claim]] block per merged pull request
-# that changes a release-tier row or what one runs, in the news files' claim shape
-# (context/changes/README.md), appended by that pull request; nobody edits an earlier one. The run
-# after a merge judges the normal tier alone and bump removes the news files, so the release pull
-# request's gather and acceptance read these reasons here. release/version.py date moves the
-# blocks under "## <version>" in context/release-tier-claims-history.md, and this file starts
-# empty again.
