@@ -126,6 +126,16 @@ A call from an image ends without Python's teardown of the modules the image hol
 
 MANIFEST's `x-snapshot-package` lines name what to import to load every package the set ships, one line per distribution.
 
+### Checkpoint a session
+
+A session's state after its turns can be an image too, as `Session.checkpoint` makes one. In a snapshot instance whose last `turn` returned:
+
+1. **Call `checkpoint(1) -> i32`.** It returns 0, or −1 for a refusal, which changes nothing: on the plain reactor, before a turn returned, after `run`, and while already entered.
+2. **Read the memory whole.** Those bytes are the image. Refuse first if the guest holds a file or folder open: a start cannot reopen it.
+3. **Call `checkpoint(0)`** on every path after a 0, so the live instance goes on as it was. While entered, `shutdown` and `prepare` refuse.
+
+An instance the image is copied into resumes at its first `run` or `turn`: its import path is the stdlib zip's again, a first turn reads its own argv and environment and reseeds the generators, its monotonic clock never reads below the session's last reading, and it ends as a call from a starting image ends. The image holds every byte the session read.
+
 ### What you give up
 
 The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. The engine the runner pins, wasmtime 50, carries the fixes for a rename with a trailing `/` and for padding in directory listings in its own file calls. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.
