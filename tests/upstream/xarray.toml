@@ -1,0 +1,30 @@
+# xarray's own tests in the guest, from its test source, the pinned sdist (its tests live in
+# xarray/tests, and its property tests in properties/). A judge file: every edit is a judge change.
+# The whole suite runs in the release tier, a smoke group in the normal tier: each test in exactly
+# one tier.
+
+package = "xarray"
+driver = "package"
+grant = "/upstream-xarray"
+test_source = true
+budget = 9_000_000_000_000
+stage_folders = ["xarray/tests", "properties"]
+support_files = ["conftest.py"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+# pytest-asyncio for the backends' async tests; pytz, which two test files import at their top
+# (the product does not carry it: zoneinfo serves time zones), for those tests only
+kit_extra = ["pytest-asyncio", "pytz"]
+package_inits = true
+
+[groups.xarray-smoke]
+paths = ["xarray/tests/test_options.py", "xarray/tests/test_nputils.py", "xarray/tests/test_hashable.py"]
+smoke = "the options and the utilities, the package and its test helpers from the zip and the stage"
+fuel = 100_000_000_000
+
+[groups.xarray-r]
+paths = ["xarray/tests", "properties"]
+tier = "release"
+release_by = "path"
+fuel = 8_000_000_000_000

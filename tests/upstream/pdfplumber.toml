@@ -1,0 +1,58 @@
+# pdfplumber's own tests in the guest, from its test source: its release tag's archive, since its
+# sdist holds the tests but not the PDF files they read. A judge file: every edit is a judge
+# change. The whole suite runs in the release tier, a smoke group in the normal tier: each test in
+# exactly one tier.
+
+package = "pdfplumber"
+driver = "package"
+grant = "/upstream-pdfplumber"
+test_source = true
+wheel = "pdfplumber-0.11.10-py3-none-any.whl"
+budget = 1_000_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.pdfplumber-smoke]
+paths = ["tests/test_utils.py"]
+smoke = "the utilities' unit tests and the reading of a few small files, the package from the zip"
+fuel = 100_000_000_000
+
+[groups.pdfplumber-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 900_000_000_000
+
+[[expected]]
+id = "no-processes"
+group = "pdfplumber-r"
+outcome = "failed"
+match = "wasi does not support processes"
+reason = "no processes: the command-line tests run pdfplumber's CLI in a subprocess, which the guest cannot start (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-pypdfium2"
+group = "pdfplumber-r"
+outcome = "error"
+match = "No module named 'pypdfium2'"
+reason = "pdfplumber renders page images through pypdfium2, a compiled PDFium binding the set does not carry; page.to_image() raises ModuleNotFoundError naming it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-pypdfium2-in-a-test"
+group = "pdfplumber-r"
+outcome = "failed"
+match = "No module named 'pypdfium2'"
+reason = "the fuzzing regression test renders each file's page images through pypdfium2, which the set does not carry (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-ghostscript"
+group = "pdfplumber-r"
+outcome = "failed"
+match = "Cannot find Ghostscript, which is required for repairs"
+reason = "pdfplumber.repair runs the Ghostscript program in a subprocess; the guest has neither the program nor processes (README)"
+closes_with = "docs/reference/limitations.md"
