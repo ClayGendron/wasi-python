@@ -205,6 +205,9 @@ LICENCE_COMPONENTS = (
     "tinycss2",
     "cssselect2",
     "imageio",
+    # plotly, its MIT licence, the notices of its colour scales, pypng and plotly.js's bundled
+    # libraries, and its datasets' sources
+    "plotly",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -292,6 +295,7 @@ PACKAGES = (
     "tinycss2",
     "cssselect2",
     "imageio",
+    "plotly",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
