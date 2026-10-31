@@ -1,0 +1,172 @@
+P01 unclosed file	native			0		a.txt:100
+P01 unclosed file	plain:today	366548294		0		a.txt:100
+P01 unclosed file	snapshot:today	93983851		0		a.txt:100
+P01 unclosed file	snapshot:G gc.disable	86711741		0		a.txt:100
+P02 unclosed file + def (073's gap)	native			0		a.txt:100
+P02 unclosed file + def (073's gap)	plain:today	366868980		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:today	94219805		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:G gc.disable	86833459		0		a.txt:0
+P03 ZipFile left open + def	native			0		a.zip:ok
+P03 ZipFile left open + def	plain:today	573903327		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:today	205125551		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:G gc.disable	196732667		0		a.zip:ok
+P04 script: unclosed file + def	native			0		a.txt:100
+P04 script: unclosed file + def	plain:today	421471670		0		a.txt:100
+P04 script: unclosed file + def	snapshot:today	105922935		0		a.txt:100
+P04 script: unclosed file + def	snapshot:G gc.disable	98495854		0		a.txt:0
+P05 -m: unclosed file + def	native			0		a.txt:100
+P05 -m: unclosed file + def	plain:today	377263082		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:today	101610828		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:G gc.disable	94227351		0		a.txt:0
+P06 gzip left open + def	native			0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	plain:today	383181204		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	snapshot:today	108032648		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	snapshot:G gc.disable	100139242		0	Exception ignored,Error	a.gz:short
+P07 atexit order	native		c/b/a	0		
+P07 atexit order	plain:today	366626219	c/b/a	0		
+P07 atexit order	snapshot:today	93931893	c/b/a	0		
+P07 atexit order	snapshot:G gc.disable	86590920	c/b/a	0		
+P08 atexit handler raises	native		after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	plain:today	799458700	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:today	193352461	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:G gc.disable	184235071	after	0	Exception ignored,ZeroDivisionError,Error	
+P09 __del__ in __main__, order	native		del 1/del 2	0		
+P09 __del__ in __main__, order	plain:today	367457475	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:today	94698324	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:G gc.disable	87475515	del 1/del 2	0		
+P10 __del__ of cyclic garbage	native		del cycle	0		
+P10 __del__ of cyclic garbage	plain:today	367270253	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:today	94757058	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:G gc.disable	87472642	del cycle	0		
+P11 weakref callback	native			0		
+P11 weakref callback	plain:today	367409827		0		
+P11 weakref callback	snapshot:today	94372254		0		
+P11 weakref callback	snapshot:G gc.disable	87095986		0		
+P12 weakref.finalize	native		fin	0		
+P12 weakref.finalize	plain:today	366851894	fin	0		
+P12 weakref.finalize	snapshot:today	94302363	fin	0		
+P12 weakref.finalize	snapshot:G gc.disable	87038659	fin	0		
+P13 suspended generator's finally	native		gen closed	0		
+P13 suspended generator's finally	plain:today	367159526	gen closed	0		
+P13 suspended generator's finally	snapshot:today	94337467	gen closed	0		
+P13 suspended generator's finally	snapshot:G gc.disable	87065689	gen closed	0		
+P14 __del__ hung on a pre-imported module	native		del json-hung	0		
+P14 __del__ hung on a pre-imported module	plain:today	478595629	del json-hung	0		
+P14 __del__ hung on a pre-imported module	snapshot:today	94668491	del json-hung	0		
+P14 __del__ hung on a pre-imported module	snapshot:G gc.disable	87420883	del json-hung	0		
+P15 file hung on a pre-imported module	native			0		a.txt:100
+P15 file hung on a pre-imported module	plain:today	477782632		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:today	94069460		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:G gc.disable	86765815		0		a.txt:0
+P16 ZipFile hung on a pre-imported module	native			0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	plain:today	592569937		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	snapshot:today	204895728		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	snapshot:G gc.disable	196519902		0		a.zip:ok
+P17 pre-imported class patched (073)	native			0		a.txt:100
+P17 pre-imported class patched (073)	plain:today	478052360		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:today	94408877		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:G gc.disable	86978706		0		a.txt:0
+P18 __del__ hung on a module imported later	native		del fractions-hung	0		
+P18 __del__ hung on a module imported later	plain:today	488838185	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:today	123156093	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:G gc.disable	115547726	del fractions-hung	0		
+P19 weakref callback on a pre-imported class	native			0		
+P19 weakref callback on a pre-imported class	plain:today	478012380		0		
+P19 weakref callback on a pre-imported class	snapshot:today	94477253		0		
+P19 weakref callback on a pre-imported class	snapshot:G gc.disable	87224164		0		
+P20 streams without newline	native		out no newline	0	err no newline	
+P20 streams without newline	plain:today	366442791	out no newline	0	err no newline	
+P20 streams without newline	snapshot:today	93880377	out no newline	0	err no newline	
+P20 streams without newline	snapshot:G gc.disable	86650266	out no newline	0	err no newline	
+P21 stdout replaced by a file	native			0		out.txt:3
+P21 stdout replaced by a file	plain:today	367431190		0		out.txt:3
+P21 stdout replaced by a file	snapshot:today	94075915		0		out.txt:3
+P21 stdout replaced by a file	snapshot:G gc.disable	86773141		0		out.txt:3
+P22 sys.exit(3)	native			3		
+P22 sys.exit(3)	plain:today	366442128		3		
+P22 sys.exit(3)	snapshot:today	93628906		3		
+P22 sys.exit(3)	snapshot:G gc.disable	86481484		3		
+P23 SystemExit('bye')	native			1	bye	
+P23 SystemExit('bye')	plain:today	366298625		1	bye	
+P23 SystemExit('bye')	snapshot:today	93586820		1	bye	
+P23 SystemExit('bye')	snapshot:G gc.disable	86439940		1	bye	
+P24 uncaught exception	native			1	ZeroDivisionError,Error	
+P24 uncaught exception	plain:today	799351055		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:today	192469624		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:G gc.disable	184295750		1	ZeroDivisionError,Error	
+P25 stdout whose flush fails	native			120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	plain:today	800721761		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	snapshot:today	193755058		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	snapshot:G gc.disable	184604018		120	Exception ignored,OSError,Error	
+P26 logging MemoryHandler	native			0		log.txt:2
+P26 logging MemoryHandler	plain:today	687714484		0		log.txt:2
+P26 logging MemoryHandler	snapshot:today	311808950		0		log.txt:2
+P26 logging MemoryHandler	snapshot:G gc.disable	302335388		0		log.txt:2
+P27 NamedTemporaryFile left open	native			0		
+P27 NamedTemporaryFile left open	plain:today	524778416		0		
+P27 NamedTemporaryFile left open	snapshot:today	156136156		0		
+P27 NamedTemporaryFile left open	snapshot:G gc.disable	148261367		0		
+P28 TemporaryDirectory left	native			0		
+P28 TemporaryDirectory left	plain:today	524928162		0		
+P28 TemporaryDirectory left	snapshot:today	156246822		0		
+P28 TemporaryDirectory left	snapshot:G gc.disable	148402996		0		
+P29 sqlite3 uncommitted insert	native			0		t.db:rows=0
+P29 sqlite3 uncommitted insert	plain:today	426528367		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:today	112888855		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:G gc.disable	105280292		0		t.db:rows=0
+P30 audit hook holds a file	native			0		a.txt:100
+P30 audit hook holds a file	plain:today	368065587		0		a.txt:100
+P30 audit hook holds a file	snapshot:today	94529179		0		a.txt:100
+P30 audit hook holds a file	snapshot:G gc.disable	87306683		0		a.txt:100
+P31 __del__ sees sys.modules	native		json is NoneType	0		
+P31 __del__ sees sys.modules	plain:today	367585205	json is NoneType	0		
+P31 __del__ sees sys.modules	snapshot:today	94545288	json is NoneType	0		
+P31 __del__ sees sys.modules	snapshot:G gc.disable	87277955	json is NoneType	0		
+P32 __del__ imports	native		import failed ImportError	0		
+P32 __del__ imports	plain:today	367519475	import failed ImportError	0		
+P32 __del__ imports	snapshot:today	94837430	import failed ImportError	0		
+P32 __del__ imports	snapshot:G gc.disable	87657556	import failed ImportError	0		
+P33 __del__ of a cycle that imports	native		import ok	0		
+P33 __del__ of a cycle that imports	plain:today	487281152	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:today	123138404	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:G gc.disable	87752887	import failed ImportError	0		
+P34 output order: atexit, then __del__	native		atexit/del main	0		
+P34 output order: atexit, then __del__	plain:today	368068523	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:today	94797359	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:G gc.disable	87572863	atexit/del main	0		
+P35 __del__ sees a global module	native		sep '/'	0		
+P35 __del__ sees a global module	plain:today	366931860	sep '/'	0		
+P35 __del__ sees a global module	snapshot:today	94365652	sep '/'	0		
+P35 __del__ sees a global module	snapshot:G gc.disable	87135468	sep '/'	0		
+P36 audit hook sees teardown	native			0		
+P36 audit hook sees teardown	plain:today	366952876		0		
+P36 audit hook sees teardown	snapshot:today	94126820		0		
+P36 audit hook sees teardown	snapshot:G gc.disable	86863039		0		
+P37 gc.callbacks	native		gc stop	0		
+P37 gc.callbacks	plain:today	367486253	gc stop	0		
+P37 gc.callbacks	snapshot:today	94165933	gc stop	0		
+P37 gc.callbacks	snapshot:G gc.disable	86810057		0		
+P38 profiler set	native		calls so far True	0		
+P38 profiler set	plain:today	367378121	calls so far True	0		
+P38 profiler set	snapshot:today	94732908	calls so far True	0		
+P38 profiler set	snapshot:G gc.disable	87544959	calls so far True	0		
+P39 __stdout__ written, stdout replaced	native		dunder no newline	0		
+P39 __stdout__ written, stdout replaced	plain:today	366791089	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	snapshot:today	93906100	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	snapshot:G gc.disable	86638515	dunder no newline	0		
+P40 __del__ on an untracked instance	native		del slots	0		
+P40 __del__ on an untracked instance	plain:today	367367137	del slots	0		
+P40 __del__ on an untracked instance	snapshot:today	94746708	del slots	0		
+P40 __del__ on an untracked instance	snapshot:G gc.disable	87517470	del slots	0		
+P41 hook prints at teardown (profile)	native			0		
+P41 hook prints at teardown (profile)	plain:today	368162491		0		
+P41 hook prints at teardown (profile)	snapshot:today	95075424		0		
+P41 hook prints at teardown (profile)	snapshot:G gc.disable	87782847		0		
+P42 StringIO and a closed file left	native		ok	0		a.txt:1
+P42 StringIO and a closed file left	plain:today	369207082	ok	0		a.txt:1
+P42 StringIO and a closed file left	snapshot:today	94374720	ok	0		a.txt:1
+P42 StringIO and a closed file left	snapshot:G gc.disable	87045535	ok	0		a.txt:1
+P43 sys.monitoring tool	native			0		
+P43 sys.monitoring tool	plain:today	367229780		0		
+P43 sys.monitoring tool	snapshot:today	94883371		0		
+P43 sys.monitoring tool	snapshot:G gc.disable	87502985		0		

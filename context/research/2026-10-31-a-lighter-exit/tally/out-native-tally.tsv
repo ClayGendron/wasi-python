@@ -1,0 +1,21 @@
+call	mode	exit	tally
+pass	count	0	asked 28955 allocs 412 biggest 3264 frees 18539 skipped 0 drained 0
+pass	skip, drain past 1 MiB	0	asked 28955 allocs 412 biggest 3264 frees 18086 skipped 18086 drained 0
+json and csv	count	0	asked 36365 allocs 565 biggest 3264 frees 28441 skipped 0 drained 0
+json and csv	skip, drain past 1 MiB	0	asked 36365 allocs 565 biggest 3264 frees 27594 skipped 27594 drained 0
+import fractions, decimal, datetime, sqlite3, email, http.client	count	0	asked 51211 allocs 837 biggest 3264 frees 48354 skipped 0 drained 0
+import fractions, decimal, datetime, sqlite3, email, http.client	skip, drain past 1 MiB	0	asked 51211 allocs 837 biggest 3264 frees 46875 skipped 46875 drained 0
+200k __del__	count	0	asked 28987 allocs 413 biggest 3264 frees 218605 skipped 0 drained 0
+200k __del__	skip, drain past 1 MiB	0	asked 28987 allocs 413 biggest 3264 frees 218145 skipped 218145 drained 0
+200k cycles	count	0	asked 28987 allocs 413 biggest 3264 frees 418525 skipped 0 drained 0
+200k cycles	skip, drain past 1 MiB	0	asked 28987 allocs 413 biggest 3264 frees 418070 skipped 418070 drained 0
+a 2M-key dict	count	0	asked 28955 allocs 412 biggest 3264 frees 4017521 skipped 0 drained 0
+a 2M-key dict	skip, drain past 1 MiB	0	asked 28955 allocs 412 biggest 3264 frees 4017069 skipped 4017069 drained 0
+1M strings on json	count	0	asked 34939 allocs 536 biggest 3264 frees 1027438 skipped 0 drained 0
+1M strings on json	skip, drain past 1 MiB	0	asked 34939 allocs 536 biggest 3264 frees 1026628 skipped 1026628 drained 0
+sqlite uncommitted insert	count	0	asked 34833 allocs 521 biggest 3264 frees 24418 skipped 0 drained 0
+sqlite uncommitted insert	skip, drain past 1 MiB	0	asked 34833 allocs 521 biggest 3264 frees 23754 skipped 23754 drained 0
+finalizers churn 500 x 1 MiB	count	0	asked 1048638131 allocs 1416 biggest 1048609 frees 19605 skipped 0 drained 0
+finalizers churn 500 x 1 MiB	skip, drain past 1 MiB	0	asked 1048638131 allocs 1416 biggest 1048609 frees 19604 skipped 857 drained 1
+weakref.finalize pickles 50 MB	count	0	asked 35547 allocs 544 biggest 3264 frees 5025338 skipped 0 drained 0
+weakref.finalize pickles 50 MB	skip, drain past 1 MiB	0	asked 35547 allocs 544 biggest 3264 frees 5024620 skipped 5024620 drained 0

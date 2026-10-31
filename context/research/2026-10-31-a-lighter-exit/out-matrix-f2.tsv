@@ -1,0 +1,215 @@
+P01 unclosed file	native			0		a.txt:100
+P01 unclosed file	plain:today	367002718		0		a.txt:100
+P01 unclosed file	snapshot:today	94053090		0		a.txt:100
+P01 unclosed file	snapshot:F skip if nothing to finalize [finalizer FileIO]	104556497		0		a.txt:100
+P01 unclosed file	plain:F skip if nothing to finalize [finalizer FileIO]	373562776		0		a.txt:100
+P02 unclosed file + def (073's gap)	native			0		a.txt:100
+P02 unclosed file + def (073's gap)	plain:today	367095777		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:today	94243265		0		a.txt:100
+P02 unclosed file + def (073's gap)	snapshot:F skip if nothing to finalize [finalizer FileIO]	104693740		0		a.txt:100
+P02 unclosed file + def (073's gap)	plain:F skip if nothing to finalize [finalizer FileIO]	373923048		0		a.txt:100
+P03 ZipFile left open + def	native			0		a.zip:ok
+P03 ZipFile left open + def	plain:today	574581224		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:today	205259324		0		a.zip:ok
+P03 ZipFile left open + def	snapshot:F skip if nothing to finalize [finalizer ZipFile]	246463550		0		a.zip:ok
+P03 ZipFile left open + def	plain:F skip if nothing to finalize [finalizer ZipFile]	579363063		0		a.zip:ok
+P04 script: unclosed file + def	native			0		a.txt:100
+P04 script: unclosed file + def	plain:today	421713479		0		a.txt:100
+P04 script: unclosed file + def	snapshot:today	106029868		0		a.txt:100
+P04 script: unclosed file + def	snapshot:F skip if nothing to finalize [finalizer FileIO]	123740604		0		a.txt:100
+P04 script: unclosed file + def	plain:F skip if nothing to finalize [finalizer FileIO]	424556392		0		a.txt:100
+P05 -m: unclosed file + def	native			0		a.txt:100
+P05 -m: unclosed file + def	plain:today	376521496		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:today	101757328		0		a.txt:100
+P05 -m: unclosed file + def	snapshot:F skip if nothing to finalize [finalizer FileIO]	117071485		0		a.txt:100
+P05 -m: unclosed file + def	plain:F skip if nothing to finalize [finalizer FileIO]	387781756		0		a.txt:100
+P06 gzip left open + def	native			0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	plain:today	383451078		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	snapshot:today	108344459		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	snapshot:F skip if nothing to finalize [finalizer GzipFile]	126161259		0	Exception ignored,Error	a.gz:BAD
+P06 gzip left open + def	plain:F skip if nothing to finalize [finalizer GzipFile]	397281013		0	Exception ignored,Error	a.gz:BAD
+P07 atexit order	native		c/b/a	0		
+P07 atexit order	plain:today	366740839	c/b/a	0		
+P07 atexit order	snapshot:today	94097051	c/b/a	0		
+P07 atexit order	snapshot:F skip if nothing to finalize [None]	44332763	c/b/a	0		
+P07 atexit order	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	436893074	c/b/a	0		
+P08 atexit handler raises	native		after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	plain:today	800572384	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:today	193487048	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	snapshot:F skip if nothing to finalize [None]	167926364	after	0	Exception ignored,ZeroDivisionError,Error	
+P08 atexit handler raises	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	911226058	after	0	Exception ignored,ZeroDivisionError,Error	
+P09 __del__ in __main__, order	native		del 1/del 2	0		
+P09 __del__ in __main__, order	plain:today	367732240	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:today	94780369	del 1/del 2	0		
+P09 __del__ in __main__, order	snapshot:F skip if nothing to finalize [finalizer D]	105559650	del 1/del 2	0		
+P09 __del__ in __main__, order	plain:F skip if nothing to finalize [finalizer D]	374792606	del 1/del 2	0		
+P10 __del__ of cyclic garbage	native		del cycle	0		
+P10 __del__ of cyclic garbage	plain:today	368133441	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:today	94796247	del cycle	0		
+P10 __del__ of cyclic garbage	snapshot:F skip if nothing to finalize [finalizer D]	105578254	del cycle	0		
+P10 __del__ of cyclic garbage	plain:F skip if nothing to finalize [finalizer D]	374497507	del cycle	0		
+P11 weakref callback	native			0		
+P11 weakref callback	plain:today	367314933		0		
+P11 weakref callback	snapshot:today	94487098		0		
+P11 weakref callback	snapshot:F skip if nothing to finalize [weakref callback <function <lambda> at 0x21060f8>]	105173184		0		
+P11 weakref callback	plain:F skip if nothing to finalize [weakref callback <function <lambda> at 0x1fde0c8>]	373694096		0		
+P12 weakref.finalize	native		fin	0		
+P12 weakref.finalize	plain:today	367256392	fin	0		
+P12 weakref.finalize	snapshot:today	94429766	fin	0		
+P12 weakref.finalize	snapshot:F skip if nothing to finalize [None]	44855390	fin	0		
+P12 weakref.finalize	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	438091571	fin	0		
+P13 suspended generator's finally	native		gen closed	0		
+P13 suspended generator's finally	plain:today	367206732	gen closed	0		
+P13 suspended generator's finally	snapshot:today	94414349	gen closed	0		
+P13 suspended generator's finally	snapshot:F skip if nothing to finalize [finalizer generator]	104960707	gen closed	0		
+P13 suspended generator's finally	plain:F skip if nothing to finalize [finalizer generator]	374356098	gen closed	0		
+P14 __del__ hung on a pre-imported module	native		del json-hung	0		
+P14 __del__ hung on a pre-imported module	plain:today	478402782	del json-hung	0		
+P14 __del__ hung on a pre-imported module	snapshot:today	94749457	del json-hung	0		
+P14 __del__ hung on a pre-imported module	snapshot:F skip if nothing to finalize [finalizer D]	105556506	del json-hung	0		
+P14 __del__ hung on a pre-imported module	plain:F skip if nothing to finalize [finalizer D]	514380143	del json-hung	0		
+P15 file hung on a pre-imported module	native			0		a.txt:100
+P15 file hung on a pre-imported module	plain:today	477618671		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:today	94186653		0		a.txt:100
+P15 file hung on a pre-imported module	snapshot:F skip if nothing to finalize [finalizer FileIO]	104633013		0		a.txt:100
+P15 file hung on a pre-imported module	plain:F skip if nothing to finalize [finalizer FileIO]	513998112		0		a.txt:100
+P16 ZipFile hung on a pre-imported module	native			0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	plain:today	592713713		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	snapshot:today	205045830		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	snapshot:F skip if nothing to finalize [finalizer ZipFile]	246324023		0		a.zip:ok
+P16 ZipFile hung on a pre-imported module	plain:F skip if nothing to finalize [finalizer ZipFile]	602538797		0		a.zip:ok
+P17 pre-imported class patched (073)	native			0		a.txt:100
+P17 pre-imported class patched (073)	plain:today	478614193		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:today	94584920		0		a.txt:100
+P17 pre-imported class patched (073)	snapshot:F skip if nothing to finalize [finalizer FileIO]	105026419		0		a.txt:100
+P17 pre-imported class patched (073)	plain:F skip if nothing to finalize [finalizer FileIO]	513940791		0		a.txt:100
+P18 __del__ hung on a module imported later	native		del fractions-hung	0		
+P18 __del__ hung on a module imported later	plain:today	489444627	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:today	123387742	del fractions-hung	0		
+P18 __del__ hung on a module imported later	snapshot:F skip if nothing to finalize [finalizer D]	145395590	del fractions-hung	0		
+P18 __del__ hung on a module imported later	plain:F skip if nothing to finalize [finalizer D]	529409103	del fractions-hung	0		
+P19 weakref callback on a pre-imported class	native			0		
+P19 weakref callback on a pre-imported class	plain:today	477891874		0		
+P19 weakref callback on a pre-imported class	snapshot:today	94664957		0		
+P19 weakref callback on a pre-imported class	snapshot:F skip if nothing to finalize [weakref callback <function <lambda> at 0x21110c8>]	105209012		0		
+P19 weakref callback on a pre-imported class	plain:F skip if nothing to finalize [weakref callback <function <lambda> at 0x1fbb3f8>]	514312067		0		
+P20 streams without newline	native		out no newline	0	err no newline	
+P20 streams without newline	plain:today	366557105	out no newline	0	err no newline	
+P20 streams without newline	snapshot:today	94040180	out no newline	0	err no newline	
+P20 streams without newline	snapshot:F skip if nothing to finalize	44356645	out no newline	0	err no newline	
+P20 streams without newline	plain:F skip if nothing to finalize	437380726	out no newline	0	err no newline	
+P21 stdout replaced by a file	native			0		out.txt:3
+P21 stdout replaced by a file	plain:today	366848202		0		out.txt:3
+P21 stdout replaced by a file	snapshot:today	94152695		0		out.txt:3
+P21 stdout replaced by a file	snapshot:F skip if nothing to finalize [finalizer FileIO]	104627557		0		out.txt:3
+P21 stdout replaced by a file	plain:F skip if nothing to finalize [finalizer FileIO]	373408559		0		out.txt:3
+P22 sys.exit(3)	native			3		
+P22 sys.exit(3)	plain:today	367054391		3		
+P22 sys.exit(3)	snapshot:today	93868557		3		
+P22 sys.exit(3)	snapshot:F skip if nothing to finalize [None]	44166180		3		
+P22 sys.exit(3)	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	437283241		3		
+P23 SystemExit('bye')	native			1	bye	
+P23 SystemExit('bye')	plain:today	366896847		1	bye	
+P23 SystemExit('bye')	snapshot:today	93827371		1	bye	
+P23 SystemExit('bye')	snapshot:F skip if nothing to finalize [None]	44123704		1	bye	
+P23 SystemExit('bye')	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	437154439		1	bye	
+P24 uncaught exception	native			1	ZeroDivisionError,Error	
+P24 uncaught exception	plain:today	798962428		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:today	192533994		1	ZeroDivisionError,Error	
+P24 uncaught exception	snapshot:F skip if nothing to finalize [None]	167101908		1	ZeroDivisionError,Error	
+P24 uncaught exception	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	910522592		1	ZeroDivisionError,Error	
+P25 stdout whose flush fails	native			120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	plain:today	800703275		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	snapshot:today	193859850		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	snapshot:F skip if nothing to finalize [None]	45387919		120	Exception ignored,OSError,Error	
+P25 stdout whose flush fails	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	877106138		120	Exception ignored,OSError,Error	
+P26 logging MemoryHandler	native			0		log.txt:2
+P26 logging MemoryHandler	plain:today	687913117		0		log.txt:2
+P26 logging MemoryHandler	snapshot:today	311843529		0		log.txt:2
+P26 logging MemoryHandler	snapshot:F skip if nothing to finalize [weakref callback <function _removeHandlerRef at 0x2229338>]	318338810		0		log.txt:2
+P26 logging MemoryHandler	plain:F skip if nothing to finalize [weakref callback <function _removeHandlerRef at 0x2182ab8>]	695229686		0		log.txt:2
+P27 NamedTemporaryFile left open	native			0		
+P27 NamedTemporaryFile left open	plain:today	524894831		0		
+P27 NamedTemporaryFile left open	snapshot:today	156299459		0		
+P27 NamedTemporaryFile left open	snapshot:F skip if nothing to finalize [extension type random.Random]	159848506		0		
+P27 NamedTemporaryFile left open	plain:F skip if nothing to finalize [extension type random.Random]	538545672		0		
+P28 TemporaryDirectory left	native			0		
+P28 TemporaryDirectory left	plain:today	524501048		0		
+P28 TemporaryDirectory left	snapshot:today	156444368		0		
+P28 TemporaryDirectory left	snapshot:F skip if nothing to finalize [extension type random.Random]	159891765		0		
+P28 TemporaryDirectory left	plain:F skip if nothing to finalize [extension type random.Random]	538778597		0		
+P29 sqlite3 uncommitted insert	native			0		t.db:rows=0
+P29 sqlite3 uncommitted insert	plain:today	426597500		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:today	113050564		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	snapshot:F skip if nothing to finalize [finalizer Connection]	133839423		0		t.db:rows=0
+P29 sqlite3 uncommitted insert	plain:F skip if nothing to finalize [finalizer Connection]	435963338		0		t.db:rows=0
+P30 audit hook holds a file	native			0		a.txt:100
+P30 audit hook holds a file	plain:today	367770248		0		a.txt:100
+P30 audit hook holds a file	snapshot:today	94743243		0		a.txt:100
+P30 audit hook holds a file	snapshot:F skip if nothing to finalize [hook]	94789968		0		a.txt:100
+P30 audit hook holds a file	plain:F skip if nothing to finalize [hook]	369325224		0		a.txt:100
+P31 __del__ sees sys.modules	native		json is NoneType	0		
+P31 __del__ sees sys.modules	plain:today	367653437	json is NoneType	0		
+P31 __del__ sees sys.modules	snapshot:today	94622262	json is NoneType	0		
+P31 __del__ sees sys.modules	snapshot:F skip if nothing to finalize [finalizer E]	105377224	json is NoneType	0		
+P31 __del__ sees sys.modules	plain:F skip if nothing to finalize [finalizer E]	374830602	json is NoneType	0		
+P32 __del__ imports	native		import failed ImportError	0		
+P32 __del__ imports	plain:today	367930661	import failed ImportError	0		
+P32 __del__ imports	snapshot:today	94942459	import failed ImportError	0		
+P32 __del__ imports	snapshot:F skip if nothing to finalize [finalizer E]	105745009	import failed ImportError	0		
+P32 __del__ imports	plain:F skip if nothing to finalize [finalizer E]	374324115	import failed ImportError	0		
+P33 __del__ of a cycle that imports	native		import ok	0		
+P33 __del__ of a cycle that imports	plain:today	487613147	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:today	123219672	import ok	0		
+P33 __del__ of a cycle that imports	snapshot:F skip if nothing to finalize [finalizer E]	133805645	import ok	0		
+P33 __del__ of a cycle that imports	plain:F skip if nothing to finalize [finalizer E]	494240288	import ok	0		
+P34 output order: atexit, then __del__	native		atexit/del main	0		
+P34 output order: atexit, then __del__	plain:today	367736085	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:today	95078354	atexit/del main	0		
+P34 output order: atexit, then __del__	snapshot:F skip if nothing to finalize [finalizer D]	105756777	atexit/del main	0		
+P34 output order: atexit, then __del__	plain:F skip if nothing to finalize [finalizer D]	374665355	atexit/del main	0		
+P35 __del__ sees a global module	native		sep '/'	0		
+P35 __del__ sees a global module	plain:today	367182299	sep '/'	0		
+P35 __del__ sees a global module	snapshot:today	94555619	sep '/'	0		
+P35 __del__ sees a global module	snapshot:F skip if nothing to finalize [finalizer E]	105263880	sep '/'	0		
+P35 __del__ sees a global module	plain:F skip if nothing to finalize [finalizer E]	374248138	sep '/'	0		
+P36 audit hook sees teardown	native			0		
+P36 audit hook sees teardown	plain:today	366894591		0		
+P36 audit hook sees teardown	snapshot:today	94119117		0		
+P36 audit hook sees teardown	snapshot:F skip if nothing to finalize [hook]	94306099		0		
+P36 audit hook sees teardown	plain:F skip if nothing to finalize [hook]	369357947		0		
+P37 gc.callbacks	native		gc stop	0		
+P37 gc.callbacks	plain:today	367268482	gc stop	0		
+P37 gc.callbacks	snapshot:today	94226948	gc stop	0		
+P37 gc.callbacks	snapshot:F skip if nothing to finalize [hook]	94341732	gc stop	0		
+P37 gc.callbacks	plain:F skip if nothing to finalize [hook]	369318980	gc stop	0		
+P38 profiler set	native		calls so far True	0		
+P38 profiler set	plain:today	367526703	calls so far True	0		
+P38 profiler set	snapshot:today	94969892	calls so far True	0		
+P38 profiler set	snapshot:F skip if nothing to finalize [hook]	95174090	calls so far True	0		
+P38 profiler set	plain:F skip if nothing to finalize [hook]	370961223	calls so far True	0		
+P39 __stdout__ written, stdout replaced	native		dunder no newline	0		
+P39 __stdout__ written, stdout replaced	plain:today	367132887	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	snapshot:today	93932039	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	snapshot:F skip if nothing to finalize [None]	44298242	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	436965924	dunder no newline	0		
+P40 __del__ on an untracked instance	native		del slots	0		
+P40 __del__ on an untracked instance	plain:today	367860551	del slots	0		
+P40 __del__ on an untracked instance	snapshot:today	94998945	del slots	0		
+P40 __del__ on an untracked instance	snapshot:F skip if nothing to finalize [finalizer E]	105616993	del slots	0		
+P40 __del__ on an untracked instance	plain:F skip if nothing to finalize [finalizer E]	374322540	del slots	0		
+P41 hook prints at teardown (profile)	native			0		
+P41 hook prints at teardown (profile)	plain:today	367860002		0		
+P41 hook prints at teardown (profile)	snapshot:today	95120459		0		
+P41 hook prints at teardown (profile)	snapshot:F skip if nothing to finalize [hook]	95298329		0		
+P41 hook prints at teardown (profile)	plain:F skip if nothing to finalize [hook]	371924446		0		
+P42 StringIO and a closed file left	native		ok	0		a.txt:1
+P42 StringIO and a closed file left	plain:today	368876776	ok	0		a.txt:1
+P42 StringIO and a closed file left	snapshot:today	94444802	ok	0		a.txt:1
+P42 StringIO and a closed file left	snapshot:F skip if nothing to finalize [None]	44994970	ok	0		a.txt:1
+P42 StringIO and a closed file left	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	438862611	ok	0		a.txt:1
+P43 sys.monitoring tool	native			0		
+P43 sys.monitoring tool	plain:today	367681667		0		
+P43 sys.monitoring tool	snapshot:today	94855151		0		
+P43 sys.monitoring tool	snapshot:F skip if nothing to finalize [monitoring]	95023470		0		
+P43 sys.monitoring tool	plain:F skip if nothing to finalize [monitoring]	370659984		0		

@@ -1,0 +1,96 @@
+today	snapshot	pass	finalize	58592099	0	None
+today	snapshot	pass	os._exit	1186762	0	None
+today	snapshot	import numpy	finalize	831095033	0	None
+today	snapshot	import numpy	os._exit	729501590	0	None
+today	snapshot	pandas groupby	finalize	4711113350	0	None
+today	snapshot	pandas groupby	os._exit	4387515771	0	None
+today	plain	pass	finalize	323882878	0	None
+today	plain	pass	finalize	323892580	0	None
+today	plain	pass	finalize	323302098	0	None
+today	plain	pass	os._exit	280943431	0	None
+today	plain	pass	os._exit	280973399	0	None
+today	plain	pass	os._exit	281215323	0	None
+today	plain	import numpy	finalize	1226353727	0	None
+today	plain	import numpy	finalize	1225496209	0	None
+today	plain	import numpy	finalize	1225065561	0	None
+today	plain	import numpy	os._exit	1130160182	0	None
+today	plain	import numpy	os._exit	1129782008	0	None
+today	plain	import numpy	os._exit	1129921688	0	None
+today	plain	pandas groupby	finalize	5134657255	0	None
+today	plain	pandas groupby	finalize	5131313878	0	None
+today	plain	pandas groupby	finalize	5131103213	0	None
+today	plain	pandas groupby	os._exit	4813637356	0	None
+today	plain	pandas groupby	os._exit	4812385552	0	None
+today	plain	pandas groupby	os._exit	4813552015	0	None
+E no-op free	snapshot	pass	finalize	40102242	0	None
+E no-op free	snapshot	pass	os._exit	1160541	0	None
+E no-op free	snapshot	import numpy	finalize	798346158	0	None
+E no-op free	snapshot	import numpy	os._exit	721887780	0	None
+E no-op free	snapshot	pandas groupby	finalize	4568847548	0	None
+E no-op free	snapshot	pandas groupby	os._exit	4312756147	0	None
+E no-op free	plain	pass	finalize	306499876	0	None
+E no-op free	plain	pass	finalize	306288235	0	None
+E no-op free	plain	pass	finalize	306353646	0	None
+E no-op free	plain	pass	os._exit	278547764	0	None
+E no-op free	plain	pass	os._exit	278062348	0	None
+E no-op free	plain	pass	os._exit	278395073	0	None
+E no-op free	plain	import numpy	finalize	1187282795	0	None
+E no-op free	plain	import numpy	finalize	1187463635	0	None
+E no-op free	plain	import numpy	finalize	1187471599	0	None
+E no-op free	plain	import numpy	os._exit	1115554775	0	None
+E no-op free	plain	import numpy	os._exit	1115899046	0	None
+E no-op free	plain	import numpy	os._exit	1116764044	0	None
+E no-op free	plain	pandas groupby	finalize	4992818620	0	None
+E no-op free	plain	pandas groupby	finalize	4993816199	0	None
+E no-op free	plain	pandas groupby	finalize	4996712270	0	None
+E no-op free	plain	pandas groupby	os._exit	4743210925	0	None
+E no-op free	plain	pandas groupby	os._exit	4743507000	0	None
+E no-op free	plain	pandas groupby	os._exit	4742618108	0	None
+D stop after modules	snapshot	pass	finalize	47674599	0	None
+D stop after modules	snapshot	pass	os._exit	1186762	0	None
+D stop after modules	snapshot	import numpy	finalize	813228138	0	None
+D stop after modules	snapshot	import numpy	os._exit	729501590	0	None
+D stop after modules	snapshot	pandas groupby	finalize	4662332995	0	None
+D stop after modules	snapshot	pandas groupby	os._exit	4388507343	0	None
+D stop after modules	plain	pass	finalize	314958384	0	None
+D stop after modules	plain	pass	finalize	315269372	0	None
+D stop after modules	plain	pass	finalize	315050364	0	None
+D stop after modules	plain	pass	os._exit	281354051	0	None
+D stop after modules	plain	pass	os._exit	281230834	0	None
+D stop after modules	plain	pass	os._exit	280728834	0	None
+D stop after modules	plain	import numpy	finalize	1209054528	0	None
+D stop after modules	plain	import numpy	finalize	1207893851	0	None
+D stop after modules	plain	import numpy	finalize	1208939909	0	None
+D stop after modules	plain	import numpy	os._exit	1129858231	0	None
+D stop after modules	plain	import numpy	os._exit	1130402450	0	None
+D stop after modules	plain	import numpy	os._exit	1130427683	0	None
+D stop after modules	plain	pandas groupby	finalize	5087324206	0	None
+D stop after modules	plain	pandas groupby	finalize	5082853959	0	None
+D stop after modules	plain	pandas groupby	finalize	5082693577	0	None
+D stop after modules	plain	pandas groupby	os._exit	4812846540	0	None
+D stop after modules	plain	pandas groupby	os._exit	4811542211	0	None
+D stop after modules	plain	pandas groupby	os._exit	4814694536	0	None
+D+E	snapshot	pass	finalize	33127101	0	None
+D+E	snapshot	pass	os._exit	1160541	0	None
+D+E	snapshot	import numpy	finalize	785889749	0	None
+D+E	snapshot	import numpy	os._exit	721887780	0	None
+D+E	snapshot	pandas groupby	finalize	4535129784	0	None
+D+E	snapshot	pandas groupby	os._exit	4312683724	0	None
+D+E	plain	pass	finalize	300470985	0	None
+D+E	plain	pass	finalize	300589843	0	None
+D+E	plain	pass	finalize	300636941	0	None
+D+E	plain	pass	os._exit	278234574	0	None
+D+E	plain	pass	os._exit	278456654	0	None
+D+E	plain	pass	os._exit	278315043	0	None
+D+E	plain	import numpy	finalize	1174900509	0	None
+D+E	plain	import numpy	finalize	1175058351	0	None
+D+E	plain	import numpy	finalize	1175054624	0	None
+D+E	plain	import numpy	os._exit	1115685228	0	None
+D+E	plain	import numpy	os._exit	1115989943	0	None
+D+E	plain	import numpy	os._exit	1116062916	0	None
+D+E	plain	pandas groupby	finalize	4959385455	0	None
+D+E	plain	pandas groupby	finalize	4959979827	0	None
+D+E	plain	pandas groupby	finalize	4960473266	0	None
+D+E	plain	pandas groupby	os._exit	4743424924	0	None
+D+E	plain	pandas groupby	os._exit	4743257171	0	None
+D+E	plain	pandas groupby	os._exit	4743932676	0	None

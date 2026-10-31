@@ -1,0 +1,24 @@
+pass	snapshot	58545351	0	None		
+pass	plain	323825510	0	None		
+pass	plain	323668284	0	None		
+pass	plain	323873449	0	None		
+os._exit(0)	snapshot	1159714	0	None		
+os._exit(0)	plain	280782543	0	None		
+os._exit(0)	plain	280862673	0	None		
+os._exit(0)	plain	280899181	0	None		
+unfreeze+exit	snapshot	1284233	0	None		
+unfreeze+exit	plain	281327854	0	None		
+unfreeze+exit	plain	281640977	0	None		
+unfreeze+exit	plain	281605894	0	None		
+atexit+flush+exit	snapshot	1763327	0	None		
+atexit+flush+exit	plain	281611088	0	None		
+atexit+flush+exit	plain	281576529	0	None		
+atexit+flush+exit	plain	281803092	0	None		
+collect young+exit	snapshot	1349711	0	None		
+collect young+exit	plain	285846250	0	None		
+collect young+exit	plain	285727344	0	None		
+collect young+exit	plain	286161943	0	None		
+unfreeze+collect+exit	snapshot	8551494	0	None		
+unfreeze+collect+exit	plain	285971447	0	None		
+unfreeze+collect+exit	plain	285989751	0	None		
+unfreeze+collect+exit	plain	286012733	0	None		
