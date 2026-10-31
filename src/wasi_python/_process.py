@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     import wasmtime
 
     from ._outputs import _Stream
+    from ._packages import Package
     from ._sessions import _State
 
 # A live call's cancel event maps to None, or, for a session's turn, to its future and the
@@ -61,6 +62,10 @@ if TYPE_CHECKING:
 # future puts its pool on `pool_done`, without a lock, and the next submit counts it under
 # `pool_lock`, so a pool a resize replaced is let go once none of its futures is left.
 _Queued = tuple["Future[Any]", Callable[[], None]]
+
+# What a cache of a file's facts is keyed on: the path, then its stamp, which is its device,
+# inode, size, mtime_ns and ctime_ns.
+_Stamped = tuple[str, int, int, int, int, int]
 
 # The counts `stats()` reports, each 0 when the process starts.
 COUNTS = (
@@ -144,10 +149,10 @@ class _Process:
         self.zip_lock = threading.Lock()
         self.zips: dict[str, list[Any]] = {}
         self.check_modules: dict[bool, Any] = {}
-        # Both keyed on (the path, *its stamp): device, inode, size, mtime_ns and ctime_ns.
-        self.versions: dict[tuple[str, int, int, int, int, int], str] = {}
+        self.versions: dict[_Stamped, str] = {}
+        self.packages: dict[_Stamped, tuple[Package, ...]] = {}  # the zip's, as `packages()` read
         self.guest_packages: dict[str, tuple[tuple[int, ...], bool]] = {}  # path: (stamp, answer)
-        self.digests: dict[tuple[str, int, int, int, int, int], str] = {}
+        self.digests: dict[_Stamped, str] = {}
         # F. Under `cache_lock`: engines, modules, counts, snapshot folders; linkers; the epoch.
         self.cache_lock = threading.Lock()
         self.engines: dict[bool, wasmtime.Engine] = {}

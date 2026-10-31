@@ -262,9 +262,11 @@ PACKAGES = (
 PREIMPORT = ("encodings", "io", "os", "sys", "json", "csv", "re", "_colorize")
 # The reactor's own top-level modules: the frozen recipe modules, the door, and the program.
 REACTOR_MODULES = ("__main__", "_reactor", "_zip_directory", "_zip_resources", "_host")
-# CPython's own modules outside sys.stdlib_module_names: two names (its frozen test modules) and
-# one prefix (its generated build data, _sysconfigdata_<abi>_<platform>). Counted as stdlib.
-CPYTHON_UNLISTED_NAMES = ("__hello__", "__phello__")
+# CPython's own modules outside sys.stdlib_module_names: three names (its frozen test modules,
+# and traceback's reasons for the modules a platform lacks, which CPython's build generates beside
+# _sysconfigdata) and one prefix (its generated build data, _sysconfigdata_<abi>_<platform>).
+# Counted as stdlib.
+CPYTHON_UNLISTED_NAMES = ("__hello__", "__phello__", "_missing_stdlib_info")
 CPYTHON_UNLISTED_PREFIXES = ("_sysconfigdata_",)
 
 

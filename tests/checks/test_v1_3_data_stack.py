@@ -457,6 +457,73 @@ def test_packages_carry_their_metadata(guest, which) -> None:
     assert got["files"] is None, f"files('numpy') is {got['files']!r}: RECORD is not kept"
 
 
+# What the guest's own importlib.metadata says of each distribution: its Name, its version and the
+# import names packages_distributions() maps to it, each found without being imported.
+PACKAGES = """
+import importlib.metadata as md, importlib.util, json, re
+owners = md.packages_distributions()
+rows, unfound = [], []
+for d in md.distributions():
+    name = d.metadata["Name"]
+    names = sorted(n for n, dists in owners.items() if name in dists)
+    unfound += [n for n in names if importlib.util.find_spec(n) is None]
+    rows.append([name, d.version, names])
+rows.sort(key=lambda r: (re.sub(r"[-_.]+", "-", r[0]).lower(), r[0], r[1]))
+print(json.dumps({"packages": rows, "unfound": unfound}))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_the_host_lists_the_packages_the_guest_finds(guest, which) -> None:
+    """`packages()`, read on the host, equals the guest's own `importlib.metadata`: each
+    distribution's Name, version and the import names `packages_distributions()` gives it. Every
+    package has a name to import, and the guest finds each one without importing it."""
+    needs.need("artifact dir", "stdlib zip")
+    from wasi_python import Artifacts, packages
+
+    r = guest(which, ["-c", PACKAGES])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    d = paths.artifact_dir()
+    found = Artifacts(
+        snapshot=d / "python-snapshot.wasm",
+        plain=d / "python.wasm",
+        stdlib_zip=d / "python-stdlib.zip",
+        manifest=d / "MANIFEST",
+    )
+    host = [[p.name, p.version, list(p.imports)] for p in packages(found)]
+    assert host == got["packages"], f"the host lists {host}, the guest finds {got['packages']}"
+    nameless = [p[0] for p in host if not p[2]]
+    assert not nameless, f"packages with no name to import: {nameless}"
+    assert not got["unfound"], f"names the guest cannot find: {got['unfound']}"
+
+
+# The zip's top-level names no package claims: the tool protocol's guest package and reportlab's
+# two start-up stand-ins, each the project's own module.
+UNOWNED_NAMES = {"host", "reportlab_mods", "reportlab_settings"}
+
+
+def test_every_name_in_the_zip_belongs_to_a_package(guest, artifacts) -> None:
+    """The zip's top-level names that are neither the stdlib's nor the reactor's, less every
+    package's import names, are exactly the project's own modules: no package of the set is
+    missing a name an agent would import."""
+    from wasi_python import Artifacts, packages
+
+    stdlib_names = "import json, sys; print(json.dumps(sorted(sys.stdlib_module_names)))"
+    r = guest("plain", ["-c", stdlib_names], record=False)  # its fuel measures nothing here
+    assert r.exit_code == 0, r.describe()
+    stdlib = set(json.loads(r.text))
+    zip_path = artifacts.path("python-stdlib.zip")
+    d = zip_path.parent
+    found = Artifacts(d / "python-snapshot.wasm", d / "python.wasm", zip_path, d / "MANIFEST")
+    claimed = {n for p in packages(found) for n in p.imports}
+    left = zip_non_stdlib_names(zip_path, stdlib) - claimed
+    assert left == UNOWNED_NAMES, (
+        f"names no package claims: {sorted(left - UNOWNED_NAMES)}; "
+        f"expected but claimed or absent: {sorted(UNOWNED_NAMES - left)}"
+    )
+
+
 # The stand-in names and sizes wasm32's C types, gives numpy the dtype it
 # gives a real one, and refuses every foreign call. The names are what sympy and threadpoolctl
 # import, written here by name; the sizes are the guest's own sysconfig. The

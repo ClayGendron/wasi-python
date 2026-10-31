@@ -7,7 +7,11 @@ $ wasi-python run -- -c "print(1)"
 {"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\n", "trapped": null, "truncated": []}
 ```
 
-Everything after `--` is the guest's own command line: `-c`, `-m`, a script, or `-` for standard input. The table below is generated from the command's parser by `uv run python tests/harness/cli_doc.py --write`, and a check fails when it differs.
+Everything after `--` is the guest's own command line: `-c`, `-m`, a script, or `-` for standard input.
+
+`wasi-python packages` lists the Python packages in the runtime, one line each, with the names to import. See [List the packages](#list-the-packages).
+
+The tables below are generated from the commands' parsers by `uv run python tests/harness/cli_doc.py --write`, and a check fails when they differ.
 
 ## Options
 
@@ -42,6 +46,18 @@ wasi-python run [OPTIONS] [--] ARG...
 
 At most one of `--root`, `--private-root` and `--no-root`.
 
+### `wasi-python packages`
+
+List the Python packages in the runtime, each with its version and the names to import.
+
+```
+wasi-python packages [--json]
+```
+
+| option | value | default | description |
+|---|---|---|---|
+| `--json` |  | off | print one JSON line, an object whose packages list holds each package's name, version and imports |
+
 <!-- cli reference: end -->
 
 ## Exit codes and output
@@ -56,3 +72,18 @@ The exit code says whether there is a result, not how the program ended:
 | 130 | interrupted by Ctrl-C |
 
 On a result the JSON has `exit_code`, `fuel_used`, `stderr`, `stdout`, `trapped` and `truncated`. A stream that is not UTF-8 comes as `stderr_base64` or `stdout_base64` instead. See [Python API](python-api.md) for what each field means.
+
+## List the packages
+
+`wasi-python packages` prints each Python package in the runtime with its version and the names to import. It reads the stdlib zip and starts no guest. `WASI_PYTHON_ARTIFACTS` chooses the set, as for `run`.
+
+```
+$ wasi-python packages
+attrs 26.1.0 (import attr, attrs)
+beautifulsoup4 4.15.0 (import bs4)
+...
+$ wasi-python packages --json
+{"packages": [{"imports": ["attr", "attrs"], "name": "attrs", "version": "26.1.0"}, ...]}
+```
+
+The JSON is one line. Its exit codes are `run`'s: 0, the list was printed; 1, the set could not be read, with the JSON's `error` and `kind` under `--json` and one line on standard error without it; 2, a usage error. See [Packages](packages.md#tell-an-agent-what-it-can-import) for a system prompt built from the list.

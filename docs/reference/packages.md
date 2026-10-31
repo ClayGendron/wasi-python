@@ -89,6 +89,31 @@ There is no `pip` inside the guest.
 
 To build a package into the artifact set itself, see [Adding a package](../contributing/adding-a-package.md).
 
+## Tell an agent what it can import
+
+`wasi_python.packages()` lists each Python package in the runtime with its version and the names to import. It reads the stdlib zip and starts no guest. `str()` of one is a line for a prompt:
+
+```python
+from wasi_python import packages
+
+prompt = "Python packages you can import:\n" + "\n".join(map(str, packages()))
+```
+
+```
+Python packages you can import:
+attrs 26.1.0 (import attr, attrs)
+beautifulsoup4 4.15.0 (import bs4)
+...
+scikit-learn 1.9.1 (import sklearn)
+...
+```
+
+The command `wasi-python packages` prints the same lines, and `wasi-python packages --json` prints them as one JSON line. See [Command line](cli.md#list-the-packages).
+
+The list is the runtime's. A package a grant adds through `import_path=` is not in it. The C libraries and the interpreter's own modules are not listed either.
+
+`make_package_snapshot(packages=...)` takes names, not `Package` objects: pass `[p.name for p in packages()]`.
+
 ## In one line
 
 CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx and python-pptx in the zip, each at one pinned version.
