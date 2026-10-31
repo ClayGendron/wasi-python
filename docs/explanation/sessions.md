@@ -20,7 +20,7 @@ So every session has bounds, with defaults:
 
 The runner keeps these bounds, not the guest. They are host bookkeeping: a clock reading when the session opens and when each turn ends, checked when a turn is asked for, and by one reaper thread per process that ends sessions whose bound has passed. No timer runs in the guest, and the guest gains no new import for it.
 
-Each turn also has its own fuel, deadline and output limit, re-armed before it starts. A turn that meets the memory cap gets a `MemoryError`, and the session goes on. The session holds back 512 KiB of its memory while a turn's code runs, and lets it go when a turn raises `MemoryError`, so the next turn can still parse its code after one filled the heap.
+Each turn also has its own fuel, deadline and output limit, re-armed before it starts. A turn that meets the memory cap gets a `MemoryError`, and the session goes on. The session keeps 256 KiB of its memory back, so a turn after one that filled the heap can still parse its code: it lets that go only when a turn's code, or its parse, meets a full heap, and takes it again at the next turn.
 
 ## Why a trap ends the session
 

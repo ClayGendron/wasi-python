@@ -109,6 +109,12 @@ Unit rows, `tests/unit/test_snapshot.py`: a header without the new fields loads 
 
 `docs/how-to/snapshots.md` gains "Checkpoint a session, and fork it" (what carries, open files, randomness, and that a fork reads everything the session read), replacing line 126; `docs/how-to/sessions.md`, a sentence under "Keep trust levels apart"; `docs/reference/`'s errors, limits, glossary and API pages.
 
+### 14. A session keeps memory back for a full heap
+
+Added at the build, from the pull request's run (`test_v1_4_sessions.py::test_memory_is_per_session_and_not_a_trap` lost its pass on Linux and Windows) and its review. A turn after one that filled the heap parsed its code in whatever the fill left, a few KB, and this change's larger bootstrap took about 8 KB of them. The reactor now keeps a block of `malloc` back (every allocator in this build is `malloc`'s, and nothing zeroes it, so taking it costs a few instructions): taken at a turn's start when not held, let go by `_reactor._let_go()` only when the turn's compile raises `MemoryError` (which is then tried once more) or its code does (before the report), and taken again at the next turn. A turn on a heap with room never takes it again, so its fuel is its own.
+
+Its size, 256 KiB, is four times the measured need: with the heap filled to its last bytes and then 64 KiB of it freed, the next turn parsed and ran; with none freed, it did not (the set before this change, `memory_bytes` 64 MiB). A turn's code can use `memory_bytes` less 256 KiB. Rows: `test_a_heap_filled_to_its_last_bytes_is_not_the_end` and `test_a_trivial_turn_runs_on_little_fuel` (`x = 1` in 400,000 instructions).
+
 ## Intent
 
 An embedder calls `checkpoint()` after a few turns and starts any number of sealed sessions or calls from that state; the session goes on unchanged.

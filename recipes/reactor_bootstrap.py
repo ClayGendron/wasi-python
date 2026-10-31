@@ -261,27 +261,6 @@ def run(argv, environ):
 # Sessions (spec 055, Decision 3): one interpreter across turns.
 _turns = 0  # the turns run in this instance: each one's code is named <turn N>
 _quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
-# Memory a session keeps back while a turn's own code runs, so a turn after one that filled the
-# heap can still parse its code and report its error: let go as each turn starts and when a turn
-# raises MemoryError, and taken again, when the heap has room, just before the turn's code runs.
-_RESERVE_BYTES = 1 << 19
-_reserve = None
-
-
-def _let_go():
-    global _reserve
-    _reserve = None
-
-
-def _hold():
-    global _reserve
-    if _reserve is None:
-        try:
-            _reserve = bytearray(_RESERVE_BYTES)
-        except MemoryError:
-            pass  # the heap is full: this turn runs without one, and the next takes it
-
-
 def _setup(environ):
     """The first turn's setup, once and unnumbered: the environment, the import path from argv,
     argv as the interactive interpreter has it, exit() and quit() rebound, and the reseed."""
@@ -315,22 +294,34 @@ def _setup(environ):
 def _run_turn(text, name):
     """Run a turn's source in __main__, echoing a final expression as the interactive
     interpreter does."""
-    import ast
     import linecache
 
-    tree = ast.parse(text, name, "exec")
-    last = None
-    if tree.body and isinstance(tree.body[-1], ast.Expr):
-        last = ast.Expression(tree.body.pop().value)
-    code = compile(tree, name, "exec")
+    try:
+        code, last = _compiled(text, name)
+    except MemoryError:
+        # The heap is full: let the session's reserve go (the reactor keeps it back, and takes
+        # it again at the next turn) and try once more.
+        if not _let_go():
+            raise
+        code, last = _compiled(text, name)
     linecache._register_code(code, text, name)
     main = sys.modules["__main__"].__dict__
-    _hold()
     exec(code, main)
     if last is not None:
         expr = compile(last, name, "eval")
         linecache._register_code(expr, text, name)
         sys.displayhook(eval(expr, main))
+
+
+def _compiled(text, name):
+    """A turn's code object, and its final expression's, if any, to echo."""
+    import ast
+
+    tree = ast.parse(text, name, "exec")
+    last = None
+    if tree.body and isinstance(tree.body[-1], ast.Expr):
+        last = ast.Expression(tree.body.pop().value)
+    return compile(tree, name, "exec"), last
 
 
 def _turn_reader(data, old):
@@ -353,7 +344,6 @@ def turn(source, environ, stdin=None):
     when it had no memory for them. A given stdin is `sys.stdin` for the turn, and the old reader
     comes back at its end unless the turn replaced it."""
     global _turns
-    _let_go()
     status = 0
     old = given = None
     try:
@@ -372,7 +362,7 @@ def turn(source, environ, stdin=None):
         status = _exit_code(exc)
     except BaseException as exc:
         if isinstance(exc, MemoryError):
-            _let_go()  # room to report it, and for the next turn to parse
+            _let_go()  # room to report it
         _report(exc, False)  # strips the <reactor> frames from exc.__traceback__
         sys.last_exc = exc
         sys.last_type, sys.last_value, sys.last_traceback = type(exc), exc, exc.__traceback__

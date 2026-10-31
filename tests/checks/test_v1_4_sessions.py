@@ -533,6 +533,17 @@ def test_a_heap_filled_to_its_last_bytes_is_not_the_end() -> None:
         assert after.stdout == b"ok\n" and s.ended is None, after
 
 
+def test_a_trivial_turn_runs_on_little_fuel() -> None:
+    """A turn after the first, on a heap with room, spends only its own work: the memory the
+    session keeps back for a full heap is not taken again on every turn, so `x = 1` runs inside
+    400,000 instructions and the session goes on."""
+    with _wp().Session(fuel=10**9) as s:
+        assert s.run("pass").exit_code == 0  # the first turn sets the session up
+        done = s.run("x = 1", fuel=400_000)
+        assert (done.exit_code, done.trapped, s.ended) == (0, None, None), done
+        assert s.run("print(x)").stdout == b"1\n"
+
+
 def test_mounts_and_grants_across_turns(guest_workdir) -> None:
     """Criterion 18."""
     wp = _wp()

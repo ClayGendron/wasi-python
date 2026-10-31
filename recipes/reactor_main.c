@@ -255,6 +255,29 @@ clear_unused_stack(void)
     }
 }
 
+/* Memory a session keeps back while a turn runs, so a turn after one that filled the heap can
+ * still parse its code: taken at a turn's start when not held, and let go only when the turn's
+ * compile or code raises MemoryError (_reactor._let_go), so a turn on a heap with room never
+ * takes it again. A turn's parse and run after a heap filled to its last bytes needed 64 KiB in
+ * the measurement; this is four times that. malloc, not a Python object: nothing zeroes it, and
+ * every allocator in this build is malloc's. */
+#define RESERVE_BYTES ((size_t)256 * 1024)
+static void *reserve = NULL;
+
+static PyObject *
+let_go(PyObject *module, PyObject *unused)
+{
+    int held = reserve != NULL;
+    free(reserve);
+    reserve = NULL;
+    return PyBool_FromLong(held);
+}
+
+static PyMethodDef reactor_functions[] = {
+    {"_let_go", let_go, METH_NOARGS, "Let the turn's reserve go: True if one was held."},
+    {NULL, NULL, 0, NULL},
+};
+
 static void run_private(const char *source);
 static void show_and_drop(void);
 static void drop_stdin(void);
@@ -344,7 +367,7 @@ init_interpreter(int fixed_hash_seed)
         abort();
     }
     turn_function = PyObject_GetAttrString(module, "turn");
-    if (turn_function == NULL) {
+    if (turn_function == NULL || PyModule_AddFunctions(module, reactor_functions) < 0) {
         PyErr_Print();
         abort();
     }
@@ -609,6 +632,9 @@ reactor_turn(int32_t ptr, int32_t len)
     turned = 1;
     if (!initialized) {
         init_interpreter(0); /* the plain reactor: a random hash secret, as CPython has */
+    }
+    if (reserve == NULL) {
+        reserve = malloc(RESERVE_BYTES); /* NULL on a full heap: the next turn tries again */
     }
     if (unfreeze_function == NULL) {
         /* The first turn, before any Python runs (the re-review's N1): not in init_interpreter,

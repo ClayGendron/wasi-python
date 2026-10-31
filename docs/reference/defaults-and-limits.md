@@ -77,6 +77,8 @@ The deadline is ten times `run`'s because making a snapshot is a setup step, run
 
 A call or session from a snapshot holds a private copy of the whole image while it lives, since the copy writes every page: N calls at once hold N times the image, plus the one copy the `Snapshot` holds. The image of every package is 203 MiB. A call's `memory_bytes` must be at least the image's size, else it raises `SnapshotMismatch` before any work.
 
+A session keeps 256 KiB of its `memory_bytes` back, so a turn's code can use the rest; the 256 KiB are let go when the turn's code or its parse meets a full heap, and taken again at the next turn, so the turn after one that filled the heap can still run.
+
 A checkpoint, `Session.checkpoint()`, takes no limit of its own: it arms no deadline and no fuel, and the session's lifetime bounds it. Its image is the session's whole memory, up to the session's `memory_bytes`. A session on the snapshot binary given `artifacts=` hashes the set's snapshot binary and zip once as it opens, about 0.1 s, so a checkpoint can name its set.
 
 A call from a snapshot ends without tearing down the modules the snapshot holds, so its fuel is its own work. Tearing them down, as a call without a snapshot does, would add about 1,546 million instructions to each call from the image of every package.
