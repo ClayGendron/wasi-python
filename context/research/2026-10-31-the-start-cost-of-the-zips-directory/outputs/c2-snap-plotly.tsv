@@ -1,0 +1,19 @@
+snapshot	python-stdlib.zip	base	68555647	
+snapshot	python-stdlib.zip	cd read	68983705	
+snapshot	python-stdlib.zip	unpack	123189077	
+snapshot	python-stdlib.zip	+names	156682581	
+snapshot	python-stdlib.zip	+paths	174801285	
+snapshot	python-stdlib.zip	+tuples	189883329	
+snapshot	python-stdlib.zip	+dict insert	212113461	
+snapshot	python-stdlib.zip	+implied (=recipe)	256363696	
+snapshot	python-stdlib.zip	recipe _fast	278240606	
+snapshot	python-stdlib.zip	recipe _fast gc off	270981604	
+snapshot	python-stdlib.zip	stage5 + implied_sorted	250699832	
+snapshot	python-stdlib.zip	recipe _fast + clear	278348520	
+snapshot	python-stdlib.zip	recipe _fast + dumps	308678492	
+snapshot	python-stdlib.zip	recipe _fast + dumps + loads	380527268	
+snapshot	python-stdlib.zip	len dumps	308835806	1176163
+snapshot	python-stdlib.zip	eq check	508367414	True True 9379
+snapshot	python-stdlib.zip	cache clear	66821434	
+snapshot	python-stdlib.zip	exit	11055858	
+snapshot	python-stdlib.zip	cache clear + exit	28666149	

@@ -1,0 +1,9 @@
+snapshot	seg-noplotly.zip	base	80261762	
+snapshot	seg-noplotly.zip	full read	248773802	
+snapshot	seg-noplotly.zip	lazy read	101749983	
+snapshot	seg-noplotly.zip	lazy read + load_all	241927181	
+snapshot	seg-noplotly.zip	lazy eq	465379308	908 7445 True False True
+snapshot	seg-noplotly.zip	full + import json	78625477	
+snapshot	seg-noplotly.zip	lazy + import json	80553417	
+snapshot	seg-noplotly.zip	full + import pandas	4895110547	
+snapshot	seg-noplotly.zip	lazy + import pandas	4775253970	['tzdata']

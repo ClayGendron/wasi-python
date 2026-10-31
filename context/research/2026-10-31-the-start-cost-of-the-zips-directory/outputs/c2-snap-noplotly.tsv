@@ -1,0 +1,19 @@
+snapshot	noplotly.zip	base	68555647	
+snapshot	noplotly.zip	cd read	68974009	
+snapshot	noplotly.zip	unpack	113060319	
+snapshot	noplotly.zip	+names	140080235	
+snapshot	noplotly.zip	+paths	154832705	
+snapshot	noplotly.zip	+tuples	167110763	
+snapshot	noplotly.zip	+dict insert	185263562	
+snapshot	noplotly.zip	+implied (=recipe)	219435055	
+snapshot	noplotly.zip	recipe _fast	237215005	
+snapshot	noplotly.zip	recipe _fast gc off	229995080	
+snapshot	noplotly.zip	stage5 + implied_sorted	215005806	
+snapshot	noplotly.zip	recipe _fast + clear	237293992	
+snapshot	noplotly.zip	recipe _fast + dumps	262082612	
+snapshot	noplotly.zip	recipe _fast + dumps + loads	319746606	
+snapshot	noplotly.zip	len dumps	262253176	907313
+snapshot	noplotly.zip	eq check	420706760	True True 7445
+snapshot	noplotly.zip	cache clear	66821434	
+snapshot	noplotly.zip	exit	11055858	
+snapshot	noplotly.zip	cache clear + exit	28666149	

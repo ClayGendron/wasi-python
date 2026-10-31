@@ -1,0 +1,6 @@
+image	call	fuel	exit	image_bytes
+I0 nothing	pass	662736	0	41943040
+I1 copy of the directory (new keys, new tuples)	pass	665022	0	41943040
+I2 9379 new strings in a list	pass	664416	0	41943040
+I3 dict of 9379 small ints	pass	664654	0	41943040
+I4 two copies	pass	663529	0	41943040
