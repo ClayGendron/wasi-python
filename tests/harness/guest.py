@@ -806,8 +806,9 @@ class Turn:
 class Turns:
     """One instance of the guest kept across calls, driven raw:
     `turn(code)` and `prepare(code)` write the code through `host_alloc` and call their export;
-    `turn_raw(ptr, length)`, `run()` and `shutdown()` call the exports as they are; `image()` reads
-    the memory whole. Each call gets `fuel` and reports only what it wrote and the fuel it ran.
+    `turn_raw(ptr, length)`, `run()`, `shutdown()` and `checkpoint(enter)` call the exports as they
+    are; `image()` reads the memory whole. Each call gets `fuel` and reports only what it wrote and
+    the fuel it ran.
     The door's host function, if any, is called with this object and the request, so a check can
     call back into the instance from the door. With `answered`, the driver answers entropy, the
     clocks and a file's inode number and times as `run` does, so an instance's memory repeats;
@@ -950,6 +951,9 @@ class Turns:
 
     def shutdown(self, fuel: int = DEFAULT_FUEL) -> Turn:
         return self._call(lambda: self.exports["shutdown"](self.store), fuel)
+
+    def checkpoint(self, enter: int, fuel: int = DEFAULT_FUEL) -> Turn:
+        return self._call(lambda: self.exports["checkpoint"](self.store, enter), fuel)
 
     def call_from_door(self, caller: str, *args: int) -> int:
         """Call an export from inside a door call (the store is the caller's); its value."""

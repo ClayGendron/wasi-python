@@ -236,6 +236,7 @@ files = [
   "tests/checks/test_v1_3_the_zips_directory.py",
   "tests/checks/test_v1_4_starting_image.py",
   "tests/checks/test_v1_4_prepare.py",
+  "tests/checks/test_v1_4_checkpoint.py",
   "tests/checks/test_v1_3_matplotlib.py",
   "tests/checks/test_v1_4_public_api.py",
 ]

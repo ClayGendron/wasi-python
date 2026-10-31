@@ -199,18 +199,20 @@ def good(work) -> Path:
 
 
 def test_the_session_exports_have_their_types(good, work) -> None:
-    """`turn`, `turn_input` and `prepare` are (i32, i32) -> i32 and `shutdown` () -> i32; a
-    set from before sessions names all four as missing."""
+    """`turn`, `turn_input` and `prepare` are (i32, i32) -> i32, `shutdown` () -> i32 and
+    `checkpoint` (i32) -> i32; a set from before sessions names all five as missing."""
     for b in ("python.wasm", "python-snapshot.wasm"):
         assert rules.export_type_errors(good / b) == []
     old = wat.build(work / "old", "python-snapshot.wasm", wat.BEFORE_SESSIONS)
     assert rules.export_type_errors(old) == [
+        "python-snapshot.wasm: no function export checkpoint",
         "python-snapshot.wasm: no function export prepare",
         "python-snapshot.wasm: no function export shutdown",
         "python-snapshot.wasm: no function export turn",
         "python-snapshot.wasm: no function export turn_input",
     ]
     assert rules.export_errors(old, rules.SNAPSHOT_EXPORTS) == [
+        "python-snapshot.wasm: no export checkpoint",
         "python-snapshot.wasm: no export prepare",
         "python-snapshot.wasm: no export shutdown",
         "python-snapshot.wasm: no export turn",

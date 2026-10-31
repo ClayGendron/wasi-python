@@ -30,6 +30,7 @@ test_v1_3_matplotlib = 22_831_161_782
 test_v1_3_regex = 2_050_616_716
 test_v1_3_scipy = 21_484_846_680
 test_v1_3_the_zips_directory = 29_392_814_084
+test_v1_4_checkpoint = 185_698_968  # twice its largest fuel measured at its first build
 test_v1_4_embedding = 10_176_733_854
 test_v1_4_prepare = 98_359_580
 test_v1_4_starting_image = 196_856_062

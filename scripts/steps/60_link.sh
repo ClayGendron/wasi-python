@@ -142,7 +142,8 @@ done
 
 # The reactor: CPython's own compile and link commands for its main, read with `make -n`, with
 # Programs/python.c swapped for the reactor's entry points. The link wraps the four WASI calls whose
-# answers a snapshot would otherwise capture (recipes/reactor_main.c, "pinned"), and iconv_open,
+# answers a snapshot would otherwise capture (recipes/reactor_main.c, "pinned"), poll_oneoff, whose
+# absolute monotonic waits a store resumed from a checkpoint shifts into its own time, and iconv_open,
 # whose wrapper refuses GB18030, which wasi-libc decodes wrongly without an error
 # (recipes/iconv_refusals.c), and fcntl, whose wrapper answers F_DUPFD and
 # F_DUPFD_CLOEXEC with ENOTSUP, which wasi-libc 34 answers EINVAL on preview1
@@ -166,7 +167,7 @@ for g in $GUARDS; do
 "
   guard_objects="$guard_objects Modules/$g.o"
 done
-WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close -Wl,--wrap=fcntl -Wl,--wrap=freopen"
+WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_poll_oneoff -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close -Wl,--wrap=fcntl -Wl,--wrap=freopen"
 link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-model=reactor $WRAP -Wl,--Map=$L/python.map -o $OUT/python.wasm Modules/reactor_main.o$guard_objects#")
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \

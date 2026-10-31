@@ -91,7 +91,7 @@ with Session(grants=[Grant(keep, "/keep")]) as later:
 
 ## Keep trust levels apart
 
-A session is one trust domain. An earlier turn can hook `builtins`, `print` or the runtime's own module, and so read every later turn's source, rewrite what it prints, or make it report exit 0. A secret any turn put in the guest stays readable for the rest of the session. Never send a more trusted turn, such as a check whose exit code you believe, after less trusted code in the same session: open a new session for it.
+A session is one trust domain. An earlier turn can hook `builtins`, `print` or the runtime's own module, and so read every later turn's source, rewrite what it prints, or make it report exit 0. A secret any turn put in the guest stays readable for the rest of the session. Never send a more trusted turn, such as a check whose exit code you believe, after less trusted code in the same session: open a new session for it. The same holds for a [checkpoint](snapshots.md#checkpoint-a-session-and-fork-it): every start from it runs the session's hooks and can read every byte the session read.
 
 While it is open, a session holds on the host its store, every file its guest opened, up to `memory_bytes` of memory and up to `memory_bytes` of mount staging. For untrusted code, give a short `idle_s` and call `close()` promptly.
 

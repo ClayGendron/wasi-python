@@ -1,6 +1,6 @@
 # 162: A session's state is a snapshot
 
-- **Status:** drafted 2026-10-30, to be reviewed before it is built (structural; the public API; the guest's exports and the build recipe). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). Amended the same day against its pre-build review, `../reviews/162-a-sessions-state-is-a-snapshot-spec-2026-10-30.md`, every finding taken; its Disposition says where.
+- **Status:** **built 2026-10-30** on `spec/162-a-sessions-state-is-a-snapshot`, rebased onto `a1acec5c` (159's merge), before its pull request and review; its rows pass on a local build of the set (both binaries export `checkpoint`), and Decision 12's results-mode row waits on 163. Before: drafted 2026-10-30 and reviewed before it was built (structural; the public API; the guest's exports and the build recipe). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). Amended the same day against its pre-build review, `../reviews/162-a-sessions-state-is-a-snapshot-spec-2026-10-30.md`, every finding taken; its Disposition says where.
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
 - **Kind:** **structural** (a public method, a session step, the file's header) and **build-class** (a new export; constitution §5.6). `src/`: `runner.py`, `_sessions.py`, `_snapshot.py`, `_snapshot_make.py`. Recipe: `reactor_main.c`, `reactor_bootstrap.py`, `60_link.sh`; both binaries change, the zip does not. Judge: `tests/public_api.txt`, `tests/harness/artifacts.py`, `tests/harness/guest.py`, a new `tests/checks/test_v1_4_checkpoint.py` and its cap in `tests/lint/budget.toml`.
@@ -108,6 +108,12 @@ Unit rows, `tests/unit/test_snapshot.py`: a header without the new fields loads 
 ### 13. The documentation
 
 `docs/how-to/snapshots.md` gains "Checkpoint a session, and fork it" (what carries, open files, randomness, and that a fork reads everything the session read), replacing line 126; `docs/how-to/sessions.md`, a sentence under "Keep trust levels apart"; `docs/reference/`'s errors, limits, glossary and API pages.
+
+### 14. A session keeps memory back for a full heap
+
+Added at the build, from the pull request's run (`test_v1_4_sessions.py::test_memory_is_per_session_and_not_a_trap` lost its pass on Linux and Windows) and its review. A turn after one that filled the heap parsed its code in whatever the fill left, a few KB, and this change's larger bootstrap took about 8 KB of them. The reactor now keeps a block of `malloc` back (every allocator in this build is `malloc`'s, and nothing zeroes it, so taking it costs a few instructions): taken at a turn's start when not held, let go by `_reactor._let_go()` only when the turn's compile raises `MemoryError` (which is then tried once more) or its code does (before the report), and taken again at the next turn. A turn on a heap with room never takes it again, so its fuel is its own.
+
+Its size, 256 KiB, is four times the measured need: with the heap filled to its last bytes and then 64 KiB of it freed, the next turn parsed and ran; with none freed, it did not (the set before this change, `memory_bytes` 64 MiB). A turn's code can use `memory_bytes` less 256 KiB. Rows: `test_a_heap_filled_to_its_last_bytes_is_not_the_end` and `test_a_trivial_turn_runs_on_little_fuel` (`x = 1` in 400,000 instructions).
 
 ## Intent
 

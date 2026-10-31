@@ -119,6 +119,7 @@ class Session
     param *exc: object  var-positional
   property ended -> str | None
   property shutdown_outcome -> str | None
+  def checkpoint -> Snapshot
   def run -> Completed
     param code: str  positional
     param fuel: int | None = <default>  keyword-only
@@ -162,6 +163,8 @@ dataclass SnapshotOrigin: frozen
   field stdlib_zip_sha256: str = required
   field wasi_python: str = required
   field made_at: str = required
+  field kind: str = 'prelude'
+  field parent_sha256: str | None = None
 dataclass Stat: frozen
   field kind: str = required
   field size: int = 0

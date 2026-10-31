@@ -16,6 +16,10 @@ A call from a starting image runs in the image's own `__main__`, the module the 
 in, so a call means what one program of the code and the call's means. It ends through `_end`,
 without Python's teardown of every module the image holds: the call's own names are dropped and
 collected, so what they held is finalized, and a writer it hung elsewhere is flushed.
+
+A start from a checkpoint, a live session's memory after its turns, is a starting image's call
+too: its first run or turn calls `_resume`, which takes the session's `__main__` as the image's
+and puts the import path back, and its first turn sets up as a session's first turn does.
 """
 
 import os
@@ -31,6 +35,7 @@ IGNORED = {"-I", "-E", "-s", "-B"}
 # module type): captured once, before any program, so a nested run (spec 054's prelude) cannot
 # carry a program's names into the next __main__ (spec 073, Decision 1).
 _MAIN_NAMES = dict(sys.modules["__main__"].__dict__)
+_BASE_PATH = tuple(sys.path)  # the stdlib zip alone: a start from a checkpoint imports from it
 _prepared = False  # the host's code ran here through prepare: this instance is a starting image
 _NOTHING = object()
 _image_underscore = _NOTHING  # builtins._ as the image holds it
@@ -256,8 +261,6 @@ def run(argv, environ):
 # Sessions (spec 055, Decision 3): one interpreter across turns.
 _turns = 0  # the turns run in this instance: each one's code is named <turn N>
 _quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
-
-
 def _setup(environ):
     """The first turn's setup, once and unnumbered: the environment, the import path from argv,
     argv as the interactive interpreter has it, exit() and quit() rebound, and the reseed."""
@@ -291,14 +294,16 @@ def _setup(environ):
 def _run_turn(text, name):
     """Run a turn's source in __main__, echoing a final expression as the interactive
     interpreter does."""
-    import ast
     import linecache
 
-    tree = ast.parse(text, name, "exec")
-    last = None
-    if tree.body and isinstance(tree.body[-1], ast.Expr):
-        last = ast.Expression(tree.body.pop().value)
-    code = compile(tree, name, "exec")
+    try:
+        code, last = _compiled(text, name)
+    except MemoryError:
+        # The heap is full: let the session's reserve go (the reactor keeps it back, and takes
+        # it again at the next turn) and try once more.
+        if not _let_go():
+            raise
+        code, last = _compiled(text, name)
     linecache._register_code(code, text, name)
     main = sys.modules["__main__"].__dict__
     exec(code, main)
@@ -306,6 +311,17 @@ def _run_turn(text, name):
         expr = compile(last, name, "eval")
         linecache._register_code(expr, text, name)
         sys.displayhook(eval(expr, main))
+
+
+def _compiled(text, name):
+    """A turn's code object, and its final expression's, if any, to echo."""
+    import ast
+
+    tree = ast.parse(text, name, "exec")
+    last = None
+    if tree.body and isinstance(tree.body[-1], ast.Expr):
+        last = ast.Expression(tree.body.pop().value)
+    return compile(tree, name, "exec"), last
 
 
 def _turn_reader(data, old):
@@ -345,6 +361,8 @@ def turn(source, environ, stdin=None):
     except SystemExit as exc:
         status = _exit_code(exc)
     except BaseException as exc:
+        if isinstance(exc, MemoryError):
+            _let_go()  # room to report it
         _report(exc, False)  # strips the <reactor> frames from exc.__traceback__
         sys.last_exc = exc
         sys.last_type, sys.last_value, sys.last_traceback = type(exc), exc, exc.__traceback__
@@ -411,6 +429,26 @@ def prepare(source, environ):
         _image_underscore = builtins.__dict__.get("_", _NOTHING)
         _prepared = True
     return status
+
+
+def _resume():
+    """The start of an instance a checkpoint's image was copied into, before its first run or
+    turn: the import path the bootstrap began with, and the importer cache without the session's
+    other entries, so the start imports only from its own path; the session's `__main__` taken
+    as the image's, with every name it holds, so a call's end drops only what the call bound; and
+    the session's heap frozen out of the collector's way, as a starting image's is."""
+    global _MAIN_NAMES, _prepared, _image_underscore, _image_main
+    import builtins
+    import gc
+
+    sys.path = list(_BASE_PATH)
+    for key in [k for k in sys.path_importer_cache if k not in _BASE_PATH]:
+        del sys.path_importer_cache[key]
+    _image_main = sys.modules["__main__"]
+    _MAIN_NAMES = dict(_image_main.__dict__)
+    _image_underscore = builtins.__dict__.get("_", _NOTHING)
+    _prepared = True
+    gc.freeze()
 
 
 def _end():
