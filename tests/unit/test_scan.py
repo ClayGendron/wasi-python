@@ -4061,6 +4061,16 @@ def test_the_red_run_issue_opens_on_a_red_merge_or_weekly_run_and_closes_on_a_gr
     assert acts(MERGE_OUTPUTS, {**PULL_REQUEST, "base_ref": "main"}, red=True) == set()
 
 
+def test_a_merges_run_whose_plan_failed_opens_the_issue_and_no_other_run_does() -> None:
+    def acts(context):
+        return scan.red_run_issue_acts(REAL_WORKFLOW, {}, context, red=True, plan_failed=True)
+
+    assert acts(PUSH_DEV) == {"open"}
+    assert acts(PULL_REQUEST) == set()
+    assert acts(SCHEDULE) == set()
+    assert acts({**PUSH_DEV, "ref": "refs/tags/v0.1.3", "ref_type": "tag"}) == set()
+
+
 def test_a_workflow_without_the_weekly_input_is_named() -> None:
     text = REAL_WORKFLOW.replace(scan.WEEKLY_INPUT, "", 1)
     assert "workflow_dispatch has no weekly input" in scan.weekly_errors(text)

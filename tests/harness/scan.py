@@ -2677,10 +2677,13 @@ def weekly_errors(text: str) -> list[str]:
 RED_RUN_JOB = "red-run-issue"
 RED = "(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))"
 # The job runs on the weekly run when it is red, and on every run after a merge into dev (a push
-# the plan accepts), whose red result opens or comments on the issue and whose green one closes it.
+# the plan accepts), whose red result opens or comments on the issue and whose green one closes it;
+# and on a push to dev whose plan failed, which has no outputs to say it was a merge.
 RED_RUN_IF = (
     f"${{{{ always() && ((needs.plan.outputs.weekly == 'true' && {RED}) || "
-    "(needs.plan.outputs.accept == 'true' && github.event_name == 'push')) }}"
+    "(needs.plan.outputs.accept == 'true' && github.event_name == 'push') || "
+    "(github.event_name == 'push' && github.ref == 'refs/heads/dev' "
+    "&& needs.plan.result == 'failure')) }}"
 )
 RED_RUN_STEPS = {
     "open": (
@@ -2730,17 +2733,26 @@ def red_run_issue_errors(text: str) -> list[str]:
 
 
 def red_run_issue_acts(
-    text: str, outputs: dict[str, str], context: dict[str, str], red: bool
+    text: str,
+    outputs: dict[str, str],
+    context: dict[str, str],
+    red: bool,
+    plan_failed: bool = False,
 ) -> set[str]:
     """What the red-run issue job does on one run: "open" when its open step runs, "close" when
-    its close step does, nothing when the job does not run. `red`: a job the run judges with
-    failed, so the gather after it was skipped; otherwise every job it needs succeeded."""
+    its close step does, nothing when the job does not run. `red`: a judge job failed, so the
+    gather after it was skipped; otherwise every job it needs succeeded. `plan_failed`: the
+    decision job itself failed, so every other job was skipped and `outputs` is empty."""
     jobs = workflow_jobs(without_comments(text))
     job = jobs.get(RED_RUN_JOB)
     if job is None:
         return set()
-    ran = {n: not (red and n == "gather") for n in _needs(job)}
-    results = ["failure"] if red else []
+    if plan_failed:
+        ran = {n: False for n in _needs(job)}
+        results = ["plan"]
+    else:
+        ran = {n: not (red and n == "gather") for n in _needs(job)}
+        results = ["judge-linux"] if red else []
     if not _evaluate(_job_field(job, "if") or "", outputs, context, ran, results):
         return set()
     names = {name: act for act, (name, _, _) in RED_RUN_STEPS.items()}
@@ -2764,19 +2776,24 @@ def _evaluate(
     outputs: dict[str, str],
     context: dict[str, str],
     ran: dict,
-    failed: list[str] | None = None,
+    failed: Iterable[str] = (),
 ) -> bool:
     """One job's if: under the plan's outputs, the event's github context and which of its needs
     ran (each succeeded) or were skipped; nothing fails or is cancelled in the run it models but
-    the results `failed` adds to `needs.*.result` (a job that failed, read by a red run's model)."""
+    the needs named in `failed` (read by a red run's model)."""
     expr = cond.strip()
     if expr.startswith("${{") and expr.endswith("}}"):
         expr = expr[3:-2].strip()
-    results = ["success" if r else "skipped" for r in ran.values()] + list(failed or ())
+    failed = set(failed)
+
+    def result(name: str) -> str:
+        return "failure" if name in failed else "success" if ran.get(name) else "skipped"
+
+    results = [result(n) for n in ran]
     subs = [
         (r"needs\.\*\.result", "RESULTS"),
         (r"needs\.plan\.outputs\.([\w-]+)", lambda m: repr(outputs.get(m[1], ""))),
-        (r"needs\.([\w-]+)\.result", lambda m: repr("success" if ran.get(m[1]) else "skipped")),
+        (r"needs\.([\w-]+)\.result", lambda m: repr(result(m[1]))),
         (r"needs\.[\w-]+\.outputs\.[\w-]+", "''"),
         (r"github\.([\w.]+)", lambda m: repr(context.get(m[1], ""))),
         (r"(?:vars|inputs|secrets)\.[\w-]+", "''"),

@@ -1338,9 +1338,10 @@ jobs:
     # judges with failed or was cancelled, this opens one issue titled by the red legs, or comments
     # on the one open of its kind: dev is broken on those lines, and the merged change's author
     # fixes it forward the same day or reverts it, while other pull requests keep merging. A green
-    # run after a merge closes the open one. No other run touches an issue.
+    # run after a merge closes the open one. A merge's run whose plan itself failed is red too, with
+    # no outputs to read. No other run touches an issue.
     needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
-    if: ${{ always() && ((needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) || (needs.plan.outputs.accept == 'true' && github.event_name == 'push')) }}
+    if: ${{ always() && ((needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) || (needs.plan.outputs.accept == 'true' && github.event_name == 'push') || (github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.plan.result == 'failure')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

@@ -728,6 +728,16 @@ def test_the_red_run_issue_opens_on_a_red_merge_or_weekly_run_and_on_nothing_els
             got = scan.red_run_issue_acts(text, outputs, context, red)
             if got != wanted:
                 errors.append(f"{case}, {'red' if red else 'green'}: the issue job does {got}")
+    # A run whose plan failed has no outputs and judged nothing: on a push to dev it is a red dev
+    # (the plan cannot say whether the push was a merge or an acceptance), so it opens the issue;
+    # on any other event it touches none.
+    for case, (event, *_) in RED_RUN_EVENTS.items():
+        name, ref, base, *_ = event
+        context = {"event_name": name, "ref": ref, "ref_type": "branch", "base_ref": base}
+        got = scan.red_run_issue_acts(text, {}, context, red=True, plan_failed=True)
+        wanted = {"open"} if (name, ref) == ("push", DEV) else set()
+        if got != wanted:
+            errors.append(f"{case}, its plan failed: the issue job does {got}")
     assert not errors, scan.report(errors)
 
 

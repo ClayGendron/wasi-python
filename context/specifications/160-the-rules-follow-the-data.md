@@ -23,7 +23,7 @@ The ruleset `dev takes pull requests` (id 25925120) changes in two places: `stri
 
 ### 3. One signature
 
-`reviews/README.md`: the reviewer signs once. A Low is written out in full and needs no second signing; the author answers it in the pull request or fixes it in the same commit as any other finding. A High or a Medium that needs code is fixed in one commit for the whole round, and the reviewer reads that commit and signs once more. The pull request template gains the line "Fix commits: one per review round". `ci-status` and `review` are unchanged: the review file still follows the last code commit.
+`reviews/README.md`: the reviewer signs once. A Low is written out in full; one answered in writing, or one that touches only `context/`, needs no second signing, and one fixed in code goes into the round's one fix commit, which the reviewer reads before signing once more, so constitution §5.6 stands unamended. A High or a Medium that needs code is fixed in one commit for the whole round, and the reviewer reads that commit and signs once more. The pull request template gains the line "Fix commits: one per review round". `ci-status` and `review` are unchanged: the review file still follows the last code commit.
 
 ### 4. The release reviews run beside the last changes
 
@@ -65,11 +65,11 @@ In: the seven decisions. Out: the organization move; the merge queue; rewriting 
 
 ## Landing notes
 
-- Branch `spec/160-the-rules-follow-the-data` from the docs branch at `7f145fa5`: `16cf0147` (the change), `a7608ce4` (two docstrings rewrapped), then these notes. No pull request yet.
-- Seen failing first (EXECUTED): the 16 new unit rows and the two new rules checks failed before the code, on the missing `scan.release_notes_read_errors`, `scan.red_run_issue_errors`, `scan.red_run_issue_acts` and `budget.length_over`.
-- Decision 1 as built: `weekly-issue` is now `red-run-issue`, with `issues: write` (alone in the workflow) and `actions: read` to name the red legs. It opens or comments on a red run after a merge or a red weekly run, and a green run after a merge closes the issue. So criterion 3 reads: it opens on a red push and a red weekly run, and closes on a green push; nothing else touches an issue. The open and close scripts were run in bash against a stub `gh`.
-- Decision 2: §4.14 did not carry the quoted words; the new sentence is added there, and the old words in `release.yml`'s header and one rules docstring are replaced. One `gh api` read of ruleset 25925120 gave `build/rulesets/dev.json` in this worktree: everything kept, strict off, `review` added.
-- The owner runs: `gh api -X PUT repos/ClayGendron/wasi-python/rulesets/25925120 --input /Users/claygendron/Git/Repos/wasi_python-wt/160-the-rules-follow-the-data/build/rulesets/dev.json`, only once 159's `review` job is on `dev`, since a required check no run reports holds every pull request. The read-back goes here.
-- Decision 4: 0.1.2's security review has no `## Release notes` section, so the rule also admits a release up to 0.1.2 whose own `-release-notes-review-` file ends with its verdict; 0.1.2 passes unchanged.
-- Decision 5: the warning leaves out specifications dated before 2026-10-30, by the Date line or the header's first date. On this tree it names one: 159 at 2,009 words. Without that limit it named 248 lines.
-- Results (EXECUTED, 2026-10-30): fast tier 3431 passed, 769 skipped, 0 fail, 654 blocked by the absent artifact set (environmental); `tests/unit tests/lint tests/checks/test_rules.py` 3384 passed, 79 skipped, rules 126/128 (2 blocked: artifact dir, prior-art clones); `tests/lint` 13 passed; ruff clean.
+- Branch `spec/160-the-rules-follow-the-data`, pull request #54, run 41151140107; commits `6e004956` (the change), `257fa0ab` (two docstrings rewrapped), `53d80c04` (status and notes), then the round-1 fix commit after it. Review: `../reviews/160-the-rules-follow-the-data-pr-2026-10-30.md`.
+- Lands after 159's pull request, which adds the `review` job that `AGENTS.md` step 6 and the contributing page name.
+- Seen failing first (EXECUTED): the 17 new unit rows and the two new rules checks, before the code; in round 1, the plan-failed rows (`a merge into dev, its plan failed: the issue job does set()`).
+- Decision 1: `weekly-issue` is now `red-run-issue`, holding `issues: write` alone in the workflow and `actions: read` to name the red legs. It opens or comments on a red run after a merge, a red weekly run, or a push to `dev` whose plan failed, and closes the issue on a green run after a merge. So criterion 3 reads: opens on a red push or weekly run, closes on a green push, nothing else.
+- Decision 2: the quoted words were not in §4.14 but in `release.yml`'s header and a rules docstring, both replaced; §4.14 gains the new sentence. One `gh api` read gave `build/rulesets/dev.json` in this worktree: strict off, `review` added, all else kept.
+- The owner runs: `gh api -X PUT repos/ClayGendron/wasi-python/rulesets/25925120 --input /Users/claygendron/Git/Repos/wasi_python-wt/160-the-rules-follow-the-data/build/rulesets/dev.json`, once 159's `review` job is on `dev`. The read-back goes here.
+- Decision 3 keeps §5.6: a Low fixed in code goes into the round's fix commit, which the reviewer reads. Decision 4: 0.1.2's security review has no `## Release notes` section, so a release up to 0.1.2 may keep its own notes-review file. Decision 5: the warning skips specifications dated before 2026-10-30, naming 159 alone today.
+- Results (EXECUTED, 2026-10-30): before round 1, fast tier 3431 passed, 0 fail, 654 blocked by the absent artifact set; at round 1, `tests/unit tests/lint tests/checks/test_rules.py` 3384 passed, 79 skipped, rules 126/128 (2 blocked: artifact dir, prior-art clones), lost 0; ruff clean.

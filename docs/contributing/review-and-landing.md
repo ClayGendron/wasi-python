@@ -48,7 +48,7 @@ Nothing lands unreviewed. A *fresh reviewer* reads every pull request that is mo
 
 The reason is simple. An author reads the change they meant to write. A fresh reader reads the change that is actually there. So the reviewer gets the specification and the diff, never the author's summary of them, and checks one against the other.
 
-There is one review per pull request, one fix commit per review round, and one signature. The author answers each finding in the pull request and fixes a round's findings in one commit on the same branch. A Low finding needs no second signing. When the fix commit fixes a High or a Medium finding, the reviewer reads it and signs once more. The review file is committed after the last code commit, so the review covers the code that merges. A review is at most 800 words outside its findings.
+There is one review per pull request, one fix commit per review round, and one signature. The author answers each finding in the pull request and fixes a round's findings in one commit on the same branch. A Low finding answered in writing, or one that changes only the project's records, needs no second signing. Every finding fixed in code, a Low among them, goes into the round's one fix commit, and the reviewer reads that commit before signing once more. The review file is committed after the last code commit, so the review covers the code that merges. A review is at most 800 words outside its findings.
 
 `ci-status` holds the review. It is red unless the branch carries a review file, named after its news file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". The author is the one the pull request's description names, and the session on each code commit. A reviewer that the author's session started fresh, given only the specification and the diff, says so on its reviewer line. This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
 
@@ -90,7 +90,7 @@ Reviews are time-boxed, and each review states its box. Within it, the reviewer:
 6. **Ranks its findings**:
     - **High**: a wrong answer or an unsafe default. The change does not land.
     - **Medium**: a guarantee without evidence. The review says what evidence would close it.
-    - **Low**: a small fix, written out in full. The author answers it or fixes it in the round's one commit, and it needs no second signing.
+    - **Low**: a small fix, written out in full. Answered in writing, it needs no second signing; fixed in code, it goes into the round's one fix commit, which the reviewer reads.
 7. **Gives a verdict in one sentence**: it lands, or it does not land yet, naming what stands.
 
 ## How structure is judged
