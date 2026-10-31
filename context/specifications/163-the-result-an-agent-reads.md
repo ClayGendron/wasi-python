@@ -1,6 +1,6 @@
 # 163: The result an agent reads
 
-- **Status:** drafted 2026-10-30, to be reviewed before it is built (public API, structural, and the build recipe). The owner chose it on 2026-10-30 (`../decisions.md`, "The scope of 0.1.3"). Revised 2026-10-30 against its pre-build review, `../reviews/163-the-result-an-agent-reads-spec-2026-10-30.md` ("Fit to build after amendments"), every finding taken (its Disposition). Decision 4 waits on the owner's amendment of constitution §4.4 (the last section).
+- **Status:** **built 2026-10-31** on `spec/163-the-result-an-agent-reads`, rebased onto `30566232` (166's merge, after #72's §4.4 amendment, `548affd8`), before its pull request and review (Landing notes). Before: drafted 2026-10-30 and reviewed before it was built (public API, structural, and the build recipe); the owner chose it on 2026-10-30 (`../decisions.md`, "The scope of 0.1.3"); revised the same day against its pre-build review, `../reviews/163-the-result-an-agent-reads-spec-2026-10-30.md` ("Fit to build after amendments"), every finding taken (its Disposition); Decision 4 built on the owner's amendment of constitution §4.4 of 2026-10-31.
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
 - **Kind:** **structural**: a public class, two `Completed` fields, `src/wasi_python/_results.py` (at most 400 lines), and the listed lengths of `runner.py:run`, `run_async` and `Session.__init__` raised and claimed (spec 142). Build recipe (constitution §5.6): the bootstrap and two zip files change both binaries, the zip and `MANIFEST`. No pin, patch, or guest import or export.
@@ -116,7 +116,26 @@ Out: displays streamed while the guest runs; an `IPython.display` stand-in (a mo
 
 ## Landing notes
 
-To be written at the landing.
+Built 2026-10-31, before its pull request and review; the run, the review and the merge are added at the landing.
+
+**What was built.** `src/wasi_python/_results.py` (`Display`, `_ResultHost`, `_check_results`, `_flag`, `_door_hosts`; 269 lines), the fields in 164's `_call._completed`, `_CheckedCall.results`, the door's hosts made by `_results._door_hosts` in `_call._instance` and `_sessions._arm`, and the keywords in `runner.py` (1,476 lines). The guest: `recipes/reactor_bootstrap.py` (`_take_mode`, `_set_mode`, `_show`, `_cell_begin`, `_cell_end`), `recipes/guest/host/display.py` and `figures.py`, both added to the zip by `scripts/steps/70_zip.sh`. Lengths: `run` 173→182, `run_async` 208→217, `Session.__init__` 178→187 (claimed); `_instance` 147→146; `_checked` stays at 80, with the cancel check moved to `_limits._check_cancel` (which `Session._turn_args` now shares); `_turn_inside` grew by no line.
+
+**Seen failing first.** Unit rows (`tests/unit/test_results.py`, 35): on `dev`'s `src/` (d64f8146), collection fails, `TypeError: _CheckedCall.__init__() got an unexpected keyword argument 'results'`. Goal rows (`tests/checks/test_v1_4_results.py`, 11) on `dev`'s code and set: seven `TypeError: run() got an unexpected keyword argument 'results'`, three the same for `Session.__init__`, and `test_without_results_stdout_is_todays` `AttributeError: 'Completed' object has no attribute 'value'`. Logs under the worktree's `build/163/`.
+
+**The local set.** `scripts/build.sh`, all 20 steps, on d64f8146's pins plus this change (before 166's move): python.wasm 99,442,041 bytes (+4,736 against `dev`'s), python-snapshot.wasm 104,566,690 (+8,726), python-stdlib.zip 53,922,068 (+6,794). On it the eleven goal rows passed at their first run, and with them `test_v1_4_checkpoint`, `_prepare`, `_starting_image`, `_sessions`, `_public_api` and `test_v1_1_artifact_set` (156 passed, 1 skipped, after the public API's export list named `Display`). The pull request's run judges the set on 166's pins.
+
+**The pre-build review's last Low.** A `run` from a checkpoint sets the mode both ways, as `_setup` does: `_reactor.run` calls `_set_mode` at every start, so a call without `results=` from a results session's checkpoint prints, has no `display` and has Agg back (`test_a_fork_of_a_checkpoint_takes_its_own_starts_mode`).
+
+**The builder's readings, for the review.**
+1. The pre-read bound is 6 × the room left plus 1 KiB for a frame's keys and its list of cut types (`ENVELOPE`). Decision 7 says 6 × the room; without the kibibyte a small room refuses even a display whose text fits, since the envelope alone is near 100 bytes.
+2. Every frame the result host answers itself counts as a record: a kept display, a `too_large`, a `protocol` refusal. So a loop of forged frames ends at 1,000 records as a loop of displays does. Tool frames go to the tool host and count only there.
+3. `text/plain` is always `repr(obj)`; a bundle's own `text/plain` is ignored, as Decision 2's "(always, the repr)" reads.
+4. `display(fig)` of a matplotlib `Figure` adds its PNG, as Jupyter's formatter does; the backend's `show()` and the end of a cell use the same rendering.
+5. The guest prints a display's text against no host, a door fault, an answer not in protocol 1, or a refusal other than `too_large`; it stops silently after `"kept": false`, a `too_large` with no room, or a second `too_large`.
+6. A set without `host/display.py` is not refused: its bootstrap skips `-Xhost-results` as any `-X` option, so `results=True` there prints the value and returns none. An `ArtifactsMissing` like `tools=`'s would need a second manifest line; not built.
+7. The figures flushed at a cell's end in figures mode are flushed whatever backend the program chose, as Decision 9 reads; `show()` sends them only under `host.figures`.
+8. The result host reaches the tool protocol's frame rules through one late import in its constructor (`tests/unit/test_runner_package.py`'s `LATE` lists it), so `import wasi_python` still loads no tool module.
+9. 162's results-mode row (a fork of a checkpoint in either mode) is carried here, as 162's pull request said the second to land would.
 
 ## For the owner to decide
 
