@@ -112,7 +112,7 @@ HARNESS_FILES = (
     "tests/release_shards.toml",
     "tests/known_gaps.toml",
     "context/embedders.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims.toml",
     ".gitattributes",
 )
 
@@ -166,14 +166,14 @@ def agents_only(changed: list[str]) -> bool:
 
 # The release's preparation: bump's version line and date's moves, with the release's reviews.
 VERSION_FILE = "src/wasi_python/__init__.py"
-LEDGER_FILES = ("context/release-tier-claims.toml", "context/release-tier-claims-history.md")
+LEDGER_FILES = ("context/release-claims.toml", "context/release-claims-history.md")
 
 
 def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bool) -> bool:
     """Whether a pull request into dev is the release's preparation, bump and date together:
     `changes` its (status, path) pairs. Its one change outside documentation is the version line
     of the package (`version_line_only`: nothing else in that file moves); bump removes every news
-    file, so it carries none of its own, and date moves the release-tier ledger. It is judged as
+    file, so it carries none of its own, and date moves the release ledger. It is judged as
     the release's documentation change, since the release pull request judges it whole."""
     paths_ = {p for _, p in changes}
     if VERSION_FILE not in paths_ or not version_line_only:
@@ -189,7 +189,7 @@ def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bo
 
 
 def _news():
-    """The judge's reader of news files and of the release-tier ledger, loaded by its path."""
+    """The judge's reader of news files and of the release ledger, loaded by its path."""
     spec = importlib.util.spec_from_file_location(
         "ci_plan_news", REPO / "tests" / "harness" / "news.py"
     )
@@ -200,31 +200,36 @@ def _news():
 
 
 def ledger_move_refusal(base: tuple[str, str], head: tuple[str, str], version: str) -> str | None:
-    """Why a preparation's change to the release-tier ledger is not `date`'s move, or None when
-    it is (or the ledger did not change). `base` and `head` are (the ledger, its history) at the
-    merge base and at the head. The ledger is a source of reasons the release pull request's
-    acceptance consumes, and a preparation asks no review file, so its change must be mechanical:
-    the head's ledger is the base's header comments alone, and the head's history is the base's
-    with the base's blocks moved under `## <version>`, on the day that section names."""
+    """Why a preparation's change to the release ledger is not `date`'s move with any claim block
+    the preparation adds, or None when it is (or the ledger did not change). `base` and `head` are
+    (the ledger, its history) at the merge base and at the head. The preparation is where a reason
+    an acceptance on dev recorded as missing is written, so an added block in a claim's shape is
+    admitted, before the move (moved under the version after the base's blocks) or after it (left
+    in the ledger); the base's blocks are reasons already given, which the move carries whole."""
     if head == base:
         return None
     lines = base[0].splitlines(keepends=True)
     at = next((k for k, line in enumerate(lines) if not line.startswith("#")), len(lines))
-    if head[0] != "".join(lines[:at]):
-        return "the ledger is left with more than its header comments, which date's move leaves"
+    header, kept = "".join(lines[:at]), "".join(lines[at:]).strip()
+    if not head[0].startswith(header):
+        return "the ledger's header comments changed, which date's move keeps"
     said = r"Moved by `release/version.py date` on (\d{4}-\d{2}-\d{2})"
     m = re.search(rf"^## {re.escape(version)}\n\n" + said, head[1], re.M)
     if m is None:
         return f"the ledger's history has no section for {version} that date's move writes"
     news = _news()
+    moved = news.moved_blocks(head[1], version)
+    if kept and moved != kept and not moved.startswith(kept + "\n"):
+        return f"a block the base's ledger held was dropped or edited under ## {version}"
     try:
-        want = news.move_ledger(base[0], base[1], version, m[1])
+        news.ledger_tables(news.LEDGER, head[0])
+        want = news.move_ledger(header + "\n" + moved, base[1], version, m[1])
     except news.NewsError as e:
-        return f"date's move of the base's ledger fails: {e}"
-    if head != want:
+        return f"a block is not in a claim's shape: {e}"
+    if head[1] != want[1]:
         return (
-            f"the ledger's history is not date's move of the base's blocks under ## {version}: "
-            "a block was added, dropped or edited"
+            f"the ledger's history is not date's move of the base's blocks under ## {version}, "
+            "with any added claim block after them"
         )
     return None
 
@@ -485,8 +490,8 @@ def refusals(
         )
     if d.preparation_refusal:
         out.append(
-            "the release's preparation may change the release-tier ledger only by date's move, "
-            f"since it asks no review file: {d.preparation_refusal}"
+            "the release's preparation may change the release ledger only by date's move and "
+            f"added claim blocks: {d.preparation_refusal}"
         )
     documented = changed is not None and (docs_only(changed) or d.release_preparation)
     if into_dev(event) and changed is not None and not documented and not d.news:

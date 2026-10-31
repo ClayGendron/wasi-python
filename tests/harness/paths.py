@@ -278,7 +278,7 @@ def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
 JUDGE_PATHS = (
     "tests",
     "context/embedders.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims.toml",
     "pyproject.toml",
     "uv.lock",
     "pytest.ini",
@@ -289,7 +289,7 @@ JUDGE_PATHS = (
 )
 # The judge's files whose change moves a verdict by itself: the known gaps, the upstream suites'
 # allowances, their expected failures and CPython's plan, the shard plan, the public API's list
-# and the release tier's claims. An acceptance needs `--accept-judge` with a reason when one of
+# and the release's claims. An acceptance needs `--accept-judge` with a reason when one of
 # them changed since the last acceptance, and refuses it as unnecessary when none did: every
 # other judge change is recorded by the judge's hash in the history, unflagged. `*` stays within
 # one folder; a trailing `/**` takes everything below its folder.
@@ -300,7 +300,7 @@ VERDICT_BEARING = (
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims.toml",
 )
 
 

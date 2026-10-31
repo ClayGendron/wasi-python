@@ -248,11 +248,14 @@ def accept(
     fewer_reason: str | None = None,
     tier_move_reason: str | None = None,
     extra: dict | None = None,
+    unclaimed: list[dict] | None = None,
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused. The line is
     in format 2: the change in the passed set since the newest of
     `history_lines`, and a digest of the whole set. `extra`: fields an acceptance from CI's
-    record adds to its line (where it came from, the systems whose probe passed)."""
+    record adds to its line (where it came from, the systems whose probe passed). `unclaimed`,
+    given by that acceptance alone, makes the line format 3: the rows it accepted with no claim,
+    each with its values, which the release's acceptance asks a reason for."""
     refusals = []
     if not green:
         refusals.append("the run is not green (or PYTEST_ADDOPTS or a foreign plugin is set)")
@@ -364,7 +367,8 @@ def accept(
         "retired": sorted(retire),
         "judge_changed": ratchet.judge_changed,
         "counts": counts,
-        "schema": 2,
+        "schema": 2 if unclaimed is None else 3,
+        **({} if unclaimed is None else {"unclaimed": list(unclaimed)}),
         "passed_added": sorted(passes - before),
         "passed_removed": sorted(before - passes),
         "passed_digest": history.digest(passes),

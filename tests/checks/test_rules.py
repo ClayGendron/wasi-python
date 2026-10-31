@@ -456,8 +456,32 @@ VERDICT_BEARING = (
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims.toml",
 )
+
+
+def test_the_release_ledger_holds_claim_blocks_in_their_shape() -> None:
+    """The release ledger, and every block its history keeps under a version, is `[[claim]]`
+    tables in the news files' claim shape, so a broken block is red on the pull request that adds
+    it, not at the release pull request that reads it."""
+    from harness import news
+
+    errors = []
+    ledger = paths.REPO / news.LEDGER
+    try:
+        news.ledger_tables(news.LEDGER, ledger.read_text(encoding="utf-8"))
+    except (OSError, news.NewsError) as e:
+        errors.append(str(e))
+    history_file = paths.REPO / news.LEDGER_HISTORY
+    text = history_file.read_text(encoding="utf-8") if history_file.is_file() else ""
+    if not text:
+        errors.append(f"{news.LEDGER_HISTORY} is missing or empty")
+    for n, block in enumerate(news.FENCE.findall(text), 1):
+        try:
+            news.ledger_tables(f"{news.LEDGER_HISTORY} block {n}", block)
+        except news.NewsError as e:
+            errors.append(str(e))
+    assert not errors, scan.report(errors)
 
 
 def test_the_verdict_bearing_files_are_judge_files() -> None:

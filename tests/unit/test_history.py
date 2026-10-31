@@ -402,11 +402,70 @@ def test_a_blank_line_and_a_missing_final_newline(vols) -> None:
     assert _has(errors, f"{v[2].name} does not end with a newline")
 
 
-@pytest.mark.parametrize("schema", [3, "2"])
+@pytest.mark.parametrize("schema", [4, "2", "3"])
 def test_an_unknown_schema(vols, schema) -> None:
     folder, _, _ = vols
     _edit_last(folder, lambda e: e.update(schema=schema))
-    assert _has(check_folder(folder), f"schema is {schema!r}; only 2 is known")
+    assert _has(check_folder(folder), f"schema is {schema!r}; only 2 and 3 are known")
+
+
+# ---------------------------------------------------------------------------------------------
+# Format 3: a line from CI's record names each row it accepted with no claim (`unclaimed`)
+
+GREW = {"kind": "grows", "check": PROBE, "metric": "fuel", "old": 7, "new": 9}
+
+
+def accept_unclaimed(folder: Path, passes, unclaimed: list[dict]) -> str:
+    """One acceptance whose line is in format 3, as the acceptance from CI's record writes it."""
+    new, line = scoreboard.accept(
+        record(passes),
+        None,
+        history.lines(folder),
+        scoreboard.Ratchet(),
+        green=True,
+        reason="r",
+        unclaimed=unclaimed,
+    )
+    with history.target(folder, line).open("a", encoding="utf-8", newline="\n") as f:
+        f.write(line + "\n")
+    (folder / "accepted.json").write_text(scoreboard.dumps(new))
+    return line
+
+
+def test_a_format_3_line_names_its_unclaimed_rows_and_replays(tmp_path) -> None:
+    """Lines of format 2 and 3 interleave (the local acceptance keeps format 2), and a history of
+    both replays, digests and all, and is intact."""
+    old_volume(tmp_path, [{node(1)}])
+    accept_into(tmp_path, {node(1), node(2)})
+    three = json.loads(accept_unclaimed(tmp_path, {node(2), PROBE}, [GREW]))
+    assert three["schema"] == 3 and three["unclaimed"] == [GREW]
+    accept_into(tmp_path, {node(2)})
+    clean = json.loads(accept_unclaimed(tmp_path, {node(2), node(3)}, []))
+    assert clean["schema"] == 3 and clean["unclaimed"] == []
+    lines = history.lines(tmp_path)
+    assert [json.loads(x).get("schema") for x in lines] == [None, 2, 3, 2, 3]
+    assert check_folder(tmp_path) == []
+    assert list(history.passed_sets(lines))[-1] == {node(2), node(3)}
+    history.forget()
+    assert history.last_passed(lines) == {node(2), node(3)}
+
+
+@pytest.mark.parametrize(
+    ("edit", "words"),
+    [
+        (lambda e: e.pop("unclaimed"), "unclaimed is not a list of rows"),
+        (lambda e: e.update(unclaimed=["a row"]), "unclaimed is not a list of rows"),
+        (lambda e: e.update(unclaimed=[{"kind": "lost", "check": "x"}]), "unclaimed row 1"),
+        (lambda e: e.update(unclaimed=[{"kind": "grows"}]), "unclaimed row 1"),
+        (lambda e: e.update(schema=2), "is in format 2 but carries unclaimed"),
+    ],
+    ids=["missing", "not rows", "an unknown kind", "no check", "format 2"],
+)
+def test_a_format_3_line_whose_unclaimed_rows_are_malformed(tmp_path, edit, words) -> None:
+    old_volume(tmp_path, [{node(1)}])
+    accept_unclaimed(tmp_path, {node(1)}, [GREW])
+    _edit_last(tmp_path, edit)
+    assert _has(check_folder(tmp_path), words), check_folder(tmp_path)
 
 
 def test_volume_1_changed_under_its_seal(vols) -> None:

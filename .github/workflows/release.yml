@@ -1217,7 +1217,7 @@ jobs:
     # files merged since the last acceptance. It runs the judge's code, so it holds no secret and
     # names no environment; it hands the two progress files and the commit's message on as one
     # artifact, which accept-push commits. After the release pull request it accepts that run's
-    # record of both tiers the same way, its reasons the news files' and the release-tier ledger's,
+    # record of both tiers the same way, its reasons the news files' and the release ledger's,
     # and accept-release.yml, which the run's completion starts on dev's own context, commits it.
     # A red or a cancelled run never gets here, so the accepted state never records a red one.
     needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]

@@ -20,6 +20,8 @@ version = importlib.util.module_from_spec(_spec)
 sys.modules["release_version"] = version  # dataclasses look their module up here
 _spec.loader.exec_module(version)
 V = version.Version.parse
+# The ledger's paths as the module names them, read before any row points them at its own files.
+REAL_LEDGER = (version.LEDGER, version.LEDGER_HISTORY)
 
 
 @pytest.fixture(autouse=True)
@@ -421,6 +423,37 @@ def test_release_refuses_a_section_still_unreleased(tmp_path: Path, monkeypatch)
     calls = _main_tip(tmp_path, monkeypatch, LOG)
     assert version.main(["release", "--push"]) == 1
     assert not [c for c in calls if c[0] in ("commit", "push") or c[:2] == ("tag", "-a")]
+
+
+def test_the_ledger_is_the_release_claims_file() -> None:
+    """One ledger of any claim the release reconciles, beside its history by release; the judge's
+    reader and the release's commands name the same two files."""
+    assert REAL_LEDGER == (paths.REPO / "context" / "release-claims.toml",
+                           paths.REPO / "context" / "release-claims-history.md")  # fmt: skip
+    assert REAL_LEDGER == (paths.REPO / version._reader().LEDGER,
+                           paths.REPO / version._reader().LEDGER_HISTORY)  # fmt: skip
+
+
+def test_date_moves_a_claim_of_any_kind_under_the_version(tmp_path: Path, monkeypatch) -> None:
+    """The ledger carries any claim block, a fall in passes, a tier move or a judge file as well as
+    a growth, and date moves each whole."""
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    ledger, history = tmp_path / "ledger.toml", tmp_path / "history.md"
+    init.write_text(INIT)
+    log.write_text(LOG)
+    block = (
+        '[[claim]]\nspec = "161"\npasses = ["g"]\nfewer = "two tests moved"\n'
+        '[claim.judge]\n"tests/known_gaps.toml" = "a new allowance"\n'
+        '[claim.moved]\n"tests/checks/test_x.py::test_y" = "it is slow"\n'
+    )
+    ledger.write_text("# header\n\n" + block)
+    history.write_text("# history\n\nIntro.\n")
+    for name, path in (("INIT", init), ("CHANGELOG", log), ("LEDGER", ledger),
+                       ("LEDGER_HISTORY", history)):  # fmt: skip
+        monkeypatch.setattr(version, name, path)
+    assert version.main(["date", "--day", "2026-10-30"]) == 0
+    assert ledger.read_text() == "# header\n"
+    assert "## 0.1.0a1" in history.read_text() and block.strip() in history.read_text()
 
 
 def test_date_moves_the_release_tier_ledger_under_the_version(tmp_path: Path, monkeypatch) -> None:
