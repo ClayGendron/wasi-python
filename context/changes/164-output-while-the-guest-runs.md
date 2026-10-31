@@ -124,7 +124,7 @@ grows = [
   "tests/checks/test_v1_4_prepare.py::test_the_makings_import_path_is_gone",
   "tests/checks/test_v1_4_starting_image.py::test_a_session_starts_from_a_snapshot",
 ]
-growth = "the reactor's bootstrap carries the turn's stdin and the output feed, and every start loads it: every call's fuel moves a little (0.002 to 13 percent, the most on the smallest calls), and both binaries grow by a few kilobytes; the acceptance after the merge recorded them, at be87f12a"
+growth = "the reactor carries a turn's stdin (the bootstrap reads it, the export turn_input takes it, and prepare frees a held one): the plain binary loads that bootstrap at every start and the snapshot's heap shifts, so every call's fuel moves 0.01 to 13 percent (the most, 454 to 514, a trapped prepare) and each binary grows by a few kilobytes (0.002 and 0.004 percent); the acceptance after the merge recorded them, at be87f12a"
 [claim.judge]
 "tests/checks/test_rules.py" = "LONG_FUNCTIONS: runner.py:run 156 to 173 and run_async 181 to 208 take on_output and output_keep with their docstrings, and run_async the feed's try and finally around its body and the late exception's holder; Session.run_async 81 to 102 takes stdin, on_output and output_keep, the same finally and holder; _sessions.py:_open_session 142 to 143 sets takes_stdin; _call.py:_instance falls 157 to 147 as _completed takes its end"
 "tests/release_shards.toml" = "the two new unit files, test_runner_streaming.py and test_home.py, join the own-runner shard on all three systems, as every runner unit file is in a files shard"
