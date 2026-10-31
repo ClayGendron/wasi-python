@@ -1,0 +1,8 @@
+tests/test_io/test_to_from_json.py::test_from_json_output_type[FigureWidget-FigureWidget0]
+tests/test_io/test_to_from_json.py::test_from_json_output_type[FigureWidget-FigureWidget1]
+tests/test_io/test_to_from_json.py::test_read_json_from_file_string[FigureWidget-FigureWidget0]
+tests/test_io/test_to_from_json.py::test_read_json_from_file_string[FigureWidget-FigureWidget1]
+tests/test_io/test_to_from_json.py::test_read_json_from_filelike[FigureWidget-FigureWidget0]
+tests/test_io/test_to_from_json.py::test_read_json_from_filelike[FigureWidget-FigureWidget1]
+tests/test_io/test_to_from_json.py::test_read_json_from_pathlib[FigureWidget-FigureWidget0]
+tests/test_io/test_to_from_json.py::test_read_json_from_pathlib[FigureWidget-FigureWidget1]

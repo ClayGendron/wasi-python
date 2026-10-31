@@ -1,0 +1,109 @@
+# plotly's own tests in the guest, from its test source: its release tag's archive, since its sdist
+# holds no tests. A judge file: every edit is a judge change. The whole suite runs in the release
+# tier, a smoke group in the normal tier: each test in exactly one tier.
+
+package = "plotly"
+component = "plotly-tests"
+driver = "package"
+grant = "/upstream-plotly"
+test_source = true
+budget = 339_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "/tmp/work"
+markers = []
+# pytz, which two test files import at their top (the product does not carry it: zoneinfo serves
+# time zones), for those tests only
+kit_extra = ["pytz"]
+
+[groups.plotly-smoke]
+paths = ["tests/test_core/test_utils", "tests/test_plotly_utils/test_utils.py"]
+smoke = "the core utilities and the JSON encoder, the package from the zip"
+fuel = 17_000_000_000
+measured = 11_465_883_031
+
+[groups.plotly-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 322_000_000_000
+measured = 214_377_230_157
+
+[[not_selected]]
+files = ["tests/test_optional/test_px"]
+reason = "the folder's conftest imports polars and pyarrow at its top, compiled packages the set does not carry, so no test in it collects; plotly.express itself runs in the plotly_figures golden job and in the other folders' tests"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/test_optional/test_kaleido"]
+reason = "static image export through kaleido, which runs a Chrome browser in another process; the guest has neither processes nor a browser (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/test_io/test_renderers.py"]
+reason = "the renderers' tests import requests at the top and open a browser, a thread and a local HTTP server to show a figure; the guest has no network, no threads and no browser (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "read-only-source"
+group = "plotly-r"
+outcome = "failed"
+match = "PermissionError: \\[Errno \\d+\\] Operation not permitted: '/upstream-plotly/tree/tests/test_core/test_offline/"
+reason = "the test writes temp-plot.html beside its own file in the test source, a read-only grant (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-anywidget"
+group = "plotly-r"
+outcome = "failed"
+match = "^ImportError: Please install anywidget to use the FigureWidget class$"
+reason = "FigureWidget needs anywidget, a notebook widget the set does not carry; plotly's stand-in raises ImportError, as natively without it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-scikit-image"
+group = "plotly-r"
+outcome = "failed"
+match = "^ImportError: Please install scikit-image to use `create_ternary_contour`$"
+reason = "create_ternary_contour needs scikit-image, which the set does not carry; it raises ImportError, as natively without it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-ipython"
+group = "plotly-r"
+outcome = "failed"
+match = "^ImportError: `iplot` can only run inside an IPython Notebook\\.$"
+reason = "iplot shows a figure in an IPython notebook, which the guest is not; it raises ImportError, as natively outside one (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-polars-pyarrow"
+group = "plotly-r"
+outcome = "failed"
+match = "^ModuleNotFoundError: return_type=(polars|pyarrow), but (polars|pyarrow) is not installed"
+reason = "the test reads plotly's datasets into polars and pyarrow frames, compiled packages the set does not carry (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-requests"
+group = "plotly-r"
+outcome = "failed"
+match = "^ModuleNotFoundError: No module named 'requests'"
+reason = "the test imports requests as an example of an installed optional module; the set does not carry it, since the guest has no network (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm32-maxsize"
+group = "plotly-r"
+outcome = "failed"
+match = "^assert 'in the interval \\[(-9223372036854775808, 2|-1, 9223372036854775807)\\]' in "
+reason = "sys.maxsize is 2**31 - 1 on wasm32, so the integer validator's default bounds are 32-bit where these tests expect 64-bit ones in its message (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "fails-natively-in-one-session"
+group = "plotly-r"
+outcome = "failed"
+match = "^AssertionError: assert \\[\\[0\\.0, 'rgb\\(2\\.\\.\\.4, 96\\)'\\], \\.\\.\\.\\] == \\[\\[0\\.0, '#fcff\\.\\.\\.a52c60'\\], \\.\\.\\.\\]$"
+reason = "test_colors.py's test_sample_colorscale converts colors.sequential.Inferno to rgb in place, and the colorscale validator's test of Inferno_r, later in the same session, reads the changed scale; natively the two files in one session fail the same way (EXECUTED), and each passes alone"
+closes_with = "context/roadmap.md"

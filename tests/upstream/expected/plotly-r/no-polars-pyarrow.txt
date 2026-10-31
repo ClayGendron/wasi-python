@@ -1,0 +1,2 @@
+tests/test_plotly_utils/validators/test_fig_deepcopy.py::test_deepcopy_dataframe[polars]
+tests/test_plotly_utils/validators/test_fig_deepcopy.py::test_deepcopy_dataframe[pyarrow]
