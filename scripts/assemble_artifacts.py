@@ -861,6 +861,12 @@ def main() -> None:
         + [
             (f"pandas LICENSES/{p.name}", p.read_bytes())
             for p in licence_files(pd_src / "LICENSES")
+        ]
+        # fast_float, which pandas' CSV tokenizer compiles in, ships its licences in its vendored
+        # folder, and pandas' own license-files names them there.
+        + [
+            (f"pandas {p.relative_to(pd_src).as_posix()}", p.read_bytes())
+            for p in sorted(pd_src.glob("subprojects/fast_float-*/LICENSE-*"))
         ],
         "zlib": [("zlib LICENSE", (b / "zlib-1.3.1" / "LICENSE").read_bytes())],
         "bzip2": [("bzip2 LICENSE", (b / "bzip2-1.0.8" / "LICENSE").read_bytes())],
