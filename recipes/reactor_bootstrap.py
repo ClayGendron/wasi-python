@@ -261,6 +261,25 @@ def run(argv, environ):
 # Sessions (spec 055, Decision 3): one interpreter across turns.
 _turns = 0  # the turns run in this instance: each one's code is named <turn N>
 _quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
+# Memory a session keeps back while a turn's own code runs, so a turn after one that filled the
+# heap can still parse its code and report its error: let go as each turn starts and when a turn
+# raises MemoryError, and taken again, when the heap has room, just before the turn's code runs.
+_RESERVE_BYTES = 1 << 19
+_reserve = None
+
+
+def _let_go():
+    global _reserve
+    _reserve = None
+
+
+def _hold():
+    global _reserve
+    if _reserve is None:
+        try:
+            _reserve = bytearray(_RESERVE_BYTES)
+        except MemoryError:
+            pass  # the heap is full: this turn runs without one, and the next takes it
 
 
 def _setup(environ):
@@ -306,6 +325,7 @@ def _run_turn(text, name):
     code = compile(tree, name, "exec")
     linecache._register_code(code, text, name)
     main = sys.modules["__main__"].__dict__
+    _hold()
     exec(code, main)
     if last is not None:
         expr = compile(last, name, "eval")
@@ -333,6 +353,7 @@ def turn(source, environ, stdin=None):
     when it had no memory for them. A given stdin is `sys.stdin` for the turn, and the old reader
     comes back at its end unless the turn replaced it."""
     global _turns
+    _let_go()
     status = 0
     old = given = None
     try:
@@ -350,6 +371,8 @@ def turn(source, environ, stdin=None):
     except SystemExit as exc:
         status = _exit_code(exc)
     except BaseException as exc:
+        if isinstance(exc, MemoryError):
+            _let_go()  # room to report it, and for the next turn to parse
         _report(exc, False)  # strips the <reactor> frames from exc.__traceback__
         sys.last_exc = exc
         sys.last_type, sys.last_value, sys.last_traceback = type(exc), exc, exc.__traceback__

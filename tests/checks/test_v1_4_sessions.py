@@ -517,6 +517,22 @@ def test_memory_is_per_session_and_not_a_trap() -> None:
         assert s.ended is None
 
 
+def test_a_heap_filled_to_its_last_bytes_is_not_the_end() -> None:
+    """A turn that fills the heap down to its smallest objects, and catches the `MemoryError`,
+    leaves the next turn room to parse its code: the session holds memory back while a turn's
+    code runs and lets it go as the next turn starts."""
+    fill = (
+        "keep = []\nfor size in (1 << 16, 1 << 10, 64, 8):\n    try:\n        while True:\n"
+        "            keep.append(bytearray(size))\n    except MemoryError:\n        pass\n"
+    )
+    with _wp().Session(memory_bytes=64 * 2**20) as s:
+        assert s.run(fill).exit_code == 0
+        freed = s.run("del keep")
+        assert (freed.exit_code, freed.stderr) == (0, b""), freed
+        after = s.run("print('ok')")
+        assert after.stdout == b"ok\n" and s.ended is None, after
+
+
 def test_mounts_and_grants_across_turns(guest_workdir) -> None:
     """Criterion 18."""
     wp = _wp()

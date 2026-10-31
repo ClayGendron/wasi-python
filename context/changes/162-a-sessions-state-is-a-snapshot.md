@@ -24,9 +24,10 @@ new = [
   "tests/checks/test_v1_4_checkpoint.py",
   "tests/checks/test_v1_4_prepare.py::test_checkpoint_refuses",
   "tests/checks/test_v1_4_prepare.py::test_a_checkpoints_image_resumes_in_run_and_turn",
+  "tests/checks/test_v1_4_sessions.py::test_a_heap_filled_to_its_last_bytes_is_not_the_end",
 ]
 grows = ["tests/checks/test_v1_*"]
-growth = "the reactor gains the export `checkpoint`, a resume check at the start of every `run` and `turn`, an offset on each monotonic clock read and a wrapper of `poll_oneoff`, so both binaries are larger and every call runs a few more instructions"
+growth = "the reactor gains the export `checkpoint`, a resume check at the start of every `run` and `turn`, an offset on each monotonic clock read and a wrapper of `poll_oneoff`, so both binaries are larger and every call runs a few more instructions; and a session holds back 512 KiB while a turn's code runs, taken by its first turn and again after a turn that raised `MemoryError`"
 units = 16
 [claim.judge]
 "tests/public_api.txt" = "the public API gains `Session.checkpoint` and `SnapshotOrigin`'s two defaulted fields, `kind` and `parent_sha256`"
