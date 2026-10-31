@@ -38,6 +38,8 @@ retired = [
 changed = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-not-pillows-wheel]",
 ]
+# Pillow gains JPEG, so its JPEG and MPO tests run (pillow +199). matplotlib-rest-a +5: test_agg.py::test_jpeg_dpi, test_animation.py::test_grabframe[html-jpeg-movie.html|output13]
+# and ::test_save_animation_smoketest[anim0-html-jpeg-movie.html|output13]; matplotlib-render-2b +3: test_image.py::test_imsave[jpeg|jpg] and ::test_jpeg_alpha. The eight failed before with "encoder/decoder jpeg not available" under the pillow-zlib-only classes, which leave.
 passes = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pillow]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-render-2b]",
