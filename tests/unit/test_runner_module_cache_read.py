@@ -39,7 +39,7 @@ import wasmtime as wt
 
 import wasi_python
 from harness import wat
-from wasi_python import ArtifactsMissing, _artifacts, _engines, _platform, runner
+from wasi_python import ArtifactsMissing, _artifacts, _engines, _platform, _platform_posix, runner
 from wasi_python import _wasmtime_ffi as ffi
 from wasi_python._process import process
 
@@ -551,7 +551,7 @@ def _listed(
             return default(path)
         if raises is not None:
             raise raises
-        return tuple(_platform._Entry(*e) for e in entries)
+        return tuple(_platform_posix._Entry(*e) for e in entries)
 
     monkeypatch.setattr(_platform.PLATFORM, "access_entries", fake, raising=False)
 

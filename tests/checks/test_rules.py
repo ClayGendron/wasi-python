@@ -1334,14 +1334,14 @@ def test_the_filesystem_imports_only_itself_and_the_engine_seam() -> None:
     assert not hits, scan.report(hits)
 
 
-# The platform is chosen once. `src/wasi_python/_platform.py` holds the one interface, the POSIX,
-# Linux and macOS hosts and the choice, bound to `PLATFORM` at import by `_select`, the one
-# function in the package that reads `sys.platform` or `os.name`; `_platform_windows.py` holds
-# Windows, and `_platform_common.py` what both families run, below both. Every caller reads
-# `_platform.PLATFORM` through its module at the call, so a check that binds another platform
-# for its duration is seen by every caller. A reader who asks what Windows does differently
-# opens `_platform_windows.py`, and `_platform.py`'s docstring lists every difference. Only
-# `_platform.py` imports the Windows module or names the Windows class (by import, as an
+# The platform is chosen once. `src/wasi_python/_platform.py` holds the one interface and the
+# choice, bound to `PLATFORM` at import by `_select`, the one function in the package that reads
+# `sys.platform` or `os.name`; `_platform_posix.py` holds the POSIX, Linux and macOS hosts,
+# `_platform_windows.py` Windows, and `_platform_common.py` what both families run, below both.
+# Every caller reads `_platform.PLATFORM` through its module at the call, so a check that binds
+# another platform for its duration is seen by every caller. A reader who asks what Windows does
+# differently opens `_platform_windows.py`, and `_platform.py`'s docstring lists every difference.
+# Only `_platform.py` imports the Windows module or names the Windows class (by import, as an
 # attribute such as `_platform._Windows`, or bare): a caller that made a Windows platform itself
 # would choose a platform outside `_select`.
 PLATFORM_MODULE = "_platform.py"
@@ -1416,22 +1416,24 @@ def _platform_hits(package: Path) -> list[str]:
     return hits
 
 
-# The platform's door. What both platform families share lives in `_platform_common.py` and
-# what Windows does in `_platform_windows.py`; every other module reaches either through
-# `_platform`, which has a delegate for what a caller needs of the shared half, so the platform
-# module stays the one place a reader looks. Only the platform modules import the halves:
-# `_platform_common` by `_platform.py` and `_platform_windows.py`, `_platform_windows` by
-# `_platform.py`.
+# The platform's door. `_platform.py` holds the interface and the choice; the POSIX hosts live
+# in `_platform_posix.py`, Windows in `_platform_windows.py`, and what both families run in
+# `_platform_common.py`, below both. Every other module reaches them through `_platform`, which
+# has a delegate for what a caller needs of the shared half, so the platform module stays the one
+# place a reader looks. Only the platform modules import the others: `_platform_common` by
+# `_platform.py` and the two host modules, each host module by `_platform.py` alone, so neither
+# host module imports the other.
 PLATFORM_HALVES = {
-    "_platform_common": ("_platform.py", "_platform_windows.py"),
+    "_platform_common": ("_platform.py", "_platform_posix.py", "_platform_windows.py"),
+    "_platform_posix": (PLATFORM_MODULE,),
     PLATFORM_WINDOWS: (PLATFORM_MODULE,),
 }
 
 
 def test_only_the_platform_modules_import_its_halves() -> None:
-    """No module under `src/wasi_python/` imports `_platform_common` or `_platform_windows`,
-    at module level, inside a function or under `TYPE_CHECKING`, but the platform modules
-    PLATFORM_HALVES names; every other caller goes through `_platform`."""
+    """No module under `src/wasi_python/` imports `_platform_common`, `_platform_posix` or
+    `_platform_windows`, at module level, inside a function or under `TYPE_CHECKING`, but the
+    platform modules PLATFORM_HALVES names; every other caller goes through `_platform`."""
     package = paths.REPO / "src" / "wasi_python"
     hits = []
     for path in sorted(package.glob("*.py")):

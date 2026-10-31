@@ -35,7 +35,7 @@ class _Private:
     def __init__(self, prefix: str) -> None:
         temp = tempfile.gettempdir()
         identity = _platform.PLATFORM.kernel_identity()
-        create = _platform._flags(
+        create = _platform._open_flags(
             "O_RDWR", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC", "O_BINARY"
         )
         for _ in range(100):
@@ -170,7 +170,8 @@ def _sweep_entry(temp: str, entry: str, identity: str) -> bool:
     if not stat.S_ISREG(named.st_mode) or not _owned(named):
         return False  # not a lock of ours: nothing to sweep, nothing to retry
     fd = os.open(
-        lock_path, _platform._flags("O_RDWR", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC", "O_BINARY")
+        lock_path,
+        _platform._open_flags("O_RDWR", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC", "O_BINARY"),
     )
     unlink = False
     try:

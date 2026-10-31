@@ -1,14 +1,15 @@
 """What both platform families run: the Windows class and the POSIX classes alike.
 
-The result of a walk (`_Walked`) and the refusal of a walk that cannot be taken, the steps a walk
-takes by path (making a missing tail, making a real folder below a root, a quiet unlink), the owner
-test a made folder must pass, the names Windows rewrites, the cache's kind checks, their warning
-and a checked `.cwasm` held open, and the remover's budget and its walk by path. They sit below
-both platform modules, so the Windows module and the POSIX module each import this one and neither
-imports the other: the package's imports point one way, with no cycle. Of the package this module
-imports only the process state, whose observers may stand in for a file's owner, and it reads no
-platform: each name here runs the same on every system, and the choice of platform stays in the
-platform module's one chooser.
+The open flags of a list of names that this system has (`_flags`), the result of a walk (`_Walked`)
+and the refusal of a walk that cannot be taken, the steps a walk takes by path (making a missing
+tail, making a real folder below a root, a quiet unlink), the owner test a made folder must pass,
+the names Windows rewrites, the cache's kind checks, their warning and a checked `.cwasm` held
+open, and the remover's budget and its walk by path. They sit below both platform modules, so the
+Windows module and the POSIX module each import this one and neither imports the other: the
+package's imports point one way, with no cycle. Of the package this module imports only the process
+state, whose observers may stand in for a file's owner, and it reads no platform: each name here
+runs the same on every system, and the choice of platform stays in the platform module's one
+chooser.
 """
 
 from __future__ import annotations
@@ -40,6 +41,13 @@ _WIN_DEVICES = frozenset(
     | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
 )
 _WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
+
+
+def _flags(*names: str) -> int:
+    flags = 0
+    for name in names:
+        flags |= getattr(os, name, 0)
+    return flags
 
 
 def _rewritten(name: str) -> bool:
