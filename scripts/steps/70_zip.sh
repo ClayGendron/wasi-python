@@ -119,7 +119,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned pypdf-6.21.1-py3-none-any.whl)" \
   --wheel "$(pinned defusedxml-0.7.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned beautifulsoup4-4.15.0-py3-none-any.whl)" \
-  --wheel "$(pinned soupsieve-3.0.3-py3-none-any.whl)" \
+  --wheel "$(pinned soupsieve-3.0.4-py3-none-any.whl)" \
   --wheel "$(pinned html5lib-1.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned webencodings-0.6.1-py3-none-any.whl)" \
   --wheel "$(pinned tomli_w-1.2.0-py3-none-any.whl)" \
