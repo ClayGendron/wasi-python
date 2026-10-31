@@ -1,11 +1,11 @@
 """The reactor's argument handling: the module `_reactor` (spec 003, Decision 6).
 
-recipes/reactor_main.c calls `run(argv, environ)` once per instance, or `turn(source, environ)`
-once per turn of a session (spec 055, Decision 3), and `prepare(source, environ)` once in an
-instance whose memory the host makes a starting image of. Step 60 compiles this file with the
-pinned host Python (the guest's own version) and links the marshalled code into the reactor, so
-no start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which
-`_report` strips from tracebacks.
+recipes/reactor_main.c calls `run(argv, environ)` once per instance, or
+`turn(source, environ, stdin)` once per turn of a session (spec 055, Decision 3), and
+`prepare(source, environ)` once in an instance whose memory the host makes a starting image of.
+Step 60 compiles this file with the pinned host Python (the guest's own version) and links the
+marshalled code into the reactor, so no start compiles it (scripts/freeze_bootstrap.py). Its
+frames are named `<reactor>`, which `_report` strips from tracebacks.
 
 Every program runs in a fresh `__main__` made at run time (spec 073): the snapshot's own was made
 before `gc.freeze()`, and a file left open beside a function defined in it was never finalized.
@@ -308,17 +308,39 @@ def _run_turn(text, name):
         sys.displayhook(eval(expr, main))
 
 
-def turn(source, environ):
+def _turn_reader(data, old):
+    """A text reader over a turn's stdin bytes, with the replaced reader's encoding and errors,
+    split at "\\n" as the interpreter's own stdin is on this platform."""
+    import io
+
+    return io.TextIOWrapper(
+        io.BytesIO(data),
+        encoding=getattr(old, "encoding", None) or "utf-8",
+        errors=getattr(old, "errors", None) or "strict",
+        newline="\n",
+    )
+
+
+def turn(source, environ, stdin=None):
     """One turn: (status, quit). `source` is the code's bytes, or None when the host had no
-    memory for them; `environ` is (argv, env) on the first turn, None after."""
+    memory for them; `environ` is (argv, env) on the first turn, None after. `stdin` is the
+    turn's stdin bytes, None when the host gave none (`sys.stdin` is left as it is), or False
+    when it had no memory for them. A given stdin is `sys.stdin` for the turn, and the old reader
+    comes back at its end unless the turn replaced it."""
     global _turns
     status = 0
+    old = given = None
     try:
         if environ is not None:
             _setup(environ)
         _turns += 1
         if source is None:
             raise MemoryError("no memory for this turn's code")
+        if stdin is False:
+            raise MemoryError("no memory for this turn's stdin")
+        if stdin is not None:
+            old = sys.stdin
+            given = sys.stdin = _turn_reader(stdin, old)
         _run_turn(source.decode("utf-8"), f"<turn {_turns}>")
     except SystemExit as exc:
         status = _exit_code(exc)
@@ -328,6 +350,8 @@ def turn(source, environ):
         sys.last_type, sys.last_value, sys.last_traceback = type(exc), exc, exc.__traceback__
         status = 1
     finally:
+        if given is not None and sys.stdin is given:
+            sys.stdin = old
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.flush()
