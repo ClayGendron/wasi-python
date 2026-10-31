@@ -327,6 +327,7 @@ class Session:
     def ended(self) -> str | None
     @property
     def shutdown_outcome(self) -> str | None
+    def checkpoint(self) -> Snapshot
     def run(
         self,
         code: str,
@@ -386,6 +387,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `exc`: The exception leaving the block, if any; it is never suppressed.
 - `Session.ended`: `None` while the session can run turns; once it cannot, why: "closed", "idle", "lifetime", "quit" (a turn called `exit()` or `quit()`), "exit" (a turn called `os._exit`), "error" (a turn raised in your process), or the stopped turn's `trapped`. Set once, and never changed.
 - `Session.shutdown_outcome`: `None` until the session's ending has finished; then "finished" (Python's shutdown ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no shutdown ran: the session was stopped mid-turn, no turn ever ran, `shutdown_s` was 0, or, on Linux, wasmtime's trap handlers were replaced after the first run). `close()` waits for the ending.
+- `Session.checkpoint`: Keep the session's state as a snapshot, and go on.
 - `Session.run`: Run one turn of code in the session and return how it ended.
   - `code`: The turn's source, a str.
   - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
@@ -446,7 +448,7 @@ class SnapshotFailed(RuntimeError):
     ...
 ```
 
-The code given to `make_snapshot` or `make_package_snapshot` did not leave an image a call could start from. The message is one line that says what to do.
+The code given to `make_snapshot` or `make_package_snapshot`, or the session given to `Session.checkpoint`, did not leave an image a call could start from. The message is one line that says what to do.
 
 #### `wasi_python.SnapshotMismatch`
 
@@ -474,24 +476,28 @@ class SnapshotOrigin:
     stdlib_zip_sha256: str
     wasi_python: str
     made_at: str
+    kind: str = 'prelude'
+    parent_sha256: str | None = None
 ```
 
 Where a snapshot came from, kept with its image and in its saved file.
 
 **Attributes:**
 
-- `prelude`: The code that made the image, as given: the image already holds its code objects, so the origin reveals nothing the image does not.
+- `prelude`: The code that made the image, as given: the image already holds its code objects, so the origin reveals nothing the image does not. A checkpoint's is "".
 - `prelude_sha256`: The SHA-256 of the code as UTF-8.
-- `prelude_fuel`: The instructions the code ran, when the making was given `fuel`; else `None`.
+- `prelude_fuel`: The instructions the code ran, when the making was given `fuel`; else `None`, and always for a checkpoint, whose turns each reported their own.
 - `image_bytes`: The image's size: a whole number of 64 KiB pages.
-- `image_sha256`: The SHA-256 of the image, which `Completed.image_sha256` repeats.
+- `image_sha256`: The SHA-256 of the image, which `Completed.image_sha256` repeats. A checkpoint's names its image; it does not predict it, since the heap holds real times and entropy.
 - `home`: The guest's HOME while the code ran, which every call from the image sees.
-- `guest_paths`: The guest paths of the making's root, grants and mounts.
-- `env_names`: The sorted names of the making's `env`, never their values.
+- `guest_paths`: The guest paths of the making's root, grants and mounts, or the session's.
+- `env_names`: The sorted names of the making's `env`, or the session's, never their values.
 - `snapshot_sha256`: The SHA-256 of the set's `python-snapshot.wasm` it was made with.
 - `stdlib_zip_sha256`: The SHA-256 of the set's `python-stdlib.zip` it was made with.
 - `wasi_python`: The version of wasi-python that made it.
 - `made_at`: When it was made, in UTC, ISO 8601, to the second.
+- `kind`: "prelude", made by `make_snapshot` or `make_package_snapshot`, or "checkpoint", made by `Session.checkpoint`.
+- `parent_sha256`: For a checkpoint, the `image_sha256` of the snapshot its session started from; `None` when it started from none, and for a prelude.
 
 #### `wasi_python.Stat`
 

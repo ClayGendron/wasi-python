@@ -3,10 +3,11 @@
 and the restore of the guest's linear memory.
 
 A snapshot is the guest's linear memory after the embedder's code ran once in a fresh instance
-of the set's snapshot binary. Every call given one is a fresh instance of that binary whose
-memory is grown to the image's size and the image copied in before its program runs, so nothing
-a call does reaches the image or another call. Memory is the guest's whole state: the binary's
-one mutable global, the stack pointer, is back at its first value whenever an export returns.
+of the set's snapshot binary, or, as a checkpoint, after a session's turns. Every call given one
+is a fresh instance of that binary whose memory is grown to the image's size and the image
+copied in before its program runs, so nothing a call does reaches the image or another call.
+Memory is the guest's whole state: the binary's one mutable global, the stack pointer, is back at
+its first value whenever an export returns.
 
 The copy is the host's, through wasmtime-py's public pointer to the memory, so it spends no
 fuel. This module imports neither the call, the sessions nor the runner; they import it."""
@@ -19,6 +20,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 import zlib
@@ -45,6 +47,9 @@ MAX_CODE_BYTES = 16 << 20  # the code is kept in the file's header; more is data
 MAX_HEADER_BYTES = 17 << 20  # the code and room for the rest
 MAX_IMAGE_BYTES = 4 << 30  # the guest's 32-bit address space
 REASONS = ("exit", "trapped", "open file")
+KINDS = ("prelude", "checkpoint")  # what made an image: a making's code, or a session's turns
+SESSION_HOME = re.compile(r"/tmp/\.home-[0-9a-f]{32}\Z")  # a session's HOME, kept by its checkpoint
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _NOT_PUBLIC = "make a Snapshot with make_snapshot, make_package_snapshot or Snapshot.load"
 
 
@@ -55,17 +60,19 @@ class SnapshotMismatch(ValueError):
 
 
 class SnapshotFailed(RuntimeError):
-    """The code given to `make_snapshot` or `make_package_snapshot` did not leave an image a
-    call could start from. The message is one line that says what to do.
+    """The code given to `make_snapshot` or `make_package_snapshot`, or the session given to
+    `Session.checkpoint`, did not leave an image a call could start from. The message is one
+    line that says what to do.
 
     Attributes:
         reason: One of three fixed strings: "exit" (the code exited with a status other than 0,
             or raised), "trapped" (it trapped, ran out of fuel or passed its deadline, as
             `completed.trapped` says) or "open file" (it left a file or folder open).
-        completed: The making's own `Completed`: its exit status, output and trap.
+        completed: The making's or the checkpoint's own `Completed`: its exit status, output
+            and trap; `None` when no code ran, as for a checkpoint refused for an open file.
     """
 
-    def __init__(self, message: str, *, reason: str, completed: Completed) -> None:
+    def __init__(self, message: str, *, reason: str, completed: Completed | None) -> None:
         super().__init__(message)
         self.reason = reason
         self.completed = completed
@@ -77,19 +84,25 @@ class SnapshotOrigin:
 
     Attributes:
         prelude: The code that made the image, as given: the image already holds its code
-            objects, so the origin reveals nothing the image does not.
+            objects, so the origin reveals nothing the image does not. A checkpoint's is "".
         prelude_sha256: The SHA-256 of the code as UTF-8.
         prelude_fuel: The instructions the code ran, when the making was given `fuel`; else
-            `None`.
+            `None`, and always for a checkpoint, whose turns each reported their own.
         image_bytes: The image's size: a whole number of 64 KiB pages.
-        image_sha256: The SHA-256 of the image, which `Completed.image_sha256` repeats.
+        image_sha256: The SHA-256 of the image, which `Completed.image_sha256` repeats. A
+            checkpoint's names its image; it does not predict it, since the heap holds real
+            times and entropy.
         home: The guest's HOME while the code ran, which every call from the image sees.
-        guest_paths: The guest paths of the making's root, grants and mounts.
-        env_names: The sorted names of the making's `env`, never their values.
+        guest_paths: The guest paths of the making's root, grants and mounts, or the session's.
+        env_names: The sorted names of the making's `env`, or the session's, never their values.
         snapshot_sha256: The SHA-256 of the set's `python-snapshot.wasm` it was made with.
         stdlib_zip_sha256: The SHA-256 of the set's `python-stdlib.zip` it was made with.
         wasi_python: The version of wasi-python that made it.
         made_at: When it was made, in UTC, ISO 8601, to the second.
+        kind: "prelude", made by `make_snapshot` or `make_package_snapshot`, or "checkpoint",
+            made by `Session.checkpoint`.
+        parent_sha256: For a checkpoint, the `image_sha256` of the snapshot its session
+            started from; `None` when it started from none, and for a prelude.
     """
 
     prelude: str
@@ -104,6 +117,8 @@ class SnapshotOrigin:
     stdlib_zip_sha256: str
     wasi_python: str
     made_at: str
+    kind: str = "prelude"
+    parent_sha256: str | None = None
 
 
 class _Start(NamedTuple):
@@ -162,9 +177,10 @@ class Snapshot:
         first = lines[0] if len(lines[0]) <= 40 else lines[0][:40] + "…"
         more = len(lines) - 1
         others = "" if not more else f" +{more} line{'s' if more > 1 else ''}"
+        what = "checkpoint" if origin.kind == "checkpoint" else f"{first!r}{others}"
         size = origin.image_bytes / 2**20
         return (
-            f"<Snapshot {first!r}{others}, {size:.1f} MiB, made {origin.made_at} "
+            f"<Snapshot {what}, {size:.1f} MiB, made {origin.made_at} "
             f"by wasi-python {origin.wasi_python}>"
         )
 
@@ -281,24 +297,34 @@ def _now() -> str:
     return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _guest_paths(c: Any) -> list[str]:
+    """The guest paths of a checked call's or session's root, grants and mounts, in order."""
+    paths = ["/"] if c.root is not False else []
+    return paths + [g.guest for g in c.grants] + [m.guest for m in c.mounts]
+
+
 def _origin_of(
     code: str, image: bytes, fuel: int | None, paths: Iterable[str], env_names: Iterable[str],
-    digests: tuple[str, str],
+    digests: tuple[str, str], *, kind: str = "prelude", home: str = IMAGE_HOME,
+    parent: str | None = None,
 ) -> SnapshotOrigin:  # fmt: skip
-    """The origin a making records."""
+    """The origin a making records, or with `kind="checkpoint"` a checkpoint's: the session's
+    HOME, and the image it started from as its parent."""
     return SnapshotOrigin(
         prelude=code,
         prelude_sha256=hashlib.sha256(code.encode("utf-8")).hexdigest(),
         prelude_fuel=fuel,
         image_bytes=len(image),
         image_sha256=hashlib.sha256(image).hexdigest(),
-        home=IMAGE_HOME,
+        home=home,
         guest_paths=tuple(paths),
         env_names=tuple(sorted(env_names)),
         snapshot_sha256=digests[0],
         stdlib_zip_sha256=digests[1],
         wasi_python=_version(),
         made_at=_now(),
+        kind=kind,
+        parent_sha256=parent,
     )
 
 
@@ -373,10 +399,14 @@ def _header_origin(header: Any, where: Path) -> SnapshotOrigin:
         raise SnapshotMismatch(f"{where} is compressed with {header.get('codec')!r}, not zlib")
     values: dict[str, Any] = {}
     for field in dataclasses.fields(SnapshotOrigin):
-        value = header.get(field.name)
+        value = header.get(field.name, field.default)  # a field added later has its default
         if field.name in ("guest_paths", "env_names") and isinstance(value, list):
             value = tuple(value)
-        kinds = {"prelude_fuel": (int, type(None)), "image_bytes": (int,)}.get(field.name)
+        kinds = {
+            "prelude_fuel": (int, type(None)),
+            "image_bytes": (int,),
+            "parent_sha256": (str, type(None)),
+        }.get(field.name)
         if field.name in ("guest_paths", "env_names"):
             ok = isinstance(value, tuple) and all(isinstance(v, str) for v in value)
         else:
@@ -384,8 +414,7 @@ def _header_origin(header: Any, where: Path) -> SnapshotOrigin:
         if not ok:
             raise SnapshotMismatch(f"{where} has a damaged header: {field.name} {value!r}")
         values[field.name] = value
-    if values["home"] != IMAGE_HOME:  # format 1 has one HOME, which every call preopens
-        raise SnapshotMismatch(f"{where} has a damaged header: home {values['home']!r}")
+    _check_kind(values, where)
     size = values["image_bytes"]
     if size <= 0 or size % PAGE or size > MAX_IMAGE_BYTES:
         raise SnapshotMismatch(
@@ -393,6 +422,19 @@ def _header_origin(header: Any, where: Path) -> SnapshotOrigin:
             "to 4 GiB"
         )
     return SnapshotOrigin(**values)
+
+
+def _check_kind(values: dict[str, Any], where: Path) -> None:
+    """A header's kind, parent and HOME, each one this reader knows: a making's HOME is the
+    image's fixed path, and a checkpoint's is that or a session's own, which every call from it
+    preopens again."""
+    kind, parent, home = values["kind"], values["parent_sha256"], values["home"]
+    if kind not in KINDS:
+        raise SnapshotMismatch(f"{where} has a damaged header: kind {kind!r}")
+    if parent is not None and not SHA256.match(parent):
+        raise SnapshotMismatch(f"{where} has a damaged header: parent_sha256 {parent!r}")
+    if home != IMAGE_HOME and not (kind == "checkpoint" and SESSION_HOME.match(home)):
+        raise SnapshotMismatch(f"{where} has a damaged header: home {home!r}")
 
 
 def _image_of(f: Any, size: int, where: Path) -> bytes:
@@ -445,22 +487,27 @@ def _start_of(snap: Snapshot) -> _Start:
 
 
 def _same_set(
-    start: _Start | None, found: Artifacts, checked: _artifacts._Checked | None
+    start: _Start | None,
+    found: Artifacts,
+    checked: _artifacts._Checked | None,
+    session: bool = False,
 ) -> _artifacts._Checked | None:
     """The digests a call holds its set's bytes to. A call from the set alone keeps what it has.
-    A call from an image, or a making, takes the snapshot binary's and the zip's digests, those
-    the found set's check took or, for a set passed, its own now, which the call then holds the
-    bytes it compiles and copies to; an image's must be the origin's."""
-    if start is None:
+    A call from an image, a making, or a `session` on the snapshot binary, which a checkpoint
+    binds to its set, takes the snapshot binary's and the zip's digests, those the found set's
+    check took or, for a set passed, its own now, which the call then holds the bytes it
+    compiles and copies to; an image's must be the origin's."""
+    if start is None and not session:
         return checked
     if checked is None:
         snap, zipped = _artifacts._digest(found.snapshot), _artifacts._digest(found.stdlib_zip)
         checked = _artifacts._Checked(snap, zipped)
-    if start.digests is not None and start.digests != (checked.binary, checked.zip):
+    digests = None if start is None else start.digests
+    if digests is not None and digests != (checked.binary, checked.zip):
         which, want, got = (
-            ("snapshot binary", start.digests[0], checked.binary)
-            if start.digests[0] != checked.binary
-            else ("stdlib zip", start.digests[1], checked.zip)
+            ("snapshot binary", digests[0], checked.binary)
+            if digests[0] != checked.binary
+            else ("stdlib zip", digests[1], checked.zip)
         )
         raise SnapshotMismatch(
             f"this snapshot was made for the artifact set whose {which} is {want[:12]}…, and "

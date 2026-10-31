@@ -1178,6 +1178,55 @@ class Session:
         done = _sessions._session_turn(*args)
         return done, state.captured, state.set_digests
 
+    def checkpoint(self) -> Snapshot:
+        """Keep the session's state as a snapshot, and go on.
+
+        Once a turn has returned, the guest's memory is read whole, between two calls into the
+        guest, and kept as a `Snapshot`: every name, import and object the turns made. Pass it
+        as `snapshot=` to `Session`, `run` or `run_async`; each starts from a private copy with
+        its own grants, mounts, environment, import path, tools, clocks and randomness, and this
+        session goes on unchanged. A start reseeds `random`'s, numpy's and the other module
+        generators, even after the session's own seed; a generator held in a name draws the
+        same in every start. The checkpoint holds every byte the session's memory holds, what
+        its turns read from grants, mounts and tools included: start it only where its code may
+        read everything the session read. It binds to this session's artifact set.
+
+        Returns:
+            The snapshot. Its origin's `kind` is "checkpoint", and its `parent_sha256` is the
+            image this session started from, if any.
+
+        Raises:
+            RuntimeError: This process was forked after it ran a guest; a turn is running; no
+                turn has returned yet; or the runner lost track of the call, which ends the
+                session.
+            ValueError: The session runs the plain binary (`snapshot=False`).
+            ArtifactsMissing: The artifact set predates checkpoints.
+            SessionEnded: The session has ended, or its idle bound or lifetime has passed.
+            SnapshotFailed: A turn left a file or folder open (reason "open file", with
+                `completed` `None`; the session goes on), or the guest trapped (reason
+                "trapped"), which ends the session.
+            MemoryError: This process had no memory for the image; the session goes on.
+        """
+        _platform._refuse_forked()
+        state = self._state
+        if state.checked.binary != "snapshot":
+            raise ValueError(
+                "a checkpoint needs the snapshot binary: this session runs the plain one "
+                "(snapshot=False)"
+            )
+        if not state.checkpointable:
+            raise ArtifactsMissing(
+                "this artifact set's snapshot binary does not export checkpoint: it predates "
+                "checkpoints; use a set built with them"
+            )
+        self._claim(here=True)
+        refusal = _sessions._checkpoint_refusal(state)
+        if refusal is not None:
+            self._release_claim()
+            raise refusal
+        done = _sessions._session_turn(state, b"", None, None, None, None, None, "checkpoint")
+        return _sessions._checkpointed(state, done)
+
     def _release_claim(self) -> None:
         """A claimed turn that never started gives its claim back. When a `close()` came between
         the claim and the release, the session is marked and nobody holds it: its ending goes to

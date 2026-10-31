@@ -54,6 +54,7 @@ if TYPE_CHECKING:
 MAX_TURN_BYTES = 0x7FFFFFFF  # the `turn` export's length is an i32
 SESSION_EXPORTS = ("turn", "shutdown")
 STDIN_EXPORT = "turn_input"  # a turn's stdin, in a set built with it
+CHECKPOINT_EXPORT = "checkpoint"  # looked up at the call: a set without it still opens a session
 
 
 class _TurnIO(NamedTuple):
@@ -271,6 +272,7 @@ class _State:
         self.set_digests: _artifacts._Checked | None = None  # a snapshot's set, as checked
         self.captured: tuple[bytes, int] | None = None  # a making's image and files left open
         self.takes_stdin = False  # the instance exports turn_input: a turn may be given stdin
+        self.checkpointable = False  # the instance exports `checkpoint`
 
 
 _WAKE = object()
@@ -773,8 +775,9 @@ def _drive_turn(
     state: _State, call: _Call, data: bytes, export: str = "turn", stdin: bytes | None = None
 ) -> tuple[int | None, int | None, str | None, bool]:
     """(the export's value, an exit code, a trap's name, whether guest code ran), on this
-    thread's stack, by `_drive`'s rules (steps 3 and 4); `export` is `turn`, or `prepare` for a
-    making. A turn's `stdin` is handed to `turn_input` first. Before any guest code, as in
+    thread's stack, by `_drive`'s rules (steps 3 and 4); `export` is `turn`, `prepare` for a
+    making, or `checkpoint`, whose two calls take no code. A turn's `stdin` is handed to
+    `turn_input` first. Before any guest code, as in
     `_drive`, a turn is refused when wasmtime's trap handlers were replaced: the session then
     ends as on an error, without Python's shutdown."""
     not_ready = _platform.PLATFORM.trap_handlers_ready()
@@ -800,7 +803,10 @@ def _drive_turn(
         on_export = process().observers.on_export
         if on_export is not None:  # told the home thread, the thread that made the call
             on_export(export, _home_ident(call))
-        value = exports[export](store, p, len(data))
+        if export == CHECKPOINT_EXPORT:
+            value = _checkpoint_calls(state, store, exports)
+        else:
+            value = exports[export](store, p, len(data))
     except wt.ExitTrap as e:
         exit_code = e.code
     except wt.Trap as e:
@@ -830,6 +836,64 @@ def _drive_turn(
     elif call.ended is not None:
         value, exit_code, trapped = None, None, call.ended
     return value, exit_code, trapped, True
+
+
+def _checkpoint_calls(state: _State, store: Any, exports: Mapping[str, Any]) -> int:
+    """The checkpoint's two calls on the guest thread: enter, read linear memory whole into
+    `state.captured`, then leave on every path, so the live instance goes on as it was. The
+    leave's value is returned, or the enter's refusal. With no memory for the copy, nothing is
+    captured and the session goes on: the caller raises the `MemoryError`."""
+    state.captured = None
+    entered = exports[CHECKPOINT_EXPORT](store, 1)
+    if entered != 0:
+        return int(entered)
+    try:
+        state.captured = (_snapshot._memory_image(store, exports["memory"]), 0)
+    except MemoryError:
+        pass
+    finally:
+        left = exports[CHECKPOINT_EXPORT](store, 0)
+    return int(left)
+
+
+def _checkpoint_refusal(state: _State) -> BaseException | None:
+    """Under the checkpoint's claim, before any guest code: why this session cannot be
+    checkpointed now, or None. Its last export must have returned, and it may hold no file or
+    folder open, since the guest's object names a number no start can reopen."""
+    if state.guest is not _Guest.SOUND:
+        return RuntimeError("a checkpoint needs a turn that returned: run a turn first")
+    assert state.table is not None  # claimed: the store is open
+    left = state.table.open_now()
+    if left:
+        return _snapshot.SnapshotFailed(
+            f"the session holds {left} file{'s' if left > 1 else ''} open; close what its turns "
+            "opened (use `with`), since a start from the checkpoint cannot reopen it",
+            reason="open file",
+            completed=None,
+        )
+    return None
+
+
+def _checkpointed(state: _State, done: Completed) -> _snapshot.Snapshot:
+    """The checkpoint's snapshot, its origin the session's, or why there is none: a trap, which
+    has ended the session, or no memory for the image, after which the session goes on."""
+    captured, state.captured = state.captured, None
+    if done.trapped is not None:
+        raise _snapshot.SnapshotFailed(
+            f"the checkpoint trapped: {done.trapped}", reason="trapped", completed=done
+        )
+    if captured is None:
+        raise MemoryError("no memory for the checkpoint's image; the session goes on")
+    image, c, digests, home = captured[0], state.checked, state.set_digests, state.home
+    assert digests is not None and home is not None  # a session on the snapshot binary
+    origin = _snapshot._origin_of(
+        "", image, None, _snapshot._guest_paths(c), c.env or {}, (digests.binary, digests.zip),
+        kind="checkpoint", home=home.guest, parent=None if c.start is None else c.start.sha256,
+    )  # fmt: skip
+    p = process()
+    with p.cache_lock:
+        p.counts["snapshots_made"] += 1
+    return _snapshot._made(image, origin)
 
 
 def _turn_inside(
@@ -996,6 +1060,19 @@ def _end_with_ctrl_c(state: _State, owner: int | None = None) -> BaseException |
     return raised
 
 
+def _session_set(
+    c: _CheckedCall, artifacts: Artifacts | None
+) -> tuple[Artifacts, _artifacts._Checked | None]:
+    """A session's artifact set, found and checked against its SHA256SUMS unless one is given,
+    and the digests it holds the set's bytes to: an image's, which must be the origin's, or, on
+    the snapshot binary, the ones a checkpoint binds to."""
+    snapshot = c.binary == "snapshot"
+    found, checked = (
+        (artifacts, None) if artifacts is not None else _artifacts._found_and_checked(snapshot)
+    )
+    return found, _snapshot._same_set(c.start, found, checked, snapshot)
+
+
 def _open_session(
     wt: types.ModuleType,
     c: _CheckedCall,
@@ -1006,12 +1083,8 @@ def _open_session(
 ) -> None:
     """A session's opening: find the set and refuse one without the session exports, walk and
     judge the folders, make the store and instantiate it; no guest code runs."""
-    found, checked = (
-        (artifacts, None)
-        if artifacts is not None
-        else _artifacts._found_and_checked(c.binary == "snapshot")
-    )
-    checked = state.set_digests = _snapshot._same_set(c.start, found, checked)
+    found, checked = _session_set(c, artifacts)
+    state.set_digests = checked
     if c.tools is not None and not _artifacts._has_guest_package(found.manifest):
         raise ArtifactsMissing(
             f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
@@ -1034,6 +1107,7 @@ def _open_session(
             "sessions; a Session needs a set built with them"
         )
     _snapshot._refuse_unprepared(c.start, binary, names)
+    state.checkpointable = CHECKPOINT_EXPORT in names
     root = c.root
     entries = c.import_path
     walked_root, walked = _places._walk_grants(
