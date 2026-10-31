@@ -28,6 +28,7 @@ TOP = [
     "ArtifactsMissing",
     "Completed",
     "Defaults",
+    "Display",  # a cell's value or display, under results=True
     "Errno",
     "FileFault",
     "FileProvider",

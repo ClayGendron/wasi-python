@@ -15,10 +15,12 @@ Two ideas run through the page. A program that fails *inside* the guest still gi
 | `stderr` | `bytes` | What the guest wrote to standard error, up to the output limit. |
 | `trapped` | `str` or `None` | `None` when the program ended by itself. Otherwise why it was stopped (see below). |
 | `fuel_used` | `int` or `None` | The guest's instructions spent, when you gave a `fuel` cap and no deadline hit; else `None`. |
-| `truncated` | `tuple[str, ...]` | The streams, `"stdout"` and `"stderr"`, whose output passed the limit. Empty when nothing was cut. |
+| `truncated` | `tuple[str, ...]` | The streams, `"stdout"` and `"stderr"`, whose output passed the limit, and `"displays"` when a display was cut or not kept. Empty when nothing was cut. |
 | `files` | `FileRecord` or `None` | For a call with mounts: its provider calls, faults and refused writes. Else `None`. |
 | `tools` | `ToolRecord` or `None` | For a call with tools: every tool-protocol frame counted and the first 1,000 listed. Else `None`. |
 | `image_sha256` | `str` or `None` | For a call or turn started from a `Snapshot`: the SHA-256 of its image, so you can tell which snapshot a result came from. Else `None`. |
+| `value` | `Display` or `None` | With `results=True`: a turn's or a `-c` program's last expression, when it is not `None`. Else `None`. |
+| `displays` | `tuple[Display, ...]` | With `results=True`: what the program passed to `display()` and, with `figures=True`, its matplotlib figures, in order. Else empty. |
 
 For example, this call returns exit code 0 and the sum on standard output:
 
@@ -49,6 +51,19 @@ When `trapped` is set, `exit_code` is `None`. Output buffered inside the guest a
 ### `truncated`: cut output
 
 Each stream keeps at most `output_bytes` bytes (16 MiB by default). The bytes past the limit are dropped, and the stream's name is added to `truncated`.
+
+### `value` and `displays`: what a notebook would show
+
+A `Display` is a frozen dataclass of four fields:
+
+| field | type | what it holds |
+|---|---|---|
+| `data` | `Mapping[str, str \| bytes]` | The content by MIME type, read-only. `"text/plain"` is always there, the object's `repr`. `"text/html"`, `"text/markdown"`, `"image/svg+xml"` and `"application/json"` are `str`, and `"image/png"` is `bytes`. |
+| `truncated` | `tuple[str, ...]` | The MIME types cut or left out because the room for displays ran short. |
+| `stdout_at` | `int` | The bytes the guest had written to stdout before it, kept or not. Under the head keep, `stdout[:stdout_at]` is what printed before it. |
+| `stderr_at` | `int` | The same for stderr. |
+
+A call's displays, its value included, share one more `output_bytes` and 1,000 records. HTML and SVG are the guest's: render them in a sandboxed frame. See [Read a cell's value and displays](../how-to/results.md).
 
 ### `files`: what a mount's provider did
 

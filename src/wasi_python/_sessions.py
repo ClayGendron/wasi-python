@@ -16,7 +16,8 @@ from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import _artifacts, _call, _engines, _home, _outputs, _places, _platform, _private_dirs
-from . import _snapshot as _snapshot  # its own line: the line above is full
+from . import _results as _results  # each on its own line: the line above is full
+from . import _snapshot as _snapshot
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._call import (
     ARGV0,
@@ -678,7 +679,8 @@ def _arm(
 ) -> tuple[_Call, _Stream, _Stream, _outputs._Feed | None, _ToolHost | None]:
     """One call into the session's instance: its fuel and epoch deadline re-armed, its waits on
     the session's clock base, fresh output streams and their feed, a frame host and mount
-    counters of its own (step 2)."""
+    counters of its own (step 2), and under results a result host, which is the call's door
+    host."""
     store, table = state.store, state.table
     assert store is not None and table is not None  # a turn or an ending: the store is open
     if state.metered:
@@ -705,10 +707,11 @@ def _arm(
     out, err, feed = _outputs._feed_for(io.on_output, io.keep, output_bytes, home, loop)
     assert state.capture is not None  # made with the store
     state.capture.retarget(out, err)
-    host, admit, tool_host = state.host, None, None
-    if state.checked.tools is not None:
+    c, tool_host = state.checked, None
+    if c.tools is not None:
         tool_host = _session_tool_host(state, stop_at, stop, loop, home)
-        host, admit = tool_host, tool_host.admit
+    hosts = (c.results, state.host, tool_host, output_bytes, (out, err), state.capture.settle)
+    host, admit = _results._door_hosts(*hosts)
     table.new_turn()
     call = _Call(store, host, waits, state.origin_ns, stop, stop_at, admit, table=table, home=home)
     if obs.on_call is not None:
@@ -959,8 +962,9 @@ def _turn_inside(
         files = table.record() if state.checked.mounts else None
         record = None if tool_host is None else tool_host.record
         image = None if state.checked.start is None else state.checked.start.sha256
+        results = _results._host_of(call.host)
         completed = _call._completed(
-            out, err, feed, exit_code, trapped, fuel_used, files, record, image
+            out, err, feed, exit_code, trapped, fuel_used, files, record, image, results
         )
         return _TurnDone(completed, cause, returned)
     finally:
@@ -1132,7 +1136,7 @@ def _open_session(
             store.set_limits(memory_size=c.memory_bytes)
         wasi = wt.WasiConfig()
         state.origin_ns = time.perf_counter_ns()  # the session's clock base
-        wasi.argv = [ARGV0, *entries]
+        wasi.argv = [ARGV0, *_results._flag(c.results), *entries]
         wasi.env = sorted({**_call.BASE_ENV, "HOME": state.home.guest, **(c.env or {})}.items())
         state.capture = _outputs._capture(wasi, _Stream("stdout", 0), _Stream("stderr", 0))
         scratch = state.scratch = _Private("wasi-python-")

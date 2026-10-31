@@ -30,7 +30,8 @@ from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, cast
 
 from . import _call, _engines, _limits, _outputs, _places, _platform, _private_dirs, _sessions
-from . import _snapshot as _snapshot  # its own line: the line above is full
+from . import _results as _results  # each on its own line: the line above is full
+from . import _snapshot as _snapshot
 from ._artifacts import Artifacts, ArtifactsMissing
 from ._call import Completed as Completed  # re-exported: the public API names them here
 from ._call import _CheckedCall
@@ -150,6 +151,8 @@ def run(
     max_open_files: int | None = _UNSET,
     on_output: Callable[[OutputChunk], object] | None = None,
     output_keep: Literal["head", "tail"] = "head",
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -243,6 +246,11 @@ def run(
             bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
             past `output_bytes` and the line takes the place of the tail's first bytes. Anything
             else raises `ValueError`.
+        results: `True` returns a `-c` program's last expression as `Completed.value`, not
+            printed, and what it passes to `display()` as `Completed.displays`; they share one
+            more `output_bytes`. Excludes `host`.
+        figures: `True` adds each matplotlib figure the program shows or leaves open, as a PNG
+            display. Needs `results`.
 
     Returns:
         How the program ended.
@@ -294,6 +302,8 @@ def run(
         snapshot=snapshot,
         on_output=on_output,
         output_keep=output_keep,
+        results=results,
+        figures=figures,
     )
     cache = _engines._cache_given(cache_dir)
     return _run_checked_flushed(wt, checked, host, cache, artifacts, None)
@@ -340,6 +350,8 @@ async def run_async(
     max_open_files: int | None = _UNSET,
     on_output: Callable[[OutputChunk], object] | None = None,
     output_keep: Literal["head", "tail"] = "head",
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -433,6 +445,11 @@ async def run_async(
             bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
             past `output_bytes` and the line takes the place of the tail's first bytes. Anything
             else raises `ValueError`.
+        results: `True` returns a `-c` program's last expression as `Completed.value`, not
+            printed, and what it passes to `display()` as `Completed.displays`; they share one
+            more `output_bytes`. Excludes `host`.
+        figures: `True` adds each matplotlib figure the program shows or leaves open, as a PNG
+            display. Needs `results`.
 
     Returns:
         How the program ended.
@@ -484,6 +501,8 @@ async def run_async(
             snapshot=snapshot,
             on_output=on_output,
             output_keep=output_keep,
+            results=results,
+            figures=figures,
             asynchronous=True,
         )
         late = _outputs._Late.around(checked.on_output)  # the coroutine's: raised after the await
@@ -693,14 +712,15 @@ def _checked(
     snapshot: Any = True,
     on_output: Any = None,
     output_keep: Any = "head",
+    results: Any = False,
+    figures: Any = False,
     asynchronous: bool = False,
 ) -> _CheckedCall:
     """Every argument a call's guest depends on, checked before any work, as one frozen record
-    built from its typed parts, each field named. The defaults are read once, here, and every
-    check that takes one takes it from this read, so a `set_defaults` on another thread never
-    gives a call a mix of the old and new limits. `async_workers` is not a call's limit:
-    `_submit` reads it under the pool's lock. A session passes the `limits` it read;
-    `asynchronous` says an event loop awaits the call, which an `OutputFeed` needs."""
+    built from its typed parts. The defaults are read once, here, so a `set_defaults` on another
+    thread never gives a call a mix of the old and new limits (`async_workers` is `_submit`'s,
+    read under the pool's lock). A session passes the `limits` it read; `asynchronous` says an
+    event loop awaits the call, as an `OutputFeed` needs; `results` and `figures` set its mode."""
     limits = limits if limits is not None else _current_defaults()
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
@@ -708,8 +728,7 @@ def _checked(
     memory_bytes = limits.memory_bytes if memory_bytes is _UNSET else memory_bytes
     deadline_s = limits.deadline_s if deadline_s is _UNSET else deadline_s
     output_bytes = limits.output_bytes if output_bytes is _UNSET else output_bytes
-    if cancel is not None and not isinstance(cancel, threading.Event):
-        raise TypeError(f"cancel must be a threading.Event, or None; got {type(cancel).__name__}")
+    cancel = _limits._check_cancel(cancel)
     bounds = _limits._check_limits(fuel, deadline_s, memory_bytes, output_bytes)
     binary, start = _snapshot._start(snapshot, bounds.memory_bytes)
     inputs = _limits._check_inputs(argv, env, stdin)
@@ -746,6 +765,7 @@ def _checked(
         open_files=places.open_files,
         binary=binary,
         start=start,
+        results=_results._check_results(results, figures, host, inputs.argv),
     )
 
 
@@ -903,6 +923,8 @@ class Session:
         idle_s: float | None = _UNSET,
         lifetime_s: float | None = _UNSET,
         shutdown_s: float = _UNSET,
+        results: bool = False,
+        figures: bool = False,
     ) -> None:
         """Open a session: check every argument, find the artifact set, make the folders and
         the store, and instantiate the guest. No guest code runs until the first turn.
@@ -983,6 +1005,11 @@ class Session:
                 so it ends by the opening plus the lifetime plus this; past it the session is
                 stopped. Default: `defaults().session_shutdown_s`, 5. 0 skips the shutdown;
                 `None` is refused.
+            results: `True` returns each turn's last expression as `Completed.value`, not
+                printed, and what it passes to `display()` as `Completed.displays`; they share
+                one more `output_bytes`. Fixed for the session. Excludes `host`.
+            figures: `True` adds each matplotlib figure a turn shows or leaves open, as a PNG
+                display. Needs `results`.
 
         Raises:
             TypeError: An argument has the wrong type; raised before any work.
@@ -1023,6 +1050,8 @@ class Session:
             max_open_files=max_open_files,
             limits=limits,
             snapshot=snapshot,
+            results=results,
+            figures=figures,
         )
         cache = _engines._cache_given(cache_dir)
         state = _State(c, wt)
@@ -1113,10 +1142,7 @@ class Session:
             if output_bytes is _UNSET
             else _limits._integer_limit("output_bytes", output_bytes)
         )
-        if cancel is not None and not isinstance(cancel, threading.Event):
-            raise TypeError(
-                f"cancel must be a threading.Event, or None; got {type(cancel).__name__}"
-            )
+        _limits._check_cancel(cancel)
         return data, fuel, deadline, output
 
     def _turn_io(
@@ -1254,9 +1280,10 @@ class Session:
         """Run one turn of code in the session and return how it ended.
 
         The code runs in `__main__`, as the interactive interpreter runs it: a final expression's
-        value is printed, `sys.exit()` is reported as the turn's exit status and the session
-        goes on, and `exit()` or `quit()` make the turn return their status and then end the
-        session. Nothing a guest does makes `run` raise.
+        value is printed (in a session with `results=True`, returned as `Completed.value`
+        instead), `sys.exit()` is reported as the turn's exit status and the session goes on,
+        and `exit()` or `quit()` make the turn return their status and then end the session.
+        Nothing a guest does makes `run` raise.
 
         Args:
             code: The turn's source, a str.

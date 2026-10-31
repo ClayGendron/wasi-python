@@ -22,7 +22,7 @@ with Session(grants=[Grant("data", "/data")]) as session:
 
 A turn runs in `__main__`, as the interactive interpreter runs it and as a Jupyter kernel runs a cell:
 
-- **A final expression is echoed.** `df.head()` as the last line prints it.
+- **A final expression is echoed.** `df.head()` as the last line prints it. In a session with `results=True`, it is returned as `Completed.value` instead: see [Read a cell's value and displays](results.md).
 - **An exception is reported** with its traceback, which names `<turn N>` and shows the turn's source lines. The turn's `exit_code` is 1, and the session goes on.
 - **`sys.exit(n)` is reported** as the turn's `exit_code`, and the session goes on.
 - **`exit(n)` and `quit()` end the session.** The turn stops at that line and returns its status; then the session runs Python's shutdown and ends with `ended == "quit"`.

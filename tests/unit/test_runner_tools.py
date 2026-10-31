@@ -828,7 +828,8 @@ def test_completed_has_no_tool_record_by_default() -> None:
     assert done.tools is None and done.files is None
     assert _call.Completed.__dataclass_fields__.keys() >= {"tools"}
     # appended after `tools`, so the positional order of every earlier field is kept
-    assert list(_call.Completed.__dataclass_fields__)[-2:] == ["tools", "image_sha256"]
+    fields = list(_call.Completed.__dataclass_fields__)
+    assert fields[fields.index("tools") :][:2] == ["tools", "image_sha256"]
 
 
 def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:

@@ -10,7 +10,8 @@ A *limit* here is a bound the runner enforces on one guest: memory, time, output
 |---|---|---|---|---|---|
 | memory | 1 GiB | bytes of linear memory | `memory_bytes=` | `memory_bytes=` (whole session) | `--memory-bytes` |
 | deadline | 60 | seconds of wall-clock time | `deadline_s=` | `deadline_s=` (each turn), or per turn | `--deadline-s` |
-| output | 16 MiB | bytes kept per stream | `output_bytes=` | `output_bytes=` (each turn), or per turn | `--output-bytes` |
+| output | 16 MiB | bytes kept per stream, and once more for a call's displays under `results=True` | `output_bytes=` | `output_bytes=` (each turn), or per turn | `--output-bytes` |
+| displays | 1,000 | records a call or turn keeps under `results=True`, its value included | not offered | not offered | not offered |
 | fuel | none | guest instructions | `fuel=` | `fuel=` (each turn), or per turn | `--fuel` |
 | open files | 1,024 | files and folders open at once | `max_open_files=` | `max_open_files=` | `--max-open-files` |
 | provider calls | 10,000 | calls to a mount's provider | `max_file_calls=` | `max_file_calls=` (each turn) | not offered |

@@ -7,7 +7,8 @@
 # the rest. Each Python distribution's METADATA rides along: a wheel's from the wheel,
 # numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
 # in wasi-sdk); the recipe's stand-in package takes its place. The tool protocol's guest package,
-# `host`, rides along as the project's own code; the snapshot does not pre-import it.
+# `host`, rides along as the project's own code, with `host.display` and the figures backend
+# `host.figures` for a call that asks for results; the snapshot does not pre-import it.
 # Each module's code is compiled under the name zipimport gives a source in the same zip, the
 # archive's guest path plus the member: that path is recipes/reactor_main.c's
 # STDLIB_ZIP, written there once more, and step 80's ZIP. The plot packages:
@@ -210,6 +211,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --file "$HERE/recipes/reportlab_start_up_stand_in.py=reportlab_settings.py" \
   --file "$HERE/recipes/guest/host/__init__.py=host/__init__.py" \
   --file "$HERE/recipes/guest/host/tools.py=host/tools.py" \
+  --file "$HERE/recipes/guest/host/display.py=host/display.py" \
+  --file "$HERE/recipes/guest/host/figures.py=host/figures.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \
   --replace "$WASI_SDK_DIR=wasi-sdk" \
   --replace "$WASMTIME_DIR=wasmtime" \
