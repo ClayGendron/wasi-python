@@ -1,0 +1,9 @@
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_bare_cr_before_data_returns_none
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_dict_dtype_duplicate_names_falls_back
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_dtype_specified
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_header_none
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_ints_and_floats
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_long_first_line_keeps_fine_split
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_skiprows_int
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_strings
+pandas/tests/io/parser/test_parallel_read.py::TestReadCsvParallel::test_with_na_values

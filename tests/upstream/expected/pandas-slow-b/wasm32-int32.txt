@@ -1,0 +1,3 @@
+pandas/tests/io/parser/dtypes/test_categorical.py::test_categorical_dtype_high_cardinality_numeric[c_high]
+pandas/tests/io/parser/dtypes/test_categorical.py::test_categorical_dtype_high_cardinality_numeric[c_low]
+pandas/tests/io/parser/dtypes/test_categorical.py::test_categorical_dtype_high_cardinality_numeric[python]
