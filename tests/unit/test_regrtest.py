@@ -523,8 +523,9 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
         "cpython-b",
         "cpython-c",
     }
-    # 542, and test_traceback since the 8 MiB guest stack closed its trap entry
-    assert sum(len(g.modules) for g in normal.values()) == 543
+    # 542, and test_traceback since the 8 MiB guest stack closed its trap entry; CPython 3.15.2
+    # adds four test_free_threading modules and removes test_cppext
+    assert sum(len(g.modules) for g in normal.values()) == 546
     # the 8 MiB guest stack closed the nine trap entries; its test_traceback added one class, and
     # the release tier's test_trace one more
     assert len(PY.traps) == 0 and len(PY.expected) == 27
