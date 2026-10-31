@@ -36,6 +36,7 @@
 ```toml
 [[claim]]
 spec = "166"
+new = ["tests/checks/test_v1_3_data_stack.py::test_a_large_csv_is_read_serially"]
 changed = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
@@ -51,8 +52,11 @@ passes = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-reshape]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-tslibs]",
 ]
-grows = ["tests/checks/*"]
-growth = "pandas 3.1.0, from 3.0.6, with its C++20 tokenizer (fast_float 8.2.10) and its xsimd moments, and zlib 1.3.2, from 1.3.1, change the guest's code and the zip, so any metered check's fuel and the set's bytes may move. Measured on darwin arm64 against the first pull request's set: python.wasm +1,140,570 bytes (+1.146%), the snapshot +1,141,489 (+1.092%), the zip +333,477 (+0.620%), the wheel +858,967 (+0.874%, 99,186,606 bytes, 813,394 under 100,000,000); the own checks measured, 159 rows, +0.419% in sum (median -0.001%, at most +1.81%, the import of numpy and pandas); pandas' eight normal groups +2.92% in sum (1,217.6 G to 1,253.2 G) with 5,254 more passes. pandas-io-parser grows from 94.4 G to 182.2 G: 3.1.0's new test_parallel_read.py (79.7 G in a session of its own) and 1,311 more passing tests, its cap rising to keep its headroom; pandas-frame +5.1% with 3,031 more passes; every other pandas group falls"
+grows = [
+  "tests/checks/*",
+  "tests/checks/test_v1_3_default_profile.py::test_markup_job_matches_native",
+]
+growth = "pandas 3.1.0, from 3.0.6, with its C++20 tokenizer (fast_float 8.2.10) and its xsimd moments, and zlib 1.3.2, from 1.3.1, change the guest's code and the zip, so any metered check's fuel and the set's bytes may move. Measured on darwin arm64 at this head, rebased on dev at 30566232 (whose reactor and bootstrap changes rebuilt the link), against the first pull request's set: python.wasm 100,633,998 bytes (99,487,062), the snapshot 105,737,136 (104,576,267), the zip 54,162,674 (53,829,197), the wheel 99,207,558 bytes (98,327,639), 5,650,042 under PyPI's 104,857,600, the owner's line of 2026-10-31. pandas' eight normal groups +2.92% in sum (1,217.6 G to 1,253.2 G) with 5,254 more passes; pandas-io-parser grows from 94.4 G to 182.2 G: 3.1.0's new test_parallel_read.py (79.7 G in a session of its own) and 1,311 more passing tests, its cap rising to keep its headroom; pandas-frame +5.1% with 3,031 more passes; every other pandas group falls; the own checks measured before the rebase, 159 rows, +0.419% in sum, at most +1.81% (the import of numpy and pandas). test_markup_job_matches_native grows with the first pull request's soupsieve 3.0.4, which its claim block does not name: 6,607,211,136 at 3.15.0 and soupsieve 3.0.3 to 9,990,502,330 at its set (+51%, the job alone, measured by 165's builder); -c pass and html5lib are flat, import soupsieve goes from 1.71 G to 2.48 G, and the import with one selector compile from 1.81 G to 5.45 G"
 [claim.judge]
 "tests/upstream/pandas.toml" = "pandas-io-parser's cap rises from 135 G to 261 G past a measured 182.2 G (darwin, this head's set), keeping its former headroom of 1.431; pandas-slow-b gains two classes, no-mmap (pandas 3.1.0's parallel reader maps its file) and wasm32-int32 (a test that builds its expected categories with numpy's 32-bit default integer), each with its closer"
 "tests/upstream/expected/pandas-io-parser/no-mmap.txt" = "sixteen of pandas 3.1.0's new test_parallel_read.py tests and test_memory_map_multichar_sep[python] fail on the missing mmap, the class's cause, and match its pattern: 57 members"
