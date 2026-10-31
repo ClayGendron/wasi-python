@@ -32,7 +32,7 @@ A *golden job* is a fixed program whose output the project compares with native 
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, and imageio:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, imageio, and plotly:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -40,6 +40,7 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
 | | xlrd 2.0.2 | read old `.xls` files |
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
+| | plotly 7.1.0 | interactive figures: JSON, and HTML pages with plotly.js inside or from its CDN |
 | drawing | drawsvg 2.4.2 | vector drawings and SMIL animations, saved as SVG, HTML, PNG or GIF |
 | | CairoSVG 2.9.1, tinycss2 1.5.1, cssselect2 0.10.1 | any SVG to PNG, PDF or SVG, drawn by cairo through cairocffi |
 | | imageio 2.38.1 | images and animated GIFs through Pillow |
@@ -81,6 +82,7 @@ These are not in the set, so each raises its `ImportError`, as it does natively 
 - `pytz`: use `zoneinfo`, which reads the stdlib zip's tzdata;
 - `cryptography`, which pypdf and pdfminer.six need for AES;
 - `pypdfium2`, for pdfplumber's page images;
+- `kaleido`, for plotly's static images, and `anywidget`, for its `FigureWidget`;
 - `antlr4` and `lark`, for sympy's `parse_latex`;
 - `odfpy`, for pandas' `engine="odf"`, and `pyxlsb`, for `.xlsb` files;
 - `cssselect` and `lxml_html_clean`, for `lxml.cssselect` and `lxml.html.clean`;
@@ -88,6 +90,8 @@ These are not in the set, so each raises its `ImportError`, as it does natively 
 - `pwkit`, for `drawsvg.color`, and `ipywidgets`, for `drawsvg.widgets`.
 
 pdfplumber's `page.to_image()` needs pypdfium2, which is not carried; it raises `ModuleNotFoundError`. pdfminer.six reads files encrypted with RC4, and raises `ModuleNotFoundError` naming `cryptography` for one encrypted with AES. xarray's other file engines (netCDF4, h5netcdf, zarr) and its tutorial data are not carried; netCDF3 works through scipy, a file by path with `open_dataset(path, mmap=False)`.
+
+plotly writes a figure's JSON and HTML: `write_html(..., include_plotlyjs=True)` makes a page that works offline, and `include_plotlyjs="cdn"` one that loads plotly.js from plotly's CDN. Static images (`to_image`, `write_image`) need kaleido, which drives a Chrome browser and cannot run here; they raise. `FigureWidget` needs anywidget and a notebook, and raises `ImportError`.
 
 reportlab's bitmap renderer needs rlPyCairo, which is not carried either; it raises `RenderPMError`. Draw reportlab charts to PDF or SVG instead.
 
@@ -128,4 +132,4 @@ The list is the runtime's. A package a grant adds through `import_path=` is not 
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG and imageio in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG, imageio and plotly in the zip, each at one pinned version.

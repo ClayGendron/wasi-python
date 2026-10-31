@@ -304,7 +304,7 @@ scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA25
 scripts/build.sh         # build the artifact set; logs in build/logs/
 ```
 
-The source trees are the released tarballs plus a few recorded patches (upstream patches carried: 32), each offered upstream and dropped once upstream releases the fix. [Building](https://claygendron.github.io/wasi-python/contributing/building/) gives the full details.
+The source trees are the released tarballs plus a few recorded patches (upstream patches carried: 33), each offered upstream and dropped once upstream releases the fix. [Building](https://claygendron.github.io/wasi-python/contributing/building/) gives the full details.
 
 # Contributing, Security, Changelog
 
