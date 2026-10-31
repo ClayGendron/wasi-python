@@ -13,11 +13,11 @@ A *patch* is the last resort. Carry one only when the fix must change the source
 A patch lives under [`recipes/patches/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes/patches), in a folder named after the pinned tarball's top folder:
 
 ```
-recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch
-recipes/patches/numpy-2.5.2/0002-callback-signatures.patch
+recipes/patches/numpy-2.5.4/0001-npy-files-without-dup.patch
+recipes/patches/numpy-2.5.4/0002-callback-signatures.patch
 ```
 
-- The folder name is the name the tree has under `build/`, such as `numpy-2.5.2`.
+- The folder name is the name the tree has under `build/`, such as `numpy-2.5.4`.
 - `NNNN` is four digits, unique in the folder. It sets the order the patches apply in.
 - The file is a unified diff in `git diff` form, with paths relative to the tree's top.
 - The patch is made against exactly its pinned tarball. No hunk may apply at an offset.

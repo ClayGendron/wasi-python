@@ -1,5 +1,5 @@
 - **Project:** numpy (https://github.com/numpy/numpy)
-- **Against:** 2.5.2 (the pinned tarball)
+- **Against:** 2.5.4 (the pinned tarball; re-made from the 2.5.2 patch with the same changed lines, 2026-10-30)
 - **Status:** drafted
 - **Title:** BUG: use the file-like path for .npy files on WASI
 - **Files:** numpy/lib/_format_impl.py, numpy/lib/tests/test_format.py
@@ -17,4 +17,4 @@ Amended 2026-10-18 (spec 051, Decision 10; not yet sent, so amended in place). T
 - **A truncated real file's message on WASI.** A real file is read the way numpy reads an in-memory stream, so a truncated one raises numpy's in-memory `ValueError` ("EOF: reading array data, expected 48 bytes got 47"); the type is native's.
 - **`test_file_truncated`** therefore accepts that message too, behind `sys.platform == "wasi"`, so it passes on WASI once the change is in.
 
-The upstream base is numpy's `main` (`ac61120` when the fix was made); the agent rebases the change onto `main` in a scratch clone when the owner asks to send it. The pull request carries both files: the fix in `numpy/lib/_format_impl.py` and the tests (`test_save_load_without_dup`, `test_save_masked_without_dup` and the WASI branch of `test_file_truncated`) in `numpy/lib/tests/test_format.py`. The carried patch is the same change, made against 2.5.2; `../../3-numpy-npy-wasi/fix.patch` predates the amendment, and is remade from the carried patch when the change is rebased.
+The upstream base is numpy's `main` (`ac61120` when the fix was made); the agent rebases the change onto `main` in a scratch clone when the owner asks to send it. The pull request carries both files: the fix in `numpy/lib/_format_impl.py` and the tests (`test_save_load_without_dup`, `test_save_masked_without_dup` and the WASI branch of `test_file_truncated`) in `numpy/lib/tests/test_format.py`. The carried patch is the same change, made against 2.5.2 and re-made against 2.5.4 with the same changed lines; `../../3-numpy-npy-wasi/fix.patch` predates the amendment, and is remade from the carried patch when the change is rebased.

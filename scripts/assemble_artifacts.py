@@ -25,7 +25,7 @@ from litter import has_litter, is_litter
 LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
 PACKAGES = {
-    "numpy": "2.5.2",
+    "numpy": "2.5.4",
     "pandas": "3.0.6",
     "zlib": "1.3.1",
     "bzip2": "1.0.8",
@@ -801,7 +801,7 @@ def main() -> None:
     for name in ("python.wasm", "python-snapshot.wasm", "python-stdlib.zip"):
         shutil.copyfile(b / "out" / name, new / name)
 
-    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.2", b / "pandas-3.0.6"
+    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.0.6"
     numpy_files = tomllib.loads((np_src / "pyproject.toml").read_text())["project"]["license-files"]
     licences = {
         "cpython": [

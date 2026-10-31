@@ -1,5 +1,5 @@
 - **Project:** numpy (https://github.com/numpy/numpy)
-- **Against:** 2.5.2 (the pinned tarball)
+- **Against:** 2.5.4 (the pinned tarball; re-made from the 2.5.2 patch with the same changed lines, 2026-10-30)
 - **Status:** drafted
 - **Title:** BUG: give six C callbacks the signatures CPython calls them with
 - **Files:** numpy/_core/src/multiarray/array_converter.c, numpy/_core/src/multiarray/array_method.c, numpy/_core/src/multiarray/convert_datatype.c, numpy/_core/src/multiarray/convert_datatype.h, numpy/_core/src/multiarray/getset.c, numpy/_core/src/multiarray/scalartypes.c.src, numpy/_core/src/umath/_scaled_float_dtype.c
@@ -9,4 +9,4 @@ This draft is not the pull request's description. numpy's AI policy (`doc/source
 
 Before sending, the owner weighs the policy's clauses as for 0001: the AI disclosure; "Code Quality"; "Copyright"; and "Responsibility" (the submitter "must understand and be able to explain" the change). All of this change was written by an agent.
 
-The change adds, to each of six functions, the parameter CPython passes and the function ignores, marked `NPY_UNUSED`; nothing else changes, on any platform. The upstream base is numpy's `main` (`7ed6cf7`, 2026-10-17, where all six definitions are unchanged); six of the seven hunks apply there as they are, and `convert_datatype.h`'s context has moved. `fix.patch` beside the facts is the carried patch, against 2.5.2; the agent rebases it onto `main` in a scratch clone when the owner asks to send it.
+The change adds, to each of six functions, the parameter CPython passes and the function ignores, marked `NPY_UNUSED`; nothing else changes, on any platform. The upstream base is numpy's `main` (`7ed6cf7`, 2026-10-17, where all six definitions are unchanged); six of the seven hunks apply there as they are, and `convert_datatype.h`'s context has moved. `fix.patch` beside the facts is the carried patch as it was made, against 2.5.2 (the carried patch is now against 2.5.4, its changed lines the same); the agent rebases it onto `main` in a scratch clone when the owner asks to send it.
