@@ -38,3 +38,15 @@ new = [
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
 growth = "python-docx 1.2.0 and python-pptx 1.0.2 join the zip, 214 members, so every guest's zip directory is larger: a plain start +1.93% and a snapshot start +1.01% in fuel (darwin arm64). Their whole suites measure 105.8 G (1,571 passes) and 150.0 G (2,677 passes) on darwin arm64; six tests that patch io.BytesIO for the whole interpreter fail under the driver's sys capture, as natively under --capture=sys"
+
+[[claim]]
+spec = "166"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-a]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-b]",
+]
+fewer = "pandas 3.1.0, the second pull request: pandas-slow-a 2,259 -> 2,256 and pandas-slow-b 28 -> 26. 3.1.0 drops the slow mark from test_where_inplace_casting, test_unstack_number_of_levels_larger_than_int32_warns, test_pivot_number_of_levels_larger_than_int32_warns and test_isocalendar, so their six nodes move to the normal groups; slow-b's three test_categorical_dtype_high_cardinality_numeric cases fail as its wasm32-int32 class says (the test's expected categories take numpy's 32-bit default integer; read_csv's int64 categories are native's); four new parallel-read tests pass"
