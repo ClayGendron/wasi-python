@@ -1,6 +1,6 @@
 # 160: The rules follow the data
 
-- **Status:** drafted 2026-10-30. The owner asked for it on 2026-10-30 ("can you implement all the recommendations") and agreed the same day to the three rule changes it carries (constitution §4.14, §5.7; the repository ruleset for `dev`).
+- **Status:** built 2026-10-30 on `spec/160-the-rules-follow-the-data`, not landed; the ruleset change waits on the owner's command (below). Drafted 2026-10-30. The owner asked for it on 2026-10-30 ("can you implement all the recommendations") and agreed the same day to the three rule changes it carries (constitution §4.14, §5.7; the repository ruleset for `dev`).
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
 - **Kind:** documents and the repository's settings: `AGENTS.md`, the constitution, `context/README.md`, `reviews/README.md`, `changes/README.md`, `docs/contributing/`, the pull request template, one job of the release workflow (the issue on a red post-merge run), one lint warning; not structural; parallel-safe with 159 and 161.
@@ -23,7 +23,7 @@ The ruleset `dev takes pull requests` (id 25925120) changes in two places: `stri
 
 ### 3. One signature
 
-`reviews/README.md`: the reviewer signs once. A Low is written out in full and needs no second signing; the author answers it in the pull request or fixes it in the same commit as any other finding. A High or a Medium that needs code is fixed in one commit for the whole round, and the reviewer reads that commit and signs once more. The pull request template gains the line "Fix commits: one per review round". `ci-status` and `review` are unchanged: the review file still follows the last code commit.
+`reviews/README.md`: the reviewer signs once. A Low is written out in full; one answered in writing, or one that touches only `context/`, needs no second signing, and one fixed in code goes into the round's one fix commit, which the reviewer reads before signing once more, so constitution §5.6 stands unamended. A High or a Medium that needs code is fixed in one commit for the whole round, and the reviewer reads that commit and signs once more. The pull request template gains the line "Fix commits: one per review round". `ci-status` and `review` are unchanged: the review file still follows the last code commit.
 
 ### 4. The release reviews run beside the last changes
 
@@ -65,4 +65,11 @@ In: the seven decisions. Out: the organization move; the merge queue; rewriting 
 
 ## Landing notes
 
-To be written at the landing.
+- Branch `spec/160-the-rules-follow-the-data`, pull request #54, run 41151140107; commits `6e004956` (the change), `257fa0ab` (two docstrings rewrapped), `53d80c04` (status and notes), then the round-1 fix commit after it. Review: `../reviews/160-the-rules-follow-the-data-pr-2026-10-30.md`.
+- Lands after 159's pull request, which adds the `review` job that `AGENTS.md` step 6 and the contributing page name.
+- Seen failing first (EXECUTED): the 17 new unit rows and the two new rules checks, before the code; in round 1, the plan-failed rows (`a merge into dev, its plan failed: the issue job does set()`).
+- Decision 1: `weekly-issue` is now `red-run-issue`, holding `issues: write` alone in the workflow and `actions: read` to name the red legs. It opens or comments on a red run after a merge, a red weekly run, or a push to `dev` whose plan failed, and closes the issue on a green run after a merge. So criterion 3 reads: opens on a red push or weekly run, closes on a green push, nothing else.
+- Decision 2: the quoted words were not in §4.14 but in `release.yml`'s header and a rules docstring, both replaced; §4.14 gains the new sentence. One `gh api` read gave `build/rulesets/dev.json` in this worktree: strict off, `review` added, all else kept.
+- The owner runs: `gh api -X PUT repos/ClayGendron/wasi-python/rulesets/25925120 --input /Users/claygendron/Git/Repos/wasi_python-wt/160-the-rules-follow-the-data/build/rulesets/dev.json`, once 159's `review` job is on `dev`. The read-back goes here.
+- Decision 3 keeps §5.6: a Low fixed in code goes into the round's fix commit, which the reviewer reads. Decision 4: 0.1.2's security review has no `## Release notes` section, so a release up to 0.1.2 may keep its own notes-review file. Decision 5: the warning skips specifications dated before 2026-10-30, naming 159 alone today.
+- Results (EXECUTED, 2026-10-30): before round 1, fast tier 3431 passed, 0 fail, 654 blocked by the absent artifact set; at round 1, `tests/unit tests/lint tests/checks/test_rules.py` 3384 passed, 79 skipped, rules 126/128 (2 blocked: artifact dir, prior-art clones), lost 0; ruff clean.

@@ -449,21 +449,43 @@ def structural_review_errors(version: str, reviews: Path) -> list[str]:
     return errors
 
 
-def release_notes_review_errors(version: str, reviews: Path) -> list[str]:
-    """A released version whose notes are written for the reader has a review of those notes by
-    someone who wrote none of them, `<version>-release-notes-review-YYYY-MM-DD.md`, ending with
-    its verdict. A prerelease needs none from the judge: its string is what the tree carries all
-    cycle; nor does a version whose notes were published in the older shape."""
+# The last release whose notes were read in a review file of their own; from the next one, the
+# read is a section of the release's review against its threat model, so the preparation
+# carries two files.
+LAST_SEPARATE_NOTES_READ = (0, 1, 2)
+NOTES_SECTION = re.compile(r"^## Release notes[ \t]*\n(.*?)(?=^## |\Z)", re.M | re.S)
+
+
+def _dated_reviews(reviews: Path, version: str, kind: str) -> list[Path]:
+    """The review files `<version>-<kind>-YYYY-MM-DD.md`, oldest first."""
+    name = re.compile(rf"^{re.escape(version)}-{kind}-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
+    return sorted(p for p in reviews.glob("*.md") if name.match(p.name))
+
+
+def release_notes_read_errors(version: str, reviews: Path) -> list[str]:
+    """A released version whose notes are written for the reader has those notes read by someone
+    who wrote none of them, in a `## Release notes` section, with text under it, of its review
+    against the threat model, `<version>-security-review-YYYY-MM-DD.md`. A release up to 0.1.2
+    may instead have had the read in a file of its own,
+    `<version>-release-notes-review-YYYY-MM-DD.md`, ending with its verdict, as 0.1.2's was. A
+    prerelease needs none from the judge: its string is what the tree carries all cycle; nor
+    does a version whose notes were published in the older shape."""
     if not RELEASE_VERSION.match(version) or not news.is_reader_version(version):
         return []
-    name = re.compile(rf"^{re.escape(version)}-release-notes-review-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
-    found = sorted(p for p in reviews.glob("*.md") if name.match(p.name))
-    if not found:
-        return [f"{version} is a release; reviews/ has no {version}-release-notes-review-<date>.md"]
+    for p in _dated_reviews(reviews, version, "security-review"):
+        m = NOTES_SECTION.search(p.read_text(encoding="utf-8"))
+        if m and m[1].strip():
+            return []
+    separate = _dated_reviews(reviews, version, "release-notes-review")
+    if separate and tuple(int(x) for x in version.split(".")) <= LAST_SEPARATE_NOTES_READ:
+        return [
+            f"{p.name}: has no ## Verdict section"
+            for p in separate
+            if not re.search(r"^## Verdict\s*$", p.read_text(encoding="utf-8"), re.M)
+        ]
     return [
-        f"{p.name}: has no ## Verdict section"
-        for p in found
-        if not re.search(r"^## Verdict\s*$", p.read_text(encoding="utf-8"), re.M)
+        f"{version} is a release; reviews/ has no {version}-security-review-<date>.md with a "
+        "## Release notes section"
     ]
 
 
@@ -1419,8 +1441,9 @@ JOB_PERMISSIONS = {
     "accept-record": {"contents: read"},
     # The push of the acceptance: it checks out with the deploy key, which the token never is.
     "accept-push": {"contents: read"},
-    # The weekly run's issue: it opens or comments on one, and checks nothing out.
-    "weekly-issue": {"issues: write"},
+    # The issue when a run on dev is red: it reads the run's jobs to name the red legs, opens,
+    # comments on or closes one, and checks nothing out.
+    "red-run-issue": {"issues: write", "actions: read"},
     # The key and the decision; the cache's writer.
     "inputs": {"contents: read"},
     "save-set": {"contents: read"},
@@ -2452,7 +2475,7 @@ ACCEPT_PUSH_IF = (
     "${{ !cancelled() && needs.plan.outputs.accept == 'true' && github.event_name == 'push' "
     "&& needs.accept-record.result == 'success' }}"
 )
-NOT_JUDGED_WITH = {"accept-record", "accept-push", "ci-status", "weekly-issue", *UNGATED[3:]}
+NOT_JUDGED_WITH = {"accept-record", "accept-push", "ci-status", "red-run-issue", *UNGATED[3:]}
 ACCEPT_RUN = (
     "uv run pytest -p no:cacheprovider --accept-from=build/ci/record.json --claims=context/changes/"
 )
@@ -2625,10 +2648,6 @@ def accept_release_errors(text: str) -> list[str]:
     return errors
 
 
-WEEKLY_IF = (
-    "${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') "
-    "|| contains(needs.*.result, 'cancelled')) }}"
-)
 WEEKLY_INPUT = (
     "      weekly:\n        description: the weekly run's shape (the release tier, the rebuilds, "
     "an issue when red), dispatched on dev\n        type: boolean\n        default: false\n"
@@ -2636,10 +2655,9 @@ WEEKLY_INPUT = (
 
 
 def weekly_errors(text: str) -> list[str]:
-    """The weekly run: a schedule and a dispatch input that select its shape; one job, with
-    issues: write and nothing else, that opens or updates an issue when a job the run judges with
-    failed or was cancelled, and never on another run; the accept jobs never follow it (they run on
-    the plan's accept output alone, which the weekly shape never sets)."""
+    """The weekly run: a schedule and a dispatch input that select its shape; the accept jobs
+    never follow it (they run on the plan's accept output alone, which the weekly shape never
+    sets). Its issue when red is the red-run issue job's (`red_run_issue_errors`)."""
     body = without_comments(text)
     head = body.split("\njobs:", 1)[0]
     errors = []
@@ -2648,25 +2666,102 @@ def weekly_errors(text: str) -> list[str]:
     if WEEKLY_INPUT not in head:
         errors.append("workflow_dispatch has no weekly input")
     jobs = workflow_jobs(body)
-    job = jobs.get("weekly-issue")
-    if job is None:
-        return [*errors, "no weekly-issue job"]
-    if _job_field(job, "if") != WEEKLY_IF:
-        errors.append(f"weekly-issue's if: is not {WEEKLY_IF}")
-    want = set(jobs) - NOT_JUDGED_WITH
-    if _needs(job) != want:
-        errors.append(f"weekly-issue does not need every job the run judges with: {sorted(want)}")
-    if _permission_set(job) != {"issues: write"}:
-        errors.append("weekly-issue's permissions are not issues: write alone")
-    script = "\n".join(str(step_fields(st).get("run", "")) for st in workflow_steps(job))
-    if "gh issue comment" not in script or "gh issue create" not in script:
-        errors.append("weekly-issue does not comment on the open issue or create one")
     for name in ("accept-record", "accept-push"):
         if "needs.plan.outputs.accept == 'true'" not in (
             _job_field(jobs.get(name, []), "if") or ""
         ):
             errors.append(f"{name} does not run on the plan's accept output alone")
     return errors
+
+
+RED_RUN_JOB = "red-run-issue"
+RED = "(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))"
+# The job runs on the weekly run when it is red, and on every run after a merge into dev (a push
+# the plan accepts), whose red result opens or comments on the issue and whose green one closes it;
+# and on a push to dev whose plan failed, which has no outputs to say it was a merge.
+RED_RUN_IF = (
+    f"${{{{ always() && ((needs.plan.outputs.weekly == 'true' && {RED}) || "
+    "(needs.plan.outputs.accept == 'true' && github.event_name == 'push') || "
+    "(github.event_name == 'push' && github.ref == 'refs/heads/dev' "
+    "&& needs.plan.result == 'failure')) }}"
+)
+RED_RUN_STEPS = {
+    "open": (
+        "Open the issue, or comment on the open one",
+        f"${{{{ {RED[1:-1]} }}}}",
+        ("gh issue comment", "gh issue create"),
+    ),
+    "close": (
+        "Close the open issue, once a run after a merge is green",
+        "${{ github.event_name == 'push' && needs.gather.result == 'success' && "
+        "!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}",
+        ("gh issue close",),
+    ),
+}
+
+
+def red_run_issue_errors(text: str) -> list[str]:
+    """The red-run issue job: the one job with issues: write (and actions: read, to name the red
+    legs), needing every job the run judges with; its if: and each step's if: are exactly the
+    ones that open or comment on an issue when a run after a merge or the weekly run is red, and
+    close it when a run after a merge is green."""
+    jobs = workflow_jobs(without_comments(text))
+    job = jobs.get(RED_RUN_JOB)
+    if job is None:
+        return [f"no {RED_RUN_JOB} job"]
+    errors = []
+    if _job_field(job, "if") != RED_RUN_IF:
+        errors.append(f"{RED_RUN_JOB}'s if: is not {RED_RUN_IF}")
+    want = set(jobs) - NOT_JUDGED_WITH
+    if _needs(job) != want:
+        errors.append(f"{RED_RUN_JOB} does not need every job the run judges with: {sorted(want)}")
+    if _permission_set(job) != {"issues: write", "actions: read"}:
+        errors.append(f"{RED_RUN_JOB}'s permissions are not issues: write and actions: read")
+    writers = sorted(n for n, lines in jobs.items() if "issues: write" in _job_permissions(lines))
+    if writers != [RED_RUN_JOB]:
+        errors.append(f"issues: write is held by {writers}, not {RED_RUN_JOB} alone")
+    steps = {str(f.get("name")): f for f in map(step_fields, workflow_steps(job))}
+    for act, (name, cond, words) in RED_RUN_STEPS.items():
+        step = steps.get(name)
+        if step is None or step.get("if") != cond:
+            errors.append(f"{RED_RUN_JOB}'s {act} step {name!r} does not run on {cond}")
+            continue
+        verb = "comment on the open issue or create one" if act == "open" else "close the issue"
+        if not all(w in str(step.get("run", "")) for w in words):
+            errors.append(f"{RED_RUN_JOB} does not {verb}")
+    return errors
+
+
+def red_run_issue_acts(
+    text: str,
+    outputs: dict[str, str],
+    context: dict[str, str],
+    red: bool,
+    plan_failed: bool = False,
+) -> set[str]:
+    """What the red-run issue job does on one run: "open" when its open step runs, "close" when
+    its close step does, nothing when the job does not run. `red`: a judge job failed, so the
+    gather after it was skipped; otherwise every job it needs succeeded. `plan_failed`: the
+    decision job itself failed, so every other job was skipped and `outputs` is empty."""
+    jobs = workflow_jobs(without_comments(text))
+    job = jobs.get(RED_RUN_JOB)
+    if job is None:
+        return set()
+    if plan_failed:
+        ran = {n: False for n in _needs(job)}
+        results = ["plan"]
+    else:
+        ran = {n: not (red and n == "gather") for n in _needs(job)}
+        results = ["judge-linux"] if red else []
+    if not _evaluate(_job_field(job, "if") or "", outputs, context, ran, results):
+        return set()
+    names = {name: act for act, (name, _, _) in RED_RUN_STEPS.items()}
+    acts = set()
+    for f in map(step_fields, workflow_steps(job)):
+        cond = f.get("if")
+        if cond is None or _evaluate(str(cond), outputs, context, ran, results):
+            acts.add(names.get(str(f.get("name")), str(f.get("name"))))
+    return acts
 
 
 # A job's if:, as GitHub reads it, rewritten into a Python expression over these names alone.
@@ -2676,17 +2771,29 @@ _EXPR_FUNCTIONS = {
 }
 
 
-def _evaluate(cond: str, outputs: dict[str, str], context: dict[str, str], ran: dict) -> bool:
+def _evaluate(
+    cond: str,
+    outputs: dict[str, str],
+    context: dict[str, str],
+    ran: dict,
+    failed: Iterable[str] = (),
+) -> bool:
     """One job's if: under the plan's outputs, the event's github context and which of its needs
-    ran (each succeeded) or were skipped; nothing fails or is cancelled in the run it models."""
+    ran (each succeeded) or were skipped; nothing fails or is cancelled in the run it models but
+    the needs named in `failed` (read by a red run's model)."""
     expr = cond.strip()
     if expr.startswith("${{") and expr.endswith("}}"):
         expr = expr[3:-2].strip()
-    results = ["success" if r else "skipped" for r in ran.values()]
+    failed = set(failed)
+
+    def result(name: str) -> str:
+        return "failure" if name in failed else "success" if ran.get(name) else "skipped"
+
+    results = [result(n) for n in ran]
     subs = [
         (r"needs\.\*\.result", "RESULTS"),
         (r"needs\.plan\.outputs\.([\w-]+)", lambda m: repr(outputs.get(m[1], ""))),
-        (r"needs\.([\w-]+)\.result", lambda m: repr("success" if ran.get(m[1]) else "skipped")),
+        (r"needs\.([\w-]+)\.result", lambda m: repr(result(m[1]))),
         (r"needs\.[\w-]+\.outputs\.[\w-]+", "''"),
         (r"github\.([\w.]+)", lambda m: repr(context.get(m[1], ""))),
         (r"(?:vars|inputs|secrets)\.[\w-]+", "''"),

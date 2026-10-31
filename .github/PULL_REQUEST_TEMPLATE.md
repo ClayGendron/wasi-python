@@ -9,4 +9,6 @@ Specifications: <!-- the one to three this branch carries, as NNN-slug -->
 - [ ] Every known gap names what will close it.
 - [ ] The news file is on the branch, named after its specification, or the change is documentation only.
 
+Fix commits: one per review round. <!-- Every finding of a round, Lows included, is fixed in one commit, or answered here. -->
+
 <!-- What changed and why, in a few lines. -->
