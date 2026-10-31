@@ -26,7 +26,7 @@ LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
 PACKAGES = {
     "numpy": "2.5.4",
-    "pandas": "3.0.6",
+    "pandas": "3.1.0",
     "zlib": "1.3.1",
     "bzip2": "1.0.8",
     "xz": "5.8.4",
@@ -846,7 +846,7 @@ def main() -> None:
     for name in ("python.wasm", "python-snapshot.wasm", "python-stdlib.zip"):
         shutil.copyfile(b / "out" / name, new / name)
 
-    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.0.6"
+    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.1.0"
     numpy_files = tomllib.loads((np_src / "pyproject.toml").read_text())["project"]["license-files"]
     licences = {
         "cpython": [

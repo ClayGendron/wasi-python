@@ -1,4 +1,4 @@
-# Meson cross file: pandas 3.0.6 -> wasm32-wasip1 as static archives (spec 003).
+# Meson cross file: pandas 3.1.0 -> wasm32-wasip1 as static archives (spec 003).
 # Paths are rewritten by the build steps (the @ROOT@ token, replaced by the repository root, and @SDK@, by
 # scripts/line.conf's WASI_SDK_DIR) so the file stays relocatable.
 [binaries]

@@ -1,13 +1,13 @@
 #!/bin/sh
-# Step 50: pandas 3.0.6 cross-compiled for wasm32-wasip1 as static archives, outside its source
+# Step 50: pandas 3.1.0 cross-compiled for wasm32-wasip1 as static archives, outside its source
 # tree. pandas generates no Python file at build time (its sdist ships the one meson-time file,
 # _version_meson.py), so its Python package for the zip is the sdist's pandas/ tree plus that file:
 # no `meson install`, whose macOS install-name fixer chokes on wasm archives (landing notes).
 set -eu
 . "$(dirname "$0")/common.sh"
 
-TARBALL=$(pinned pandas-3.0.6.tar.gz)
-SRC="$B/pandas-3.0.6"
+TARBALL=$(pinned pandas-3.1.0.tar.gz)
+SRC="$B/pandas-3.1.0"
 BUILD="$B/pandas-build"
 remove "$SRC" "$BUILD" "$B/pandas-install"
 [ -d "$B/numpy-host/numpy" ] || die "no host-side numpy stand-in: run step 40 first"
