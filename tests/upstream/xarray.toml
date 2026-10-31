@@ -161,7 +161,7 @@ measured = 225_001_154_605
 id = "no-mmap"
 group = "xarray-r-backends"
 outcome = "failed"
-match = "mmap is unavailable|DID NOT WARN"
+match = 'mmap is unavailable|^Failed: DID NOT WARN\. No warnings of type \(<class .UserWarning.>,\) were emitted\.$'
 reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README); two tests that expect a warning from such a read see the error first, as natively with mmap disabled (EXECUTED: the same 160 fail there). open_dataset(path, mmap=False) or a file object reads the same files"
 closes_with = "docs/reference/limitations.md"
 
@@ -217,7 +217,7 @@ closes_with = "docs/reference/limitations.md"
 id = "wasm32-int32"
 group = "xarray-r-rest"
 outcome = "failed"
-match = "int32|int64|^AssertionError: assert '<xarray\\.Data"
+match = 'dtype\(.int32.\) == <class .numpy\.int64.>|\.\.\. int32 8B 5 2. == .Left and rig\.\.\.int64 16B 5 2.$|  int64 8B 36. == .<xarray\.Data\.\.\.  int32 4B 36.$|^AssertionError: assert .<xarray\.Data\.\.\.\. 7\.0 7\.0 7\.0. == |^AssertionError: assert .<xarray\.Data\.\.\.4 32B 1 2 1 2. == '
 reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32: its repr's dtype and byte size, or its dtype, differ from the int64 the tests expect (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -227,7 +227,7 @@ group = "xarray-r-dataset"
 outcome = "failed"
 match = "^AssertionError: assert '<xarray\\.Data"
 reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.0.6, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
-closes_with = "docs/reference/limitations.md"
+closes_with = "context/roadmap.md"
 
 [[expected]]
 id = "staged-tests-folder"
@@ -235,4 +235,4 @@ group = "xarray-r-rest"
 outcome = "failed"
 match = "^assert 1 == 2$"
 reason = "find_stack_level counts a frame in xarray's own tests folder as xarray's; here the tests run from the stage, outside the package's folder in the zip, so the test's frame is not counted (README)"
-closes_with = "docs/reference/limitations.md"
+closes_with = "context/roadmap.md"

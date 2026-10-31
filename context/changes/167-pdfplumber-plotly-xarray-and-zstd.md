@@ -25,6 +25,7 @@ new = [
   "tests/checks/test_v1_3_default_profile.py::test_pdfplumber_needs_cryptography_only_for_aes*",
   "tests/checks/test_v1_3_default_profile.py::test_pdf_tables_job_matches_native",
   "tests/checks/test_v1_3_default_profile.py::test_labelled_arrays_job_matches_native",
+  "tests/checks/test_v1_3_default_profile.py::test_xarray_reads_netcdf3_files_without_mmap*",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfplumber-smoke]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfminer-six-smoke]",
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-smoke]",
@@ -36,10 +37,10 @@ growth = "pdfplumber 0.11.10, pdfminer.six 20260107 (without its cmap folder) an
 units = 1
 [claim.judge]
 "tests/upstream/pdfplumber.toml" = "pdfplumber's own suite, from its 0.11.10 release tag (its sdist lacks the PDF files the tests read), tied to the shipped wheel: a smoke group in the normal tier (41.4 G measured, 62 G cap) and the whole suite in the release tier (171.5 G, 257 G cap), with four classes: no processes, no pypdfium2 (an error and a failure), no Ghostscript"
-"tests/upstream/pdfminer-six.toml" = "pdfminer.six's own suite, from its 20260107 release tag (its sdist lacks samples/ and tools/): a smoke group (11.5 G, 17 G cap) and the whole suite in the release tier (86.9 G, 130 G cap), with two classes: no cryptography for the AES samples, and the CJK character maps left out of the zip"
-"tests/upstream/xarray.toml" = "xarray's own suite, from its sdist, with pytest-asyncio and pytz as test-only wheels: a smoke group (39.7 G, 59 G cap) and eight release groups (1,536.7 G in sum, each cap 1.5 times its measure), with classes for no mmap (scipy's netCDF3 reader maps a path), no threads, asyncio's loop, the 32-bit default integer, one test that fails natively at these pins, and find_stack_level reading the staged tests folder"
+"tests/upstream/pdfminer-six.toml" = "pdfminer.six's own suite, from its 20260107 release tag (its sdist lacks samples/ and tools/): a smoke group (11.5 G, 17 G cap) and the whole suite in the release tier (86.9 G, 130 G cap), with two classes: no cryptography for the AES samples, and the CJK character maps left out of the zip, each class's pattern its members' own messages"
+"tests/upstream/xarray.toml" = "xarray's own suite, from its sdist, with pytest-asyncio and pytz as test-only wheels: a smoke group (39.7 G, 59 G cap) and eight release groups (1,536.7 G in sum, each cap 1.5 times its measure), with classes for no mmap (scipy's netCDF3 reader maps a path), no threads, asyncio's loop, the 32-bit default integer, one test that fails natively at these pins, and find_stack_level reading the staged tests folder; each class's pattern is its members' own messages, and the last two close with the roadmap, where each is a reserved line (the staging follow-up, and the next xarray pin)"
 "tests/upstream/packages.toml" = "pdfplumber, pdfminer.six and xarray each name their own suite"
-"tests/known_gaps.toml" = "the sixteen classes' gaps, by their findings' digests"
+"tests/known_gaps.toml" = "the sixteen classes' gaps, by their findings' digests, within the pure-Python packages' section; xarray's fails-natively and staged-tests-folder close with the roadmap"
 "tests/release_shards.toml" = "the three smoke groups join upstream-pure-smoke-b; the ten release groups take two new release shards, upstream-release-067 and -068, their minutes estimated from their fuel until a release run measures them"
 "context/release-claims.toml" = "167's block: the ten release groups and their classes are new"
 "tests/upstream/expected/pdfminer-six-r/no-cjk-cmaps.txt" = "the members of the class pdfminer-six-r-no-cjk-cmaps"

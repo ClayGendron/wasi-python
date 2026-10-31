@@ -1009,3 +1009,39 @@ def test_pdfplumber_needs_cryptography_only_for_aes(guest, artifacts, which) -> 
     }, got
     with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
         assert not [n for n in z.namelist() if n.startswith("pdfminer/cmap/")]
+
+
+# xarray reads a netCDF3 file on disk through scipy, which maps a file it is given by path; the
+# guest has no mmap, so the limitations page names the two routes that read it.
+NETCDF_FILE = """
+import json, os
+import numpy as np
+import xarray as xr
+os.makedirs("/work", exist_ok=True)
+ds = xr.Dataset({"a": ("x", np.arange(3.0))}, coords={"x": [10.0, 20.0, 30.0]}, attrs={"t": "u"})
+ds.to_netcdf("/work/a.nc")
+out = {}
+try:
+    xr.open_dataset("/work/a.nc").load()
+    out["by path"] = "read"
+except OSError as e:
+    out["by path"] = str(e)
+with xr.open_dataset("/work/a.nc", mmap=False) as read:
+    out["mmap=False"] = read.load().identical(ds)
+with open("/work/a.nc", "rb") as f, xr.open_dataset(f) as read:
+    out["an open file"] = read.load().identical(ds)
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_xarray_reads_netcdf3_files_without_mmap(guest, which) -> None:
+    """A netCDF3 file written to a folder reads back identical with `mmap=False`, and through an
+    open file; opened by path alone it raises OSError naming mmap, which the guest lacks."""
+    r = guest(which, ["-c", NETCDF_FILE])
+    assert r.exit_code == 0, r.describe()
+    assert json.loads(r.text) == {
+        "by path": "mmap is unavailable on wasm32-wasi",
+        "mmap=False": True,
+        "an open file": True,
+    }, r.text

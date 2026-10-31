@@ -1869,8 +1869,6 @@ match = "1 finding(s), digest 860f19e090fc"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
 closes_with = "docs/reference/limitations.md"
 
-# The pure-Python packages' own tests. (end)
-
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-mmap]"
 match = "160 finding(s), digest b6e954f1d951"
@@ -1923,10 +1921,12 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]"
 match = "1 finding(s), digest 3ecee5286156"
 reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.0.6, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
-closes_with = "docs/reference/limitations.md"
+closes_with = "context/roadmap.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]"
 match = "1 finding(s), digest 2b788816806d"
 reason = "find_stack_level counts a frame in xarray's own tests folder as xarray's; here the tests run from the stage, outside the package's folder in the zip, so the test's frame is not counted (README)"
-closes_with = "docs/reference/limitations.md"
+closes_with = "context/roadmap.md"
+
+# The pure-Python packages' own tests. (end)

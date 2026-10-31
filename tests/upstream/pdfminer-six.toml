@@ -39,6 +39,6 @@ closes_with = "docs/reference/limitations.md"
 id = "no-cjk-cmaps"
 group = "pdfminer-six-r"
 outcome = "failed"
-match = "CMapNotFound|AssertionError: 'Hello|== 'UniGB-UCS2-H'"
+match = 'CMapNotFound: (H|to-unicode-Adobe-Japan1)$|^AssertionError: .Hello\\n\\nHello\\n\\nWorld\\n\\nWorld\\n\\n\\x0c. != .Hello\\n\\nHello\\nあ|^AssertionError: assert None == .UniGB-UCS2-H.$'
 reason = "pdfminer's predefined CJK character maps (its cmap folder) are left out of the zip: these tests load one by name, or read a font that names one and has no ToUnicode table, whose text then reads empty (README)"
 closes_with = "docs/reference/limitations.md"
