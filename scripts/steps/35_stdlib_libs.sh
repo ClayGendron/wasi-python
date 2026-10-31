@@ -60,7 +60,8 @@ cd "$HERE"
 # THREADSAFE=0 and OMIT_LOAD_EXTENSION, leaves out mmap and WAL's shared memory, and locks with a
 # directory beside the database; the first three are named again so the command says what the
 # build is. The ENABLE_ options are the native host Python's SQLite feature set
-# (python-build-standalone 3.15.0's `PRAGMA compile_options`), so results compare with native.
+# (python-build-standalone 3.15.2's `PRAGMA compile_options`, 3.15.0's the same), so results
+# compare with native.
 tar -xzf "$SQLITE_TGZ" -C "$B"
 patch_tree "$B/sqlite-autoconf-3540100"
 mkdir -p "$B/sqlite-build"

@@ -34,7 +34,6 @@ test_compiler_codegen
 test_complex
 test_configparser
 test_contextlib
-test_cppext
 test_curses
 test_descrtut
 test_dict

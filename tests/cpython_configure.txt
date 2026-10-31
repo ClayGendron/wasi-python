@@ -1,11 +1,11 @@
-# Every #define of the guest CPython's pyconfig.h (build/Python-3.15.0/cross-build/wasm32-wasip1/),
+# Every #define of the guest CPython's pyconfig.h (build/Python-<PYTHON_VERSION>/cross-build/wasm32-wasip1/),
 # as `NAME VALUE`, sorted (spec 086, Decisions 6 and 7). A line holding a word that
 # context/embedders.txt reserves is left out here (constitution §4.5) and covered by the digest:
 # the SHA-256 of every line, sorted and joined by newlines. Lines starting with # are comments.
 # A toolchain or configure change that moves one turns
 # tests/checks/test_v1_5_rebuild_from_pins.py::test_the_guests_configure_results_are_recorded red;
 # its specification states why and rewrites this file.
-digest 38d098e54ef623b872d6f3aa6e36de5da6dadc6a32d93b224faa3c2966ebcc84
+digest 155442b17597e4bbcab3aacf775a04552263be33509b95dbd183155ba7487d03
 ALIGNOF_LONG 4
 ALIGNOF_MAX_ALIGN_T 16
 ALIGNOF_SIZE_T 4
@@ -218,6 +218,7 @@ _OPENBSD_SOURCE 1
 _POSIX_C_SOURCE 202405L
 _POSIX_PTHREAD_SEMANTICS 1
 _PYTHONFRAMEWORK ""
+_Py_HAVE_STRERROR_R 1
 _Py_STACK_GROWS_DOWN 1
 _Py_WITH_FRAME_POINTERS 1
 _REENTRANT 1

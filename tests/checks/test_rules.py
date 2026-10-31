@@ -1020,6 +1020,37 @@ def test_every_build_host_has_its_whole_table() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_the_builds_wasmtime_is_the_runners_line() -> None:
+    """The wasmtime command line that makes the snapshot is on the runner's major version: the
+    judge compares fuel within one major, so a snapshot made by another major's `wasmtime wizer`
+    would be judged by an engine it was not made for. Each build host's `WASMTIME_DIR` in
+    scripts/line.conf names a version whose major is the one the runner's pin admits."""
+    pin = re.search(
+        r'^PIN = "wasmtime>=(\d+),<(\d+)"$',
+        (paths.REPO / "src" / "wasi_python" / "_wasmtime_ffi.py").read_text(encoding="utf-8"),
+        re.M,
+    )
+    assert pin and int(pin[2]) == int(pin[1]) + 1, "the runner's pin is not one wasmtime major"
+    found = {
+        host: value
+        for host, name, value in scan.CONF_HOST_LINE.findall(
+            (paths.REPO / "scripts" / "line.conf").read_text()
+        )
+        if name == "WASMTIME_DIR"
+    }
+    assert found, "scripts/line.conf names no WASMTIME_DIR"
+    errors = []
+    for host, folder in sorted(found.items()):
+        version = re.fullmatch(r"wasmtime-v(\d+)\.\d+\.\d+-[a-z0-9_]+-[a-z]+", folder)
+        if version is None:
+            errors.append(f"{host}_WASMTIME_DIR={folder} names no wasmtime version")
+        elif version[1] != pin[1]:
+            errors.append(
+                f"{host}_WASMTIME_DIR={folder}: major {version[1]}, the runner's is {pin[1]}"
+            )
+    assert not errors, scan.report(errors)
+
+
 # The runner carries two guards for wasmtime advisories while the published floor of the
 # `wasmtime` requirement admits a vulnerable wasmtime. Each advisory's vulnerable versions, as
 # its record states them (`vulnerable_version_range` in the advisory's own JSON record): a list

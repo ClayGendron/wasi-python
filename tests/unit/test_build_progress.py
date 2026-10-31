@@ -1005,9 +1005,15 @@ def _download_tree(root: Path, *, curl: bool, other: bool = False) -> Path:
     (d / "SHA256SUMS").write_text(
         "".join(f"{hashlib.sha256(n.encode()).hexdigest()}  {n}\n" for n in names)
     )
-    for n in ("Python-3.15.0.tar.xz", "zlib-1.3.1.tar.gz"):
+    for n in _present(names):
         (d / n).write_text(n)
     return root
+
+
+def _present(names: list[str]) -> list[str]:
+    """The two pins a test tree holds before the step runs: the line's CPython tarball and zlib's,
+    in the script's order, so the tree follows the pins as they move."""
+    return [n for n in names if n.startswith(("Python-", "zlib-")) and n.endswith((".xz", ".gz"))]
 
 
 def _download(root: Path) -> subprocess.CompletedProcess:
@@ -1030,7 +1036,7 @@ def test_the_download_step_says_what_it_fetched_and_verified(work) -> None:
     lines = out.stdout.splitlines()
     present = [x for x in lines if x.startswith("present ")]
     fetched = [x for x in lines if x.startswith("fetched ")]
-    assert present == ["present Python-3.15.0.tar.xz", "present zlib-1.3.1.tar.gz"]
+    assert present == [f"present {n}" for n in _present(GET.findall(DOWNLOAD.read_text()))]
     n = len(present) + len(fetched)
     assert n > 20
     assert sum(x.endswith(": OK") for x in lines) == n

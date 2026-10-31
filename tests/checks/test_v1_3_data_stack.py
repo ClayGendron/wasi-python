@@ -977,7 +977,8 @@ RANK_DEFICIENT_GUEST = (
     "FEFEEFEFFFFFEFFFEFFEEEEFFEFFFEEEFFEEEFFEFFEFEEFEEFEEEEFEEEEEEEEFFEEFEEFEFFE"
     "FEEEEEFEEEEEEFEFEFEFFEEFEFEEEEEEFEFEEFEFFFFEEEEFEEEFFFFEEFEFEEEFEFFEEEEFEFF"
 )
-# Native numpy 2.5.2 on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program.
+# Native numpy on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program: 2.5.2's
+# string, and 2.5.4's the same.
 RANK_DEFICIENT_NATIVE = (
     "FEFFEFFFFEFFFEEEFFFEEFFFFEFFFFEFEFEEFFFFFFFEFFFFEFFEFFEFFFEFFFFEFEFFEFFFEFF"
     "FFEFEEFFFEFFFFFFFEEFFEFFEFFFEEEFFFFFFFFEFFFEFFEFFFEFFEEFEFEEFFFFEFFFEFFFFFE"
@@ -1035,8 +1036,11 @@ case("dorgqr lda 0", lambda: lapack_lite.dorgqr(1, 1, 1, one, 0, one, one, 0, 0)
 
 _SVD = "raises LinAlgError: SVD did not converge"
 _EIG = "raises LinAlgError: Eigenvalues did not converge"
-# Native numpy 2.5.2 on OpenBLAS 0.3.34 (check3_errors-native-openblas.out): Python's lines, then
-# OpenBLAS's own xerbla lines, which C's stdout writes when it flushes.
+# Native numpy 2.5.4 on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program: Python's
+# lines, then OpenBLAS's own xerbla lines, which C's stdout writes when it flushes. numpy 2.5.4
+# checks the svd and lstsq drivers' input for inf and nan before it calls LAPACK, so `cond` of a
+# nan matrix returns nan instead of raising, and DLASCL is no longer reached; 2.5.2 raised there
+# and OpenBLAS printed two DLASCL lines.
 LINALG_ERRORS_NATIVE = "".join(
     f"{name:22s} {out}\n"
     for name, out in (
@@ -1045,7 +1049,7 @@ LINALG_ERRORS_NATIVE = "".join(
         ("pinv", _SVD),
         ("matrix_rank", _SVD),
         ("norm 2", _SVD),
-        ("cond", _SVD),
+        ("cond", "returns all-nan"),
         ("lstsq", _SVD + " in Linear Least Squares"),
         ("eigh", _EIG),
         ("eigvalsh", _EIG),
@@ -1059,13 +1063,7 @@ LINALG_ERRORS_NATIVE = "".join(
         ("dorgqr lda 0", "returns {'dorgqr_': 0, 'info': -5}"),
     )
 )
-LINALG_XERBLA_NATIVE = sorted(
-    [
-        " ** On entry to DLASCL parameter number  4 had an illegal value",
-        " ** On entry to DLASCL parameter number  4 had an illegal value",
-        " ** On entry to DORGQR parameter number  5 had an illegal value",
-    ]
-)
+LINALG_XERBLA_NATIVE = [" ** On entry to DORGQR parameter number  5 had an illegal value"]
 
 
 def _quiet(guest, which: str, code: str) -> str:
@@ -1107,7 +1105,8 @@ def test_a_rank_deficient_matrix_meets_the_sets_openblas(guest, which) -> None:
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_numpy_linalg_errors_are_native_numpy_on_openblas(guest, which) -> None:
     """A matrix of nan, and LAPACK's argument errors, behave as in native numpy on OpenBLAS: the svd
-    family, lstsq and eigh raise LinAlgError (lapack_lite's DLASCL ValueError, and lstsq's
+    family but `cond` (which returns nan, as native numpy 2.5.4 does), lstsq and eigh raise
+    LinAlgError (lapack_lite's DLASCL ValueError, and lstsq's
     SystemError, are gone), inv, solve, cholesky, qr and det return nans as natively,
     lapack_lite.xerbla() raises numpy's ValueError, and an illegal argument makes OpenBLAS's own
     xerbla print to stdout and return. OpenBLAS's lines come through C's stdout, whose order against

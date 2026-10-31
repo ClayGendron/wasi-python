@@ -1,6 +1,6 @@
 # 166: The pins move for 0.1.3
 
-- **Status:** drafted 2026-10-30, to be reviewed before it is built (the build recipe: constitution §5.6). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). Amended 2026-10-30 against its pre-build review, `../reviews/166-the-pins-move-for-0-1-3-spec-2026-10-30.md` ("Fit to build after amendments"): every finding taken; the review's Disposition says where.
+- **Status:** the first pull request (CPython 3.15.2, the build's wasmtime 50.0.1, numpy 2.5.4, the bug-fix sweep) built 2026-10-31 on `spec/166-the-pins-move-for-0-1-3` (pull request 67; its first run, 41170628147, red on four legs, fixed in one commit), not landed; the second (pandas 3.1.0) not built. zlib 1.3.2 waits for the owner (its licence file changed; the landing notes). Drafted 2026-10-30, to be reviewed before it is built (the build recipe: constitution §5.6). The owner chose it on 2026-10-30 (decisions.md, "The scope of 0.1.3"). Amended 2026-10-30 against its pre-build review, `../reviews/166-the-pins-move-for-0-1-3-spec-2026-10-30.md` ("Fit to build after amendments"): every finding taken; the review's Disposition says where.
 - **Date:** 2026-10-30
 - **Owner:** Clay Gendron
 - **Kind:** **build-class**, **a judge change**, not structural: nothing under `src/` changes. Recipe: `line.conf`, `00_download.sh`, `SHA256SUMS`, steps 10, 40, 50 and 70, `assemble_artifacts.py`, the moved pins' patches and rename headers. Judge: one rules row, `paths.wasmtime_cli()`, the oracle, the goldens, `tests/upstream/`. Documents: `SECURITY.md`, two reference pages.
@@ -128,4 +128,81 @@ In: Decisions 1 to 13. Out: wasmtime 51 (127's shape, its own specification); th
 
 ## Landing notes
 
-To be written at the landing.
+### The first pull request: CPython 3.15.2, the CLI, numpy 2.5.4 and the sweep (built 2026-10-31)
+
+Built on `spec/166-the-pins-move-for-0-1-3` from `dev` at `a1acec5c`, by a builder sub-agent of the orchestrating session. Every figure is EXECUTED on an arm64 Mac (Darwin 25.5.0) unless it says otherwise. "dev's set" is the set `../progress/accepted.json` records (`python.wasm` `d4192605…`, 0.1.2's), measured from an export of `a1acec5c` with that set and its own source trees, so the guest and its tests are dev's on both sides.
+
+**Decision 9's rows, each seen failing first.**
+- `tests/checks/test_rules.py::test_the_builds_wasmtime_is_the_runners_line`: red on `dev`'s tip, three findings (each host's `WASMTIME_DIR` major 49, the runner's 50); green from the CLI commit.
+- `tests/unit/test_build_scripts.py::test_the_wasmtime_cli_is_the_lines_by_its_exact_name`: red on `dev`'s tip (`wasmtime_cli()` took no name); green once `paths.wasmtime_cli()` takes the host's `WASMTIME_DIR` by its exact name (`paths.build_line()` reads `line.conf` through `line.py`).
+- `test_the_guests_configure_results_are_recorded`, with the literal kept, on the 3.15.2 tree: `no build/Python-3.15.0/cross-build/wasm32-wasip1/pyconfig.h`. Built from `PYTHON_VERSION`, it found one new result, `+_Py_HAVE_STRERROR_R 1`: 3.15.2's configure adds the private check `PY_CHECK_FUNC_PRIVATE(strerror_r)` (with `_Py_HAVE_PTHREAD_ATTR_GET_NP` and `HAVE_PTHREAD_NP_H`, which wasi-libc does not define). `tests/cpython_configure.txt` takes the line and the digest `155442b1…`; nothing else flips.
+
+**Decision 5: each new pin against its publisher.** Fetched once each into `downloads/` (the Linux hosts' inputs not fetched here; CI fetches and verifies them):
+
+| file | SHA-256 | the publisher's record |
+|---|---|---|
+| `Python-3.15.2.tar.xz` | `8b5536d2…575797de` | python.org's 3.15.2 page |
+| `cpython-3.15.2+20261026-{aarch64-apple-darwin,aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu}-install_only.tar.gz` | `285a6b92…758e64a6`, `6fc73e8a…ee318616`, `08d4ae90…dd4092aa` | python-build-standalone 20261026's `SHA256SUMS` |
+| `wasmtime-v50.0.1-{aarch64-macos,aarch64-linux,x86_64-linux}.tar.xz` | `960e5216…b30c65c8`, `d737e077…50cf4094`, `68546645…a75498a5` | each GitHub release asset's `digest` (v50.0.1, 2026-10-29) |
+| `numpy-2.5.4.tar.gz`; its cp315 wheels for macOS 14 arm64, manylinux aarch64 and x86_64 | `9a94cf75…c7999d2a`; `0b4724a1…d44de2a5`, `325518d4…08db1266`, `56733449…fdd0e86d` | PyPI |
+| `pypdf-6.21.4-py3-none-any.whl`, `pypdf-6.21.4.tar.gz` | `33e4fb41…a666255c`, `c8817e3f…f0bc2163` | PyPI |
+| `soupsieve-3.0.4-py3-none-any.whl`, `soupsieve-3.0.4.tar.gz` | `84128266…9fe7afbf`, `924fab84…5e5bc4c0` | PyPI |
+| `wrapt-2.5.2-py3-none-any.whl`, `wrapt-2.5.2.tar.gz` | `61eb54e9…7aaf90f0`, `551cb49e…9d9fddbf` | PyPI |
+| `tzdata-2026.6-py2.py3-none-any.whl`, `tzdata-2026.6.tar.gz` | `0a10eec6…a70b4aec`, `85d2cd9c…4feece6d` | PyPI |
+| `pypdf-6.21.4-sample-files-tag.tar.gz` | `01563c62…331a627d`, 6.21.1's bytes | the 6.21.4 tag's `sample-files` submodule is `818dc013`, 6.21.1's (GitHub's contents API at both tags) |
+
+**Decision 7: the sweep's candidates**, read 2026-10-30 from PyPI's JSON (once a package), the projects' git tags and the GNOME and Savannah listings. A pin with a carried patch is marked (patch).
+- Moved: numpy 2.5.2 → 2.5.4 (patch); pypdf 6.21.1 → 6.21.4 (patch, a test-source patch); soupsieve 3.0.3 → 3.0.4; wrapt 2.5.1 → 2.5.2 (2026-10-29); tzdata 2026.5 → 2026.6 (its newest).
+- **Held for the owner: zlib 1.3.1 → 1.3.2** (2026-02-17; "check for negative lengths in crc32_combine", "prevent the use of insecure functions"). Its `LICENSE` changes, the copyright line from `1995-2022` to `1995-2026`, and it adds `contrib/minizip/LICENSE.Info-Zip` (minizip is not built), so by Decision 7 it waits for the owner (§4.12).
+- No release past the pin in the same minor: every other pure package in the zip (pandas' 3.1.0 is the second pull request; openpyxl and et-xmlfile are out by Decision 7 and have nothing newer), regex (2026.9.29 is the newest), scipy 1.18.1, scikit-learn 1.9.1, statsmodels 0.15.0, matplotlib 3.11.2, Pillow 13.0.0, kiwisolver 1.5.1, contourpy 1.4.0, lxml 6.1.3 (patch), pybind11, cppy; bzip2 1.0.8, xz 5.8.4, libxml2 2.15.4 (patch), libxslt 1.1.45, OpenBLAS 0.3.34 (patches), FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0, libraqm 0.10.5, qhull 8.0.2 (patch). SQLite holds at 3.54.1 (Decision 3). Newer minors that stay out: fonttools 4.68.0, xlsxwriter 3.3.1, mpmath 1.4.1, narwhals 2.28.0, reportlab 5.1.0, python-dateutil 3.0.0, libraqm 0.11.0, HarfBuzz 14.5 and 15.
+- **Licence files** (§4.12): numpy 2.5.4's `license-files` and every licence-like file of its sdist are 2.5.2's byte for byte; pypdf's, soupsieve's, wrapt's and tzdata's wheels' licences are their old ones'. CPython's `LICENSE` and HACL*'s header are 3.15.0's; its `Doc/license.rst` changes one line, mimalloc's notice from `Copyright (c) 2018-2021 Microsoft Corporation, Daan Leijen` to `2018-2025`, because 3.15.2 vendors mimalloc 2.5 (from 2.1.2). The licence is MIT as before, and the owner chose 3.15.2 by name (decisions.md, "The scope of 0.1.3"), so CPython moves and the line is named here for the owner to read.
+
+**Decision 6: the carried patches, re-made.** Each was re-made by applying the old patch to a scratch git tree of the new tarball and writing `git diff`; the method, run against the old tarballs, reproduces numpy's two patches byte for byte.
+- `recipes/patches/numpy-2.5.4/0001-npy-files-without-dup.patch` and `0002-callback-signatures.patch`: the changed lines (every `+` and `-` line) equal 2.5.2's; the hunk headers are unchanged; only the `index` lines differ (the files' blobs moved). Both apply at no offset.
+- `recipes/patches/pypdf-6.21.4/0001-tests-import-ssl-where-it-is-used.patch`: `tests/__init__.py` is the same file in both sdists, so the patch is 6.21.1's bytes (it was written without `index` lines or function context, and kept in its own form).
+- The drafts moved with them, `Against` updated; `docs/contributing/carrying-a-patch.md` and `recipes/patches/README.md` name numpy's new folder. No `MODIFIED` key moves (regex did not move).
+
+**Decision 3: SQLite.** python-build-standalone 3.15.2's `PRAGMA compile_options` (SQLite 3.53.1 in the host) equal 3.15.0's but for `COMPILER=clang-23.1.3` (was 22.1.3); step 35's options stand.
+
+**Decision 4: the CLI.** `wasmtime wizer --help` is the same text in 49.0.3 and 50.0.1, so step 80's flags stand. The branch's `python.wasm` snapshotted with each CLI: 49.0.3 and 50.0.1 both write `ed740363c44cda6d497e7cfbb68864eaf267d106c5be8f728c962ce56dcd6036`, 104,576,267 bytes; `scripts/compare_snapshots.py`: `0 differing bytes in 0 symbols`. `test_recursion_raises_under_the_wasmtime_cli` passes under 50.0.1 (the build shard).
+
+**What else the moved pins asked.**
+- mimalloc 2.5's constructors: `mi_process_attach`, `constructor(101)`, takes the place of `_mi_process_init` and does what its `mi_process_load` did but the `atexit`; wasm-ld's `.Lregister_call_dtors.101` registers the `destructor(101)` `mi_process_detach` with `atexit`, which calls `mi_process_done` at exit as before. Both read and listed in `tests/harness/constructors.py` in link order; neither calls Python.
+- numpy 2.5.4 checks the input of LAPACK's SVD and least-squares drivers for inf and nan (numpy issue 32591), so `np.linalg.cond` of a nan matrix returns nan and DLASCL's two xerbla lines are gone. Native numpy 2.5.4 on OpenBLAS (the oracle's `macosx_11_0_arm64` wheel) prints exactly the guest's answers; `test_numpy_linalg_errors_are_native_numpy_on_openblas` records them. Its LAPACK declarations are unchanged, so `recipes/numpy_lapack_shims.c` stands, and the rank-deficient string native 2.5.4 prints is 2.5.2's.
+- Unit rows followed the pins: the download step's test tree takes the line's CPython tarball by name; CPython's staged test files' digest and group JSON digest in `tests/fixtures/upstream-stages.json` are 3.15.2's and its plan's (its `Lib/test` drops `test_cppext` and `memory_watchdog.py` and adds modules), every other family's unchanged; `test_regrtest.py` counts the plan's 546 normal modules (543, four in, one out).
+
+**Decision 10: the judge's files.**
+- Goldens, remade by `tests/jobs/regen.py` under the oracle at 3.15.2 (relocked with CI's uv, 0.9.22): fourteen change, each in its first line alone, the versions it names. No job's output moves.
+- `.ini` files: numpy's, pypdf's, soupsieve's, wrapt's and tzdata's pytest configuration is unchanged upstream (wrapt's `tox.ini` drops a PyPy environment; pypdf's `pyproject.toml` changes ruff and mypy settings only); `numpy.ini`'s first comment names 2.5.4.
+- CPython's plan: `test_cppext` (removed upstream) leaves `cpython-b.txt`; 3.15.2's four new `test_free_threading` modules join their siblings in `cpython-a.txt`, sorted, since regrtest lists every module and the plan places each. This is a placement the plan's own rule requires, beside Decision 10's three kinds of edit.
+- `expected/cpython-a/no-test-modules.txt`: three new tests of 3.15.2's `test_traceback` (`CPythonSuggestionFormattingTests.test_name_error_with_bad_getattr`, `_getattribute`, `_property`) fail on the missing `_testcapi`, the class's cause and pattern; its gap counts 143 findings.
+- soupsieve's tiers: soupsieve-smoke ran out of fuel under 35 G at `test_escape_round_trip`. soupsieve 3.0.4's `test_api.py` adds two tests that match a selector for each of about 63,000 code points (`test_escape_round_trip`, `test_unescaped_non_ascii_identifiers`); with the cap lifted the smoke measured 164.8 G, past the 100 G a smoke group may measure (`test_upstream_files_are_well_formed`, red in run 41170628147). A keyword split cannot select inside a smoke family's groups (they are path groups, `tiers.kind_of`), so `test_api.py`, whole, leaves the smoke for the release tier's path group: soupsieve-smoke runs `tests/test_level1`, 15.1 G and 35 passes (88), cap 23 G by the 1.5 rule; soupsieve-r runs every other file, `test_api.py` with it, 185.8 G and 400 passes (342), cap 280 G; the budget is their sum, 303 G. No check moves between tiers; the smoke's pass count falls by the move, claimed under `fewer`.
+- `tests/cpython_configure.txt`: the one line above. No pass count falls.
+
+**Decision 11: bytes and fuel.** Bytes against dev's set; fuel on darwin arm64, numpy's, pandas' and CPython's groups at dev's set and the head's, the swept pins' against `accepted.json`'s darwin rows.
+
+| | dev's set | the head | change |
+|---|---|---|---|
+| `python.wasm` | 99,421,513 | 99,487,062 | +65,549 (+0.066%) |
+| `python-snapshot.wasm` | 104,517,748 | 104,576,267 | +58,519 (+0.056%) |
+| `python-stdlib.zip` | 53,915,154 | 53,829,197 | −85,957 (−0.159%) |
+| the wheel, built by hand from each set (run 41170628147's own: 98,327,640) | 98,371,695 | 98,327,639 | −44,056 (−0.045%); the run's is 1,672,360 under 100,000,000 and 6,529,960 under 104,857,600 |
+
+| groups (darwin) | rows | up / down | median | range | sum |
+|---|---|---|---|---|---|
+| numpy, pandas, CPython, normal tier | 16 | 14 / 2 | +0.157% | −0.525% (cpython-archives) to +3.197% (cpython-a) | 2,906.2 G → 2,920.96 G, +0.507% |
+| numpy, pandas, CPython, release tier | 18 | 16 / 2 | +0.134% | −0.130% to +1.108% (cpython-release-b-inline) | 4,372.4 G → 4,381.1 G, +0.199% |
+
+Every pass count holds or grows: cpython-a 5,865 → 5,898 (and runs the four new modules), numpy-core 9,519 → 9,752, numpy-lib 4,825 → 4,835, numpy-others 7,277 → 7,295; every pandas group equal. The swept: pypdf-smoke +0.31% (217 → 218 passes), pypdf-r −2.42% (1,474 → 1,695), soupsieve-smoke 23.1 G → 15.1 G (88 → 35, `test_api.py` moved), soupsieve-r 31.4 G → 185.8 G (322 → 400), wrapt-smoke +0.79% (1,367 → 1,379), tzdata-smoke +0.20% (628 both).
+
+Against the bounds: each artifact within ±1%; the wheel smaller. The upstream normal groups measured are +0.507% in sum (soupsieve-smoke now falls); soupsieve-r's growth is the release tier's, traced above. The own checks' fuel is the pull request's gather's darwin comparison (`ci:full`). cpython-a's +3.2% is its larger plan (four new modules, 33 more passing tests) and numpy-core's +1.57% its 233 more passing tests.
+
+**The set at this head.** A clean rebuild from step 10 wrote the same `SHA256SUMS` as the incremental build, `784b119d2a67f85d4c1d4a16f4dc1c67a93799632440c46658ddafba4b082e26` (its digest): `python.wasm` `9ef1a190…`, the snapshot `ed740363…`, the zip `c23e82e1…`. Decision 12: run 41170628147 (the pull request's first, at `a7f5cee5`, `ci:full`) built the set on arm64 Linux; the run's arm64 Linux set's `SHA256SUMS` is byte-identical to this Mac's, digest `784b119d2a67…` (EXECUTED: its `release-assets` artifact unpacked and compared). A fix commit changes no recipe file, so the comparison holds at the next head.
+
+**The local runs at this head.** `ruff check` and `ruff format --check` on `src tests release`: clean. `uv run pytest -m "not slow" -n 3 tests/unit tests/lint tests/checks/test_rules.py`: green after the unit rows above (3,562 passed, one rules row blocked by the prior-art clones, as on `dev`). `uv run pytest tests/lint`: 14 passed. `uv run pytest --shard=build`: 52 passed (41 checks, 11 unit), the configure row and the CLI recursion row among them. The data stack, artifact-set, matplotlib, scipy, regex and lxml check files: green after the linalg row. The upstream groups of numpy, pandas, CPython (both tiers), pypdf, soupsieve, wrapt and tzdata: green, the gaps as recorded.
+
+**Run 41170628147's four red legs, and their fixes** (one fix commit; each check run locally by node id at the rebuilt set before the push):
+- own-hostile-b, on all three systems: `test_deep_data_limits[hash-tuple]`. CPython 3.15.2 guards tuple hashing with its C-stack check (gh-154318, "A RecursionError is now raised instead of overflowing the C stack"), and the guest's guard window (`recipes/reactor_main.c`, the top 128 KiB of the linear stack, spec 071) raises "Stack overflow (used 112 kB) while hashing a tuple" before 30,000 levels. 3.15.0 recursed until the wasm stack trapped. The premise moved upstream, so the case moves from the trap table to `test_deep_data_raises` at 400,000 levels, as `repr` and `==` already are: `test_deep_data_limits[hash-tuple]` is retired, `test_deep_data_raises[hash-tuple]` is new, and `docs/reference/limitations.md` names `hash` among the C recursions that raise. No recipe changes: widening the guard window would spend the native stack it protects.
+- upstream-windows: `test_upstream_suite[cpython-fs]` on Windows. `test_logging.FileHandlerTest.test_emit_reopen_error` is new in 3.15.2 and removes the folder of a file the handler holds open; CPython skips it on Windows, but the guest is not `nt`, and a Windows host refuses the removal. It is a host entry, `win-logging-emit-reopen-error` (darwin and Linux passed, Windows error), with its gap, as the other open-file entries are.
+- upstream-pure-smoke-a, on Linux: tqdm-smoke's three classes. Under 3.15.2 the stray event loop of tqdm's asyncio tests is collected during `test_iter_overhead_simplebar_hard` rather than `test_iter_basic_overhead`, so the two tests trade classes (no-asyncio-loop-error against no-threads-error and no-threads), each with its class's cause and pattern; the same trade on darwin here.
+- own-rest, on Linux and macOS: `test_upstream_files_are_well_formed`, soupsieve-smoke past 100 G; the tier change above.

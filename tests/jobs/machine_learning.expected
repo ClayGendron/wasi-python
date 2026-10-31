@@ -1,4 +1,4 @@
-versions scikit-learn=1.9.1 scipy=1.18.1 numpy=2.5.2 pandas=3.0.6 joblib=1.6.0 threadpoolctl=3.7.0 narwhals=2.27.1
+versions scikit-learn=1.9.1 scipy=1.18.1 numpy=2.5.4 pandas=3.0.6 joblib=1.6.0 threadpoolctl=3.7.0 narwhals=2.27.1
 shapes (150, 4) (1797, 64) (442, 10) (569, 30) (178, 14)
 iris targets ['setosa', 'versicolor', 'virginica'] first row [5.1, 3.5, 1.4, 0.2]
 descr starts .. _iris_dataset:

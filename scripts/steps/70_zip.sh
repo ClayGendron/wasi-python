@@ -106,7 +106,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/sklearn-install" \
   --tree "$B/statsmodels-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
-  --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
+  --wheel "$(pinned tzdata-2026.6-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
   --wheel "$(pinned cycler-0.12.1-py3-none-any.whl)" \
   --wheel "$(pinned pyparsing-3.3.3-py3-none-any.whl)" \
@@ -116,10 +116,10 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned et_xmlfile-2.0.0-py3-none-any.whl)" \
   --wheel "$(pinned xlsxwriter-3.2.9-py3-none-any.whl)" \
   --wheel "$(pinned xlrd-2.0.2-py2.py3-none-any.whl)" \
-  --wheel "$(pinned pypdf-6.21.1-py3-none-any.whl)" \
+  --wheel "$(pinned pypdf-6.21.4-py3-none-any.whl)" \
   --wheel "$(pinned defusedxml-0.7.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned beautifulsoup4-4.15.0-py3-none-any.whl)" \
-  --wheel "$(pinned soupsieve-3.0.3-py3-none-any.whl)" \
+  --wheel "$(pinned soupsieve-3.0.4-py3-none-any.whl)" \
   --wheel "$(pinned html5lib-1.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned webencodings-0.6.1-py3-none-any.whl)" \
   --wheel "$(pinned tomli_w-1.2.0-py3-none-any.whl)" \
@@ -142,8 +142,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned reportlab-5.0.1-py3-none-any.whl)" \
   --wheel "$(pinned formulaic-1.2.2-py3-none-any.whl)" \
   --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
-  --wheel "$(pinned wrapt-2.5.1-py3-none-any.whl)" \
-  --metadata "$B/numpy-2.5.2/PKG-INFO" \
+  --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
+  --metadata "$B/numpy-2.5.4/PKG-INFO" \
   --metadata "$B/pandas-3.0.6/PKG-INFO" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
   --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \

@@ -6,7 +6,7 @@ Every package here is pinned to one version. The set carries one version of each
 
 ## The interpreter
 
-CPython 3.15.0, built for `wasm32-wasip1`. `python.wasm -V` prints the version, then a line of the platform's facts:
+CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, then a line of the platform's facts:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
@@ -40,9 +40,9 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
 | | xlrd 2.0.2 | read old `.xls` files |
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
-| PDF | pypdf 6.21.1 | read, extract text, merge, split, encrypt (RC4) |
+| PDF | pypdf 6.21.4 | read, extract text, merge, split, encrypt (RC4) |
 | | reportlab 5.0.1 | write PDFs: text, tables, charts, Unicode text, images |
-| HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.3 | parse messy HTML, CSS selectors |
+| HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.4 | parse messy HTML, CSS selectors |
 | | html5lib 1.1, webencodings 0.6.1 | a browser's HTML parsing; bs4's `html5lib` parser |
 | | defusedxml 0.7.1 | parse untrusted XML, refusing entity tricks |
 | | xmltodict 1.0.4 | XML to dicts and back |
@@ -87,4 +87,4 @@ To build a package into the artifact set itself, see [Adding a package](../contr
 
 ## In one line
 
-CPython 3.15.0 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn and reportlab in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn and reportlab in the zip, each at one pinned version.

@@ -9,7 +9,7 @@ This page says what the `wasi-python` wheel runs on, which names are public, and
 | Host Python | 3.11 or later. |
 | WebAssembly engine | wasmtime-py 50 (`wasmtime>=50,<51`), installed with the wheel. |
 | Host systems | macOS, Linux and Windows. The release is tested on all three. |
-| Guest Python | CPython 3.15.0, for `wasm32-wasip1`. |
+| Guest Python | CPython 3.15.2, for `wasm32-wasip1`. |
 
 The runner must be able to read its own thread's stack size before it starts a guest. It can on Linux, Android, macOS and Windows. On other systems, FreeBSD among them, every call is refused with `RuntimeError`. On CPython 3.14.0 on a C library other than glibc (musl), every call is refused too; use 3.14.1 or later.
 

@@ -4,7 +4,7 @@
 # build/numpy-host/numpy/__init__.py beside the WASI build's headers. (The spike's file, brought in.)
 import os
 
-__version__ = "2.5.2"
+__version__ = "2.5.4"
 
 
 def get_include():

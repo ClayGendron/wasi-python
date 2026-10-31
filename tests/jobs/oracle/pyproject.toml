@@ -1,21 +1,21 @@
 # The native oracle for the golden jobs: the guest's package pins, natively.
 # Python is the line's own pinned host Python (scripts/line.conf), which tests/harness/jobs.py
 # unpacks under build/oracle/python/ after checking its hash: the pinned uv (0.9.22) cannot install
-# 3.15.0. Run it through tests/jobs/regen.py, which keeps every download
+# 3.15.2. Run it through tests/jobs/regen.py, which keeps every download
 # under build/.
 [project]
 name = "wasi-python-oracle"
 version = "0"
-requires-python = "==3.15.0"
+requires-python = "==3.15.2"
 dependencies = [
     # numpy on OpenBLAS everywhere, as the guest's numpy is: on macOS arm64
     # the macosx_11_0 wheel, which bundles scipy-openblas (left to itself uv would take the
     # macosx_14_0 wheel there, which links Apple's Accelerate); elsewhere the wheels bundle it.
-    "numpy @ https://files.pythonhosted.org/packages/dd/d1/973ca116000d244897e468ea1aff30b589e5022e3c8744b71706fe33bd57/numpy-2.5.2-cp315-cp315-macosx_11_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
-    "numpy==2.5.2 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    "numpy @ https://files.pythonhosted.org/packages/be/75/fee0b8c6d94b44b2fdfae74f6a4ad5a138739589a8aebaec28ce4e713ed5/numpy-2.5.4-cp315-cp315-macosx_11_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "numpy==2.5.4 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
     "pandas==3.0.6",
     "python-dateutil==2.9.0.post0",
-    "tzdata==2026.5",
+    "tzdata==2026.6",
     "six==1.17.0",
     # matplotlib and its dependencies at the guest's pins; contourpy is native only
     # (the guest has none until M2), at the version the research pinned.
@@ -40,9 +40,9 @@ dependencies = [
     "et-xmlfile==2.0.0",
     "xlsxwriter==3.2.9",
     "xlrd==2.0.2",
-    "pypdf==6.21.1",
+    "pypdf==6.21.4",
     "beautifulsoup4==4.15.0",
-    "soupsieve==3.0.3",
+    "soupsieve==3.0.4",
     "html5lib==1.1",
     "webencodings==0.6.1",
     "defusedxml==0.7.1",
@@ -84,14 +84,14 @@ dependencies = [
     "statsmodels==0.15.0",
     "formulaic==1.2.2",
     "interface-meta==2.0.1",
-    "wrapt==2.5.1",
+    "wrapt==2.5.2",
 ]
 
 [tool.uv.sources]
 # charset-normalizer's pure wheel, the guest's own file: its platform wheels are mypyc-compiled.
 charset-normalizer = { url = "https://files.pythonhosted.org/packages/fc/ad/d07d7862a62ffa6d79d68074d14823243dd235a77c45262acbf6adeb28bf/charset_normalizer-3.5.2-py3-none-any.whl" }
 # wrapt's pure wheel, the guest's own file: its platform wheels carry the compiled _wrappers.
-wrapt = { url = "https://files.pythonhosted.org/packages/bc/0c/7da7513ddcc8f1d831ec4bfbedc9f7f174ecb91042bc16916fc1e0d06b22/wrapt-2.5.1-py3-none-any.whl" }
+wrapt = { url = "https://files.pythonhosted.org/packages/77/8b/1ea57b936b70f98e8e7620a352578096d778dbee95b262f73c066d210ffb/wrapt-2.5.2-py3-none-any.whl" }
 
 [tool.uv]
 package = false

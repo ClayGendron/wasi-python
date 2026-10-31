@@ -1,5 +1,5 @@
 diff --git a/numpy/_core/src/multiarray/array_converter.c b/numpy/_core/src/multiarray/array_converter.c
-index 2785049..5129753 100644
+index 4242995..bcfad52 100644
 --- a/numpy/_core/src/multiarray/array_converter.c
 +++ b/numpy/_core/src/multiarray/array_converter.c
 @@ -129,7 +129,8 @@ array_converter_new(
@@ -13,7 +13,7 @@ index 2785049..5129753 100644
      PyObject *ret = PyTuple_New(self->narrs);
      if (ret == NULL) {
 diff --git a/numpy/_core/src/multiarray/array_method.c b/numpy/_core/src/multiarray/array_method.c
-index 4c8df9a..05794f6 100644
+index 22fd871..a49ed04 100644
 --- a/numpy/_core/src/multiarray/array_method.c
 +++ b/numpy/_core/src/multiarray/array_method.c
 @@ -971,7 +971,8 @@ PyMethodDef boundarraymethod_methods[] = {
@@ -68,7 +68,7 @@ index 3c4fe5c..ce39c89 100644
      if (arg == NULL) {
          PyErr_SetString(PyExc_AttributeError,
 diff --git a/numpy/_core/src/multiarray/scalartypes.c.src b/numpy/_core/src/multiarray/scalartypes.c.src
-index 8307f0d..a95167c 100644
+index c56563b..b9928a4 100644
 --- a/numpy/_core/src/multiarray/scalartypes.c.src
 +++ b/numpy/_core/src/multiarray/scalartypes.c.src
 @@ -2125,7 +2125,7 @@ gentype_@name@(PyObject *self, PyObject *args)

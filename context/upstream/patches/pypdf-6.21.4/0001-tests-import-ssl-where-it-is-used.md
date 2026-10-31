@@ -1,11 +1,11 @@
 - **Project:** pypdf (https://github.com/py-pdf/pypdf)
-- **Against:** 6.21.1 (the pinned sdist, `pypdf-6.21.1.tar.gz`, a test source of spec 067)
+- **Against:** 6.21.4 (the pinned sdist, `pypdf-6.21.4.tar.gz`, a test source of spec 067; moved from 6.21.1 on 2026-10-30, `tests/__init__.py` the same file in both, so the patch is byte for byte the 6.21.1 one)
 - **Status:** drafted
 - **Title:** `TST: Import ssl where it is used in tests/__init__.py`
 - **Files:** tests/__init__.py
 - **Why we carry it:** our Python (CPython 3.15 for `wasm32-wasip1`) has no `_ssl`, so `import ssl` raises. pypdf's `tests/__init__.py` imports `ssl` at module level, and every pypdf test module imports `tests`, so none of pypdf's tests can load there. With the import moved into the one function that uses it, 1,689 of pypdf's tests pass in our guest (spec 067's survey, EXECUTED 2026-10-21: `context/research/2026-10-21-the-pure-python-packages-own-tests-under-the-runtime.md`).
 
-The patch is `recipes/patches/pypdf-6.21.1/0001-tests-import-ssl-where-it-is-used.patch`: test code only, no file of the `pypdf/` package changes (the wheel tie compares those, unchanged). Drafted 2026-10-21 with spec 067's answer to its delta review (M2); committed here with its patch by 067's build.
+The patch is `recipes/patches/pypdf-6.21.4/0001-tests-import-ssl-where-it-is-used.patch`: test code only, no file of the `pypdf/` package changes (the wheel tie compares those, unchanged). Drafted 2026-10-21 with spec 067's answer to its delta review (M2); committed here with its patch by 067's build.
 
 
 **This is a facts sheet, not a pull request or an issue.** pypdf's `CONTRIBUTING.md` (READ on `main`, 2026-10-21, with `gh api`) allows AI coding assistance, with the contributor responsible for the code, and says: "AI should not be used to generate comments when communicating with maintainers. We expect comments on our projects to be written by humans. If you are opening an issue, we expect you to describe the problem in your own words." So the owner decides whether to engage, and writes any issue, pull request description and comment in their own words from these facts. Nothing has been posted, and no agent will post anything to pypdf. Carrying the patch does not depend on sending anything (§4.1).

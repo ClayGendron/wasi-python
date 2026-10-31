@@ -9,7 +9,7 @@
  *   what an f2c subroutine returns. numpy reads only `info`; lapack_lite returns the 0 as its
  *   '<name>_' entry, which is what native numpy reads on OpenBLAS.
  *
- * The parameter lists are numpy 2.5.2's own, copied by
+ * The parameter lists are numpy 2.5.4's own (2.5.2's, unchanged), copied by
  * context/research/2026-10-20-numpy-on-openblas/make_numpy_shims.py; every argument is a pointer.
  * Step 40 compiles this file alone, with no numpy flag and no rename header, into
  * build/numpy-shims/libnumpy_lapack_shims.a; step 60 links it. Check 4

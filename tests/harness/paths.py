@@ -359,10 +359,29 @@ def artifact_dir() -> Path | None:
     return d if (d / "MANIFEST").is_file() else None
 
 
-def wasmtime_cli() -> Path | None:
-    """The pinned wasmtime CLI step 10 unpacked under build/tools."""
-    found = sorted((BUILD / "tools").glob("wasmtime-v*/wasmtime"))
-    return found[0] if found else None
+def wasmtime_cli(name: str | None = None, tools: Path | None = None) -> Path | None:
+    """The pinned wasmtime CLI step 10 unpacked under build/tools: the folder this build host's
+    `WASMTIME_DIR` names in scripts/line.conf, by its exact name. A tree may still hold an older
+    pin's folder beside it, which sorts first, so no other folder is ever taken. None when that
+    folder holds no `wasmtime`, or when this machine is not a build host."""
+    if name is None:
+        name = build_line().get("WASMTIME_DIR")
+        if name is None:
+            return None
+    exe = (BUILD / "tools" if tools is None else tools) / name / "wasmtime"
+    return exe if exe.is_file() else None
+
+
+def build_line() -> dict[str, str]:
+    """scripts/line.conf as the build reads it, through its own parser (scripts/line.py): on a
+    build host, its own inputs are under the plain names."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("wasi_python_line", REPO / "scripts" / "line.py")
+    assert spec is not None and spec.loader is not None
+    line = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(line)
+    return line.read(REPO / "scripts" / "line.conf")
 
 
 def sha256_bytes(data: bytes) -> str:

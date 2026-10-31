@@ -130,7 +130,7 @@ closes_with = "context/specifications/002-the-progress-harness.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-test-modules]"
-match = "140 finding(s), digest 6aa3974a625c"
+match = "143 finding(s), digest d96604159ccf"
 reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
 closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
 
@@ -252,6 +252,12 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-copy-copyfile-copy-dir]"
 match = "1 finding(s), digest 2d010d1302e2"
 reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirectoryError elsewhere (the branch dry run 39194284100)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-logging-emit-reopen-error]"
+match = "1 finding(s), digest 901c82708fcf"
+reason = "new in CPython 3.15.2, which skips it on Windows itself: a Windows host refuses to remove a folder that holds a file the guest still holds open, so the test's rmtree of the log's folder fails (EACCES; a Windows grant's rule, README: On Windows; run 41170628147)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
@@ -1685,7 +1691,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]"
-match = "11 finding(s), digest ca9d96e202af"
+match = "11 finding(s), digest 99386789b82b"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1703,13 +1709,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]"
-match = "99 finding(s), digest 10c256abd391"
+match = "99 finding(s), digest 23c65d699d60"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]"
-match = "117 finding(s), digest c5948e42a741"
+match = "117 finding(s), digest 75a64564f63a"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 

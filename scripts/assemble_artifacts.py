@@ -25,14 +25,14 @@ from litter import has_litter, is_litter
 LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
 PACKAGES = {
-    "numpy": "2.5.2",
+    "numpy": "2.5.4",
     "pandas": "3.0.6",
     "zlib": "1.3.1",
     "bzip2": "1.0.8",
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it
     "python-dateutil": "2.9.0.post0",
-    "tzdata": "2026.5",
+    "tzdata": "2026.6",
     "six": "1.17.0",
     "regex": "2026.9.29",
     # matplotlib: the package, its compiled dependencies, the C libraries linked in, the
@@ -62,9 +62,9 @@ PACKAGES = {
     "et-xmlfile": "2.0.0",
     "xlsxwriter": "3.2.9",
     "xlrd": "2.0.2",
-    "pypdf": "6.21.1",
+    "pypdf": "6.21.4",
     "beautifulsoup4": "4.15.0",
-    "soupsieve": "3.0.3",
+    "soupsieve": "3.0.4",
     "html5lib": "1.1",
     "webencodings": "0.6.1",
     "defusedxml": "0.7.1",
@@ -102,11 +102,11 @@ PACKAGES = {
     "statsmodels": "0.15.0",
     "formulaic": "1.2.2",
     "interface-meta": "2.0.1",
-    "wrapt": "2.5.1",
+    "wrapt": "2.5.2",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
-    "tzdata": "tzdata-2026.5-py2.py3-none-any.whl",
+    "tzdata": "tzdata-2026.6-py2.py3-none-any.whl",
     "six": "six-1.17.0-py2.py3-none-any.whl",
     "pybind11": "pybind11-3.1.0-py3-none-any.whl",
     "cppy": "cppy-1.3.1-py3-none-any.whl",
@@ -120,9 +120,9 @@ WHEELS = {
     "et-xmlfile": "et_xmlfile-2.0.0-py3-none-any.whl",
     "xlsxwriter": "xlsxwriter-3.2.9-py3-none-any.whl",
     "xlrd": "xlrd-2.0.2-py2.py3-none-any.whl",
-    "pypdf": "pypdf-6.21.1-py3-none-any.whl",
+    "pypdf": "pypdf-6.21.4-py3-none-any.whl",
     "beautifulsoup4": "beautifulsoup4-4.15.0-py3-none-any.whl",
-    "soupsieve": "soupsieve-3.0.3-py3-none-any.whl",
+    "soupsieve": "soupsieve-3.0.4-py3-none-any.whl",
     "html5lib": "html5lib-1.1-py2.py3-none-any.whl",
     "webencodings": "webencodings-0.6.1-py3-none-any.whl",
     "defusedxml": "defusedxml-0.7.1-py2.py3-none-any.whl",
@@ -147,7 +147,7 @@ WHEELS = {
     # statsmodels' formula engine
     "formulaic": "formulaic-1.2.2-py3-none-any.whl",
     "interface-meta": "interface_meta-2.0.1-py3-none-any.whl",
-    "wrapt": "wrapt-2.5.1-py3-none-any.whl",
+    "wrapt": "wrapt-2.5.2-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -801,7 +801,7 @@ def main() -> None:
     for name in ("python.wasm", "python-snapshot.wasm", "python-stdlib.zip"):
         shutil.copyfile(b / "out" / name, new / name)
 
-    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.2", b / "pandas-3.0.6"
+    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.0.6"
     numpy_files = tomllib.loads((np_src / "pyproject.toml").read_text())["project"]["license-files"]
     licences = {
         "cpython": [

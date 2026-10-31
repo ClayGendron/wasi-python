@@ -1,5 +1,5 @@
 #!/bin/sh
-# Step 40: numpy 2.5.2 cross-compiled for wasm32-wasip1 as static archives, with numpy's vendored
+# Step 40: numpy 2.5.4 cross-compiled for wasm32-wasip1 as static archives, with numpy's vendored
 # meson, outside its source tree; installed (its Python package and headers); then the host-side numpy stand-in
 # pandas' build imports. numpy's linear algebra, dot and matmul link step 38's OpenBLAS, the one
 # scipy links: numpy's meson finds it through step 10's pinned pkgconf, recipes/numpy_lapack_abi.h
@@ -8,8 +8,8 @@
 set -eu
 . "$(dirname "$0")/common.sh"
 
-TARBALL=$(pinned numpy-2.5.2.tar.gz)
-SRC="$B/numpy-2.5.2"
+TARBALL=$(pinned numpy-2.5.4.tar.gz)
+SRC="$B/numpy-2.5.4"
 BUILD="$B/numpy-build"
 SHIMS="$B/numpy-shims"
 OB="$B/openblas-wasi"

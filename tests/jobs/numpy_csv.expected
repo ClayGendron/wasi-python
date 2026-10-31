@@ -1,4 +1,4 @@
-versions python=3.15 numpy=2.5.2 pandas=3.0.6 python-dateutil=2.9.0.post0 tzdata=2026.5 six=1.17.0
+versions python=3.15 numpy=2.5.4 pandas=3.0.6 python-dateutil=2.9.0.post0 tzdata=2026.6 six=1.17.0
 rows 36 regions ['north', 'south', 'west']
 north 1734.71 144.559167 169.65 143.88 12.3834314
 south 1714.62 142.885 166.24 145.075 17.9053854

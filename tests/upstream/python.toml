@@ -197,6 +197,16 @@ reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirect
 closes_with = "docs/reference/limitations.md"
 
 [[host_dependent]]
+id = "win-logging-emit-reopen-error"
+group = "cpython-fs"
+test = "test.test_logging.FileHandlerTest.test_emit_reopen_error"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "new in CPython 3.15.2, which skips it on Windows itself: a Windows host refuses to remove a folder that holds a file the guest still holds open, so the test's rmtree of the log's folder fails (EACCES; a Windows grant's rule, README: On Windows; run 41170628147: PermissionError: [Errno 2] Permission denied: '/tmp/tmpwvpymtpo/sub/b.log')"
+closes_with = "docs/reference/limitations.md"
+
+[[host_dependent]]
 id = "win-spooledtemporaryfile-bound-methods"
 group = "cpython-fs"
 test = "test.test_tempfile.TestSpooledTemporaryFile.test_bound_methods"
