@@ -82,12 +82,15 @@ def packages(artifacts: Artifacts | None = None) -> tuple[Package, ...]:
     try:
         fd = os.open(path, _artifacts._OPEN_FLAGS)
         with os.fdopen(fd, "rb") as f:
-            opened = os.fstat(fd)
+            # Both stamps before the read, as the digest cache takes them: a zip rewritten in
+            # place during the read then has a stamp this key does not match, and is read again.
+            opened, named = os.fstat(fd), os.stat(path)
             with ZipFile(f) as zf:
                 found = _read_zip(zf, path)
-        named = os.stat(path)
-    except (OSError, zipfile.BadZipFile) as e:
-        raise ArtifactsMissing(f"{path} cannot be read ({e})") from None
+    except ArtifactsMissing:
+        raise
+    except Exception as e:  # the zip module's own errors differ by what is wrong with a member
+        raise ArtifactsMissing(f"{path} cannot be read ({type(e).__name__}: {e})") from e
     if os.path.samestat(opened, named):  # what was read is the file the key names
         cache[(resolved, *_artifacts._stamp(named))] = found
     return found
@@ -119,7 +122,7 @@ def _package(zf: ZipFile, folder: str, path: os.PathLike[str]) -> Package:
         version = _header(meta, "Version")
         top_level = dist.read_text("top_level.txt")
     except (UnicodeDecodeError, ValueError) as e:
-        raise ArtifactsMissing(f"{where} cannot be read ({e})") from None
+        raise ArtifactsMissing(f"{where} cannot be read ({e})") from e
     if not name or not version:
         raise ArtifactsMissing(f"{where} has no Name or no Version in its METADATA")
     imports = tuple(sorted(set((top_level or "").split())))
