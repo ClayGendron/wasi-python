@@ -413,18 +413,6 @@ reason = "no threads: starting one raises RuntimeError (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-render-2b-pillow-zlib-only]"
-match = "3 finding(s), digest 9fc14039adcb"
-reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-pillow-zlib-only]"
-match = "5 finding(s), digest 0504956f6a79"
-reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-no-processes]"
 match = "2 finding(s), digest f61cc4b5052a"
 reason = "no processes: subprocess is unavailable on WASI; test_movie_writer_registry needs an executable on PATH"
@@ -453,12 +441,6 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotl
 match = "1 finding(s), digest 4b96703f619d"
 reason = "no processes: subprocess is unavailable on WASI"
 closes_with = "docs/reference/limitations.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-pillow-zlib-only]"
-match = "55 finding(s), digest d2077a055dc7"
-reason = "Pillow is built with zlib only (spec 023): a test that opens JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-mmap]"
@@ -511,8 +493,8 @@ closes_with = "docs/reference/limitations.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-not-pillows-wheel]"
 match = "3 finding(s), digest 90629a5df21e"
-reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib only (spec 023)"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib and JPEG only (specs 023 and 170)"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-fli-overflow-native]"
@@ -815,12 +797,6 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scipy-stats-fit-2-no-fp-exceptions]"
 match = "1 finding(s), digest 1822c188dcda"
 reason = "wasm has no floating-point exception flags, so an errstate that raises or warns on a division by zero, an invalid value or an overflow sees nothing (README)"
-closes_with = "docs/reference/limitations.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pillow-zlib-only-at-setup]"
-match = "4 finding(s), digest 982e18ee86a1"
-reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
@@ -1336,10 +1312,10 @@ reason = "the test is marked lxml_required and the product has no lxml; openpyxl
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-zlib-only]"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-no-jpeg2k-or-tiff]"
 match = "1 finding(s), digest 9be853179bcd"
-reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+reason = "Pillow is built with zlib and JPEG: a test that needs JPEG 2000 or TIFF's codecs without its own feature guard (README)"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-read-only-source]"
@@ -1366,10 +1342,10 @@ reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-zlib-only]"
-match = "12 finding(s), digest 1f44e0d29aa6"
-reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-no-jpeg2k-or-tiff]"
+match = "4 finding(s), digest ce53bccd9909"
+reason = "Pillow is built with zlib and JPEG: a test that needs JPEG 2000 or TIFF's codecs without its own feature guard (README)"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-no-tzset]"

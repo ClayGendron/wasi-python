@@ -28,7 +28,7 @@ CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, 
 | lxml | 6.1.3 | `lxml.etree` and `lxml.objectify` over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath, XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser and `iterparse`. |
 | regex | 2026.9.29 | Fuzzy matching, full Unicode properties, graphemes, variable-length lookbehind, `captures()`, with native regex's answers. |
 
-A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex each have golden jobs, and each gives native's answers.
+A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml and regex each have golden jobs, and each gives native's answers.
 
 ## Pure-Python packages
 

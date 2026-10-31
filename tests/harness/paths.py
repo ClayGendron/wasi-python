@@ -131,6 +131,8 @@ LICENCE_COMPONENTS = (
     # LICENSE_YORICK for its GIST-derived code, and qhull, now linked
     "contourpy",
     "qhull",
+    # Pillow's JPEG codec: libjpeg-turbo's LICENSE.md and the IJG terms of its README.ijg
+    "libjpeg-turbo",
     # lxml
     "libxml2",
     "libxslt",
@@ -211,6 +213,7 @@ PACKAGES = (
     "fonttools",
     "contourpy",
     "qhull",
+    "libjpeg-turbo",
     "libxml2",
     "libxslt",
     "lxml",
@@ -700,7 +703,8 @@ def _top_level_licence(archive: Path) -> bytes | None:
 # xz's library is under 0BSD, and SQLite's notice is the
 # blessing at the head of sqlite3.h. libxml2's and libxslt's terms are in a top-level file named
 # `Copyright`, which the top-level search does not match; qhull's in
-# `COPYING.txt`.
+# `COPYING.txt`. libjpeg-turbo's top-level LICENSE.md sends the library itself to the IJG License,
+# which is its README.ijg.
 BLESSING = b"The author disclaims copyright to this source code."
 MORE_LICENCE = {
     "xz": "COPYING.0BSD",
@@ -708,6 +712,7 @@ MORE_LICENCE = {
     "libxml2": "Copyright",
     "libxslt": "Copyright",
     "qhull": "COPYING.txt",
+    "libjpeg-turbo": "README.ijg",
 }
 # A notice a component's file must hold that ships in another component's pinned archive, named
 # here so it stays if that component's own list changes: contourpy's

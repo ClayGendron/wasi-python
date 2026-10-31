@@ -50,6 +50,7 @@ The set is fixed at build time. See [Packages](packages.md) for what it carries.
 - **No pytz.** `zoneinfo` reads the zip's tzdata instead.
 - **No `cssselect` and no `lxml_html_clean`**, so `lxml.cssselect` and `lxml.html.clean` raise lxml's own `ImportError`, as natively without them.
 - **No SQLite extensions** (`load_extension`), as above.
+- **Pillow has zlib and libjpeg-turbo, and none of its other codec libraries.** PNG and JPEG work, as do the formats Pillow reads itself, such as GIF, BMP and uncompressed TIFF. WebP, AVIF, JPEG 2000 and TIFF's compressions raise an error.
 - **No C extension of your own.** A compiled module must be linked into `python.wasm` when it is built; the guest cannot load one.
 
 ## On Windows

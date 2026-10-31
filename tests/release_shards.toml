@@ -349,8 +349,9 @@ groups = ["matplotlib-axes", "contourpy-1"]
 systems = ["linux"]
 
 [shard.upstream-plot-b]
-# 721.7 G measured
-groups = ["pillow", "matplotlib-render-3", "regex"]
+# 621.1 G measured: pillow's group grew from 433.0 G to 605.1 G when Pillow gained JPEG, so
+# matplotlib-render-3 moved to upstream-plot-i
+groups = ["pillow", "regex"]
 systems = ["linux"]
 
 [shard.upstream-plot-c]
@@ -384,8 +385,8 @@ groups = ["matplotlib-mathtext", "matplotlib-render-1", "mpl-axisartist", "kiwis
 systems = ["linux"]
 
 [shard.upstream-plot-i]
-# 410.6 G measured
-groups = ["contourpy-rest", "contourpy-config-2"]
+# 683.4 G measured
+groups = ["contourpy-rest", "contourpy-config-2", "matplotlib-render-3"]
 systems = ["linux"]
 
 # The release tier: every release-tier group, on the release pseudo-system (Linux), only on a
