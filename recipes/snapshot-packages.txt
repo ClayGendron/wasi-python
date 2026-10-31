@@ -72,3 +72,5 @@ statsmodels: statsmodels statsmodels.api statsmodels.formula.api
 formulaic: formulaic
 interface-meta: interface_meta
 wrapt: wrapt
+python-docx: docx
+python-pptx: pptx

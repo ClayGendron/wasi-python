@@ -103,6 +103,10 @@ PACKAGES = {
     "formulaic": "1.2.2",
     "interface-meta": "2.0.1",
     "wrapt": "2.5.2",
+    # python-docx and python-pptx: pure Python, each from its sdist, so that its carried patch has
+    # a tree to apply to
+    "python-docx": "1.2.0",
+    "python-pptx": "1.0.2",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -884,6 +888,13 @@ def main() -> None:
         # seaborn from its sdist, its licence and its five vendored ones
         "seaborn": [
             (f"seaborn {n}", (b / "seaborn-0.13.2" / n).read_bytes()) for n in SEABORN_NOTICES
+        ],
+        # python-docx and python-pptx from their sdists, each its notice from its tree
+        "python-docx": [
+            ("python-docx LICENSE", (b / "python_docx-1.2.0" / "LICENSE").read_bytes())
+        ],
+        "python-pptx": [
+            ("python-pptx LICENSE", (b / "python_pptx-1.0.2" / "LICENSE").read_bytes())
         ],
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
         "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],

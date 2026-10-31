@@ -1,0 +1,207 @@
+diff --git a/src/pptx/api.py b/src/pptx/api.py
+index 892f425a..b24647d8 100644
+--- a/src/pptx/api.py
++++ b/src/pptx/api.py
+@@ -7,8 +7,9 @@ provides some insulation so not so many classes in the other modules need to be
+ 
+ from __future__ import annotations
+ 
+-import os
+-from typing import IO, TYPE_CHECKING
++import io
++import pkgutil
++from typing import IO, TYPE_CHECKING, cast
+ 
+ from pptx.opc.constants import CONTENT_TYPE as CT
+ from pptx.package import Package
+@@ -37,10 +38,13 @@ def Presentation(pptx: str | IO[bytes] | None = None) -> presentation.Presentati
+     return presentation_part.presentation
+ 
+ 
+-def _default_pptx_path() -> str:
+-    """Return the path to the built-in default .pptx package."""
+-    _thisdir = os.path.split(__file__)[0]
+-    return os.path.join(_thisdir, "templates", "default.pptx")
++def _default_pptx_path() -> IO[bytes]:
++    """Return a stream of the built-in default .pptx package.
++
++    The template is read through the package's loader, so it is found whether `pptx` is
++    installed as files or imported from a zip archive.
++    """
++    return io.BytesIO(cast(bytes, pkgutil.get_data("pptx", "templates/default.pptx")))
+ 
+ 
+ def _is_pptx_package(prs_part: PresentationPart):
+diff --git a/src/pptx/oxml/__init__.py b/src/pptx/oxml/__init__.py
+index 21afaa92..2aba2b00 100644
+--- a/src/pptx/oxml/__init__.py
++++ b/src/pptx/oxml/__init__.py
+@@ -5,8 +5,8 @@ Also makes available a handful of functions that wrap its typical uses.
+ 
+ from __future__ import annotations
+ 
+-import os
+-from typing import TYPE_CHECKING, Type
++import pkgutil
++from typing import TYPE_CHECKING, Type, cast
+ 
+ from lxml import etree
+ 
+@@ -24,10 +24,7 @@ oxml_parser.set_element_class_lookup(element_class_lookup)
+ 
+ def parse_from_template(template_file_name: str):
+     """Return an element loaded from the XML in the template file identified by `template_name`."""
+-    thisdir = os.path.split(__file__)[0]
+-    filename = os.path.join(thisdir, "..", "templates", "%s.xml" % template_file_name)
+-    with open(filename, "rb") as f:
+-        xml = f.read()
++    xml = cast(bytes, pkgutil.get_data("pptx", "templates/%s.xml" % template_file_name))
+     return parse_xml(xml)
+ 
+ 
+diff --git a/src/pptx/shapes/shapetree.py b/src/pptx/shapes/shapetree.py
+index 29623f1f..0f297b13 100644
+--- a/src/pptx/shapes/shapetree.py
++++ b/src/pptx/shapes/shapetree.py
+@@ -3,7 +3,7 @@
+ from __future__ import annotations
+ 
+ import io
+-import os
++import pkgutil
+ from typing import IO, TYPE_CHECKING, Callable, Iterable, Iterator, cast
+ 
+ from pptx.enum.shapes import PP_PLACEHOLDER, PROG_ID
+@@ -1136,8 +1136,7 @@ class _OleObjectElementCreator(object):
+             else "generic-icon.emf"
+         )
+ 
+-        _thisdir = os.path.split(__file__)[0]
+-        return os.path.abspath(os.path.join(_thisdir, "..", "templates", icon_filename))
++        return io.BytesIO(cast(bytes, pkgutil.get_data("pptx", "templates/" + icon_filename)))
+ 
+     @lazyproperty
+     def _icon_rId(self) -> str:
+diff --git a/tests/shapes/test_shapetree.py b/tests/shapes/test_shapetree.py
+index 3cf1ab22..d85b3387 100644
+--- a/tests/shapes/test_shapetree.py
++++ b/tests/shapes/test_shapetree.py
+@@ -5,6 +5,7 @@
+ from __future__ import annotations
+ 
+ import io
++import pkgutil
+ 
+ import pytest
+ 
+@@ -2213,21 +2214,27 @@ class Describe_OleObjectElementCreator(object):
+         )
+         assert element_creator._icon_height == expected_value
+ 
++    def it_uses_the_icon_image_file_it_was_given_to_help(self):
++        element_creator = _OleObjectElementCreator(
++            None, None, None, PROG_ID.XLSX, None, None, None, None, "user-icon.png", None, None
++        )
++        assert element_creator._icon_image_file == "user-icon.png"
++
+     @pytest.mark.parametrize(
+-        "icon_file_arg, prog_id, expected_value",
++        "prog_id, expected_value",
+         (
+-            ("user-icon.png", PROG_ID.XLSX, "user-icon.png"),
+-            (None, "Foo.Bar.18", "generic-icon.emf"),
+-            (None, PROG_ID.DOCX, "docx-icon.emf"),
+-            (None, PROG_ID.PPTX, "pptx-icon.emf"),
+-            (None, PROG_ID.XLSX, "xlsx-icon.emf"),
++            ("Foo.Bar.18", "generic-icon.emf"),
++            (PROG_ID.DOCX, "docx-icon.emf"),
++            (PROG_ID.PPTX, "pptx-icon.emf"),
++            (PROG_ID.XLSX, "xlsx-icon.emf"),
+         ),
+     )
+-    def it_resolves_the_icon_image_file_to_help(self, icon_file_arg, prog_id, expected_value):
++    def it_resolves_the_default_icon_image_file_to_help(self, prog_id, expected_value):
+         element_creator = _OleObjectElementCreator(
+-            None, None, None, prog_id, None, None, None, None, icon_file_arg, None, None
++            None, None, None, prog_id, None, None, None, None, None, None, None
+         )
+-        assert element_creator._icon_image_file.endswith(expected_value)
++        icon_bytes = pkgutil.get_data("pptx", "templates/" + expected_value)
++        assert element_creator._icon_image_file.read() == icon_bytes
+ 
+     def it_adds_and_relates_the_icon_image_part_to_help(
+         self, request, _slide_part_prop_, slide_part_
+diff --git a/tests/test_api.py b/tests/test_api.py
+index a48f4891..ffae8d77 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -2,11 +2,10 @@
+ 
+ from __future__ import annotations
+ 
+-import os
++import pkgutil
+ 
+ import pytest
+ 
+-import pptx
+ from pptx.api import Presentation
+ from pptx.opc.constants import CONTENT_TYPE as CT
+ from pptx.parts.presentation import PresentationPart
+@@ -16,22 +15,21 @@ from .unitutil.mock import class_mock, instance_mock
+ 
+ class DescribePresentation(object):
+     def it_opens_default_template_on_no_path_provided(self, call_fixture):
+-        Package_, path, prs_ = call_fixture
++        Package_, template_bytes, prs_ = call_fixture
+         prs = Presentation()
+-        Package_.open.assert_called_once_with(path)
++        Package_.open.assert_called_once()
++        assert Package_.open.call_args.args[0].read() == template_bytes
+         assert prs is prs_
+ 
+     # fixtures -------------------------------------------------------
+ 
+     @pytest.fixture
+     def call_fixture(self, Package_, prs_, prs_part_):
+-        path = os.path.abspath(
+-            os.path.join(os.path.split(pptx.__file__)[0], "templates", "default.pptx")
+-        )
++        template_bytes = pkgutil.get_data("pptx", "templates/default.pptx")
+         Package_.open.return_value.main_document_part = prs_part_
+         prs_part_.content_type = CT.PML_PRESENTATION_MAIN
+         prs_part_.presentation = prs_
+-        return Package_, path, prs_
++        return Package_, template_bytes, prs_
+ 
+     # fixture components ---------------------------------------------
+ 
+diff --git a/tests/test_package.py b/tests/test_package.py
+index ee02af2d..4ecf852d 100644
+--- a/tests/test_package.py
++++ b/tests/test_package.py
+@@ -4,11 +4,11 @@
+ 
+ from __future__ import annotations
+ 
+-import os
++import io
++import pkgutil
+ 
+ import pytest
+ 
+-import pptx
+ from pptx.media import Video
+ from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+ from pptx.opc.package import Part, _Relationship
+@@ -25,9 +25,7 @@ class DescribePackage(object):
+     """Unit-test suite for `pptx.package.Package` objects."""
+ 
+     def it_provides_access_to_its_core_properties_part(self):
+-        default_pptx = os.path.abspath(
+-            os.path.join(os.path.split(pptx.__file__)[0], "templates", "default.pptx")
+-        )
++        default_pptx = io.BytesIO(pkgutil.get_data("pptx", "templates/default.pptx"))
+         pkg = Package.open(default_pptx)
+         assert isinstance(pkg.core_properties, CorePropertiesPart)
+ 
