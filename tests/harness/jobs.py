@@ -35,6 +35,7 @@ JOBS = (
     "pandas_csv",
     "numpy_random",
     "compress",
+    "zstd_files",
     "sqlite",
     "callbacks",
     "pandas_tz",

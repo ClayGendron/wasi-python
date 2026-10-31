@@ -152,10 +152,11 @@ get https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz Python-3.15.2.
 get https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz numpy-2.5.4.tar.gz
 get https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz pandas-3.0.6.tar.gz
 get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
-# The C libraries of _bz2, _lzma and _sqlite3: host-neutral sources, like zlib's
+# The C libraries of _bz2, _lzma, _sqlite3 and _zstd: host-neutral sources, like zlib's
 get https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz bzip2-1.0.8.tar.gz
 get https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.gz xz-5.8.4.tar.gz
 get https://sqlite.org/2026/sqlite-autoconf-3540100.tar.gz sqlite-autoconf-3540100.tar.gz
+get https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz zstd-1.5.7.tar.gz
 # regex: its sdist, whose two C files are compiled and whose package goes in the zip
 get https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz regex-2026.9.29.tar.gz
 # matplotlib: the five C libraries at matplotlib 3.11.2's own wrap versions, which give

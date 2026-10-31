@@ -38,3 +38,9 @@ new = [
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
 growth = "python-docx 1.2.0 and python-pptx 1.0.2 join the zip, 214 members, so every guest's zip directory is larger: a plain start +1.93% and a snapshot start +1.01% in fuel (darwin arm64). Their whole suites measure 105.8 G (1,571 passes) and 150.0 G (2,677 passes) on darwin arm64; six tests that patch io.BytesIO for the whole interpreter fail under the driver's sys capture, as natively under --capture=sys"
+
+[[claim]]
+spec = "169"
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-archives]"]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-*"]
+growth = "libzstd 1.5.7 is linked into _zstd, so test_zipimport's two Zstandard ZIP64 tests, which want the largefile resource, run in cpython-release-archives: 4 to 6 passes, 99.7 G to 248.9 G measured on darwin arm64, its cap 150 G to 380 G. The other CPython release groups import shutil or zipfile through regrtest, which now import compression.zstd, so their fuel grows a little"

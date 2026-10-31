@@ -2,3 +2,5 @@ test.test_zipimport.DeflateCompressedZipImportTestCase.testZip64 gated cpython-a
 test.test_zipimport.DeflateCompressedZipImportTestCase.testZip64CruftAndComment gated cpython-archives
 test.test_zipimport.UncompressedZipImportTestCase.testZip64 gated cpython-archives
 test.test_zipimport.UncompressedZipImportTestCase.testZip64CruftAndComment gated cpython-archives
+test.test_zipimport.ZStdCompressedZipImportTestCase.testZip64 gated cpython-archives
+test.test_zipimport.ZStdCompressedZipImportTestCase.testZip64CruftAndComment gated cpython-archives
