@@ -77,4 +77,4 @@ new = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]",
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
-growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the zip, 185 members, so every guest's zip directory is larger: a plain start +1.74% and a snapshot start +0.85% in fuel (darwin arm64). Their release groups measure pdfplumber-r 171.5 G (104 passes), pdfminer-six-r 86.9 G (184 passes) and xarray's eight 1,536.7 G (7,712 passes) on darwin arm64; the failures fall in sixteen classes, each named in its family's TOML"
+growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the zip, 185 members, so every guest's zip directory is larger: a plain start +1.68% and a snapshot start +0.77% in fuel (darwin arm64). Their release groups measure pdfplumber-r 171.5 G (104 passes), pdfminer-six-r 86.9 G (184 passes) and xarray's eight 1,536.7 G (7,712 passes) on darwin arm64; the failures fall in sixteen classes, each named in its family's TOML"
