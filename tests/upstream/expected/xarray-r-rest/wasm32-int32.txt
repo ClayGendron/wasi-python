@@ -1,0 +1,5 @@
+xarray/tests/test_datatree.py::TestRepr::test_doc_example
+xarray/tests/test_datatree.py::TestRepr::test_repr_truncates_nodes
+xarray/tests/test_formatting.py::TestFormatting::test_diff_datatree_repr_equals
+xarray/tests/test_formatting.py::test_repr_pandas_multi_index
+xarray/tests/test_namedarray.py::test_fake_target_chunksize[input_array0-1024-int64]

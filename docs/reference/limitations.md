@@ -48,6 +48,9 @@ The set is fixed at build time. See [Packages](packages.md) for what it carries.
 - **No `pip` in the guest.** Packages are compiled in or carried in the read-only stdlib zip; nothing is installed at run time. Pure-Python code of your own can be imported from a read-only grant through `import_path=`.
 - **No pyarrow**, so no Parquet. CSV, JSON, Excel and pickle work.
 - **No pytz.** `zoneinfo` reads the zip's tzdata instead.
+- **No cryptography and no pypdfium2.** pypdf and pdfminer.six read files encrypted with RC4, and raise for one encrypted with AES. pdfplumber reads text and tables, but `page.to_image()` raises `ModuleNotFoundError`.
+- **No predefined CJK character maps in pdfminer.six.** A font that names one of Adobe's CJK maps and has no ToUnicode table reads as `(cid:N)`. Most files carry a ToUnicode table and read normally.
+- **No netCDF4, h5netcdf or zarr for xarray.** `to_netcdf()` and `open_dataset()` read and write netCDF3 through scipy; the other engines and `xarray.tutorial` raise as natively without their packages. scipy maps a netCDF3 file opened by path, and the guest has no `mmap`, so `open_dataset(path)` raises `OSError`: pass `mmap=False`, or an open file.
 - **No `cssselect` and no `lxml_html_clean`**, so `lxml.cssselect` and `lxml.html.clean` raise lxml's own `ImportError`, as natively without them.
 - **No SQLite extensions** (`load_extension`), as above.
 - **No C extension of your own.** A compiled module must be linked into `python.wasm` when it is built; the guest cannot load one.

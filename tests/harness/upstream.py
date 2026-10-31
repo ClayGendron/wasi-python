@@ -57,6 +57,7 @@ PURE_SUITES = (
     "attrs", "more-itertools", "toolz", "tqdm", "typing-extensions", "joblib", "cloudpickle",
     "threadpoolctl", "narwhals", "seaborn", "reportlab", "formulaic", "interface-meta", "wrapt",
     "python-docx", "python-pptx",
+    "pdfplumber", "pdfminer-six", "xarray",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"

@@ -45,3 +45,36 @@ new = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow
 retired = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-r-stats-4-continuous-rv-2]"]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-*"]
 growth = "sympy's release tier under CPython 3.15.2. One group measured, on darwin arm64 against dev's set: sympy-r-stats-4-continuous-rv-2, the single test test_uniform_P, 3,542,150,840,058 fuel against the accepted 2,865,065,511,960 (+23.6%); its leg passed the release judge job's 30 minutes in the weekly-shape run 41201012715, so by the owner's choice of 2026-10-31 the group is retired and the test is the trap sympy-slow-uniform-P, run alone to the 50 G cap, a gap. Its neighbours, run on the same set: sympy-r-stats-4-continuous-rv-1 +0.070% and -3 -0.050%, the same passes. Why test_uniform_P grew is not established (CPython 3.15.2's C-stack check in tuple hashing is a hypothesis). The other sympy groups are read at the next weekly run, under CPython 3.15.2"
+
+[[claim]]
+spec = "167"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfplumber-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfminer-six-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-dataarray]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rolling]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-backends]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-dataset]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-plot]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-arrays]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-coding]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rest]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2-in-a-test]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-ghostscript]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cryptography]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cjk-cmaps]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-threads]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-arrays-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-coding-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the zip, 185 members, so every guest's zip directory is larger: a plain start +1.68% and a snapshot start +0.77% in fuel (darwin arm64). Their release groups measure pdfplumber-r 171.5 G (104 passes), pdfminer-six-r 86.9 G (184 passes) and xarray's eight 1,536.7 G (7,712 passes) on darwin arm64; the failures fall in sixteen classes, each named in its family's TOML"

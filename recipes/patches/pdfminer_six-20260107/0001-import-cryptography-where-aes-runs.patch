@@ -1,0 +1,91 @@
+diff --git a/pdfminer/pdfdocument.py b/pdfminer/pdfdocument.py
+index 9287d0c..5776a36 100644
+--- a/pdfminer/pdfdocument.py
++++ b/pdfminer/pdfdocument.py
+@@ -10,9 +10,6 @@ from typing import (
+     cast,
+ )
+ 
+-from cryptography.hazmat.backends import default_backend
+-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+-
+ from pdfminer import settings
+ from pdfminer.arcfour import Arcfour
+ from pdfminer.casting import safe_int
+@@ -49,6 +46,18 @@ from pdfminer.utils import (
+ log = logging.getLogger(__name__)
+ 
+ 
++def _aes_cbc_cipher(key: bytes, iv: bytes) -> Any:
++    """An AES cipher in CBC mode.
++
++    cryptography is imported here, where AES is used, so a document
++    without AES encryption is read without it.
++    """
++    from cryptography.hazmat.backends import default_backend
++    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
++
++    return Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
++
++
+ class PDFNoValidXRef(PDFSyntaxError):
+     pass
+ 
+@@ -536,11 +545,7 @@ class PDFStandardSecurityHandlerV4(PDFStandardSecurityHandler):
+         key = hash.digest()[: min(len(key), 16)]
+         initialization_vector = data[:16]
+         ciphertext = data[16:]
+-        cipher = Cipher(
+-            algorithms.AES(key),
+-            modes.CBC(initialization_vector),
+-            backend=default_backend(),
+-        )  # type: ignore
++        cipher = _aes_cbc_cipher(key, initialization_vector)
+         plaintext = cipher.decryptor().update(ciphertext)  # type: ignore
+         return unpad_aes(plaintext)
+ 
+@@ -571,20 +576,12 @@ class PDFStandardSecurityHandlerV5(PDFStandardSecurityHandlerV4):
+         hash = self._password_hash(password_b, self.o_validation_salt, self.u)
+         if hash == self.o_hash:
+             hash = self._password_hash(password_b, self.o_key_salt, self.u)
+-            cipher = Cipher(
+-                algorithms.AES(hash),
+-                modes.CBC(b"\0" * 16),
+-                backend=default_backend(),
+-            )  # type: ignore
++            cipher = _aes_cbc_cipher(hash, b"\0" * 16)
+             return cipher.decryptor().update(self.oe)  # type: ignore
+         hash = self._password_hash(password_b, self.u_validation_salt)
+         if hash == self.u_hash:
+             hash = self._password_hash(password_b, self.u_key_salt)
+-            cipher = Cipher(
+-                algorithms.AES(hash),
+-                modes.CBC(b"\0" * 16),
+-                backend=default_backend(),
+-            )  # type: ignore
++            cipher = _aes_cbc_cipher(hash, b"\0" * 16)
+             return cipher.decryptor().update(self.ue)  # type: ignore
+         return None
+ 
+@@ -653,7 +650,7 @@ class PDFStandardSecurityHandlerV5(PDFStandardSecurityHandlerV4):
+         return sum(b % 3 for b in input_bytes) % 3
+ 
+     def _aes_cbc_encrypt(self, key: bytes, iv: bytes, data: bytes) -> bytes:
+-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
++        cipher = _aes_cbc_cipher(key, iv)
+         encryptor = cipher.encryptor()  # type: ignore
+         return encryptor.update(data) + encryptor.finalize()  # type: ignore
+ 
+@@ -661,11 +658,7 @@ class PDFStandardSecurityHandlerV5(PDFStandardSecurityHandlerV4):
+         initialization_vector = data[:16]
+         ciphertext = data[16:]
+         assert self.key is not None
+-        cipher = Cipher(
+-            algorithms.AES(self.key),
+-            modes.CBC(initialization_vector),
+-            backend=default_backend(),
+-        )  # type: ignore
++        cipher = _aes_cbc_cipher(self.key, initialization_vector)
+         plaintext = cipher.decryptor().update(ciphertext)  # type: ignore
+         return unpad_aes(plaintext)
+ 

@@ -1,0 +1,6 @@
+tests/test_repair.py::Test::test_from_issue_932
+tests/test_repair.py::Test::test_other_repair_inputs
+tests/test_repair.py::Test::test_repair_custom_path
+tests/test_repair.py::Test::test_repair_password
+tests/test_repair.py::Test::test_repair_setting
+tests/test_repair.py::Test::test_repair_to_file

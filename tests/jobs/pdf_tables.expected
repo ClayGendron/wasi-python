@@ -1,0 +1,67 @@
+versions pdfplumber=0.11.10 pdfminer.six=20260107 reportlab=5.0.1
+report 6032 59d6da0ec5ebbfa4
+pages 2 Quarterly units
+page 1 419.5276 595.2756
+Quarterly units, part 1
+Region Product Units Total
+North Widgets 12 30.50
+North Gadgets 7 12.25
+South Widgets 3 7.00
+South Gizmos 21 63.75
+East Gadgets 9 18.00
+East Gizmos 4 11.50
+West Widgets 15 37.50
+West Gadgets 2 4.50
+Page 1 of 2
+words 44
+  Quarterly [40.0, 42.59, 111.14, 58.59]
+  units, [115.58, 42.59, 158.26, 58.59]
+  part [162.7, 42.59, 192.93, 58.59]
+  1 [197.38, 42.59, 206.27, 58.59]
+  Region [45.0, 102.35, 78.89, 112.35]
+  Product [135.0, 102.35, 172.78, 112.35]
+lines 15 rects 0
+  ['Region', 'Product', 'Units', 'Total']
+  ['North', 'Widgets', '12', '30.50']
+  ['North', 'Gadgets', '7', '12.25']
+  ['South', 'Widgets', '3', '7.00']
+  ['South', 'Gizmos', '21', '63.75']
+  ['East', 'Gadgets', '9', '18.00']
+  ['East', 'Gizmos', '4', '11.50']
+  ['West', 'Widgets', '15', '37.50']
+  ['West', 'Gadgets', '2', '4.50']
+page 2 419.5276 595.2756
+Quarterly units, part 2
+Region Product Units Total
+West Gadgets 2 4.50
+West Widgets 15 37.50
+East Gizmos 4 11.50
+East Gadgets 9 18.00
+South Gizmos 21 63.75
+South Widgets 3 7.00
+North Gadgets 7 12.25
+North Widgets 12 30.50
+Page 2 of 2
+words 44
+  Quarterly [40.0, 42.59, 111.14, 58.59]
+  units, [115.58, 42.59, 158.26, 58.59]
+  part [162.7, 42.59, 192.93, 58.59]
+  2 [197.38, 42.59, 206.27, 58.59]
+  Region [45.0, 102.35, 78.89, 112.35]
+  Product [135.0, 102.35, 172.78, 112.35]
+lines 15 rects 0
+  ['Region', 'Product', 'Units', 'Total']
+  ['West', 'Gadgets', '2', '4.50']
+  ['West', 'Widgets', '15', '37.50']
+  ['East', 'Gizmos', '4', '11.50']
+  ['East', 'Gadgets', '9', '18.00']
+  ['South', 'Gizmos', '21', '63.75']
+  ['South', 'Widgets', '3', '7.00']
+  ['North', 'Gadgets', '7', '12.25']
+  ['North', 'Widgets', '12', '30.50']
+Region Product
+North Widgets
+North Gadgets
+RC4-128 2 Quarterly units, part 1
+['North', 'Widgets', '12', '30.50']
+wrong password PdfminerException
