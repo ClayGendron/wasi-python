@@ -45,7 +45,10 @@
 # terms the owner has not approved (each folder kept to its two modules, which
 # statsmodels.datasets imports), every datasets/*/src/ folder (original sources no loader reads),
 # and sandbox/rlsdata.txt, a table with no stated terms that nothing reads (`--drop` of one member
-# by its exact name).
+# by its exact name). python-docx and python-pptx: each package from its sdist with its carried
+# patch, which reads each template through the package's loader, so it is found in the zip; their
+# METADATA their PKG-INFO; and docx/templates/default-docx-template left out, the unpacked source
+# of default.docx, which no module reads.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -77,8 +80,10 @@ for dir in "$CP"/cross-build/*; do
 done
 [ -n "$BUILD_PYTHON" ] || die "no build-Python under $CP/cross-build"
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
-remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" "$B/pure-install"
-for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2; do
+remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" \
+  "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pure-install"
+for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2 python_docx-1.2.0 \
+  python_pptx-1.0.2; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -88,6 +93,8 @@ cp -R "$B/pyyaml-6.0.3/lib/yaml" "$B/pure-install/yaml"
 cp -R "$B/markupsafe-3.0.4/src/markupsafe" "$B/pure-install/markupsafe"
 cp -R "$B/networkx-3.7/networkx" "$B/pure-install/networkx"
 cp -R "$B/seaborn-0.13.2/seaborn" "$B/pure-install/seaborn"
+cp -R "$B/python_docx-1.2.0/src/docx" "$B/pure-install/docx"
+cp -R "$B/python_pptx-1.0.2/src/pptx" "$B/pure-install/pptx"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -159,6 +166,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/scikit_learn-1.9.1/PKG-INFO" \
   --metadata "$B/seaborn-0.13.2/PKG-INFO" \
   --metadata "$B/statsmodels-0.15.0/PKG-INFO" \
+  --metadata "$B/python_docx-1.2.0/PKG-INFO" \
+  --metadata "$B/python_pptx-1.0.2/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -187,6 +196,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --drop statsmodels/datasets/randhie/src \
   --drop statsmodels/datasets/sunspots/src \
   --drop statsmodels/sandbox/rlsdata.txt \
+  --drop docx/templates/default-docx-template \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \

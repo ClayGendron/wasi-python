@@ -1,0 +1,1 @@
+tests/chart/test_xlsx.py::Describe_BaseWorkbookWriter::it_can_generate_a_chart_data_Excel_blob

@@ -396,6 +396,8 @@ DISTRIBUTIONS = (
     "pyparsing",
     "pypdf",
     "python-dateutil",
+    "python-docx",
+    "python-pptx",
     "pyyaml",
     "regex",
     "reportlab",

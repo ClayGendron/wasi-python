@@ -236,6 +236,10 @@ get https://files.pythonhosted.org/packages/d1/89/5d4c86da1130d9059681e5b6cd7645
 # pieces of code it vendors (its wheel holds one licence), and reportlab's wheel; both pure Python
 get https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz seaborn-0.13.2.tar.gz
 get https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl reportlab-5.0.1-py3-none-any.whl
+# python-docx and python-pptx: each its sdist, since a pure package that carries a patch comes
+# from its sdist, which also holds the project's own tests; both pure Python
+get https://files.pythonhosted.org/packages/a9/f7/eddfe33871520adab45aaa1a71f0402a2252050c14c7e3009446c8f4701c/python_docx-1.2.0.tar.gz python_docx-1.2.0.tar.gz
+get https://files.pythonhosted.org/packages/52/a9/0c0db8d37b2b8a645666f7fd8accea4c6224e013c42b1d5c17c93590cd06/python_pptx-1.0.2.tar.gz python_pptx-1.0.2.tar.gz
 # statsmodels' formula engine formulaic and its two requirements, each its pure wheel;
 # wrapt's py3-none-any wheel is upstream's pure form, its C file carried as source only
 get https://files.pythonhosted.org/packages/fc/75/0576b03f7889ad25b5385b4f6c69e0543713425a6f193b056c9b0a2e65ce/formulaic-1.2.2-py3-none-any.whl formulaic-1.2.2-py3-none-any.whl

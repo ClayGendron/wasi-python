@@ -175,6 +175,8 @@ SOURCE_COMPONENTS = (
     "scikit_learn",
     "seaborn",
     "statsmodels",
+    "python-docx",
+    "python-pptx",
 )
 
 # The test sources: every other pinned source the judge stages but never builds (the pure-Python

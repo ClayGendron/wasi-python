@@ -159,6 +159,13 @@ def new_families(accepted: dict, files: Iterable[str]) -> set[str]:
     return {PurePosixPath(f).stem for f in files if f not in seen}
 
 
+def new_upstream_families(accepted: dict, upstream_family: dict[str, str]) -> set[str]:
+    """The packages whose upstream checks no accepted check is one of: suites added since the
+    last acceptance, whose cap comes with them as a new check file's does."""
+    seen = {upstream_family[node] for node in accepted.get("checks", {}) if node in upstream_family}
+    return set(upstream_family.values()) - seen
+
+
 def _node(classname: str, name: str, repo: Path) -> str:
     """A JUnit test case's node id: the longest dotted prefix of its class name that is a file."""
     parts = classname.split(".")

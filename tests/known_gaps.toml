@@ -1384,6 +1384,24 @@ reason = "dateutil's gettz cache tests expect a zone rebuilt, or collected, once
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-docx-r-bytesio-mocked-in-a-fixture]"
+match = "3 finding(s), digest 1b847aee51c4"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-fixture]"
+match = "1 finding(s), digest a0b7ae79ecda"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-test]"
+match = "2 finding(s), digest e61bb03c9e1b"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[reportlab-r-importlib-module-names]"
 match = "1 finding(s), digest 2ab2f9a88cce"
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"

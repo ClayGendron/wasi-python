@@ -696,8 +696,9 @@ groups = ["pyyaml-smoke", "mpmath-smoke", "seaborn-smoke", "sympy-smoke", "formu
 systems = ["linux"]
 
 [shard.upstream-pure-smoke-b]
-# 128.5 G measured
-groups = ["tomli-w-smoke", "charset-normalizer-smoke", "markupsafe-smoke", "more-itertools-smoke", "tzdata-smoke", "defusedxml-smoke", "interface-meta-smoke", "xlrd-smoke", "webencodings-smoke", "cycler-smoke", "cloudpickle-smoke"]
+# 160.5 G measured: 128.5 G, then python-docx's and python-pptx's smoke groups, 18.6 G and 13.4 G
+# on darwin-arm64
+groups = ["tomli-w-smoke", "charset-normalizer-smoke", "markupsafe-smoke", "more-itertools-smoke", "tzdata-smoke", "defusedxml-smoke", "interface-meta-smoke", "xlrd-smoke", "webencodings-smoke", "cycler-smoke", "cloudpickle-smoke", "python-docx-smoke", "python-pptx-smoke"]
 systems = ["linux"]
 
 [shard.upstream-release-033]
@@ -976,6 +977,14 @@ systems = ["release"]
 # upstream-pure-r-075 (723.4 G measured, 1.82 min).
 groups = ["sympy-r-integrals-4-6", "sympy-r-solvers-7-4b", "sympy-r-assumptions-2-3", "sympy-r-integrals-4-2", "sympy-r-integrals-4-7", "sympy-r-matrices-2", "sympy-r-functions-9", "sympy-r-simplify-4-6", "sympy-r-solvers-5-2c", "sympy-r-docfiles-6", "sympy-r-solvers-5-2a", "sympy-r-solvers-16-8", "sympy-r-solvers-7-5b", "sympy-r-polys-5-s1-1", "sympy-r-simplify-4-5"]
 minutes = 9.4
+systems = ["release"]
+
+[shard.upstream-release-066]
+# python-docx's and python-pptx's whole suites, 105.8 G and 150.0 G measured on darwin-arm64. Their
+# minutes are estimated from that fuel at upstream-pure-r-113's rate (210.2 G in 1.52 min) until a
+# release run measures them.
+groups = ["python-docx-r", "python-pptx-r"]
+minutes = 1.9
 systems = ["release"]
 
 # --- the pure-Python packages' own tests: end

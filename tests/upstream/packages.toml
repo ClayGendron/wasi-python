@@ -340,3 +340,15 @@ kind = "suite"
 # its own suite from its test source, groups in tests/upstream/wrapt.toml: a smoke
 # group in the normal tier, the whole suite in the release tier
 kind = "suite"
+
+# python-docx and python-pptx, each from its sdist with its carried patch.
+
+[package.python-docx]
+# its own suite from its test source, groups in tests/upstream/python-docx.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+[package.python-pptx]
+# its own suite from its test source, groups in tests/upstream/python-pptx.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"

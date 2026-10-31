@@ -32,7 +32,7 @@ A *golden job* is a fixed program whose output the project compares with native 
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn and reportlab:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx and python-pptx:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -42,6 +42,8 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
 | PDF | pypdf 6.21.4 | read, extract text, merge, split, encrypt (RC4) |
 | | reportlab 5.0.1 | write PDFs: text, tables, charts, Unicode text, images |
+| documents | python-docx 1.2.0 | read and write Word `.docx` |
+| | python-pptx 1.0.2 | read and write PowerPoint `.pptx`, charts included |
 | HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.4 | parse messy HTML, CSS selectors |
 | | html5lib 1.1, webencodings 0.6.1 | a browser's HTML parsing; bs4's `html5lib` parser |
 | | defusedxml 0.7.1 | parse untrusted XML, refusing entity tricks |
@@ -62,6 +64,8 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | narwhals 2.27.1 | dataframe-agnostic code over pandas |
 
 pyyaml and markupsafe come from their source releases and run as pure Python: pyyaml has no libyaml, and `yaml.CSafeLoader` is absent. Each package's `importlib.metadata` answers work, so `df.to_markdown()` finds tabulate.
+
+python-docx and python-pptx start from their own default templates, which they read from the zip. python-pptx's `fit_text()` needs Pillow's FreeType module, which the set lacks: it raises `OSError` looking for the system's fonts, or `ImportError` when given `font_file=`. Set a font size instead.
 
 Each family has a golden job whose output equals native Python's at the same pins.
 
@@ -87,4 +91,4 @@ To build a package into the artifact set itself, see [Adding a package](../contr
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn and reportlab in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx and python-pptx in the zip, each at one pinned version.
