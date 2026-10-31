@@ -61,8 +61,8 @@ tier = "release"
 
 [groups.cpython-release-archives]
 list = "python/cpython-release-archives.txt"
-fuel = 150_000_000_000
-measured = 99_706_714_102
+fuel = 380_000_000_000
+measured = 248_860_605_707
 tier = "release"
 
 [groups.cpython-release-a]

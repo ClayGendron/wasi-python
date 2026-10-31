@@ -1,8 +1,8 @@
 #!/bin/sh
 # Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; contourpy and
 # matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy and numpy
-# with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3 and the host door into CPython as
-# builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
+# with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3, zstd and the host door into
+# CPython as builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
 # reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and
 # with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
 # recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP as wasi-libc's dup
@@ -18,7 +18,7 @@ set -eu
 L="$B/link"
 # Step 35's archives: a tree built before that step has none, and make would fail
 # with a long log.
-for lib in libbz2.a liblzma.a libsqlite3.a; do
+for lib in libbz2.a liblzma.a libsqlite3.a libzstd.a; do
   [ -s "$B/stdlib-libs/lib/$lib" ] || die "build/stdlib-libs/lib/$lib is missing: run step 35"
 done
 # Step 55's extension archives, each at its import path (contourpy).
@@ -93,11 +93,11 @@ libs="$libs$B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack
 
 # The weak-duplicate gate: every archive this link takes but the SDK's
 # runtime libraries and CPython's own (the modules', the static libraries their .deps name,
-# scipy's and numpy's shims, and the four C libraries the Setup lines below link), read with the
+# scipy's and numpy's shims, and the five C libraries the Setup lines below link), read with the
 # SDK's llvm-nm.
 weak_archives="$archives $(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')"
 weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a $B/zlib-wasi/lib/libz.a"
-for lib in libbz2.a liblzma.a libsqlite3.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
+for lib in libbz2.a liblzma.a libsqlite3.a libzstd.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
 "$HOSTPY" "$HERE/scripts/weak_duplicates.py" archives "$SDK/bin/llvm-nm" "$SDK/bin/llvm-cxxfilt" \
   "$HERE/recipes/weak-duplicates-allowed.txt" $weak_archives > "$L/weak-duplicates.log" 2>&1 \
   || { grep '^ERROR' "$L/weak-duplicates.log" | head -n 20; die "the link's archives share a weak definition no review allowed (build/link/weak-duplicates.log)"; }
@@ -112,6 +112,8 @@ for f in blob connection cursor microprotocols module prepare_protocol row state
   SQLITE_SRC="$SQLITE_SRC _sqlite/$f.c"
 done
 SQLITE_SRC=${SQLITE_SRC# }
+# _zstd from CPython's own four files, as Modules/Setup.stdlib.in lists them.
+ZSTD_SRC="_zstd/_zstdmodule.c _zstd/zstddict.c _zstd/compressor.c _zstd/decompressor.c"
 
 # makesetup mangles absolute source paths, so the two C files are copied into Modules/.
 cp "$HERE/recipes/hostmodule.c" "$L/inittab.c" "$CP/Modules/"
@@ -124,6 +126,7 @@ cp "$HERE/recipes/hostmodule.c" "$L/inittab.c" "$CP/Modules/"
   echo "_bz2 _bz2module.c -I$SL/include $SL/lib/libbz2.a"
   echo "_lzma _lzmamodule.c -I$SL/include $SL/lib/liblzma.a"
   echo "_sqlite3 $SQLITE_SRC -I$CP/Modules/_sqlite -I$SL/include -DPY_SQLITE_HAVE_SERIALIZE $SL/lib/libsqlite3.a"
+  echo "_zstd $ZSTD_SRC -I$SL/include $SL/lib/libzstd.a"
 } > "$W/Modules/Setup.local"
 cd "$W"
 make -j8 all LDFLAGS_NODIST="-fwasm-exceptions" > "$L/make.log" 2>&1 || { tail -n 20 "$L/make.log"; die "make failed (build/link/make.log)"; }
@@ -136,7 +139,7 @@ clashes() {
 clashes "$L/make.log"
 # makesetup drops a module it cannot read without an error; the judge would see it, but the build
 # stops here first.
-for m in _bz2 _lzma _sqlite3; do
+for m in _bz2 _lzma _sqlite3 _zstd; do
   grep -q "PyInit_$m" "$W/Modules/config.c" || die "Setup.local's $m line was dropped (Modules/config.c)"
 done
 

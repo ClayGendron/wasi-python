@@ -1,0 +1,12 @@
+versions python=3.15
+libzstd 1.5.7
+payload 97248 ee1e501663e5cc7967c6c4fbd9e3b347
+zstd level 1 66195 c8500bd385dbf7c2dbc490e16a84efa1 round-trip True
+zstd level 3 66184 d8558914e6e75532185196232b28ce95 round-trip True
+zstd level 19 66210 1b83e65dc88b384c430b5ec1bac1dc64 round-trip True
+dict 689743213 2048 36406746df6f7a742b522fc284250568
+zstd with dict 93 6a52e03c49b8036a4bde69275887f8aa round-trip True
+zstd file level 5 66177 374317dcefe208039222b83cacc6af2e round-trip True
+tar.zst 66063 d85c9c185ffa21571467eeac5b9f3e99 round-trip True
+zip zstandard 66295 22081efd07396d9df72450c62b02f428 round-trip True
+shutil zstdtar True

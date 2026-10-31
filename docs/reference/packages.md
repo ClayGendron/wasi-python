@@ -8,9 +8,9 @@ Every package here is pinned to one version. The set carries one version of each
 
 CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, then a line of the platform's facts:
 
-> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
+> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
-`zlib`, `bz2`, `lzma` and `sqlite3` are built in, over zlib, bzip2 1.0.8, liblzma from xz 5.8.4 and SQLite 3.54.1. `bz2`, `lzma` and `tarfile`'s `bz2` and `xz` modes write the same bytes as native Python. `sqlite3` has native's feature set: FTS3/4/5, R-tree, Geopoly, math functions, dbstat and percentile.
+`zlib`, `bz2`, `lzma`, `compression.zstd` and `sqlite3` are built in, over zlib, bzip2 1.0.8, liblzma from xz 5.8.4, libzstd 1.5.7 and SQLite 3.54.1. `bz2`, `lzma`, `compression.zstd` and `tarfile`'s `bz2`, `xz` and `zst` modes write the same bytes as native Python. `zipfile`'s `ZIP_ZSTANDARD`, `shutil`'s `zstdtar` format and pandas' `compression="zstd"` work. `sqlite3` has native's feature set: FTS3/4/5, R-tree, Geopoly, math functions, dbstat and percentile.
 
 ## Compiled packages
 
