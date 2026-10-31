@@ -1,0 +1,8 @@
+xarray/tests/test_variable.py::TestBackendIndexing::test_CopyOnWriteArray[False]
+xarray/tests/test_variable.py::TestBackendIndexing::test_CopyOnWriteArray[True]
+xarray/tests/test_variable.py::TestBackendIndexing::test_LazilyIndexedArray[False]
+xarray/tests/test_variable.py::TestBackendIndexing::test_LazilyIndexedArray[True]
+xarray/tests/test_variable.py::TestBackendIndexing::test_MemoryCachedArray[False]
+xarray/tests/test_variable.py::TestBackendIndexing::test_MemoryCachedArray[True]
+xarray/tests/test_variable.py::TestBackendIndexing::test_NumpyIndexingAdapter[False]
+xarray/tests/test_variable.py::TestBackendIndexing::test_NumpyIndexingAdapter[True]

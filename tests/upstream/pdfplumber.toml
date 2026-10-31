@@ -8,7 +8,7 @@ driver = "package"
 grant = "/upstream-pdfplumber"
 test_source = true
 wheel = "pdfplumber-0.11.10-py3-none-any.whl"
-budget = 1_000_000_000_000
+budget = 319_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 cwd = "tree"
@@ -17,13 +17,15 @@ markers = []
 [groups.pdfplumber-smoke]
 paths = ["tests/test_utils.py"]
 smoke = "the utilities' unit tests and the reading of a few small files, the package from the zip"
-fuel = 100_000_000_000
+fuel = 62_000_000_000
+measured = 41_355_736_963
 
 [groups.pdfplumber-r]
 paths = ["tests"]
 tier = "release"
 release_by = "path"
-fuel = 900_000_000_000
+fuel = 257_000_000_000
+measured = 171_519_914_724
 
 [[expected]]
 id = "no-processes"

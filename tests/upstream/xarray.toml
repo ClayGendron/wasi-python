@@ -7,7 +7,7 @@ package = "xarray"
 driver = "package"
 grant = "/upstream-xarray"
 test_source = true
-budget = 9_000_000_000_000
+budget = 2_365_000_000_000
 stage_folders = ["xarray/tests", "properties"]
 support_files = ["conftest.py"]
 extra_sys_path = ["."]
@@ -21,10 +21,218 @@ package_inits = true
 [groups.xarray-smoke]
 paths = ["xarray/tests/test_options.py", "xarray/tests/test_nputils.py", "xarray/tests/test_hashable.py"]
 smoke = "the options and the utilities, the package and its test helpers from the zip and the stage"
-fuel = 100_000_000_000
+fuel = 59_000_000_000
+measured = 39_653_751_307
 
-[groups.xarray-r]
-paths = ["xarray/tests", "properties"]
+[groups.xarray-r-dataarray]
+paths = [
+    "xarray/tests/test_dataarray.py",
+]
 tier = "release"
 release_by = "path"
-fuel = 8_000_000_000_000
+fuel = 86_000_000_000
+measured = 57_577_366_454
+
+[groups.xarray-r-rolling]
+paths = [
+    "xarray/tests/test_rolling.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 228_000_000_000
+measured = 151_886_811_807
+
+[groups.xarray-r-backends]
+paths = [
+    "xarray/tests/test_backends.py",
+    "xarray/tests/test_backends_api.py",
+    "xarray/tests/test_backends_chunks.py",
+    "xarray/tests/test_backends_common.py",
+    "xarray/tests/test_backends_datatree.py",
+    "xarray/tests/test_backends_file_manager.py",
+    "xarray/tests/test_backends_locks.py",
+    "xarray/tests/test_backends_lru_cache.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 118_000_000_000
+measured = 78_547_753_233
+
+[groups.xarray-r-dataset]
+paths = [
+    "xarray/tests/test_dataset.py",
+    "xarray/tests/test_groupby.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 155_000_000_000
+measured = 103_155_087_982
+
+[groups.xarray-r-plot]
+paths = [
+    "xarray/tests/test_plot.py",
+    "xarray/tests/test_weighted.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 737_000_000_000
+measured = 491_421_916_171
+
+[groups.xarray-r-arrays]
+paths = [
+    "xarray/tests/test_strategies.py",
+    "xarray/tests/test_duck_array_ops.py",
+    "xarray/tests/test_duck_array_wrapping.py",
+    "xarray/tests/test_variable.py",
+    "properties",
+]
+tier = "release"
+release_by = "path"
+fuel = 525_000_000_000
+measured = 349_846_879_719
+
+[groups.xarray-r-coding]
+paths = [
+    "xarray/tests/test_accessor_dt.py",
+    "xarray/tests/test_accessor_str.py",
+    "xarray/tests/test_calendar_ops.py",
+    "xarray/tests/test_cftime_offsets.py",
+    "xarray/tests/test_cftimeindex.py",
+    "xarray/tests/test_cftimeindex_resample.py",
+    "xarray/tests/test_coding.py",
+    "xarray/tests/test_coding_strings.py",
+    "xarray/tests/test_coding_times.py",
+    "xarray/tests/test_conventions.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 119_000_000_000
+measured = 79_288_374_529
+
+[groups.xarray-r-rest]
+paths = [
+    "xarray/tests/test_array_api.py",
+    "xarray/tests/test_assertions.py",
+    "xarray/tests/test_coarsen.py",
+    "xarray/tests/test_combine.py",
+    "xarray/tests/test_computation.py",
+    "xarray/tests/test_concat.py",
+    "xarray/tests/test_coordinate_transform.py",
+    "xarray/tests/test_coordinates.py",
+    "xarray/tests/test_cupy.py",
+    "xarray/tests/test_dask.py",
+    "xarray/tests/test_dask_expr_protocol.py",
+    "xarray/tests/test_datatree.py",
+    "xarray/tests/test_datatree_mapping.py",
+    "xarray/tests/test_deprecation_helpers.py",
+    "xarray/tests/test_distributed.py",
+    "xarray/tests/test_dtypes.py",
+    "xarray/tests/test_error_messages.py",
+    "xarray/tests/test_eval.py",
+    "xarray/tests/test_extensions.py",
+    "xarray/tests/test_formatting.py",
+    "xarray/tests/test_formatting_html.py",
+    "xarray/tests/test_indexes.py",
+    "xarray/tests/test_indexing.py",
+    "xarray/tests/test_interp.py",
+    "xarray/tests/test_merge.py",
+    "xarray/tests/test_missing.py",
+    "xarray/tests/test_namedarray.py",
+    "xarray/tests/test_nd_point_index.py",
+    "xarray/tests/test_pandas_to_xarray.py",
+    "xarray/tests/test_parallelcompat.py",
+    "xarray/tests/test_plugins.py",
+    "xarray/tests/test_print_versions.py",
+    "xarray/tests/test_range_index.py",
+    "xarray/tests/test_sparse.py",
+    "xarray/tests/test_treenode.py",
+    "xarray/tests/test_tutorial.py",
+    "xarray/tests/test_typed_ops.py",
+    "xarray/tests/test_ufuncs.py",
+    "xarray/tests/test_units.py",
+    "xarray/tests/test_utils.py",
+]
+tier = "release"
+release_by = "path"
+fuel = 338_000_000_000
+measured = 225_001_154_605
+
+[[expected]]
+id = "no-mmap"
+group = "xarray-r-backends"
+outcome = "failed"
+match = "mmap is unavailable|DID NOT WARN"
+reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README); two tests that expect a warning from such a read see the error first, as natively with mmap disabled (EXECUTED: the same 160 fail there). open_dataset(path, mmap=False) or a file object reads the same files"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-mmap"
+group = "xarray-r-rest"
+outcome = "failed"
+match = "mmap is unavailable"
+reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-threads"
+group = "xarray-r-backends"
+outcome = "failed"
+match = "can't start new thread"
+reason = "no threads: the guest cannot start one (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-asyncio-loop-error"
+group = "xarray-r-arrays"
+outcome = "error"
+match = "\\[Errno 58\\] Not supported"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, so pytest-asyncio's loop fixture fails before these async tests run (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-asyncio-loop-error"
+group = "xarray-r-rest"
+outcome = "error"
+match = "\\[Errno 58\\] Not supported"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, so pytest-asyncio's loop fixture fails before these async tests run (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm32-int32"
+group = "xarray-r-coding"
+outcome = "failed"
+match = "dtype\\('int32'\\) == dtype\\('int64'\\)"
+reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32 where they expect int64 (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm32-int32"
+group = "xarray-r-dataset"
+outcome = "failed"
+match = "^assert False$"
+reason = "numpy's default integer is 32 bits on wasm32: the array DataArray(range(12)) makes is int32, so its DataFrame does not equal the int64 frame pandas builds from range(12) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm32-int32"
+group = "xarray-r-rest"
+outcome = "failed"
+match = "int32|int64|^AssertionError: assert '<xarray\\.Data"
+reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32: its repr's dtype and byte size, or its dtype, differ from the int64 the tests expect (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "fails-natively"
+group = "xarray-r-dataset"
+outcome = "failed"
+match = "^AssertionError: assert '<xarray\\.Data"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.0.6, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "staged-tests-folder"
+group = "xarray-r-rest"
+outcome = "failed"
+match = "^assert 1 == 2$"
+reason = "find_stack_level counts a frame in xarray's own tests folder as xarray's; here the tests run from the stage, outside the package's folder in the zip, so the test's frame is not counted (README)"
+closes_with = "docs/reference/limitations.md"

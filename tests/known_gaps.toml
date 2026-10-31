@@ -1360,6 +1360,42 @@ reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-processes]"
+match = "8 finding(s), digest 3c3613f38eb5"
+reason = "no processes: the command-line tests run pdfplumber's CLI in a subprocess, which the guest cannot start (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2]"
+match = "16 finding(s), digest b1806e430386"
+reason = "pdfplumber renders page images through pypdfium2, a compiled PDFium binding the set does not carry; page.to_image() raises ModuleNotFoundError naming it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2-in-a-test]"
+match = "1 finding(s), digest a02cb30d7845"
+reason = "the fuzzing regression test renders each file's page images through pypdfium2, which the set does not carry (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-ghostscript]"
+match = "6 finding(s), digest 5244a6dfa7f8"
+reason = "pdfplumber.repair runs the Ghostscript program in a subprocess; the guest has neither the program nor processes (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cryptography]"
+match = "8 finding(s), digest 1a59d339441e"
+reason = "AES decryption needs cryptography, a compiled package the set does not carry; the carried patch imports it only where AES runs, so these files raise ModuleNotFoundError naming it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cjk-cmaps]"
+match = "6 finding(s), digest db01067fc0d2"
+reason = "pdfminer's predefined CJK character maps (its cmap folder) are left out of the zip: these tests load one by name, or read a font that names one and has no ToUnicode table, whose text then reads empty (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-no-processes]"
 match = "4 finding(s), digest df03f627173f"
 reason = "no processes: the guest cannot start one (README)"
@@ -1834,3 +1870,63 @@ reason = "it does not end within 3.0 T of fuel in the guest (measured), past the
 closes_with = "docs/reference/limitations.md"
 
 # The pure-Python packages' own tests. (end)
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-mmap]"
+match = "160 finding(s), digest b6e954f1d951"
+reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README); two tests that expect a warning from such a read see the error first, as natively with mmap disabled (EXECUTED: the same 160 fail there). open_dataset(path, mmap=False) or a file object reads the same files"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-mmap]"
+match = "1 finding(s), digest 85f4fb642b63"
+reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-threads]"
+match = "1 finding(s), digest bfcb0ae2f20a"
+reason = "no threads: the guest cannot start one (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-arrays-no-asyncio-loop-error]"
+match = "8 finding(s), digest 2ac6f7795527"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, so pytest-asyncio's loop fixture fails before these async tests run (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-asyncio-loop-error]"
+match = "2 finding(s), digest 45e70b0a182e"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, so pytest-asyncio's loop fixture fails before these async tests run (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-coding-wasm32-int32]"
+match = "2 finding(s), digest 748082df66c4"
+reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32 where they expect int64 (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-wasm32-int32]"
+match = "1 finding(s), digest 5c5c74e56d8c"
+reason = "numpy's default integer is 32 bits on wasm32: the array DataArray(range(12)) makes is int32, so its DataFrame does not equal the int64 frame pandas builds from range(12) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-wasm32-int32]"
+match = "5 finding(s), digest 5d3acae212e5"
+reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32: its repr's dtype and byte size, or its dtype, differ from the int64 the tests expect (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]"
+match = "1 finding(s), digest 3ecee5286156"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.0.6, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]"
+match = "1 finding(s), digest 2b788816806d"
+reason = "find_stack_level counts a frame in xarray's own tests folder as xarray's; here the tests run from the stage, outside the package's folder in the zip, so the test's frame is not counted (README)"
+closes_with = "docs/reference/limitations.md"

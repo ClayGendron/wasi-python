@@ -8,7 +8,7 @@ component = "pdfminer-six-tests"
 driver = "package"
 grant = "/upstream-pdfminer-six"
 test_source = true
-budget = 1_000_000_000_000
+budget = 147_000_000_000
 stage_folders = ["tests", "samples", "tools"]
 extra_sys_path = ["."]
 cwd = "tree"
@@ -17,13 +17,15 @@ markers = []
 [groups.pdfminer-six-smoke]
 paths = ["tests/test_pdfdocument.py", "tests/test_utils.py"]
 smoke = "the document object and the utilities, the package from the zip"
-fuel = 100_000_000_000
+fuel = 17_000_000_000
+measured = 11_496_461_848
 
 [groups.pdfminer-six-r]
 paths = ["tests"]
 tier = "release"
 release_by = "path"
-fuel = 900_000_000_000
+fuel = 130_000_000_000
+measured = 86_928_980_735
 
 [[expected]]
 id = "no-cryptography"

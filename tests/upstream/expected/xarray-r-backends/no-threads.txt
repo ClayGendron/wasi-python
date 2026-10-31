@@ -1,0 +1,1 @@
+xarray/tests/test_backends_file_manager.py::test_file_manager_del_while_pin_lock_held
