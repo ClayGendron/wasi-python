@@ -1,0 +1,1 @@
+statsmodels/graphics/tests/test_tsaplots.py::test_plot_quarter

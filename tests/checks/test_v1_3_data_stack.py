@@ -154,6 +154,40 @@ def test_gzip_round_trips(guest) -> None:
     assert (r.exit_code, r.text) == (0, "ok\n"), r.describe()
 
 
+# A CSV of 5.5 MB, made in the guest so nothing large is staged. pandas reads a local file of
+# 5 MB or more on several threads over a memory map when it counts more than one CPU; the guest
+# counts one, so the default read is serial, and asking for threads meets the missing mmap.
+BIG_CSV = """\
+import os
+import pandas as pd
+path = "/big.csv"
+with open(path, "w") as f:
+    f.write("a,b,c\\n")
+    f.write("1234567,0.25,abcdefgh\\n" * 250_000)
+print(os.path.getsize(path) >= 5 * 1024 * 1024, len(pd.read_csv(path)))
+pd.set_option("mode.max_threads", 2)
+try:
+    pd.read_csv(path)
+except OSError as e:
+    print("OSError", e)
+else:
+    print("read")
+"""
+
+
+def test_a_large_csv_is_read_serially(guest) -> None:
+    """The default read_csv of a file past pandas' parallel threshold returns every row; with
+    mode.max_threads above 1 pandas maps the file and raises, as limitations.md says."""
+    r = guest("snapshot", ["-c", BIG_CSV])
+    assert r.exit_code == 0, r.describe()
+    assert r.text.splitlines() == [
+        "True 250000",
+        "OSError mmap is unavailable on wasm32-wasi",
+    ], r.describe()
+    page = (paths.REPO / "docs" / "reference" / "limitations.md").read_text("utf-8")
+    assert "`mode.max_threads`" in page, "limitations.md does not name pandas' mode.max_threads"
+
+
 def test_default_integer_width_is_documented(guest) -> None:
     """The limitations page states numpy's default integer width, and the guest agrees."""
     r = guest("plain", ["-c", "import numpy as np; print(np.dtype(np.int_).itemsize * 8)"])

@@ -1071,10 +1071,10 @@ def test_the_download_step_refuses_without_curl(work) -> None:
 def test_a_download_that_does_not_match_fails_the_step(work) -> None:
     _needs_sh()
     root = _download_tree(work, curl=True)
-    (root / "downloads" / "zlib-1.3.1.tar.gz").write_text("changed")
+    (root / "downloads" / "zlib-1.3.2.tar.gz").write_text("changed")
     out = _download(root)
     assert out.returncode != 0
-    assert "zlib-1.3.1.tar.gz: FAILED" in out.stdout
+    assert "zlib-1.3.2.tar.gz: FAILED" in out.stdout
     assert not any(x.startswith("downloads: ") for x in out.stdout.splitlines())
 
 

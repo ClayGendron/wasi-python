@@ -66,7 +66,7 @@ closes_with = "context/roadmap.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]"
-match = "40 finding(s), digest bb867a100101"
+match = "57 finding(s), digest 7ede498225b5"
 reason = "no mmap on WASI"
 closes_with = "docs/reference/limitations.md"
 
@@ -536,6 +536,18 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]"
 match = "6 finding(s), digest 010a91a8c398"
 reason = "no threads"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]"
+match = "9 finding(s), digest 8ae56a683eb8"
+reason = "no mmap on WASI"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]"
+match = "3 finding(s), digest 2aaf3dec51e5"
+reason = "numpy's default integer is 32 bits on wasm32"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
@@ -1151,13 +1163,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]"
-match = "13 finding(s), digest ba56b641f579"
+match = "13 finding(s), digest af97922d3b81"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]"
-match = "104 finding(s), digest 959d6ba605ec"
+match = "106 finding(s), digest c7177c5b2367"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1745,7 +1757,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]"
-match = "11 finding(s), digest 99386789b82b"
+match = "11 finding(s), digest ca9d96e202af"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1763,13 +1775,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]"
-match = "99 finding(s), digest 23c65d699d60"
+match = "99 finding(s), digest 10c256abd391"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]"
-match = "117 finding(s), digest 75a64564f63a"
+match = "117 finding(s), digest c5948e42a741"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
@@ -1920,8 +1932,14 @@ closes_with = "docs/reference/limitations.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]"
 match = "1 finding(s), digest 3ecee5286156"
-reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.0.6, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.1.0, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
 closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-pandas-multiindex-sel]"
+match = "1 finding(s), digest b79efce58684"
+reason = "pandas 3.1.0's MultiIndex.get_loc raises KeyError for a key longer than the index's depth where xarray 2026.9.0's test expects its own error; the same natively"
+closes_with = "context/roadmap.md (xarray's next release after 2026.9.0)"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]"
@@ -1930,3 +1948,27 @@ reason = "find_stack_level counts a frame in xarray's own tests folder as xarray
 closes_with = "context/roadmap.md"
 
 # The pure-Python packages' own tests. (end)
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pandas-categories]"
+match = "27 finding(s), digest 8c1a60010878"
+reason = "pandas 3.1.0 infers numeric categories, which scikit-learn 1.9.1's ARFF parser passes to re.search; the same natively"
+closes_with = "context/roadmap.md (scikit-learn's next release after 1.9.1)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-pandas-inplace-deprecated]"
+match = "1 finding(s), digest 82bac031654f"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-1-pandas-inplace-deprecated]"
+match = "12 finding(s), digest 76bd163207a3"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-2-pandas-inplace-deprecated]"
+match = "1 finding(s), digest f67d1c49b4ee"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"

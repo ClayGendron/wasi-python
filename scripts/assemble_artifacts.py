@@ -26,8 +26,8 @@ LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
 PACKAGES = {
     "numpy": "2.5.4",
-    "pandas": "3.0.6",
-    "zlib": "1.3.1",
+    "pandas": "3.1.0",
+    "zlib": "1.3.2",
     "bzip2": "1.0.8",
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it
@@ -846,7 +846,7 @@ def main() -> None:
     for name in ("python.wasm", "python-snapshot.wasm", "python-stdlib.zip"):
         shutil.copyfile(b / "out" / name, new / name)
 
-    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.0.6"
+    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.1.0"
     numpy_files = tomllib.loads((np_src / "pyproject.toml").read_text())["project"]["license-files"]
     licences = {
         "cpython": [
@@ -861,8 +861,14 @@ def main() -> None:
         + [
             (f"pandas LICENSES/{p.name}", p.read_bytes())
             for p in licence_files(pd_src / "LICENSES")
+        ]
+        # fast_float, which pandas' CSV tokenizer compiles in, ships its licences in its vendored
+        # folder, and pandas' own license-files names them there.
+        + [
+            (f"pandas {p.relative_to(pd_src).as_posix()}", p.read_bytes())
+            for p in sorted(pd_src.glob("subprojects/fast_float-*/LICENSE-*"))
         ],
-        "zlib": [("zlib LICENSE", (b / "zlib-1.3.1" / "LICENSE").read_bytes())],
+        "zlib": [("zlib LICENSE", (b / "zlib-1.3.2" / "LICENSE").read_bytes())],
         "bzip2": [("bzip2 LICENSE", (b / "bzip2-1.0.8" / "LICENSE").read_bytes())],
         # Only liblzma is linked, and its files are 0BSD (COPYING says which parts are which).
         "xz": [(f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")],

@@ -1,4 +1,4 @@
-versions python=3.15 pandas=3.0.6
+versions python=3.15 pandas=3.1.0
 group north 12 1734.71 144.559167 169.65
 group south 12 1714.62 142.885 166.24
 group west 12 1697.32 141.443333 163.12
