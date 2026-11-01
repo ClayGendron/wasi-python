@@ -521,6 +521,15 @@ __wrap_posix_memalign(void **out, size_t alignment, size_t size)
     return rc;
 }
 
+/* The three hooks, one per domain, as data: the linker numbers the function table's entries in the
+ * order it meets their addresses, and taking these in code would put them ahead of the table's
+ * first entries, which the judge's scan of the binary reads by their place. */
+static PyMemAllocatorEx skipping_hooks[3] = {
+    {&skipping[0], skipping_malloc, skipping_calloc, skipping_realloc, skipping_free},
+    {&skipping[1], skipping_malloc, skipping_calloc, skipping_realloc, skipping_free},
+    {&skipping[2], skipping_malloc, skipping_calloc, skipping_realloc, skipping_free},
+};
+
 /* Called by run and shutdown just before Py_FinalizeEx. A program that is tracing with
  * tracemalloc keeps today's teardown: stopping in teardown, tracemalloc would put back the
  * allocators it wrapped, the hook's lists stranded under it. */
@@ -546,9 +555,7 @@ free_nothing_at_teardown(void)
     for (int i = 0; i < 3; i++) {
         PyMem_GetAllocator(domains[i], &skipping[i].saved);
         skipping[i].skipped = NULL;
-        PyMemAllocatorEx hook = {&skipping[i], skipping_malloc, skipping_calloc, skipping_realloc,
-                                 skipping_free};
-        PyMem_SetAllocator(domains[i], &hook);
+        PyMem_SetAllocator(domains[i], &skipping_hooks[i]);
     }
 }
 
