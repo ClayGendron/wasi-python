@@ -16,5 +16,5 @@ None.
 [[claim]]
 spec = "180"
 new = ["tests/checks/test_rules.py::test_a_tag_refuses_a_wheel_past_pypis_grant[*"]
-units = 5
+units = 6
 ```

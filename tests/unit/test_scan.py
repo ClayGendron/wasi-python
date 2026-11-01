@@ -3631,6 +3631,9 @@ BAD_TAG_RUN = [
      "judged does not run 'The wheel is within"),
     ("judged", f"      - name: {PYPI_LIMIT_STEP}\n", "      - name: The wheel's size\n",
      "judged does not run 'The wheel is within"),
+    ("judged", f"      - name: {PYPI_LIMIT_STEP}\n",
+     f"      - name: {PYPI_LIMIT_STEP}\n        continue-on-error: true\n",
+     "judged does not run 'The wheel is within"),
 ]  # fmt: skip
 
 

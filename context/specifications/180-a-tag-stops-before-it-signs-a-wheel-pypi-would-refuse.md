@@ -15,7 +15,7 @@ The owner's decision of 2026-11-01 raised the judge's wheel limit, `tests/harnes
 
 So a tag pushed before PyPI's grant, or by a maintainer who read the wrong number, half-publishes: 0.1.3 is signed and on GitHub, PyPI refuses the file, and `pip install wasi-python==0.1.3` fails for every embedder. The only guard today is a sentence in the decision and a comparison by hand (`docs/contributing/release-process.md`, step 4).
 
-The release page also says a failed PyPI upload cannot be helped by a re-run (L1). For a refusal for size, once PyPI has raised the limit, a re-run of the failed `pypi` job uploads the same wheel, kept 90 days with the run (INFERRED, the review).
+The release page also says a failed PyPI upload cannot be helped by a re-run (L1). For a refusal for size, once PyPI has raised the limit, a re-run of the failed `pypi` job, within 30 days of the tag's run (GitHub's limit on re-runs), uploads the same wheel (INFERRED, the review).
 
 ## Decisions
 
@@ -32,7 +32,7 @@ Moving `pypi` before `attest` and `publish` (the review's other option) is not c
 
 ### 2. When it applies
 
-Only when the tag uploads to PyPI. The step's environment carries `TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}`, the `pypi` job's own condition, evaluated by the same expression, so the two can never disagree (GitHub compares the strings without regard to case, and the step reads the expression's result, not the variable). When it is not `true`, the step passes at any size: the GitHub release takes a wheel larger than PyPI's limit. The step has no `if:`, so it runs on every tag and says which way it went in its log.
+Only when the tag uploads to PyPI. The step's environment carries `TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}`, the `pypi` job's own condition, evaluated by the same expression, so the two agree unless the variable changes during the run, since each job reads it when it starts (GitHub compares the strings without regard to case, and the step reads the expression's result, not the variable). When it is not `true`, the step passes at any size: the GitHub release takes a wheel larger than PyPI's limit. The step has no `if:`, so it runs on every tag and says which way it went in its log.
 
 ### 3. The granted limit is a repository variable
 
@@ -48,14 +48,14 @@ Setting the variable is the owner's to do, as `PYPI_PUBLISH` is. No agent runs `
 
 ### 4. A run it stopped, and a refusal at PyPI
 
-When the step stops a tag's run, nothing is signed or published. Once PyPI has raised the limit and the variable holds it, the maintainer re-runs the failed jobs of the same run: `judged` reads the variable again, and `attest`, `publish` and `pypi` follow. If the maintainer chooses instead to release on GitHub alone, `PYPI_PUBLISH` off and a re-run do it. The step's failure prints the first of these.
+When the step stops a tag's run, nothing is signed or published. Once PyPI has raised the limit and the variable holds it, the maintainer re-runs the failed jobs of the same run: `judged` reads the variable again (INFERRED: GitHub's documents do not say whether a re-run reads `vars` afresh), and `attest`, `publish` and `pypi` follow. If the maintainer chooses instead to release on GitHub alone, `PYPI_PUBLISH` off and a re-run do it (INFERRED, the same). The step's failure prints the first of these and the limit it read; if a re-run still shows the old limit, the tag is not pushed again and the wheel waits for the next patch release.
 
-If PyPI still refuses the file for size (a grant recorded wrong), re-running the failed `pypi` job after PyPI raises the limit uploads the same wheel, kept 90 days with the run. The release page says both (L1).
+If PyPI still refuses the file for size (a grant recorded wrong), re-running the failed `pypi` job after PyPI raises the limit, within 30 days of the tag's run, uploads the same wheel. The release page says both (L1).
 
 ### 5. The checks
 
 - **Behaviour** (`tests/checks/test_rules.py::test_a_tag_refuses_a_wheel_past_pypis_grant`): the step's own script, run in bash on a sparse wheel of each size, in twelve cases: no upload with a wheel past the default passes; the default with a wheel at it passes and one byte past refuses; 256 MiB granted with a wheel past the default passes and one byte past 256 MiB refuses; a grant that is not a number, zero, with a leading zero, thirty digits long or negative refuses; no wheel and two wheels refuse. Its absence fails every case (`workflow_step_script` raises).
-- **Shape** (`tag_run_errors`, held by `test_a_tag_publishes_what_the_release_pull_request_judged`): `judged` runs the step exactly once, with no `if:`, and with exactly the environment of Decisions 2 and 3; the condition is the scan's `PYPI_CONDITION`, the same constant `pypi`'s rule 18 holds its `if:` to. Five mutants in `tests/unit/test_scan.py`: the condition without `== 'true'`, no condition, a literal limit, an `if:` on the step, the step renamed.
+- **Shape** (`tag_run_errors`, held by `test_a_tag_publishes_what_the_release_pull_request_judged`): `judged` runs the step exactly once, with no `if:`, and with exactly the environment of Decisions 2 and 3; the condition is the scan's `PYPI_CONDITION`, the same constant `pypi`'s rule 18 holds its `if:` to. The step carries no `continue-on-error:` either, which would let `judged` succeed past a refusal. Six mutants in `tests/unit/test_scan.py`: the condition without `== 'true'`, no condition, a literal limit, an `if:` on the step, the step renamed, `continue-on-error: true` on the step.
 
 ## Intent
 
@@ -63,7 +63,7 @@ No tag signs or publishes a wheel PyPI would refuse. A tag that would is stopped
 
 ## Design
 
-Files: `.github/workflows/release.yml` (the step in `judged`, the comments of `judged` and `pypi`), `tests/harness/scan.py` (`PYPI_CONDITION`, `PYPI_LIMIT_STEP`, `PYPI_LIMIT_ENV`, and `tag_run_errors`'s rule), `tests/checks/test_rules.py` (the behaviour rows), `tests/unit/test_scan.py` (the five mutants), `docs/contributing/release-process.md`, `context/changes/180-a-tag-stops-before-it-signs-a-wheel-pypi-would-refuse.md`.
+Files: `.github/workflows/release.yml` (the step in `judged`, the comments of `judged` and `pypi`), `tests/harness/scan.py` (`PYPI_CONDITION`, `PYPI_LIMIT_STEP`, `PYPI_LIMIT_ENV`, and `tag_run_errors`'s rule), `tests/checks/test_rules.py` (the behaviour rows), `tests/unit/test_scan.py` (the six mutants), `docs/contributing/release-process.md`, `context/changes/180-a-tag-stops-before-it-signs-a-wheel-pypi-would-refuse.md`.
 
 ## Scope
 
@@ -72,7 +72,7 @@ In: the step, its two checks, the comments of `judged` and `pypi`, the release p
 ## Acceptance criteria
 
 1. The step's twelve cases hold (Decision 5), each seen failing before the step existed. EXECUTED.
-2. `tag_run_errors` holds the real workflow, names each of the five mutants, and was seen failing on the real workflow before the step existed. EXECUTED.
+2. `tag_run_errors` holds the real workflow, names each of the six mutants, and was seen failing on the real workflow before the step existed. EXECUTED.
 3. The release page says what the step does in step 4 and stage 5, and that a refusal for size is re-run once PyPI has raised the limit. READ.
 4. The fast tier, `tests/lint` and the pull request's `ci-status` are green; the news file is present.
 5. The next tag that uploads to PyPI logs the comparison in `judged` (READ from that run, named in the landing notes then).
@@ -81,7 +81,7 @@ In: the step, its two checks, the comments of `judged` and `pypi`, the release p
 
 Built 2026-11-01, before its pull request and review.
 
-- **Seen failing first.** With the checks written and the workflow unchanged, the twelve behaviour rows failed with "judged has no step named …", `test_a_tag_publishes_what_the_release_pull_request_judged` failed on the real workflow, and `tests/unit/test_scan.py` failed six rows: the real workflow and the five mutants (EXECUTED). With the step in place, all pass.
+- **Seen failing first.** With the checks written and the workflow unchanged, the twelve behaviour rows failed with "judged has no step named …", `test_a_tag_publishes_what_the_release_pull_request_judged` failed on the real workflow, and `tests/unit/test_scan.py` failed six rows: the real workflow and the five mutants (EXECUTED). With the step in place, all pass. Round 1's sixth mutant, `continue-on-error: true` on the step, failed against the scan before the scan refused it (EXECUTED).
 - **A comment placement the scan reads.** `workflow_steps` ends a job's steps at a line indented six spaces that is not a step, so the step's comment sits inside it, below its name, as the `verify` job's comment does.
-- **The re-run reads the variable again** (INFERRED). GitHub evaluates `vars` when a job starts, and a re-run of failed jobs starts them again; if a re-run were to read the old value, a dispatch cannot help (a tag's publish needs the push event), so the next tag would be a patch release. The first stopped run will say which.
+- **The re-run reads the variable again** (INFERRED). GitHub evaluates `vars` when a job starts, and a re-run of failed jobs starts them again; GitHub's documents say a re-run keeps the first run's actor, `GITHUB_SHA` and `GITHUB_REF`, within 30 days, and nothing of `vars`. If a re-run were to read the old value, a dispatch cannot help (a tag's publish needs the push event), so the next tag would be a patch release; the release page and the step's message say so. The first stopped run will say which.
 - **Pre-build review.** The change does not touch the guest's imports or exports, the artifact set or the build recipe (constitution §5.6): it adds a comparison to the tag's path and changes nothing built. The design is the one the security review's M1 named as its closing; the pull request's review reads it.

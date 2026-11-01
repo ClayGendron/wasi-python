@@ -2433,8 +2433,9 @@ def tag_run_errors(text: str) -> list[str]:
     where the plan's build output says; the judged job runs on the plan's publish alone, after
     the build and same-bytes, checks out the tagged commit with its parent, reads the build's
     files, and holds the set's own SHA256SUMS and python.wasm, each hashed from those files, to
-    the acceptance; it holds the wheel to the limit PyPI has granted on every tag, reading the
-    pypi job's own condition (whose if: the binding scan holds); attest and publish need it."""
+    the acceptance; it holds the wheel to the limit PyPI has granted on every tag, with no if:
+    or continue-on-error:, reading the pypi job's own condition (whose if: the binding scan
+    holds); attest and publish need it."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     errors = []
@@ -2493,10 +2494,11 @@ def tag_run_errors(text: str) -> list[str]:
             "set's own SHA256SUMS and of python.wasm, each hashed from the build's files"
         )
     limit = [f for f in steps if f.get("name") == PYPI_LIMIT_STEP]
-    if len(limit) != 1 or limit[0].get("env") != PYPI_LIMIT_ENV or "if" in limit[0]:
+    skippable = len(limit) == 1 and bool({"if", "continue-on-error"} & set(limit[0]))
+    if len(limit) != 1 or limit[0].get("env") != PYPI_LIMIT_ENV or skippable:
         errors.append(
             f"{TAG_PROOF_JOB} does not run {PYPI_LIMIT_STEP!r} once, on every tag, with the env "
-            f"{PYPI_LIMIT_ENV}"
+            f"{PYPI_LIMIT_ENV}, and stop the job when it fails"
         )
     for name in ("attest", "publish"):
         if TAG_PROOF_JOB not in _needs(jobs.get(name, [])):

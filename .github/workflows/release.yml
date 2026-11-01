@@ -866,7 +866,7 @@ jobs:
           bytes=$(($(wc -c < "$1")))
           if [ "$bytes" -gt "$limit" ]; then
             echo "$1 is $bytes bytes, past the $limit PyPI has granted: nothing is signed or published"
-            echo "once PyPI grants more, set PYPI_FILE_LIMIT_GRANTED to it and re-run the failed jobs"
+            echo "once PyPI grants more, set PYPI_FILE_LIMIT_GRANTED to it and re-run the failed jobs; this line prints the limit read"
             exit 1
           fi
           echo "$1 is $bytes bytes, within the $limit PyPI has granted"
