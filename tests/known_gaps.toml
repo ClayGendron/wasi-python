@@ -1954,12 +1954,6 @@ reason = "cairo's PostScript surface writes through a temporary file, which the 
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-smoke-no-jpeg]"
-match = "5 finding(s), digest d1bbd6e6c93a"
-reason = "the set's Pillow has no JPEG codec until Pillow is built with libjpeg-turbo, so writing a JPEG raises OSError (README)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-smoke-fails-natively]"
 match = "1 finding(s), digest 203f3373f081"
 reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
@@ -1976,18 +1970,6 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-
 match = "18 finding(s), digest 2a81304780a5"
 reason = "these tests reach a plugin that loads its library through ctypes (FreeImage's, or numpy's ctypes types in the SPE and SWF readers), and the guest's ctypes stand-in loads nothing: it raises OSError (README)"
 closes_with = "docs/reference/limitations.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-jpeg]"
-match = "6 finding(s), digest d8a3d4056db6"
-reason = "the set's Pillow has no JPEG codec until Pillow is built with libjpeg-turbo, so reading or writing a JPEG raises OSError (README)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-jpeg-plugin]"
-match = "2 finding(s), digest a45b2e81625b"
-reason = "with no JPEG codec in the set's Pillow, imageio finds no plugin that writes a .jpg, so selecting one by that extension fails where natively Pillow's is found (README)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-processes]"
@@ -2012,6 +1994,18 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-
 match = "1 finding(s), digest fb547dd836c6"
 reason = "imageio writes this TIFF through its bundled legacy tifffile here, which calls ndarray.tostring, removed in numpy 2; natively the same test passes, its writer chosen otherwise (README)"
 closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-importlib-module-names]"
+match = "1 finding(s), digest d99827c37806"
+reason = "the test loads a dummy plugin from the module named test_core and checks it is the test's own class; the driver collects in pytest's importlib mode, where the test module is not sys.modules['test_core'], so the plugin comes from a second copy (natively in the importlib mode it fails the same, EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes-warning]"
+match = "1 finding(s), digest c41596d669c6"
+reason = "an unknown extension hint makes imageio try its legacy FreeImage plugin, which loads its library through ctypes; the guest's ctypes stand-in raises OSError there, so the UserWarning imageio gives natively for the hint is not given (EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
 
 # The pure-Python packages' own tests. (end)
 

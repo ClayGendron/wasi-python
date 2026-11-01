@@ -1,6 +1,0 @@
-tests/test_core.py::test_writing_foreign_extension
-tests/test_lytro.py::test_lytro_lfr_reading
-tests/test_pillow_legacy.py::test_inside_zipfile
-tests/test_pillow_legacy.py::test_jpg
-tests/test_pillow_legacy.py::test_jpg_more
-tests/test_pillow_legacy.py::test_write_jpg_to_bytes_io

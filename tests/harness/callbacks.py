@@ -26,8 +26,11 @@ is not read as a method (matplotlib's build): FreeType's BDF property table begi
 `{"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}`, sixteen bytes the BDF driver's code points at, which read
 as `{name, table index 1, METH_VARARGS, no doc}`. That rests on link order, so it is checked, not
 assumed: a single is skipped only when the name section names the function there as a parser rule
-(`*_rule` or `_PyPegen_*`); any other function at index 1 to 20, or a module without names, is
-checked as a method like any other.
+(`*_rule` or `_PyPegen_*`, or the reactor's start-up allocator, `skipping_*`, which link order
+also puts there); any other function at index 1 to 20, or a module without names, is checked as a
+method like any other. A getset entry whose getter sits there is skipped by the same check
+(cairo's build): cairo's tag-attribute table begins `{"tag_name", ATTRIBUTE_STRING = 3, 0},
+{"id", 3, 0}`, which reads as `{name, getter at table index 3, no setter, doc, closure}`.
 
 The slots of static type objects, `PyType_Slot` arrays and module definitions are read by the
 second scan, `scan_slots`, whose own docstring says what it leaves out. Out of both: C
@@ -61,7 +64,8 @@ GETTER = FuncType((I32, I32), (I32,))
 SETTER = FuncType((I32, I32, I32), (I32,))
 IDENT = re.compile(rb"[A-Za-z_][A-Za-z0-9_]{0,80}\0")
 METHOD, GETSET, MEMBER = 16, 20, 20  # entry sizes in bytes (wasm32)
-# Table indices 1 to 20: CPython's parser rules in the linked binary, never a callback.
+# Table indices 1 to 20: CPython's parser rules and the reactor's start-up allocator in the linked
+# binary, never a callback.
 PARSER_RULES = 20
 I32_CONST = re.compile(rb"(?=\x41([\x80-\xff]{0,4}[\x00-\x7f]))", re.DOTALL)
 
@@ -217,9 +221,10 @@ def _tables(image, size, entry, elements, refs, taken):
 
 def _parser_rule(mod: Module, index: int) -> bool:
     """Whether the name section names the function at this table index as one of CPython's parser
-    rules."""
+    rules, or as one of the reactor's start-up allocator functions (`skipping_*`,
+    recipes/reactor_main.c), which link order also puts among the first twenty."""
     name = mod.names.get(mod.elements[index], "")
-    return name.endswith("_rule") or name.startswith("_PyPegen_")
+    return name.endswith("_rule") or name.startswith(("_PyPegen_", "skipping_"))
 
 
 def _named(mod: Module, func: int) -> str:
@@ -268,6 +273,8 @@ def scan(mod: Module) -> Report:
     getsets = _tables(image, GETSET, _getset_entry, elements, refs, taken)
     for table in getsets:
         for _addr, (name, get, set_) in table:
+            if get and get <= PARSER_RULES and _parser_rule(mod, get):
+                continue  # a record that only looks like a PyGetSetDef (the module docstring)
             report.coverage["getsets"] += 1
             for kind, index, want in (("getter", get, GETTER), ("setter", set_, SETTER)):
                 found = _check(mod, kind, name, index, want) if index else None

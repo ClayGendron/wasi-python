@@ -1,2 +1,1 @@
 tests/test_core.py::test_imopen_extension_malformatted[.jpg]
-tests/test_core.py::test_plugin_selection_success[.jpg]

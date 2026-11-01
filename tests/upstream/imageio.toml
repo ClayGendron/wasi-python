@@ -28,22 +28,14 @@ pytest_cache_stand_in = "tests/upstream/stand-ins/pytest_cache_stand_in.py"
 paths = ["tests/test_pillow.py"]
 smoke = "the Pillow plugin, which drawsvg's GIFs are written through, the package from the zip"
 fuel = 71_000_000_000
-measured = 46_984_072_819
+measured = 47_636_897_521
 
 [groups.imageio-r]
 paths = ["tests"]
 tier = "release"
 release_by = "path"
 fuel = 413_000_000_000
-measured = 275_046_621_610
-
-[[expected]]
-id = "no-jpeg"
-group = "imageio-smoke"
-outcome = "failed"
-match = "encoder jpeg not available"
-reason = "the set's Pillow has no JPEG codec until Pillow is built with libjpeg-turbo, so writing a JPEG raises OSError (README)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
+measured = 295_094_347_020
 
 [[expected]]
 id = "fails-natively"
@@ -65,22 +57,6 @@ outcome = "failed"
 match = "ctypes is unavailable on wasm32-wasi"
 reason = "these tests reach a plugin that loads its library through ctypes (FreeImage's, or numpy's ctypes types in the SPE and SWF readers), and the guest's ctypes stand-in loads nothing: it raises OSError (README)"
 closes_with = "docs/reference/limitations.md"
-
-[[expected]]
-id = "no-jpeg"
-group = "imageio-r"
-outcome = "failed"
-match = "(en|de)coder jpeg not available"
-reason = "the set's Pillow has no JPEG codec until Pillow is built with libjpeg-turbo, so reading or writing a JPEG raises OSError (README)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
-
-[[expected]]
-id = "no-jpeg-plugin"
-group = "imageio-r"
-outcome = "failed"
-match = "^assert False$|DID NOT WARN"
-reason = "with no JPEG codec in the set's Pillow, imageio finds no plugin that writes a .jpg, so selecting one by that extension fails where natively Pillow's is found (README)"
-closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
 
 [[expected]]
 id = "no-processes"
@@ -113,3 +89,19 @@ outcome = "failed"
 match = "has no attribute 'tostring'"
 reason = "imageio writes this TIFF through its bundled legacy tifffile here, which calls ndarray.tostring, removed in numpy 2; natively the same test passes, its writer chosen otherwise (README)"
 closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "importlib-module-names"
+group = "imageio-r"
+outcome = "failed"
+match = "^assert False$"
+reason = "the test loads a dummy plugin from the module named test_core and checks it is the test's own class; the driver collects in pytest's importlib mode, where the test module is not sys.modules['test_core'], so the plugin comes from a second copy (natively in the importlib mode it fails the same, EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-ctypes-warning"
+group = "imageio-r"
+outcome = "failed"
+match = "DID NOT WARN"
+reason = "an unknown extension hint makes imageio try its legacy FreeImage plugin, which loads its library through ctypes; the guest's ctypes stand-in raises OSError there, so the UserWarning imageio gives natively for the hint is not given (EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
