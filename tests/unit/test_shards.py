@@ -248,8 +248,13 @@ via = "python"
 [package.pybind11]
 kind = "build-only"
 reason = "headers"
+
+[package.drawer]
+kind = "none"
+reason = "ships no tests"
+checked_by = ["vector_drawings"]
 """
-NAMES = ["mpl", "numpy", "pybind11", "python", "qhull", "wasi-libc", "zlib"]
+NAMES = ["drawer", "mpl", "numpy", "pybind11", "python", "qhull", "wasi-libc", "zlib"]
 
 
 @pytest.fixture
@@ -257,6 +262,12 @@ def repo(tmp_path: Path) -> Path:
     (tmp_path / "context" / "specifications").mkdir(parents=True)
     (tmp_path / "context" / "specifications" / "001-a.md").write_text("x")
     (tmp_path / "context" / "roadmap.md").write_text("Text.\n\nReserved: 065 (a thing).\n")
+    # The `none` entry's import names, a job that imports it and a job that does not.
+    (tmp_path / "recipes").mkdir()
+    (tmp_path / "recipes" / "snapshot-packages.txt").write_text("# names\ndrawer: drawer\n")
+    (tmp_path / "tests" / "jobs").mkdir(parents=True)
+    (tmp_path / "tests" / "jobs" / "vector_drawings.py").write_text("import drawer.shapes\n")
+    (tmp_path / "tests" / "jobs" / "documents.py").write_text('import json\n"drawer"  # drawer\n')
     return tmp_path
 
 
@@ -292,6 +303,17 @@ BAD_PACKAGES = [
     (('closes_with = "spec 065"', 'closes_with = "context/roadmap.md"'), "python: closes_with"),
     (('closes_with = "spec 065"', 'closes_with = "spec 099"'), "python: closes_with"),
     (('kind = "build-only"', 'kind = "maybe"'), "pybind11: unknown kind"),
+    (('reason = "ships no tests"', 'reason = " "'), "drawer: none without a reason"),
+    (('checked_by = ["vector_drawings"]', "checked_by = []"), "drawer: none without checked_by"),
+    (
+        ('checked_by = ["vector_drawings"]', 'checked_by = ["sketches"]'),
+        "drawer: checked_by 'sketches' is not a golden job",
+    ),
+    (
+        ('checked_by = ["vector_drawings"]', 'checked_by = ["documents"]'),
+        "drawer: checked_by 'documents' does not import drawer",
+    ),
+    (('via = "mpl"', 'via = "drawer"'), "qhull: via 'drawer' is not"),
 ]
 
 
@@ -308,6 +330,30 @@ def test_each_bad_packages_file_is_named(change, error, repo) -> None:
         assert any(e.startswith("zz: kind suite") for e in errors), errors
         return
     assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_none_entry_with_a_suite_is_named(repo) -> None:
+    """A suite file for a `none` package means a suite exists: the entry must say `suite`."""
+    want = "drawer: none, but tests/upstream/drawer.toml exists, so a suite does"
+    errors = shards.package_errors(
+        tomllib.loads(PACKAGES_TEXT), NAMES, {"numpy": 3, "drawer": 1}, repo
+    )
+    assert errors == [want]
+    (repo / "tests" / "upstream").mkdir(parents=True)
+    (repo / "tests" / "upstream" / "drawer.toml").write_text("")
+    assert _pkg(PACKAGES_TEXT, repo) == [want]
+
+
+def test_a_none_job_imports_the_package_by_any_form(repo) -> None:
+    """`ast` reads the job: `from drawer import x` counts; a name in a string or comment does not,
+    and nor does a relative import."""
+    job = repo / "tests" / "jobs" / "vector_drawings.py"
+    job.write_text("from drawer import Drawing\n")
+    assert _pkg(PACKAGES_TEXT, repo) == []
+    job.write_text('"import drawer"\n# import drawer\nfrom . import drawer\n')
+    assert _pkg(PACKAGES_TEXT, repo) == [
+        "drawer: checked_by 'vector_drawings' does not import drawer"
+    ]
 
 
 def test_a_suite_without_groups_is_named(repo) -> None:

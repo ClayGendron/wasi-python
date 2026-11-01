@@ -188,6 +188,8 @@ LICENCE_COMPONENTS = (
     "pdfplumber",
     "pdfminer-six",
     "xarray",
+    # drawsvg, its wheel's MIT licence
+    "drawsvg",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -263,6 +265,7 @@ PACKAGES = (
     "pdfplumber",
     "pdfminer-six",
     "xarray",
+    "drawsvg",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

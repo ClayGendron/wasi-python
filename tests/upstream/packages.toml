@@ -8,6 +8,12 @@
 #   build-only  used only to compile another package; `reason`
 #   later       `reason`, and `closes_with` naming the specification (written or reserved in
 #               context/roadmap.md) that runs its suite
+#   none        the project ships no tests at its pinned version, in its sdist or in its
+#               repository at the release's tag; `reason` says where that was read, and
+#               `checked_by` names the golden jobs (tests/jobs/) that import and run it. Refused
+#               when tests/upstream/<name>.toml exists, or when a named job does not import one of
+#               its names in recipes/snapshot-packages.txt. A version move reads its sdist and its
+#               repository's tag again and rewrites `reason`.
 # A specification that adds a package adds its entry (AGENTS.md).
 
 stdlib_modules = ["zlib", "bz2", "lzma", "sqlite3"]
@@ -369,3 +375,11 @@ kind = "suite"
 # its own suite from its test source, groups in tests/upstream/xarray.toml: a smoke
 # group in the normal tier, the whole suite in the release tier
 kind = "suite"
+
+# drawsvg, a project that ships no tests: its golden job holds the guest to native Python on
+# drawsvg's own code, which says the interpreters agree, not that drawsvg's SVG is right.
+
+[package.drawsvg]
+kind = "none"
+reason = "drawsvg 2.4.2 ships no tests: none in its sdist, none in its repository at the 2.4.2 tag or at master (read 2026-10-31)"
+checked_by = ["vector_drawings"]

@@ -198,6 +198,15 @@ wheels = [
 ]
 
 [[package]]
+name = "drawsvg"
+version = "2.4.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/ec/a88a29dc4e380c6283fa6922a21c715ec40bf40f7b53859f8a104a7cbe26/drawsvg-2.4.2.tar.gz", hash = "sha256:5efd8bcdc2c2400425e7fb71b4b80d8fdd83b1dc810f790f58a165df33ddd303", size = 733210, upload-time = "2026-08-12T03:24:43.679Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/5a/c47c10de42c49a3a9957123d77e5692b56b4fbc342b55285b52c41a8f1c1/drawsvg-2.4.2-py3-none-any.whl", hash = "sha256:b1c101e187aa395cb13c039549e4f26fb7b7ee03974f53dc9798436463781bf1", size = 44175, upload-time = "2026-08-12T03:24:42.531Z" },
+]
+
+[[package]]
 name = "et-xmlfile"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1085,6 +1094,7 @@ dependencies = [
     { name = "contourpy" },
     { name = "cycler" },
     { name = "defusedxml" },
+    { name = "drawsvg" },
     { name = "et-xmlfile" },
     { name = "fonttools" },
     { name = "formulaic" },
@@ -1148,6 +1158,7 @@ requires-dist = [
     { name = "contourpy", specifier = "==1.4.0" },
     { name = "cycler", specifier = "==0.12.1" },
     { name = "defusedxml", specifier = "==0.7.1" },
+    { name = "drawsvg", specifier = "==2.4.2" },
     { name = "et-xmlfile", specifier = "==2.0.0" },
     { name = "fonttools", specifier = "==4.67.0" },
     { name = "formulaic", specifier = "==1.2.2" },

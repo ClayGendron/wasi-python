@@ -12,7 +12,8 @@ python-docx and python-pptx start from their default templates, read from the zi
 carried patch each, and write Word and PowerPoint files with native Python's output.
 pdfplumber reads text and tables with native Python's output, pdfminer.six without cryptography
 until a file needs AES (one carried patch), and page images name pypdfium2; xarray aligns, groups,
-interpolates and writes netCDF3 with native Python's output."""
+interpolates and writes netCDF3 with native Python's output. drawsvg draws SVG, HTML and
+animations with native Python's output, and its parts the set lacks fail by name."""
 
 from __future__ import annotations
 
@@ -132,6 +133,15 @@ def test_pdf_tables_job_matches_native(guest) -> None:
     boxes, its ruling lines and its tables, and opens a copy pypdf encrypted with RC4 by its
     password, all as native pdfplumber does."""
     _job(guest, "pdf_tables")
+
+
+@pytest.mark.slow
+def test_vector_drawings_job_matches_native(guest) -> None:
+    """drawsvg draws its README drawing, a native SVG animation with playback controls, frame
+    callbacks, 1,000 circles, an embedded PNG and a clip path and mask, as SVG and HTML with
+    native drawsvg's bytes. drawsvg ships no tests, so this holds the guest's interpreter to
+    native's on drawsvg's code: the two agree, which is not to say the SVG is right."""
+    _job(guest, "vector_drawings")
 
 
 @pytest.mark.slow
@@ -1045,3 +1055,52 @@ def test_xarray_reads_netcdf3_files_without_mmap(guest, which) -> None:
         "mmap=False": True,
         "an open file": True,
     }, r.text
+
+
+# drawsvg's optional parts the set does not carry: each fails by name, as natively without them.
+DRAWSVG_LACKS = """
+import json, sys
+import drawsvg as draw
+out = {"files": sorted({m.__file__ for n, m in sys.modules.items() if n.startswith("drawsvg")})}
+d = draw.Drawing(20, 20)
+d.append(draw.Circle(10, 10, 5))
+try:
+    d.rasterize()
+except ImportError as e:
+    cause = e.__cause__
+    out["rasterize"] = [type(e).__name__, type(cause).__name__, getattr(cause, "name", None)]
+try:
+    import drawsvg.color
+except ImportError as e:
+    cause = e.__cause__
+    out["color"] = [type(e).__name__, type(cause).__name__, getattr(cause, "name", None)]
+try:
+    d.embed_google_font("Permanent Marker", text="x")
+except Exception as e:
+    out["google font"] = [type(e).__name__, str(getattr(e, "reason", e))]
+try:
+    import drawsvg.widgets
+except ImportError as e:
+    out["widgets"] = [type(e).__name__, e.name]
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_drawsvg_names_what_the_set_lacks(guest, which) -> None:
+    """drawsvg imports from the zip and draws; what it cannot do here raises a named exception.
+    Rasterizing needs CairoSVG and the colour helpers pwkit, neither carried, so drawsvg raises
+    its ImportError from the missing module's; a Google font raises URLError, since the guest
+    has no ssl module, so no HTTPS handler, and no network; the widgets need ipywidgets."""
+    r = guest(which, ["-c", DRAWSVG_LACKS])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    zip_path = "/usr/local/lib/python315.zip/"
+    files = got.pop("files")
+    assert files and all(f.startswith(zip_path) for f in files), r.text
+    assert got == {
+        "rasterize": ["ImportError", "ModuleNotFoundError", "cairosvg"],
+        "color": ["ImportError", "ModuleNotFoundError", "pwkit"],
+        "google font": ["URLError", "unknown url type: https"],
+        "widgets": ["ModuleNotFoundError", "ipywidgets"],
+    }, got

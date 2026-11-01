@@ -112,6 +112,8 @@ PACKAGES = {
     "pdfplumber": "0.11.10",
     "pdfminer-six": "20260107",
     "xarray": "2026.9.0",
+    # drawsvg, its pure wheel
+    "drawsvg": "2.4.2",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -158,6 +160,7 @@ WHEELS = {
     "interface-meta": "interface_meta-2.0.1-py3-none-any.whl",
     "wrapt": "wrapt-2.5.2-py3-none-any.whl",
     "pdfplumber": "pdfplumber-0.11.10-py3-none-any.whl",
+    "drawsvg": "drawsvg-2.4.2-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"

@@ -77,3 +77,4 @@ python-pptx: pptx
 pdfminer-six: pdfminer pdfminer.high_level
 pdfplumber: pdfplumber
 xarray: xarray
+drawsvg: drawsvg

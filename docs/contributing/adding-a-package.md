@@ -50,6 +50,7 @@ Every package runs its own test suite in the release. Add the package to `tests/
 - `via`: its own suite cannot run here, and the entry names what reaches it instead.
 - `build-only`: it only compiles another package, with a reason.
 - `later`: its suite does not run yet, with a reason and the planned work that runs it.
+- `none`: the project ships no tests at its pinned version, in its sdist or in its repository at the release's tag. The entry says where that was read, in `reason`, and names in `checked_by` the golden jobs that import and run the package. It is refused when `tests/upstream/<name>.toml` exists, or when a named job does not import the package. A new version is read again.
 
 For example, a header-only build dependency looks like this:
 
