@@ -809,7 +809,8 @@ jobs:
     # the tagged commit's parent; the tagged commit adds that acceptance and nothing else, since
     # the wheel carries the tree's own code, which no set hash covers; and the set's own
     # SHA256SUMS and python.wasm, hashed here from the build's files after same-bytes, are the
-    # ones it accepted. Only a pushed tag gets here (the plan's publish).
+    # ones it accepted. When the tag uploads to PyPI, the wheel is within the file limit PyPI has
+    # granted. Only a pushed tag gets here (the plan's publish).
     needs: [plan, build, same-bytes]
     if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
@@ -831,6 +832,44 @@ jobs:
         with:
           assets-id: ${{ needs.build.outputs.assets-id }}
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
+      - name: The wheel is within the file limit PyPI has granted, when it goes to PyPI
+        # PyPI refuses a file past the project's limit, 100 MiB until PyPI raises it, and refuses
+        # it only at the upload, after the signature and the GitHub release. So when this tag
+        # uploads (the pypi job's own condition) the wheel is held here to the limit PyPI has
+        # granted, the repository variable PYPI_FILE_LIMIT_GRANTED in bytes, or PyPI's default
+        # while it is unset; nothing is signed or published past it. With no upload, any size
+        # passes.
+        env:
+          TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}
+          PYPI_FILE_LIMIT_GRANTED: ${{ vars.PYPI_FILE_LIMIT_GRANTED }}
+        run: |
+          if [ "$TO_PYPI" != "true" ]; then
+            echo "this tag does not upload to PyPI: the GitHub release takes a wheel of any size"
+            exit 0
+          fi
+          limit="${PYPI_FILE_LIMIT_GRANTED:-104857600}"
+          case "$limit" in
+            "" | *[!0-9]* | 0*)
+              echo "PYPI_FILE_LIMIT_GRANTED is '$limit', not a whole number of bytes"
+              exit 1
+              ;;
+          esac
+          if [ "${#limit}" -gt 15 ]; then
+            echo "PYPI_FILE_LIMIT_GRANTED is '$limit', too long to be a number of bytes"
+            exit 1
+          fi
+          set -- release-assets/*.whl
+          if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+            echo "the build's files do not hold exactly one wheel"
+            exit 1
+          fi
+          bytes=$(($(wc -c < "$1")))
+          if [ "$bytes" -gt "$limit" ]; then
+            echo "$1 is $bytes bytes, past the $limit PyPI has granted: nothing is signed or published"
+            echo "once PyPI grants more, set PYPI_FILE_LIMIT_GRANTED to it and re-run the failed jobs; this line prints the limit read"
+            exit 1
+          fi
+          echo "$1 is $bytes bytes, within the $limit PyPI has granted"
       - name: These are the bytes the release pull request accepted, on the tree it judged
         run: |
           mkdir set
@@ -1652,7 +1691,8 @@ jobs:
   pypi:
     name: publish the wheel on PyPI
     # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
-    # repository variable PYPI_PUBLISH to true. It checks out this repository for the local
+    # repository variable PYPI_PUBLISH to true; judged has already held the wheel to the limit
+    # PyPI has granted (PYPI_FILE_LIMIT_GRANTED, or 100 MiB). It checks out this repository for the local
     # action alone, and uploads with the workflow's pinned uv through trusted publishing alone:
     # the job's OIDC token, exchanged for a PyPI token bound to this repository, release.yml and
     # the pypi environment. It sets no env, so no variable steers uv past --no-config.

@@ -1427,7 +1427,9 @@ NOT_BY_ID = (
 )
 OTHER_FETCH = re.compile(r"gh\s+run\s+download|actions/github-script|/actions/artifacts")
 ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}  # accept-push's, by the accept scan
-PYPI_IF = TAG_ONLY + " && vars.PYPI_PUBLISH == 'true'"
+# Whether a tag uploads to PyPI: the pypi job's condition, which the judged job reads too.
+PYPI_CONDITION = "vars.PYPI_PUBLISH == 'true'"
+PYPI_IF = TAG_ONLY + " && " + PYPI_CONDITION
 JOB_PERMISSIONS = {
     # The decision job reads the history, and this pull request's runs to re-use a green one;
     # quick runs the tools and the rules; ci-status reads only its needs' results.
@@ -2413,6 +2415,14 @@ TREE_PROOF_RUN = "uv run python tests/harness/gather.py --prove-set --tree-only"
 SET_PROOF_RUN = re.compile(
     r'^uv run python tests/harness/gather\.py --prove-set "\$(\w+)" "\$(\w+)"$', re.M
 )
+# The judged job's step that holds the wheel to the file limit PyPI has granted, before anything
+# is signed: whether the run uploads to PyPI is the pypi job's own condition, evaluated by the
+# same expression, and the limit is a repository variable the owner sets when PyPI grants more.
+PYPI_LIMIT_STEP = "The wheel is within the file limit PyPI has granted, when it goes to PyPI"
+PYPI_LIMIT_ENV = {
+    "TO_PYPI": "${{ " + PYPI_CONDITION + " }}",
+    "PYPI_FILE_LIMIT_GRANTED": "${{ vars.PYPI_FILE_LIMIT_GRANTED }}",
+}
 
 
 def tag_run_errors(text: str) -> list[str]:
@@ -2423,7 +2433,9 @@ def tag_run_errors(text: str) -> list[str]:
     where the plan's build output says; the judged job runs on the plan's publish alone, after
     the build and same-bytes, checks out the tagged commit with its parent, reads the build's
     files, and holds the set's own SHA256SUMS and python.wasm, each hashed from those files, to
-    the acceptance; attest and publish need it."""
+    the acceptance; it holds the wheel to the limit PyPI has granted on every tag, with no if:
+    or continue-on-error:, reading the pypi job's own condition (whose if: the binding scan
+    holds); attest and publish need it."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     errors = []
@@ -2480,6 +2492,13 @@ def tag_run_errors(text: str) -> list[str]:
         errors.append(
             f"{TAG_PROOF_JOB} does not run gather.py --prove-set once, on the SHA-256 of the "
             "set's own SHA256SUMS and of python.wasm, each hashed from the build's files"
+        )
+    limit = [f for f in steps if f.get("name") == PYPI_LIMIT_STEP]
+    skippable = len(limit) == 1 and bool({"if", "continue-on-error"} & set(limit[0]))
+    if len(limit) != 1 or limit[0].get("env") != PYPI_LIMIT_ENV or skippable:
+        errors.append(
+            f"{TAG_PROOF_JOB} does not run {PYPI_LIMIT_STEP!r} once, on every tag, with the env "
+            f"{PYPI_LIMIT_ENV}, and stop the job when it fails"
         )
     for name in ("attest", "publish"):
         if TAG_PROOF_JOB not in _needs(jobs.get(name, [])):

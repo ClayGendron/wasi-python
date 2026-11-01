@@ -1419,6 +1419,53 @@ def test_a_tag_publishes_what_the_release_pull_request_judged() -> None:
     assert not errors, scan.report(errors)
 
 
+# PyPI's file limit for a project it has not raised, 100 MiB (https://pypi.org/help/#file-size-limit).
+PYPI_DEFAULT_LIMIT = 104_857_600
+WHEEL = "wasi_python-0.1.3-py3-none-any.whl"
+# (the pypi job's condition, the granted limit's variable, the wheels' sizes, 1 when it refuses)
+PYPI_LIMIT_CASES = {
+    "no upload, a wheel past the default": ("false", "", [PYPI_DEFAULT_LIMIT + 1], 0),
+    "the default, a wheel at it": ("true", "", [PYPI_DEFAULT_LIMIT], 0),
+    "the default, a wheel one byte past": ("true", "", [PYPI_DEFAULT_LIMIT + 1], 1),
+    "256 MiB granted, a wheel past the default": ("true", "268435456", [PYPI_DEFAULT_LIMIT + 1], 0),
+    "256 MiB granted, a wheel one byte past": ("true", "268435456", [268_435_457], 1),
+    "a grant that is not a number": ("true", "256MiB", [1000], 1),
+    "a grant of zero": ("true", "0", [1000], 1),
+    "a grant with a leading zero": ("true", "0268435456", [1000], 1),
+    "a grant too long to compare": ("true", "9" * 30, [1000], 1),
+    "a grant that is negative": ("true", "-1", [1000], 1),
+    "no wheel": ("true", "", [], 1),
+    "two wheels": ("true", "", [1000, 1000], 1),
+}
+
+
+@pytest.mark.parametrize("case", PYPI_LIMIT_CASES)
+def test_a_tag_refuses_a_wheel_past_pypis_grant(case, tmp_path) -> None:
+    """The judged job's limit step, run in bash on a sparse wheel of each size: when the tag
+    uploads to PyPI, a wheel past the limit PyPI has granted (100 MiB while the repository
+    variable is unset) stops the run before anything is signed or published, and so does a grant
+    that is not a plain whole number or a build that did not make one wheel; when it does not
+    upload, any size passes, since the GitHub release takes it."""
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(), scan.TAG_PROOF_JOB, scan.PYPI_LIMIT_STEP
+    )
+    to_pypi, granted, sizes, want = PYPI_LIMIT_CASES[case]
+    assets = tmp_path / "release-assets"
+    assets.mkdir()
+    for i, size in enumerate(sizes):
+        with (assets / (WHEEL if i == 0 else f"other-{WHEEL}")).open("wb") as f:
+            f.truncate(size)
+    (tmp_path / "limit.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "limit.sh")],
+        cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "TO_PYPI": to_pypi, "PYPI_FILE_LIMIT_GRANTED": granted},
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
+
+
 # The wasi-libc emulation layer reads alone: five modules, which ask their host nine questions
 # through a protocol `mounts.py` declares (`_CallContext`) and import nothing of the runner but
 # the engine seam, which the table's forward uses for the fuel-neutral call. Among themselves
