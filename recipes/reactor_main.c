@@ -20,6 +20,10 @@
  * run and turn exclude each other in one instance (spec 055, Decision 2). A turn never finalizes;
  * only shutdown does, and after it every export refuses. In a prepared instance (an image's), run
  * and shutdown end the call without Python's teardown of every module the image holds.
+ * After run or shutdown finalized, every export refuses, running no Python, and the host discards
+ * the instance: teardown frees nothing (free_nothing_at_teardown), and its hook stays in place
+ * after Py_FinalizeEx. A later export that ran code after teardown would have to put the saved
+ * allocators back first.
  * The argument handling is Python (recipes/reactor_bootstrap.py), compiled at build time into
  * reactor_bootstrap.h (scripts/freeze_bootstrap.py, step 60) and loaded as the module `_reactor`
  * when the interpreter starts, so no start compiles source and a snapshot carries it ready to call.
@@ -31,7 +35,9 @@
  * Both are an embedder's frozen modules (PyImport_FrozenModules).
  */
 #include <Python.h>
+#include <errno.h>
 #include <marshal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -278,6 +284,300 @@ static PyMethodDef reactor_functions[] = {
     {NULL, NULL, 0, NULL},
 };
 
+/* Teardown frees nothing. Py_FinalizeEx runs whole, every finalizer in CPython's order, but the
+ * memory it gives back is not returned to the allocator: the instance is discarded at once, so
+ * that work has no effect. Just before Py_FinalizeEx, free_nothing_at_teardown() puts a hook over
+ * the raw, mem and object domains (PyMem_SetAllocator, wrapping the allocator each had; in this
+ * build all three are the C library's malloc, since there is no pymalloc and no free threading,
+ * and the isolated configuration ignores PYTHONMALLOC). Its malloc, calloc and realloc call the
+ * saved allocator. Its free does too until it first finds Py_IsFinalizing() true: CPython sets
+ * that only once every atexit handler and pending call has run, so they free as before. From then
+ * on (armed) a freed block is not freed but threaded onto its domain's list through its first
+ * word, where dlmalloc's own free writes its link: every dlmalloc chunk on wasm32 has 12 usable
+ * bytes, and a zero-size request takes a whole chunk.
+ *
+ * A budget keeps teardown's memory within TEARDOWN_BUDGET of what it uses today, for every
+ * allocator. The link wraps the C library's allocators (scripts/steps/60_link.sh: malloc,
+ * calloc, realloc, aligned_alloc, posix_memalign and musl's __libc_malloc and __libc_calloc),
+ * so Python's domains, numpy's data, sqlite, OpenBLAS's emulated mmap, host_alloc and C++'s
+ * operator new are all counted. Unarmed, a wrapper checks one flag. Armed, it adds the chunk the
+ * request takes in dlmalloc (the request plus its 4-byte header, rounded up to 16, at least 16;
+ * plus the alignment for an aligned request; a calloc's product saturating; a realloc's new size,
+ * so a shrink counts too): an over-count, which is safe. Before an allocation that would take the
+ * count past the budget, and after one that gets NULL, every list is freed (drained) and frees
+ * run as before for the rest of the call; a NULL is then tried once more. A failed realloc leaves
+ * its block valid, so its retry is sound. A double free traps at the drain, where natively it
+ * traps at the second free.
+ *
+ * The hook stays after Py_FinalizeEx. That is safe only because nothing runs in the instance
+ * afterwards: after run or shutdown finalized, every export refuses, running no Python, and the
+ * host discards the instance. An export that ran code after teardown would have to put the saved
+ * allocators back first. tracemalloc puts back the allocators it saved when it stops, after which
+ * frees run as before; a program that is tracing at the end gets no hook at all, since stopping
+ * would strand the lists. One thread runs (the guest imports no thread-spawn and its memory is not
+ * shared) and wasip1 delivers no asynchronous signal, so plain statics suffice. */
+#define TEARDOWN_BUDGET ((size_t)1 << 20)
+
+enum { FREES_RUN, FREES_SKIPPED, FREES_RUN_AGAIN };
+static int teardown_phase = FREES_RUN; /* FREES_RUN until armed; FREES_RUN_AGAIN is never left */
+static size_t teardown_taken = 0;      /* the chunks counted while armed */
+
+struct skipping_domain {
+    PyMemAllocatorEx saved;
+    void *skipped; /* the blocks not freed, each holding the next one's address */
+};
+static struct skipping_domain skipping[3];
+
+static void
+drain_skipped(void)
+{
+    teardown_phase = FREES_RUN_AGAIN;
+    for (int i = 0; i < 3; i++) {
+        void *block = skipping[i].skipped;
+        skipping[i].skipped = NULL;
+        while (block != NULL) {
+            void *next = *(void **)block;
+            skipping[i].saved.free(skipping[i].saved.ctx, block);
+            block = next;
+        }
+    }
+}
+
+static void *
+skipping_malloc(void *ctx, size_t size)
+{
+    struct skipping_domain *d = ctx;
+    return d->saved.malloc(d->saved.ctx, size);
+}
+
+static void *
+skipping_calloc(void *ctx, size_t nelem, size_t elsize)
+{
+    struct skipping_domain *d = ctx;
+    return d->saved.calloc(d->saved.ctx, nelem, elsize);
+}
+
+static void *
+skipping_realloc(void *ctx, void *ptr, size_t size)
+{
+    struct skipping_domain *d = ctx;
+    return d->saved.realloc(d->saved.ctx, ptr, size);
+}
+
+static void
+skipping_free(void *ctx, void *ptr)
+{
+    struct skipping_domain *d = ctx;
+    if (ptr != NULL && teardown_phase != FREES_RUN_AGAIN) {
+        if (teardown_phase == FREES_RUN && Py_IsFinalizing()) {
+            teardown_phase = FREES_SKIPPED;
+        }
+        if (teardown_phase == FREES_SKIPPED) {
+            *(void **)ptr = d->skipped;
+            d->skipped = ptr;
+            return;
+        }
+    }
+    d->saved.free(d->saved.ctx, ptr);
+}
+
+/* The chunk dlmalloc takes for a request of n bytes (malloc.c's request2size on wasm32: a 4-byte
+ * header, 16-byte alignment, a 16-byte least chunk), saturating. */
+static size_t
+chunk_of(size_t n)
+{
+    if (n > SIZE_MAX - 19) {
+        return SIZE_MAX;
+    }
+    size_t chunk = (n + 4 + 15) & ~(size_t)15;
+    return chunk < 16 ? 16 : chunk;
+}
+
+/* Armed, before an allocation: its chunk counted, or every list drained first when it would take
+ * the count past the budget. */
+static void
+count_request(size_t chunk)
+{
+    if (chunk > TEARDOWN_BUDGET - teardown_taken) {
+        drain_skipped();
+    }
+    else {
+        teardown_taken += chunk;
+    }
+}
+
+/* After an allocation: 1 when it got NULL while frees were still skipped, with every list drained
+ * so that one retry finds the heap native teardown would have. */
+static int
+drained_after_null(const void *p)
+{
+    if (p != NULL || teardown_phase != FREES_SKIPPED) {
+        return 0;
+    }
+    drain_skipped();
+    return 1;
+}
+
+void *__real_malloc(size_t);
+void *__real_calloc(size_t, size_t);
+void *__real_realloc(void *, size_t);
+void *__real_aligned_alloc(size_t, size_t);
+int __real_posix_memalign(void **, size_t, size_t);
+void *__real___libc_malloc(size_t);
+void *__real___libc_calloc(size_t, size_t);
+
+void *
+__wrap_malloc(size_t size)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real_malloc(size);
+    }
+    count_request(chunk_of(size));
+    void *p = __real_malloc(size);
+    return drained_after_null(p) ? __real_malloc(size) : p;
+}
+
+void *
+__wrap___libc_malloc(size_t size)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real___libc_malloc(size);
+    }
+    count_request(chunk_of(size));
+    void *p = __real___libc_malloc(size);
+    return drained_after_null(p) ? __real___libc_malloc(size) : p;
+}
+
+static size_t
+product(size_t nelem, size_t elsize)
+{
+    return elsize != 0 && nelem > SIZE_MAX / elsize ? SIZE_MAX : nelem * elsize;
+}
+
+void *
+__wrap_calloc(size_t nelem, size_t elsize)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real_calloc(nelem, elsize);
+    }
+    count_request(chunk_of(product(nelem, elsize)));
+    void *p = __real_calloc(nelem, elsize);
+    return drained_after_null(p) ? __real_calloc(nelem, elsize) : p;
+}
+
+void *
+__wrap___libc_calloc(size_t nelem, size_t elsize)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real___libc_calloc(nelem, elsize);
+    }
+    count_request(chunk_of(product(nelem, elsize)));
+    void *p = __real___libc_calloc(nelem, elsize);
+    return drained_after_null(p) ? __real___libc_calloc(nelem, elsize) : p;
+}
+
+/* A failed realloc leaves its block valid, so the retry is sound; realloc(p, 0) may free p and
+ * return NULL, so it is never retried. */
+void *
+__wrap_realloc(void *ptr, size_t size)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real_realloc(ptr, size);
+    }
+    count_request(chunk_of(size));
+    void *p = __real_realloc(ptr, size);
+    return (size != 0 || ptr == NULL) && drained_after_null(p) ? __real_realloc(ptr, size) : p;
+}
+
+static size_t
+aligned_chunk(size_t alignment, size_t size)
+{
+    size_t chunk = chunk_of(size);
+    return chunk > SIZE_MAX - alignment ? SIZE_MAX : chunk + alignment;
+}
+
+void *
+__wrap_aligned_alloc(size_t alignment, size_t size)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real_aligned_alloc(alignment, size);
+    }
+    count_request(aligned_chunk(alignment, size));
+    void *p = __real_aligned_alloc(alignment, size);
+    return drained_after_null(p) ? __real_aligned_alloc(alignment, size) : p;
+}
+
+int
+__wrap_posix_memalign(void **out, size_t alignment, size_t size)
+{
+    if (teardown_phase != FREES_SKIPPED) {
+        return __real_posix_memalign(out, alignment, size);
+    }
+    count_request(aligned_chunk(alignment, size));
+    int rc = __real_posix_memalign(out, alignment, size);
+    if (rc == ENOMEM && drained_after_null(NULL)) {
+        rc = __real_posix_memalign(out, alignment, size);
+    }
+    return rc;
+}
+
+/* Called by run and shutdown just before Py_FinalizeEx. A program that is tracing with
+ * tracemalloc keeps today's teardown: stopping in teardown, tracemalloc would put back the
+ * allocators it wrapped, the hook's lists stranded under it. */
+static void
+free_nothing_at_teardown(void)
+{
+    int tracing = 0;
+    PyObject *name = PyUnicode_FromString("_tracemalloc");
+    PyObject *module = name != NULL ? PyImport_GetModule(name) : NULL;
+    Py_XDECREF(name);
+    if (module != NULL) {
+        PyObject *on = PyObject_CallMethod(module, "is_tracing", NULL);
+        tracing = on == NULL || PyObject_IsTrue(on) != 0;
+        Py_XDECREF(on);
+        Py_DECREF(module);
+    }
+    PyErr_Clear();
+    if (tracing) {
+        return;
+    }
+    static const PyMemAllocatorDomain domains[3] = {PYMEM_DOMAIN_RAW, PYMEM_DOMAIN_MEM,
+                                                    PYMEM_DOMAIN_OBJ};
+    for (int i = 0; i < 3; i++) {
+        PyMem_GetAllocator(domains[i], &skipping[i].saved);
+        skipping[i].skipped = NULL;
+        PyMemAllocatorEx hook = {&skipping[i], skipping_malloc, skipping_calloc, skipping_realloc,
+                                 skipping_free};
+        PyMem_SetAllocator(domains[i], &hook);
+    }
+}
+
+/* zipimport's dict for the stdlib zip, held from the start to the instance's end. Teardown then
+ * leaves it alive: the instance is discarded at once, so freeing thousands of entries would be
+ * work with no effect. Taken once per instance, so a session's turns grow nothing; a dict read
+ * again after importlib.invalidate_caches() is not this one and is freed as before. An object a
+ * program stores in this dict is never finalized. */
+static PyObject *stdlib_directory = NULL;
+
+static void
+keep_directory(void)
+{
+    PyObject *zipimport = PyImport_ImportModule("zipimport");
+    PyObject *cache = zipimport ? PyObject_GetAttrString(zipimport, "_zip_directory_cache") : NULL;
+    PyObject *zip = PyUnicode_FromWideChar(STDLIB_ZIP, -1);
+    PyObject *files = NULL;
+    if (cache != NULL && zip != NULL && PyDict_Check(cache)) {
+        files = PyDict_GetItemWithError(cache, zip); /* borrowed */
+    }
+    if (files != NULL) {
+        Py_XSETREF(stdlib_directory, Py_NewRef(files));
+    }
+    PyErr_Clear();
+    Py_XDECREF(zip);
+    Py_XDECREF(cache);
+    Py_XDECREF(zipimport);
+}
+
 static void run_private(const char *source);
 static void show_and_drop(void);
 static void drop_stdin(void);
@@ -344,8 +644,13 @@ init_interpreter(int fixed_hash_seed)
         abort();
     }
     Py_DECREF(zip);
+    /* The plain reactor reads the stdlib zip by its folder table, each folder on first use; the
+     * snapshot reads it whole at build time, so its image holds today's dict and an import
+     * after it pays nothing to read a folder. */
     PyObject *reader = PyImport_ImportModule("_zip_directory");
-    PyObject *installed = reader ? PyObject_CallMethod(reader, "install", NULL) : NULL;
+    PyObject *installed = reader ? PyObject_CallMethod(reader, "install", "O",
+                                                       fixed_hash_seed ? Py_False : Py_True)
+                                 : NULL;
     Py_XDECREF(reader);
     if (installed == NULL) {
         PyErr_Print();
@@ -375,6 +680,7 @@ init_interpreter(int fixed_hash_seed)
     /* What site would have added to builtins, without its path work: exit, quit, help,
      * copyright, credits, license. */
     run_private("import site\nsite.setquit()\nsite.setcopyright()\nsite.sethelper()\n");
+    keep_directory();
     initialized = 1;
 }
 
@@ -558,6 +864,7 @@ run(void)
         Py_XDECREF(done);
     }
     Py_CLEAR(unfreeze_function);
+    free_nothing_at_teardown();
     if (Py_FinalizeEx() < 0) {
         rc = 120;
     }
@@ -764,6 +1071,7 @@ reactor_shutdown(void)
     }
     Py_CLEAR(unfreeze_function);
     Py_CLEAR(turn_function);
+    free_nothing_at_teardown();
     int rc = Py_FinalizeEx() < 0 ? 120 : 0;
     fflush(stdout);
     fflush(stderr);

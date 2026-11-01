@@ -60,6 +60,9 @@
 # their PKG-INFO.
 # drawsvg: its pure wheel, whole: its raster, video and colour helpers and its widgets folder stay,
 # so each names the package it lacks (CairoSVG, imageio, pwkit, ipywidgets) as it does natively.
+# Last, make_stdlib_zip.py writes the folder table into the zip's archive comment: each top-level
+# folder's run of the directory, which a plain start reads only when a program first uses that
+# folder. The snapshot reads the whole directory at build time, as before.
 set -eu
 . "$(dirname "$0")/common.sh"
 

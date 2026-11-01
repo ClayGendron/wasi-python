@@ -220,12 +220,13 @@ files = [
 systems = ["macos", "linux", "windows"]
 
 [shard.own-guest-c]
-# data_stack took 3.8 minutes on Windows in run 41153418045; three small files join it.
+# data_stack took 3.8 minutes on Windows in run 41153418045; four small files join it.
 files = [
   "tests/checks/test_v1_3_data_stack.py",
   "tests/checks/test_v1_3_lxml.py",
   "tests/checks/test_v1_3_regex.py",
   "tests/checks/test_v1_2_portable_and_sealed.py",
+  "tests/checks/test_v1_4_the_end_of_a_call.py",
 ]
 systems = ["macos", "linux", "windows"]
 

@@ -1356,3 +1356,111 @@ def test_the_wasmtime_cli_is_the_lines_by_its_exact_name(tmp_path) -> None:
     found = paths.wasmtime_cli("wasmtime-v50.0.1-aarch64-macos", tools=tmp_path)
     assert found == tmp_path / "wasmtime-v50.0.1-aarch64-macos" / "wasmtime"
     assert paths.wasmtime_cli("wasmtime-v51.0.0-aarch64-macos", tools=tmp_path) is None
+
+
+# The folder table in the stdlib zip's archive comment.
+
+
+def _sorted_zip(path: Path, names: list[str], comment: bytes = b"") -> None:
+    """A zip of `names`, written in the order given, each holding its own name, as step 70
+    writes its members: deflated, with the fixed time and mode."""
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for name in names:
+            z.writestr(make_stdlib_zip.member(name), name.encode())
+        z.comment = comment
+
+
+def _directory(data: bytes) -> list[tuple[str, int, int]]:
+    """Each directory entry's name, offset from the directory's first entry, and length."""
+    end = data.rfind(b"PK\x05\x06")
+    count = int.from_bytes(data[end + 10 : end + 12], "little")
+    offset = int.from_bytes(data[end + 16 : end + 20], "little")
+    out, p = [], offset
+    for _ in range(count):
+        n, e, c = (int.from_bytes(data[p + i : p + i + 2], "little") for i in (28, 30, 32))
+        out.append((data[p + 46 : p + 46 + n].decode(), p - offset, 46 + n + e + c))
+        p += 46 + n + e + c
+    return out
+
+
+FOLDER_NAMES = [
+    "a.pyc",
+    "pkg-1.0.dist-info/METADATA",
+    "pkg/Upper.pyc",
+    "pkg/__init__.py",
+    "pkg/__init__.pyc",
+    "pkg/sub/m.pyc",
+    "plain/data.txt",
+    "top.pyc",
+    "zeta/__init__.pyc",
+]
+
+
+def test_the_folder_table_lists_each_folders_run(tmp_path) -> None:
+    """A made zip's table, line for line: every top-level folder but a .dist-info, with its run
+    and the run of its `__init__.*` entries (`0 0` without one), offsets from the directory's
+    first entry."""
+    path = tmp_path / "z.zip"
+    _sorted_zip(path, FOLDER_NAMES)
+    size = make_stdlib_zip.write_folder_table(path)
+    entries = {name: (offset, length) for name, offset, length in _directory(path.read_bytes())}
+
+    def run(*names: str) -> str:
+        first = entries[names[0]][0]
+        return f"{first} {sum(entries[n][1] for n in names)} {len(names)}"
+
+    want = (
+        "wasi-python folders 1\n"
+        f"pkg {run('pkg/Upper.pyc', 'pkg/__init__.py', 'pkg/__init__.pyc', 'pkg/sub/m.pyc')} "
+        f"{entries['pkg/__init__.py'][0]} 2\n"
+        f"plain {run('plain/data.txt')} 0 0\n"
+        f"zeta {run('zeta/__init__.pyc')} {entries['zeta/__init__.pyc'][0]} 1\n"
+    )
+    with zipfile.ZipFile(path) as z:
+        assert z.comment.decode("ascii") == want
+        assert z.testzip() is None and z.namelist() == FOLDER_NAMES
+    assert size == len(want)
+
+
+def test_the_folder_table_changes_only_the_comment_and_repeats(tmp_path) -> None:
+    """The same members give the same bytes twice; only the end record's comment length and the
+    comment change, and a comment already there is replaced."""
+    first, second, commented = tmp_path / "1.zip", tmp_path / "2.zip", tmp_path / "3.zip"
+    _sorted_zip(first, FOLDER_NAMES)
+    _sorted_zip(second, FOLDER_NAMES)
+    _sorted_zip(commented, FOLDER_NAMES, comment=b"wasi-python folders 1\nold 0 1 1 0 0\n")
+    before = first.read_bytes()
+    for path in (first, second, commented):
+        make_stdlib_zip.write_folder_table(path)
+    assert first.read_bytes() == second.read_bytes() == commented.read_bytes()
+    after = first.read_bytes()
+    end = before.rfind(b"PK\x05\x06")
+    assert after[: end + 20] == before[: end + 20] and len(before) == end + 22
+    assert after[end + 22 :].startswith(b"wasi-python folders 1\n")
+
+
+def test_the_folder_table_stops_on_a_split_folder_or_its_size(tmp_path) -> None:
+    """A folder in two runs of the directory, and a table past a comment's 65,535 bytes, stop the
+    build; a folder named outside the table's alphabet is read at start, so it is not listed."""
+    split = tmp_path / "split.zip"
+    _sorted_zip(split, ["pkg/a.pyc", "top.pyc", "pkg/b.pyc"])
+    with pytest.raises(SystemExit, match="pkg/ is not one run"):
+        make_stdlib_zip.write_folder_table(split)
+    inits = tmp_path / "inits.zip"
+    _sorted_zip(inits, ["pkg/__init__.py", "pkg/a.pyc", "pkg/__init__.pyc"])
+    with pytest.raises(SystemExit, match="__init__"):
+        make_stdlib_zip.write_folder_table(inits)
+    big = tmp_path / "big.zip"
+    _sorted_zip(big, [f"folder_{i:05d}_{'x' * 40}/m.pyc" for i in range(1200)])
+    with pytest.raises(SystemExit, match="65,535"):
+        make_stdlib_zip.write_folder_table(big)
+    odd = tmp_path / "odd.zip"
+    _sorted_zip(odd, ["café/m.pyc", "my pkg/m.pyc", "ok/m.pyc"])
+    make_stdlib_zip.write_folder_table(odd)
+    with zipfile.ZipFile(odd) as z:
+        assert [line.split(" ")[0] for line in z.comment.decode().splitlines()[1:]] == ["ok"]
+    assert [make_stdlib_zip.tabled_folder(n) for n in ("x/y", "x", "x.dist-info/M")] == [
+        "x",
+        None,
+        None,
+    ]
