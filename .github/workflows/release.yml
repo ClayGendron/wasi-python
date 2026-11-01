@@ -374,15 +374,15 @@ jobs:
         # On a source run only: a reuse run has no tree here. Each rebuild job runs the same step
         # on its own tree, with no if:.
         if: steps.compile.outcome == 'success'
-        # All thirty-three trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # All thirty-four trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
         # twenty-eighth, python-docx's and python-pptx's sdists the twenty-ninth and thirtieth,
-        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the last): a skipped check (a
-        # tree not unpacked) would exit 0 too.
+        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the thirty-third, zstd's the
+        # last): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -Eq "^33 passed, [0-9]+ deselected in" zero-patch.txt
+          grep -Eq "^34 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The SHA-256 of python.wasm, handed to the gather
         id: wasm
         run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> "$GITHUB_OUTPUT"
@@ -482,15 +482,15 @@ jobs:
       - name: Build from the pins
         run: scripts/build.sh
       - name: The source trees are their tarballs plus the recorded patches
-        # All thirty-three trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # All thirty-four trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
         # twenty-eighth, python-docx's and python-pptx's sdists the twenty-ninth and thirtieth,
-        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the last): a skipped check (a
-        # tree not unpacked) would exit 0 too.
+        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the thirty-third, zstd's the
+        # last): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -Eq "^33 passed, [0-9]+ deselected in" zero-patch.txt
+          grep -Eq "^34 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The build shard
         # Only the checks that need the build tree: every component's tree, the compile records and
         # the zlib tarball, on this job's own build. The rest of the judge runs in the judge jobs.
@@ -583,15 +583,15 @@ jobs:
       - name: Build from the pins
         run: scripts/build.sh
       - name: The source trees are their tarballs plus the recorded patches
-        # All thirty-three trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # All thirty-four trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
         # twenty-eighth, python-docx's and python-pptx's sdists the twenty-ninth and thirtieth,
-        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the last): a skipped check (a
-        # tree not unpacked) would exit 0 too.
+        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the thirty-third, zstd's the
+        # last): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -Eq "^33 passed, [0-9]+ deselected in" zero-patch.txt
+          grep -Eq "^34 passed, [0-9]+ deselected in" zero-patch.txt
       - id: sums
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

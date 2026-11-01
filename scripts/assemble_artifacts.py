@@ -31,6 +31,7 @@ PACKAGES = {
     "bzip2": "1.0.8",
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it
+    "zstd": "1.5.7",  # libzstd, linked into _zstd
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.6",
     "six": "1.17.0",
@@ -636,6 +637,14 @@ def sqlite_notice(b: Path) -> bytes:
     return (text[: end + 2] + "\n").encode()
 
 
+# The words divsufsort.c's notice must hold: its author, and MIT's grant and warranty lines.
+ZSTD_MIT = (
+    "Yuta Mori",
+    "Permission is hereby granted, free of charge",
+    'THE SOFTWARE IS PROVIDED "AS IS"',
+)
+
+
 def head_notice(path: Path, words: tuple[str, ...]) -> bytes:
     """The first of a C file's two leading comments that holds every one of `words`."""
     if not path.is_file():
@@ -878,6 +887,19 @@ def main() -> None:
         # Only liblzma is linked, and its files are 0BSD (COPYING says which parts are which).
         "xz": [(f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")],
         "sqlite": [("SQLite sqlite3.h, its header comment", sqlite_notice(b))],
+        # zstd is BSD-3-Clause or GPLv2 at the user's choice, and the set takes BSD-3-Clause, so
+        # its LICENSE ships and its COPYING (GPLv2) does not. The dictionary builder's suffix
+        # sorter is Yuta Mori's libdivsufsort-lite, under MIT, whose notice heads its file.
+        "zstd": [
+            (
+                "zstd LICENSE (BSD-3-Clause, the side of its dual licence this set takes)",
+                (b / "zstd-1.5.7" / "LICENSE").read_bytes(),
+            ),
+            (
+                "zstd lib/dictBuilder/divsufsort.c (libdivsufsort-lite), its head comment",
+                head_notice(b / "zstd-1.5.7" / "lib" / "dictBuilder" / "divsufsort.c", ZSTD_MIT),
+            ),
+        ],
         # FreeType's BDF and PCF drivers are built, so their notices ship.
         "freetype": [
             (f"FreeType {n}", (b / "freetype-2.14.3" / n).read_bytes())

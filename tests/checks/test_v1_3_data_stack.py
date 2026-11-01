@@ -61,6 +61,76 @@ def test_compress_job_matches_native(guest) -> None:
 
 
 @pytest.mark.slow
+def test_zstd_files_job_matches_native(guest) -> None:
+    """compression.zstd at three levels, with a trained dictionary and as a stream, and tarfile's
+    and zipfile's zstd formats write the same bytes as native, over the same libzstd."""
+    why = jobs.compare(
+        jobs.expected_path("zstd_files").read_bytes(), jobs.run_in_guest(guest, "zstd_files")
+    )
+    assert why is None, why
+
+
+PANDAS_ZSTD = """
+import io, os
+import pandas as pd
+from compression import zstd
+os.makedirs("/work")  # the judge's root has no /tmp
+os.chdir("/work")
+df = pd.DataFrame({"city": ["Oslo", "Lima", "Pune"] * 40, "sales": range(120),
+                   "price": [1.5, 2.25, 3.125] * 40})
+text = df.to_csv()
+def back(*args, **kw):
+    return pd.read_csv(*args, index_col=0, **kw).equals(df)
+def refused(call, word):
+    try:
+        call()
+    except TypeError as e:
+        return word in str(e)
+    return False
+df.to_csv("frame.csv.bin", compression="zstd")
+with zstd.open("frame.csv.bin", "rt") as f:
+    print("named", f.read() == text, back("frame.csv.bin", compression="zstd"))
+df.to_csv("frame.csv.zst")
+with zstd.open("frame.csv.zst", "rt") as f:
+    print("inferred", f.read() == text, back("frame.csv.zst"))
+buf = io.BytesIO()
+df.to_csv(buf, compression="zstd")
+print("buffer", zstd.decompress(buf.getvalue()).decode() == text,
+      back(io.BytesIO(buf.getvalue()), compression="zstd"))
+df.to_pickle("frame.pkl", compression="zstd")
+print("pickle", pd.read_pickle("frame.pkl", compression="zstd").equals(df))
+df.to_csv("level.zst", compression={"method": "zstd", "level": 19})
+with open("level.zst", "rb") as f:
+    print("level", zstd.decompress(f.read()).decode() == text)
+print("threads", refused(
+    lambda: df.to_csv("t.zst", compression={"method": "zstd", "threads": 2}), "threads"))
+print("level on read", refused(
+    lambda: pd.read_csv("frame.csv.zst", compression={"method": "zstd", "level": 3}), "level"))
+"""
+
+
+def test_pandas_zstd_reads_and_writes_through_the_standard_library(guest) -> None:
+    """pandas' `compression="zstd"` asks for python-zstandard, which the set does not carry; a
+    carried patch makes it use the standard library's compression.zstd when python-zstandard is
+    missing. Written files are zstd frames compression.zstd reads, by name, by suffix and in a
+    buffer, pickles round-trip, `level` is passed on when writing, and an option
+    compression.zstd does not take raises TypeError naming it, as python-zstandard would. pandas'
+    own zstd tests skip without python-zstandard, so this is the path's one check."""
+    r = guest("snapshot", ["-c", PANDAS_ZSTD])
+    assert r.exit_code == 0, r.describe()
+    want = (
+        "named True True\n"
+        "inferred True True\n"
+        "buffer True True\n"
+        "pickle True\n"
+        "level True\n"
+        "threads True\n"
+        "level on read True\n"
+    )
+    assert r.text == want, r.text
+
+
+@pytest.mark.slow
 def test_sqlite_job_matches_native(guest) -> None:
     """sqlite3 on a file, with a forced spill to temporary files, and pandas' to_sql and read_sql
     give native's results."""
