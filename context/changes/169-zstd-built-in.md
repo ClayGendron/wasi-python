@@ -37,5 +37,5 @@ units = 1
 "tests/upstream/packages.toml" = "zstd is a component of the set, reached through compression.zstd, which joins stdlib_modules"
 "tests/upstream/python/cpython-release-archives.txt" = "test_zipimport's two Zstandard ZIP64 tests skip for want of the largefile resource in cpython-archives, as their Deflate and stored kin do, so the release group runs them"
 "tests/upstream/python.toml" = "cpython-release-archives runs the two Zstandard ZIP64 tests too: measured 248.9 G on darwin arm64 (99.7 G before), its cap 150 G to 380 G, 1.5 times the measure"
-"context/release-claims.toml" = "169's block: cpython-release-archives' new passes and its fuel"
+"context/release-claims/169-zstd-built-in.toml" = "169's block: cpython-release-archives' new passes and its fuel"
 ```
