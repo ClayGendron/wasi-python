@@ -421,7 +421,9 @@ via = "cairocffi"
 kind = "suite"
 
 [package.cairosvg]
-# its API tests from its sdist, one group in tests/upstream/cairosvg.toml
+# its API tests from its sdist, one group in tests/upstream/cairosvg.toml; its non-regression
+# suite compares with an older CairoSVG from a git submodule, not in the sdist, and is not run (the
+# golden job svg_to_png checks its rendering against native cairo)
 kind = "suite"
 
 [package.tinycss2]

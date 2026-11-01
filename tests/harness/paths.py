@@ -193,7 +193,7 @@ LICENCE_COMPONENTS = (
     "xarray",
     # drawsvg, its wheel's MIT licence
     "drawsvg",
-    # SVG to PNG through cairo: cairo under MPL-1.1 with the MIT-style notices of nine files,
+    # SVG to PNG through cairo: cairo under MPL-1.1 with the MIT-style notices of eight files,
     # pixman with each compiled file's notice, libpng, cffi, cairocffi, CairoSVG's LGPL-3.0 with
     # GPL-3.0's text, and the three wheels' licences
     "cairo",
@@ -341,6 +341,7 @@ VERDICT_BEARING = (
     "tests/known_gaps.toml",
     "tests/upstream/*.toml",
     "tests/upstream/expected/**",
+    "tests/upstream/stand-ins/**",
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",

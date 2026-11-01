@@ -484,8 +484,8 @@ REPORTLAB_NOTICES = (
 )
 # cairo is used under the Mozilla Public License 1.1, one of the two licences its COPYING offers
 # for every file of the library; MPL-1.1 section 3.6 asks the executable's notice to say where the
-# source is. Its sweep found nine compiled files under more liberal, MIT-style terms of their own,
-# each of whose leading notices ships too (cairo-font-face-twin-data.c points to
+# source is. Its sweep found eight compiled files under more liberal, MIT-style terms of their own,
+# each of whose leading notices ships too (a ninth, cairo-font-face-twin-data.c, points to
 # cairo-font-face-twin.c, which is MPL-1.1 or LGPL-2.1).
 CAIRO_TOP = "cairo-1.18.6"
 CAIRO_TARBALL = "cairo-1.18.6.tar.xz"
@@ -517,12 +517,18 @@ PIXMAN_NOTICE_FILES = tuple(
 )  # fmt: skip
 # CairoSVG is LGPL-3.0-or-later, whose text builds on GPL-3.0's, pinned from SPDX's list.
 CAIROSVG_TOP = "cairosvg-2.9.1"
+# cffi's closure allocator is CPython's, which its LICENSE's "except when otherwise stated" covers.
+CFFI_CLOSURE_NOTICE = """\
+src/c/malloc_closure.h, compiled into cffi's C backend, is from CPython's Modules/_ctypes
+(malloc_closure.c), with edits, as its head comment says. It is under the Python Software
+Foundation License, whose text is in LICENSES/cpython.txt.
+"""
 GPL_TEXT = "spdx-31ba1a50-GPL-3.0-only.txt"
 CAIROSVG_FACTS = """\
 CairoSVG 2.9.1 is in this release as Python source and as bytecode compiled from it: both are in
 python-stdlib.zip under cairosvg/, the source beside each .pyc. The source is the pinned sdist,
 https://files.pythonhosted.org/packages/c6/80/db62c0a96d2e55282c83524f6b1d02f09c7fd7f612e93bf83e30de1dc75c/cairosvg-2.9.1.tar.gz,
-with one recorded change, recipes/patches/cairosvg-2.9.1/0001-read-version-through-the-package-loader.patch,
+with one recorded change, made 2026-10-31, recipes/patches/cairosvg-2.9.1/0001-read-version-through-the-package-loader.patch,
 which reads its VERSION file through the package's loader, and without its test module; the
 release's recipe rebuilds the zip from them.
 
@@ -1102,7 +1108,10 @@ def main() -> None:
         "libpng": [("libpng LICENSE", (b / "libpng-1.6.59" / "LICENSE").read_bytes())],
         # MIT No Attribution; its closure allocator (src/c/malloc_closure.h) is CPython's, under
         # the PSF licence LICENSES/cpython.txt holds
-        "cffi": [("cffi LICENSE", (b / "cffi-2.1.1" / "LICENSE").read_bytes())],
+        "cffi": [
+            ("cffi LICENSE", (b / "cffi-2.1.1" / "LICENSE").read_bytes()),
+            ("cffi src/c/malloc_closure.h", CFFI_CLOSURE_NOTICE.encode()),
+        ],
         "cairocffi": [("cairocffi LICENSE", (b / "cairocffi-1.7.1" / "LICENSE").read_bytes())],
         "cairosvg": cairosvg_parts(b, d),
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],

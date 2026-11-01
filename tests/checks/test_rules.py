@@ -453,6 +453,7 @@ VERDICT_BEARING = (
     "tests/known_gaps.toml",
     "tests/upstream/*.toml",
     "tests/upstream/expected/**",
+    "tests/upstream/stand-ins/**",
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
@@ -518,9 +519,10 @@ def test_the_release_ledger_is_a_file_per_pull_request() -> None:
 
 def test_the_verdict_bearing_files_are_judge_files() -> None:
     """The list `--accept-judge` reads names the known gaps, the upstream suites' allowances, their
-    expected failures, CPython's plan, the shard plan, the public API's list and the release tier's
-    claims, and nothing else; each entry matches a file the judge's hash holds, so a change to one
-    is seen as a judge change and none of them is a name that matches nothing."""
+    expected failures, their test-side stand-ins, CPython's plan, the shard plan, the public API's
+    list and the release tier's claims, and nothing else; each entry matches a file the judge's
+    hash holds, so a change to one is seen as a judge change and none of them is a name that
+    matches nothing."""
     errors = []
     if paths.VERDICT_BEARING != VERDICT_BEARING:
         errors.append(f"paths.VERDICT_BEARING is {paths.VERDICT_BEARING}, not {VERDICT_BEARING}")

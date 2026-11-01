@@ -704,8 +704,10 @@ groups = ["pyyaml-smoke", "mpmath-smoke", "seaborn-smoke", "sympy-smoke", "formu
 systems = ["linux"]
 
 [shard.upstream-pure-smoke-b]
-# 253.0 G measured: 128.5 G, then python-docx's and python-pptx's smoke groups, 18.6 G and 13.4 G,
-# and pdfplumber's, pdfminer.six's and xarray's, 41.4 G, 11.5 G and 39.7 G, on darwin-arm64
+# 454.3 G measured: 128.5 G, then python-docx's and python-pptx's smoke groups, 18.6 G and 13.4 G,
+# pdfplumber's, pdfminer.six's and xarray's, 41.4 G, 11.5 G and 39.7 G, and tinycss2's,
+# cssselect2's, cairocffi's, CairoSVG's and imageio's, 105.9 G, 18.0 G, 14.1 G, 16.3 G and 47.0 G,
+# on darwin-arm64
 groups = ["tomli-w-smoke", "charset-normalizer-smoke", "markupsafe-smoke", "more-itertools-smoke", "tzdata-smoke", "defusedxml-smoke", "interface-meta-smoke", "xlrd-smoke", "webencodings-smoke", "cycler-smoke", "cloudpickle-smoke", "python-docx-smoke", "python-pptx-smoke", "pdfplumber-smoke", "pdfminer-six-smoke", "xarray-smoke", "tinycss2-smoke", "cssselect2-smoke", "cairocffi-smoke", "cairosvg-smoke", "imageio-smoke"]
 systems = ["linux"]
 

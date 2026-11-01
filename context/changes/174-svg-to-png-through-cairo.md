@@ -13,6 +13,8 @@
 - **A carried patch lets CairoSVG import from the zip.** `recipes/patches/cairosvg-2.9.1/0001-read-version-through-the-package-loader.patch` reads CairoSVG's VERSION file through the package's loader instead of a path made from `__file__`, which names no file inside the zip. [Carrying a patch](https://claygendron.github.io/wasi-python/contributing/carrying-a-patch/)
 - **cairocffi runs on a stand-in for its `ffi` module.** The bindings are written in cffi's API mode at build time and linked in; `recipes/cairocffi_ffi_stand_in.py` replaces the module that would load cairo at run time, and step 56 stops if the pinned cairocffi grows past it. [Building](https://claygendron.github.io/wasi-python/contributing/building/)
 
+- **The judge's rules for the new families.** A test-source smoke group may measure 110 G and all of them 1.2 T (tinycss2's one file is 105.9 G); a family may stage test-side stand-ins (`test_stand_ins`) that name no module the zip carries, an edit to one a judge change; the zip may carry `cairosvg/*.py` beside their bytecode. [Adding a package](https://claygendron.github.io/wasi-python/contributing/adding-a-package/)
+
 ## Package rows
 
 | cairocffi | 1.7.1 | Built in, over cairo 1.18.6 with pixman 0.46.4 and libpng 1.6.59, and cffi 2.1.1's C backend: image, PDF and SVG surfaces, PNG in and out, text in matplotlib's DejaVu fonts. No PostScript. |
@@ -68,5 +70,10 @@ units = 0
 "tests/upstream/expected/imageio-r/legacy-tifffile.txt" = "the members of the class imageio-r-legacy-tifffile"
 "tests/known_gaps.toml" = "the fourteen classes' gaps, by their findings' digests, within the pure-Python packages' section"
 "tests/release_shards.toml" = "test_v1_3_drawing.py joins own-guest-c on all three systems; the five smoke groups join upstream-pure-smoke-b; the two release groups take a new release shard, upstream-release-069, its minutes estimated from their fuel"
+"tests/harness/packages.py" = "the test-source smoke bounds rise, a group from 100 G to 110 G for tinycss2's one test file (105.9 G, which a smoke family cannot split by path) and the total from 1 T to 1.2 T for the five families' 201.3 G; and the test_stand_ins key, each stand-in a file of tests/upstream/stand-ins/ naming no module the zip carries"
+"tests/harness/artifacts.py" = "the zip's bytecode-only rule admits cairosvg/*.py, each beside its .pyc, the source CairoSVG's LGPL-3.0 asks for"
+"tests/harness/paths.py" = "tests/upstream/stand-ins/** is verdict-bearing, since a test-side stand-in steers which tests pass; and the new components' licence and package names"
+"tests/upstream/stand-ins/pikepdf.py" = "a stand-in that lets cairocffi's test_cairo.py collect; each use raises, so its five tests fail in the class no-pikepdf"
+"tests/upstream/stand-ins/pytest_cache_stand_in.py" = "a session cache for imageio's test_images fixture, which reads config.cache and would otherwise make its folder in the read-only stage"
 "context/release-claims/174-svg-to-png-through-cairo.toml" = "174's block: the two release groups and their classes are new"
 ```
