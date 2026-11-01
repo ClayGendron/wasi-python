@@ -16,17 +16,18 @@ CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, 
 
 | package | version | what works |
 |---|---|---|
-| numpy | 2.5.2 | Built in. Linear algebra, `dot` and `matmul` run on the set's OpenBLAS 0.3.34, as native numpy's do. The default integer is 32-bit. |
-| pandas | 3.0.6 | Built in, including `read_html`, `read_xml` and `to_xml` through lxml, `.xlsx` through openpyxl and xlsxwriter, and the Styler. |
+| numpy | 2.5.4 | Built in. Linear algebra, `dot` and `matmul` run on the set's OpenBLAS 0.3.34, as native numpy's do. The default integer is 32-bit. |
+| pandas | 3.1.0 | Built in, including `read_html`, `read_xml` and `to_xml` through lxml, `.xlsx` through openpyxl and xlsxwriter, and the Styler. |
 | scipy | 1.18.1 | Everything but `scipy.odr`: `linalg`, `sparse`, `optimize` (HiGHS's `linprog` and `milp`), `integrate`, `interpolate`, `signal`, `fft`, `special`, `stats`, `spatial`, `ndimage`, `cluster`, `io` and the rest. It runs on one thread. |
 | scikit-learn | 1.9.1 | Every public submodule, and its six bundled datasets. It runs serially, with the same answers. |
-| statsmodels | 0.15.0 | Every public submodule, `statsmodels.api` and `statsmodels.formula.api` included, with formulaic 1.2.2 (with interface-meta 2.0.1 and wrapt 2.5.1) as a second formula engine. Sixteen public-domain datasets ship. |
-| matplotlib | 3.11.2 | The Agg backend. PNG, PDF, PS, EPS and SVG save. Contours through contourpy 1.4.0, and Delaunay triangulations through qhull 8.0.2. Text through FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0 and libraqm 0.10.5. See [matplotlib](../how-to/matplotlib.md). |
-| Pillow | 13.0.0 | Its core, with zlib only: PNG works; JPEG and the other codecs do not. |
+| statsmodels | 0.15.0 | Every public submodule, `statsmodels.api` and `statsmodels.formula.api` included, with formulaic 1.2.2 (with interface-meta 2.0.1 and wrapt 2.5.2) as a second formula engine. Sixteen public-domain datasets ship. |
+| matplotlib | 3.11.2 | The Agg backend. PNG, JPEG, PDF, PS, EPS and SVG save. Contours through contourpy 1.4.0, and Delaunay triangulations through qhull 8.0.2. Text through FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0 and libraqm 0.10.5. See [matplotlib](../how-to/matplotlib.md). |
+| Pillow | 13.0.0 | Its core, with zlib and libjpeg-turbo 3.2.0: PNG and JPEG (and MPO) read and write; WebP, TIFF's compressions and JPEG 2000 do not. This software is based in part on the work of the Independent JPEG Group. |
 | kiwisolver | 1.5.1 | Built in, as one of matplotlib's dependencies. |
 | contourpy | 1.4.0 | Contours for matplotlib. Its threaded algorithm runs on one thread. |
 | lxml | 6.1.3 | `lxml.etree` and `lxml.objectify` over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath, XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser and `iterparse`. |
 | regex | 2026.9.29 | Fuzzy matching, full Unicode properties, graphemes, variable-length lookbehind, `captures()`, with native regex's answers. |
+| cairocffi | 1.7.1 | Built in, over cairo 1.18.6 with pixman 0.46.4 and libpng 1.6.59, and cffi 2.1.1's C backend: image, PDF and SVG surfaces, PNG in and out, text in matplotlib's DejaVu fonts. No PostScript. |
 
 A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml and regex each have golden jobs, and each gives native's answers.
 

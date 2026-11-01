@@ -87,6 +87,7 @@ The sandbox stops the guest reaching what it was not given. It does not make eve
 - **An `env=` that overrides `HOME`, `PYTHONTZPATH` or `SCIKIT_LEARN_DATA`** on a reused root, or into a writable grant or mount that a later call reuses. scikit-learn's cached datasets are pickles, so that folder's contents are code.
 - **Writable grants and imports across calls.** Granting a folder writable in one call and importing from it in another runs whatever the first call left there.
 - **Concurrent calls on one root**, or a guest that can write a folder above another call's root. One can change the files the other uses.
+- **A checkpoint**, which carries everything its session read, from grants, mounts, tools and its environment's values, to every start from it and to whoever holds its file. Start one only where that code may read it all. See [checkpoint a session](../how-to/snapshots.md#checkpoint-a-session-and-fork-it).
 - **Everything a turn leaves in a session** for the turns after it. A session is one trust domain: never send a more trusted turn after less trusted code in the same session. See [sessions](sessions.md).
 
 ### Your process's own resources
