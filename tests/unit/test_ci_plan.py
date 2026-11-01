@@ -1478,10 +1478,36 @@ def test_a_pull_request_writes_its_claim_blocks_in_its_own_ledger_file() -> None
     assert len(_ledger_refused(base, appended)) == 2
 
 
+# The other spellings TOML reads as the header of one more [[claim]] table.
+SPELLINGS = ("[[ claim ]]", '[["claim"]]', "  [[claim]]")
+
+
+@pytest.mark.parametrize("header", SPELLINGS)
+def test_a_block_in_another_header_spelling_is_still_a_block_added(header) -> None:
+    """The ledger's blocks are compared as TOML reads them, not as text: a claim prepended to
+    another change's file under another spelling of its header is a block that file gains."""
+    injected = f'{header}\nspec = "140"\ngrows = ["x"]\ngrowth = "injected"\n\n'
+    added = _ledger_refused({OTHERS_FILE: LEDGER_BLOCK}, {OTHERS_FILE: injected + LEDGER_BLOCK})
+    assert len(added) == 1 and "gains" in added[0] and OTHERS_FILE in added[0], added
+    own = _ledger_refused({}, {OWN_FILE: injected.replace('"140"', '"999"')})
+    assert own == []
+
+
+def test_another_changes_ledger_file_is_not_renamed_or_removed() -> None:
+    """Its name says whose it is and orders the release's reading; only date's move, in the
+    release's preparation, removes it. The pull request's own file it may rename or remove."""
+    renamed = "context/release-claims/140-renamed.toml"
+    why = _ledger_refused({OTHERS_FILE: LEDGER_BLOCK}, {renamed: LEDGER_BLOCK})
+    assert len(why) == 1 and OTHERS_FILE in why[0] and "renamed or removed" in why[0], why
+    assert _ledger_refused({OWN_FILE: OTHER_BLOCK}, {}) == []
+
+
 def test_a_pull_request_may_not_drop_another_changes_claim_block() -> None:
-    base = {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK}
-    dropped = _ledger_refused(base, {OWN_FILE: OTHER_BLOCK})
+    second = '[[claim]]\nspec = "140"\npasses = ["y"]\nfewer = "z"\n'
+    base = {OTHERS_FILE: LEDGER_BLOCK + "\n" + second, OWN_FILE: OTHER_BLOCK}
+    dropped = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK})
     assert len(dropped) == 1 and "loses" in dropped[0] and OTHERS_FILE in dropped[0], dropped
+    base = {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK}
     assert (
         _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK}) == []
     )  # its own block it may take back

@@ -16,7 +16,7 @@ None.
 [[claim]]
 spec = "177"
 new = ["tests/checks/test_rules.py::test_the_release_ledger_is_a_file_per_pull_request"]
-units = 11
+units = 18
 [claim.judge]
 "context/release-claims/*" = "the release ledger becomes a folder of one file per pull request: the six blocks of context/release-claims.toml move, byte for byte, each into the file named after its change's news file (159, 165, 166's two, 167, 171), the single file is removed, and the folder's README says its rule; the release reads the same claims"
 ```

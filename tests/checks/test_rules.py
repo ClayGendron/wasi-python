@@ -488,7 +488,8 @@ def test_the_release_ledger_is_a_file_per_pull_request() -> None:
     """The release ledger is a folder of one file per pull request, each named after its news
     file, `NNN-<slug>.toml`, beside the folder's README: two open pull requests that each write
     a reason for the release write two files, so neither conflicts with the other's merge. The
-    single file every pull request once appended to does not come back."""
+    single file every pull request once appended to does not come back, and every table header
+    is written `[[claim]]`."""
     from harness import news
 
     errors = []
@@ -503,6 +504,15 @@ def test_the_release_ledger_is_a_file_per_pull_request() -> None:
     for p in sorted(folder.iterdir()) if folder.is_dir() else ():
         if p.name != "README.md" and not news.LEDGER_NAME.fullmatch(p.name):
             errors.append(f"{news.LEDGER}/{p.name}: a ledger file is named NNN-<slug>.toml")
+    # Every array-of-tables header is `[[claim]]` alone at the start of its line: TOML reads
+    # `[[ claim ]]`, `[["claim"]]` and an indented header as the same table, which a reader of
+    # the text would miss.
+    for name, text in news.ledger_files(folder).items():
+        try:
+            tables = len(news.ledger_tables(name, text))
+        except news.NewsError:
+            continue  # the shape check names it
+        errors += [f"{news.LEDGER}/{name}: {e}" for e in news.header_errors(text, tables)]
     assert not errors, scan.report(errors)
 
 

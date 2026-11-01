@@ -285,19 +285,27 @@ def ledger_move_refusal(
     return None
 
 
-def claim_blocks(text: str) -> list[str]:
-    """Each [[claim]] block of ledger text, stripped, from its header to the next one."""
-    chunks = re.split(r"(?m)^(?=\[\[claim\]\])", text)
-    return [c.strip() for c in chunks if c.startswith("[[claim]]")]
+def ledger_claims_of(text: str) -> list[str]:
+    """Each [[claim]] table of ledger text as TOML reads it, whatever the spelling of its header,
+    as a canonical string; text TOML cannot read is one item, itself, so a change to it still
+    counts."""
+    try:
+        tables = tomllib.loads(text).get("claim", [])
+    except tomllib.TOMLDecodeError:
+        return [text.strip()]
+    if not isinstance(tables, list):
+        return [text.strip()]
+    return [json.dumps(t, sort_keys=True, default=str) for t in tables]
 
 
 def ledger_refusals(changed: list[str], base: dict[str, str], head: dict[str, str]) -> list[str]:
     """What a pull request into dev may not do to the release ledger: `base` and `head` are its
     files, path to text, at the merge base and at the head, the single file it once was among
-    them. A [[claim]] block the head holds that the base did not (an added block, or an edited
-    one) lies in a file of the folder named after one of the pull request's news files; a block
-    the base held is not dropped from another's file; and the single file does not come back.
-    A block moved whole from one file to another is neither added nor dropped."""
+    them. A claim the head holds that the base did not (an added claim, or an edited one), as
+    TOML reads it, lies in a file of the folder named after one of the pull request's news
+    files; another change's file is not renamed or removed, nor a claim dropped from it; and the
+    single file does not come back. A claim moved whole from one file to another is neither
+    added nor dropped."""
     stems = {m[1] for p in changed if (m := NEWS.fullmatch(p))}
 
     def own(path: str) -> bool:
@@ -310,36 +318,44 @@ def ledger_refusals(changed: list[str], base: dict[str, str], head: dict[str, st
             f"{OLD_LEDGER} is back: each pull request writes its claim blocks in a file of its "
             f"own, {LEDGER_DIR}<its news file's NNN-slug>.toml"
         )
-    left = {}
+    for path in sorted(base):
+        if path.startswith(LEDGER_DIR) and path not in head and not own(path):
+            out.append(
+                f"{path}, another change's ledger file, is renamed or removed; its name says "
+                "whose it is, and only date's move in the release's preparation removes it"
+            )
+    left: dict[str, int] = {}
     for text in base.values():
-        for b in claim_blocks(text):
-            left[b] = left.get(b, 0) + 1
-    # The pull request's own files first: a block it moves into them from elsewhere is matched
+        for c in ledger_claims_of(text):
+            left[c] = left.get(c, 0) + 1
+    # The pull request's own files first: a claim it moves into them from elsewhere is matched
     # there, so a copy left behind in another's file still counts as added there.
     for path in sorted(head, key=lambda p: (not own(p), p)):
-        for b in claim_blocks(head[path]):
-            if left.get(b):
-                left[b] -= 1
+        for c in ledger_claims_of(head[path]):
+            if left.get(c):
+                left[c] -= 1
             elif not own(path):
                 out.append(
-                    f"{path} gains a [[claim]] block (spec {_spec_of(b)}), but a pull request "
+                    f"{path} gains a [[claim]] block (spec {_spec_of(c)}), but a pull request "
                     f"writes its blocks only in its own file, {LEDGER_DIR}<its news file's "
                     "NNN-slug>.toml"
                 )
-    for path in sorted(base):
-        for b in claim_blocks(base[path]):
-            if left.get(b) and not own(path):
-                left[b] -= 1
+    for path in sorted(p for p in base if p in head or not p.startswith(LEDGER_DIR)):
+        for c in ledger_claims_of(base[path]):
+            if left.get(c) and not own(path):
+                left[c] -= 1
                 out.append(
-                    f"{path} loses a [[claim]] block (spec {_spec_of(b)}) of another change; "
+                    f"{path} loses a [[claim]] block (spec {_spec_of(c)}) of another change; "
                     "only date's move in the release's preparation removes one"
                 )
     return out
 
 
-def _spec_of(block: str) -> str:
-    m = re.search(r'^spec = "([^"]*)"', block, re.M)
-    return m[1] if m else "?"
+def _spec_of(claim: str) -> str:
+    try:
+        return str(json.loads(claim).get("spec", "?"))
+    except (ValueError, AttributeError):
+        return "?"
 
 
 def version_line_only(diff: str) -> bool:

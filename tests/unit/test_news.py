@@ -358,6 +358,17 @@ def test_a_ledger_file_is_named_after_its_news_file_and_holds_its_own_blocks() -
         news.ledger_file_claims(FILE, "# nothing yet\n")
 
 
+@pytest.mark.parametrize("header", ["[[ claim ]]", '[["claim"]]', "  [[claim]]"])
+def test_a_ledger_files_tables_each_begin_with_the_literal_header(header) -> None:
+    """TOML reads other spellings as the same table; the ledger takes only `[[claim]]` at the
+    start of a line, so every block is seen where a reader of the text looks for it."""
+    text = f'{header}\nspec = "140"\ngrows = ["y"]\ngrowth = "z"\n\n' + BLOCK
+    with pytest.raises(news.NewsError, match=r"\[\[claim\]\]"):
+        news.ledger_file_claims(FILE, text)
+    with pytest.raises(news.NewsError, match=r"\[\[claim\]\]"):
+        news.ledger_file_claims(FILE, BLOCK + "\n" + text)
+
+
 def test_date_moves_the_ledgers_files_under_the_version(tmp_path: Path) -> None:
     later = '[[claim]]\nspec = "171"\ngrows = ["x"]\ngrowth = "the zip grew"\n'
     history = news.move_ledger(

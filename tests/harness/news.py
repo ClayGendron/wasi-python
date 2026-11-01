@@ -475,7 +475,27 @@ def ledger_file_claims(name: str, text: str) -> list[Claim]:
     found = ledger_tables(f"{LEDGER}/{name}", text, m[1])
     if not found:
         raise NewsError(f"{LEDGER}/{name}: a ledger file holds at least one [[claim]] table")
+    errors = header_errors(text, len(found))
+    if errors:
+        raise NewsError(f"{LEDGER}/{name}: {errors[0]}")
     return found
+
+
+def header_errors(text: str, tables: int) -> list[str]:
+    """Why a ledger file's array-of-tables headers are not each `[[claim]]` alone at the start of
+    a line, one for each of its `tables` claims. TOML reads `[[ claim ]]`, `[["claim"]]` and an
+    indented header as the same table, and a reader of the text, a person or a check that cuts
+    the file into blocks, would miss a block so written."""
+    out = [
+        f"line {k}: an array-of-tables header is written [[claim]], at the start of the line, "
+        f"not {line.strip()!r}"
+        for k, line in enumerate(text.splitlines(), 1)
+        if re.match(r"\s*\[\[", line) and line.rstrip() != "[[claim]]"
+    ]
+    literal = sum(1 for line in text.splitlines() if line.rstrip() == "[[claim]]")
+    if not out and literal != tables:
+        out.append(f"{tables} [[claim]] tables, but {literal} lines read [[claim]]")
+    return out
 
 
 def ledger_files(folder: Path) -> dict[str, str]:
