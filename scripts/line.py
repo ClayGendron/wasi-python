@@ -32,6 +32,7 @@ HOST_NAMES = (
     "NINJA_WHEEL",
     "PKGCONF_WHEEL",
     "NUMPY_HOST_WHEEL",  # f2py's numpy, for scipy's build
+    "CFFI_WHEEL",  # the build host's cffi, which writes cairocffi's bindings as C
 )
 
 

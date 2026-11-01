@@ -1,0 +1,21 @@
+diff --git a/cairosvg/__init__.py b/cairosvg/__init__.py
+index 5b31350..f27e410 100644
+--- a/cairosvg/__init__.py
++++ b/cairosvg/__init__.py
+@@ -15,10 +15,14 @@ if hasattr(sys, 'frozen'):
+         # Frozen with something else (py2exe, etc.)
+         # See https://github.com/Kozea/WeasyPrint/pull/269
+         ROOT = Path(sys.executable).parent
++    VERSION = __version__ = (ROOT / 'VERSION').read_text().strip()
+ else:
+     ROOT = Path(__file__).resolve().parent
+-
+-VERSION = __version__ = (ROOT / 'VERSION').read_text().strip()
++    # Read through the package's loader, so that CairoSVG also imports
++    # from a zip archive, where ROOT names no folder.
++    from importlib.resources import files
++    VERSION = __version__ = (
++        files(__name__).joinpath('VERSION').read_text(encoding='utf-8').strip())
+ 
+ 
+ # VERSION is used in the "url" module imported by "surface"

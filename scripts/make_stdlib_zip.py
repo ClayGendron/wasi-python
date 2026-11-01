@@ -5,7 +5,7 @@
         [--entry-points <an sdist's PKG-INFO> <its entry_points.txt>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
         [--drop <folder or file in zip>]... [--keep <folder in zip>=<file>,<file>...]...
-        [--inner <folder in zip>]...
+        [--inner <folder in zip>]... [--source <folder in zip>]...
         [--replace <old>=<new>]... [--code-prefix </guest/path/to/the.zip/>] out.zip
 
 Every .py becomes a .pyc compiled in process (the running interpreter's bytecode magic must be the
@@ -42,6 +42,11 @@ outer member is deflated like every other, so the data is compressed once. zipim
 whole directory at every plain start, so 204 files of matplotlib's `mpl-data` cost one entry;
 the runner extracts the inner archive and grants it read-only at the path
 matplotlib computes (Decision 5). An inner folder with no member stops the build.
+
+`--source` keeps a folder's Python source too: each of its `.py` files is packed, bytes unchanged,
+beside the `.pyc` compiled from it. zipimport takes the `.pyc` first, so an import costs no more;
+the source is there for a licence that asks for it (CairoSVG's LGPL-3.0). A source folder with no
+`.py` member stops the build.
 
 Package metadata: a wheel keeps two files of its .dist-info, METADATA and
 entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
@@ -607,6 +612,7 @@ def main() -> None:
     ap.add_argument("--drop", action="append", default=[])
     ap.add_argument("--keep", action="append", default=[])
     ap.add_argument("--inner", action="append", default=[])
+    ap.add_argument("--source", action="append", default=[])
     ap.add_argument("--code-prefix", default="")
     ap.add_argument("out", type=Path)
     a = ap.parse_args()
@@ -627,11 +633,18 @@ def main() -> None:
     entries: dict[str, bytes] = {}
     chosen = Selection(a.drop, a.keep, a.inner)
     owners = Owners()
+    sources = {folder.rstrip("/"): 0 for folder in a.source}
 
     def add(data: bytes, name: str, origin: str) -> bool:
         if not chosen.take(data, name):
             return False
         if name.endswith(".py"):
+            for folder in sources:
+                if _under(name, folder) is not None:
+                    if name in entries:
+                        raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
+                    entries[name] = data
+                    sources[folder] += 1
             kind = next((key for key in REWRITE if key in name), None)
             if kind is not None:
                 text = host_neutral(data.decode(), name)
@@ -673,6 +686,9 @@ def main() -> None:
         add(data, name, "the import names")
 
     chosen.check()
+    empty = [folder for folder, n in sources.items() if not n]
+    if empty:
+        raise SystemExit(f"--source matched no .py member: {', '.join(empty)}")
     for folder, files in chosen.packed.items():
         add_inner = folder + ".zip"
         if add_inner in entries:

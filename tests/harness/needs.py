@@ -181,6 +181,12 @@ SOURCE_COMPONENTS = (
     "python-pptx",
     "pdfminer-six",
     "xarray",
+    "pixman",
+    "libpng",
+    "cairo",
+    "cffi",
+    "cairocffi",
+    "cairosvg",
 )
 
 # The test sources: every other pinned source the judge stages but never builds (the pure-Python

@@ -96,6 +96,15 @@ PIN_FILES = {
     "pdfminer_six-20260107.tar.gz": b"pdfminer.six pin",
     "xarray-2026.9.0.tar.gz": b"xarray pin",
     "drawsvg-2.4.2-py3-none-any.whl": b"drawsvg pin",
+    "pixman-0.46.4.tar.xz": b"pixman pin",
+    "libpng-1.6.59.tar.xz": b"libpng pin",
+    "cairo-1.18.6.tar.xz": b"cairo pin",
+    "cffi-2.1.1.tar.gz": b"cffi pin",
+    "cairocffi-1.7.1.tar.gz": b"cairocffi pin",
+    "cairosvg-2.9.1.tar.gz": b"cairosvg pin",
+    "tinycss2-1.5.1-py3-none-any.whl": b"tinycss2 pin",
+    "cssselect2-0.10.1-py3-none-any.whl": b"cssselect2 pin",
+    "imageio-2.38.1-py3-none-any.whl": b"imageio pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -176,6 +185,15 @@ PACKAGES = {
     "pdfminer-six": "20260107",
     "xarray": "2026.9.0",
     "drawsvg": "2.4.2",
+    "pixman": "0.46.4",
+    "libpng": "1.6.59",
+    "cairo": "1.18.6",
+    "cffi": "2.1.1",
+    "cairocffi": "1.7.1",
+    "cairosvg": "2.9.1",
+    "tinycss2": "1.5.1",
+    "cssselect2": "0.10.1",
+    "imageio": "2.38.1",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

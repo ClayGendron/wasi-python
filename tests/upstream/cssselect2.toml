@@ -1,0 +1,20 @@
+# cssselect2's own tests in the guest, from its test source, the pinned sdist. A judge file: every edit
+# is a judge change. The whole suite runs in the release tier, a smoke group in the normal tier:
+# each test in exactly one tier.
+
+package = "cssselect2"
+driver = "package"
+grant = "/upstream-cssselect2"
+test_source = true
+wheel = "cssselect2-0.10.1-py3-none-any.whl"
+budget = 27_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.cssselect2-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 27_000_000_000
+measured = 17_967_458_906

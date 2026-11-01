@@ -117,6 +117,17 @@ PACKAGES = {
     "xarray": "2026.9.0",
     # drawsvg, its pure wheel
     "drawsvg": "2.4.2",
+    # SVG to PNG through cairo: its three C libraries, linked in; cffi's C backend, built in;
+    # cairocffi and CairoSVG from their sdists; tinycss2, cssselect2 and imageio, pure wheels
+    "pixman": "0.46.4",
+    "libpng": "1.6.59",
+    "cairo": "1.18.6",
+    "cffi": "2.1.1",
+    "cairocffi": "1.7.1",
+    "cairosvg": "2.9.1",
+    "tinycss2": "1.5.1",
+    "cssselect2": "0.10.1",
+    "imageio": "2.38.1",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -164,6 +175,9 @@ WHEELS = {
     "wrapt": "wrapt-2.5.2-py3-none-any.whl",
     "pdfplumber": "pdfplumber-0.11.10-py3-none-any.whl",
     "drawsvg": "drawsvg-2.4.2-py3-none-any.whl",
+    "tinycss2": "tinycss2-1.5.1-py3-none-any.whl",
+    "cssselect2": "cssselect2-0.10.1-py3-none-any.whl",
+    "imageio": "imageio-2.38.1-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -468,6 +482,68 @@ REPORTLAB_NOTICES = (
         "Open End AB's and Kazuhiko Arase's notice; the MIT licence it names follows",
     ),
 )
+# cairo is used under the Mozilla Public License 1.1, one of the two licences its COPYING offers
+# for every file of the library; MPL-1.1 section 3.6 asks the executable's notice to say where the
+# source is. Its sweep found eight compiled files under more liberal, MIT-style terms of their own,
+# each of whose leading notices ships too (a ninth, cairo-font-face-twin-data.c, points to
+# cairo-font-face-twin.c, which is MPL-1.1 or LGPL-2.1).
+CAIRO_TOP = "cairo-1.18.6"
+CAIRO_TARBALL = "cairo-1.18.6.tar.xz"
+CAIRO_URL = "https://www.cairographics.org/releases/cairo-1.18.6.tar.xz"
+CAIRO_MIT_FILES = (
+    "src/cairo-clip-tor-scan-converter.c",
+    "src/cairo-freelist.c",
+    "src/cairo-mono-scan-converter.c",
+    "src/cairo-pattern.c",
+    "src/cairo-spans.c",
+    "src/cairo-time.c",
+    "src/cairo-tor-scan-converter.c",
+    "src/cairo-tor22-scan-converter.c",
+)
+# pixman: its COPYING, then the X11-style notice that heads each compiled file the sweep found
+# with one of its own.
+PIXMAN_TOP = "pixman-0.46.4"
+PIXMAN_NOTICE_FILES = tuple(
+    f"pixman/{n}.c"
+    for n in (
+        "pixman-access", "pixman-arm", "pixman-bits-image", "pixman-combine32",
+        "pixman-conical-gradient", "pixman-edge", "pixman-fast-path", "pixman-general",
+        "pixman-gradient-walker", "pixman-image", "pixman-implementation",
+        "pixman-linear-gradient", "pixman-matrix", "pixman-mips", "pixman-ppc",
+        "pixman-radial-gradient", "pixman-region16", "pixman-region32", "pixman-region64f",
+        "pixman-riscv", "pixman-solid-fill", "pixman-timer", "pixman-trap", "pixman-utils",
+        "pixman-x86", "pixman",
+    )
+)  # fmt: skip
+# CairoSVG is LGPL-3.0-or-later, whose text builds on GPL-3.0's, pinned from SPDX's list.
+CAIROSVG_TOP = "cairosvg-2.9.1"
+# cffi's closure allocator is CPython's, which its LICENSE's "except when otherwise stated" covers.
+CFFI_CLOSURE_NOTICE = """\
+src/c/malloc_closure.h, compiled into cffi's C backend, is from CPython's Modules/_ctypes
+(malloc_closure.c), with edits, as its head comment says. It is under the Python Software
+Foundation License, whose text is in LICENSES/cpython.txt.
+"""
+GPL_TEXT = "spdx-31ba1a50-GPL-3.0-only.txt"
+CAIROSVG_FACTS = """\
+CairoSVG 2.9.1 is in this release as Python source and as bytecode compiled from it: both are in
+python-stdlib.zip under cairosvg/, the source beside each .pyc. The source is the pinned sdist,
+https://files.pythonhosted.org/packages/c6/80/db62c0a96d2e55282c83524f6b1d02f09c7fd7f612e93bf83e30de1dc75c/cairosvg-2.9.1.tar.gz,
+with one recorded change, made 2026-10-31, recipes/patches/cairosvg-2.9.1/0001-read-version-through-the-package-loader.patch,
+which reads its VERSION file through the package's loader, and without its test module; the
+release's recipe rebuilds the zip from them.
+
+CairoSVG is imported by name (drawsvg imports it when it rasterizes), never linked: the guest
+links cairo, which cairocffi binds, and CairoSVG calls cairocffi. A program can use a modified
+CairoSVG of its own: it grants a folder holding it (import_path), and moves that folder ahead of
+the zip on sys.path before CairoSVG's first import. A starting image made with
+make_package_snapshot() imports CairoSVG while it is made; such an image leaves CairoSVG out with
+packages=, or its code moves the path first.
+
+These facts concern GPL-3.0 section 6(d) and LGPL-3.0 section 4(d)(1); this notice makes no claim
+that they are met.
+"""
+
+
 # The snapshot's pre-import list has one source, the recipe's #define.
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
@@ -813,6 +889,50 @@ def statsmodels_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
     return parts
 
 
+def cairo_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/cairo.txt's parts: the MPL-1.1 election and where the source is, cairo's COPYING
+    and the MPL-1.1 text, then the MIT-style notices of the files the sweep found."""
+    tree = b / CAIRO_TOP
+    election = (
+        "cairo 1.18.6 is linked into python.wasm under the Mozilla Public License, version 1.1,\n"
+        "one of the two licences cairo's COPYING offers for every file of the library. Its Source\n"
+        "Code is the release tarball, unmodified, built by this release's recipe:\n"
+        f"  {CAIRO_URL}\n"
+        f"  SHA-256 {hashlib.sha256(pinned_bytes(d, CAIRO_TARBALL)).hexdigest()}\n"
+    ).encode()
+    parts = [
+        ("cairo: the licence it is used under, and its source", election),
+        ("cairo COPYING", (tree / "COPYING").read_bytes()),
+        ("cairo COPYING-MPL-1.1", (tree / "COPYING-MPL-1.1").read_bytes()),
+    ]
+    parts += [
+        (f"cairo {n}, its head comment", head_notice(tree / n, ("Copyright", "Permission")))
+        for n in CAIRO_MIT_FILES
+    ]
+    return parts
+
+
+def pixman_parts(b: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/pixman.txt's parts: its COPYING, then each compiled file's own notice."""
+    tree = b / PIXMAN_TOP
+    parts = [("pixman COPYING", (tree / "COPYING").read_bytes())]
+    parts += [
+        (f"pixman {n}, its head comment", head_notice(tree / n, ("Copyright", "Permission")))
+        for n in PIXMAN_NOTICE_FILES
+    ]
+    return parts
+
+
+def cairosvg_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/cairosvg.txt's parts: its LGPL-3.0 licence, the GPL-3.0 text it builds on, and the
+    facts about its source and replacing it."""
+    return [
+        ("CairoSVG LICENSE (LGPL-3.0)", (b / CAIROSVG_TOP / "LICENSE").read_bytes()),
+        (f"GNU General Public License 3.0, the full text ({GPL_TEXT})", pinned_bytes(d, GPL_TEXT)),
+        ("CairoSVG in this release: its source, and using a modified one", CAIROSVG_FACTS.encode()),
+    ]
+
+
 def modified_notice(root: Path, top: str) -> bytes:
     """One line per carried patch of a tree: the files it changes, read from the patch itself,
     the patch's path and what it does; then that the rest is compiled as released."""
@@ -982,6 +1102,18 @@ def main() -> None:
             (f"xarray licenses/{p.name}", p.read_bytes())
             for p in licence_files(b / XARRAY_TOP / "licenses")
         ],
+        # SVG to PNG through cairo
+        "cairo": cairo_parts(b, d),
+        "pixman": pixman_parts(b),
+        "libpng": [("libpng LICENSE", (b / "libpng-1.6.59" / "LICENSE").read_bytes())],
+        # MIT No Attribution; its closure allocator (src/c/malloc_closure.h) is CPython's, under
+        # the PSF licence LICENSES/cpython.txt holds
+        "cffi": [
+            ("cffi LICENSE", (b / "cffi-2.1.1" / "LICENSE").read_bytes()),
+            ("cffi src/c/malloc_closure.h", CFFI_CLOSURE_NOTICE.encode()),
+        ],
+        "cairocffi": [("cairocffi LICENSE", (b / "cairocffi-1.7.1" / "LICENSE").read_bytes())],
+        "cairosvg": cairosvg_parts(b, d),
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
         "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],
     }

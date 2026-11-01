@@ -58,6 +58,7 @@ PURE_SUITES = (
     "threadpoolctl", "narwhals", "seaborn", "reportlab", "formulaic", "interface-meta", "wrapt",
     "python-docx", "python-pptx",
     "pdfplumber", "pdfminer-six", "xarray",
+    "tinycss2", "cssselect2", "imageio", "cairocffi", "cairosvg",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"

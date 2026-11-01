@@ -3,6 +3,7 @@
     uv run python tests/jobs/regen.py            # write tests/jobs/<job>.expected
     uv run python tests/jobs/regen.py --check    # exit 1 unless every .expected reproduces
     uv run python tests/jobs/regen.py --online   # allow uv to fetch the pinned oracle first
+    uv run python tests/jobs/regen.py --job svg_to_png   # one job only (repeatable)
 
 Each job runs twice, with PYTHONHASHSEED 0 and 1; the two outputs must agree, or nothing is
 written. Every uv download lands under build/oracle/. A
@@ -25,10 +26,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="verify instead of writing")
     ap.add_argument("--online", action="store_true", help="let uv fetch the pinned oracle")
+    ap.add_argument("--job", action="append", choices=jobs.JOBS, help="only this job")
     a = ap.parse_args()
     workdir = paths.BUILD / "oracle" / "runs"
     status = 0
-    for job in jobs.JOBS:
+    for job in a.job or jobs.JOBS:
         if a.check and not jobs.reproducible_here(job):
             print(f"skipped {job}: recorded on another platform than {jobs.this_platform()}")
             continue

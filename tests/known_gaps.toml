@@ -1929,6 +1929,84 @@ match = "1 finding(s), digest 2b788816806d"
 reason = "find_stack_level counts a frame in xarray's own tests folder as xarray's; here the tests run from the stage, outside the package's folder in the zip, so the test's frame is not counted (README)"
 closes_with = "context/roadmap.md"
 
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-smoke-no-pikepdf]"
+match = "5 finding(s), digest c1e8012630c8"
+reason = "these tests read back the PDF files they write with pikepdf, a compiled QPDF binding with no wasm32-wasip1 build; the test-side stand-in raises when one opens a file, and the PDF itself is written (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-smoke-no-ctypes-address]"
+match = "1 finding(s), digest 4b6da22c9017"
+reason = "an ImageSurface over a bytearray takes the buffer's address through ctypes, which the guest's ctypes stand-in cannot give; an array.array works (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-smoke-no-tmpfile]"
+match = "1 finding(s), digest 45752173f00a"
+reason = "cairo's PostScript surface writes through a temporary file, which the guest cannot make (wasi-libc has no tmpfile), so a PSSurface raises OSError; PNG, PDF and SVG work (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairosvg-smoke-no-tmpfile]"
+match = "1 finding(s), digest 1f6f51146c9f"
+reason = "cairo's PostScript surface writes through a temporary file, which the guest cannot make (wasi-libc has no tmpfile), so PostScript output raises OSError; PNG, PDF and SVG work (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-smoke-fails-natively]"
+match = "1 finding(s), digest 203f3373f081"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-r-no-ctypes-address]"
+match = "1 finding(s), digest 62dc44d0a0e3"
+reason = "an ImageSurface over a numpy array takes the array's address through ctypes, which the guest's ctypes stand-in cannot give; an array.array works (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes]"
+match = "18 finding(s), digest 2a81304780a5"
+reason = "these tests reach a plugin that loads its library through ctypes (FreeImage's, or numpy's ctypes types in the SPE and SWF readers), and the guest's ctypes stand-in loads nothing: it raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-processes]"
+match = "2 finding(s), digest 5d46248a937d"
+reason = "no processes: these tests start a Python subprocess to time imageio's import (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-fails-natively]"
+match = "1 finding(s), digest 72484ed24dfe"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-wasi-platform]"
+match = "1 finding(s), digest ed27b2c4ad3b"
+reason = "imageio's get_platform() names Windows, Linux, macOS and FreeBSD hosts only; the guest's sys.platform is wasi, so it answers None (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-legacy-tifffile]"
+match = "1 finding(s), digest fb547dd836c6"
+reason = "imageio writes this TIFF through its bundled legacy tifffile here, which calls ndarray.tostring, removed in numpy 2; natively the same test passes, its writer chosen otherwise (README)"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-importlib-module-names]"
+match = "1 finding(s), digest d99827c37806"
+reason = "the test loads a dummy plugin from the module named test_core and checks it is the test's own class; the driver collects in pytest's importlib mode, where the test module is not sys.modules['test_core'], so the plugin comes from a second copy (natively in the importlib mode it fails the same, EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes-warning]"
+match = "1 finding(s), digest c41596d669c6"
+reason = "an unknown extension hint makes imageio try its legacy FreeImage plugin, which loads its library through ctypes; the guest's ctypes stand-in raises OSError there, so the UserWarning imageio gives natively for the hint is not given (EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
+
 # The pure-Python packages' own tests. (end)
 
 [[gap]]

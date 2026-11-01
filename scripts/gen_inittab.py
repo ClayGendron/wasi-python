@@ -40,7 +40,13 @@ import line
 
 SUFFIX = f".cpython-{line.read()['PYTHON_TAG']}-wasm32-wasi.so"
 # Cython 3.1+ builds its shared utility module at the build root; pandas imports it from here.
-ROOT_MODULES = {("pandas", "_cyutility"): "pandas._libs._cyutility"}
+# cffi's C backend and cairocffi's bindings are top-level modules (step 56), each at the root of
+# build/cffi-modules.
+ROOT_MODULES = {
+    ("pandas", "_cyutility"): "pandas._libs._cyutility",
+    ("cffi", "_cffi_backend"): "_cffi_backend",
+    ("cffi", "_cairocffi_api"): "_cairocffi_api",
+}
 # Left out by dotted name: numpy's SIMD test module, and matplotlib's _tkagg (no Tk). Both
 # _qhull modules are linked (matplotlib's and scipy.spatial's).
 LEFT_OUT = {"numpy._core._simd", "matplotlib.backends._tkagg"}
@@ -109,7 +115,7 @@ def modules(package: str, build_dir: Path) -> list[tuple[str, str]]:
             raise SystemExit(f"{so}: built at the root of {build_dir}; add it to ROOT_MODULES")
         if dotted in LEFT_OUT:
             continue
-        if not dotted.startswith(package + "."):
+        if not dotted.startswith(package + ".") and (package, name) not in ROOT_MODULES:
             raise SystemExit(f"{so}: {dotted} is outside the {package} package")
         found.append((dotted, RENAMED.get(dotted, name)))
     return found

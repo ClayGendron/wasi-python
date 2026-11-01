@@ -1057,18 +1057,15 @@ def test_xarray_reads_netcdf3_files_without_mmap(guest, which) -> None:
     }, r.text
 
 
-# drawsvg's optional parts the set does not carry: each fails by name, as natively without them.
+# drawsvg's optional parts: rasterizing works through CairoSVG; the parts the set does not carry
+# fail by name, as natively without them.
 DRAWSVG_LACKS = """
 import json, sys
 import drawsvg as draw
 out = {"files": sorted({m.__file__ for n, m in sys.modules.items() if n.startswith("drawsvg")})}
 d = draw.Drawing(20, 20)
 d.append(draw.Circle(10, 10, 5))
-try:
-    d.rasterize()
-except ImportError as e:
-    cause = e.__cause__
-    out["rasterize"] = [type(e).__name__, type(cause).__name__, getattr(cause, "name", None)]
+out["rasterize"] = d.rasterize().png_data[:8].hex()
 try:
     import drawsvg.color
 except ImportError as e:
@@ -1088,10 +1085,11 @@ print(json.dumps(out))
 
 @BINARY
 def test_drawsvg_names_what_the_set_lacks(guest, which) -> None:
-    """drawsvg imports from the zip and draws; what it cannot do here raises a named exception.
-    Rasterizing needs CairoSVG and the colour helpers pwkit, neither carried, so drawsvg raises
-    its ImportError from the missing module's; a Google font raises URLError, since the guest
-    has no ssl module, so no HTTPS handler, and no network; the widgets need ipywidgets."""
+    """drawsvg imports from the zip and draws, and rasterizes to PNG through CairoSVG; what it
+    cannot do here raises a named exception. The colour helpers need pwkit, not carried, so
+    drawsvg raises its ImportError from the missing module's; a Google font raises URLError,
+    since the guest has no ssl module, so no HTTPS handler, and no network; the widgets need
+    ipywidgets."""
     r = guest(which, ["-c", DRAWSVG_LACKS])
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
@@ -1099,7 +1097,7 @@ def test_drawsvg_names_what_the_set_lacks(guest, which) -> None:
     files = got.pop("files")
     assert files and all(f.startswith(zip_path) for f in files), r.text
     assert got == {
-        "rasterize": ["ImportError", "ModuleNotFoundError", "cairosvg"],
+        "rasterize": "89504e470d0a1a0a",
         "color": ["ImportError", "ModuleNotFoundError", "pwkit"],
         "google font": ["URLError", "unknown url type: https"],
         "widgets": ["ModuleNotFoundError", "ipywidgets"],

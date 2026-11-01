@@ -393,4 +393,48 @@ kind = "suite"
 [package.drawsvg]
 kind = "none"
 reason = "drawsvg 2.4.2 ships no tests: none in its sdist, none in its repository at the 2.4.2 tag or at master (read 2026-10-31)"
-checked_by = ["vector_drawings"]
+checked_by = ["vector_drawings", "svg_to_png"]
+# SVG to PNG through cairo: the three C libraries and cffi's C backend are reached through
+# cairocffi's suite, which calls every part of cairo the bindings declare, through the backend;
+# cffi's own C tests make ABI-mode calls, which the guest cannot make. The packages' suites come
+# from their sdists.
+
+[package.pixman]
+kind = "via"
+via = "cairocffi"
+
+[package.libpng]
+kind = "via"
+via = "cairocffi"
+
+[package.cairo]
+kind = "via"
+via = "cairocffi"
+
+[package.cffi]
+kind = "via"
+via = "cairocffi"
+
+[package.cairocffi]
+# its own suite from its sdist, groups in tests/upstream/cairocffi.toml: test_cairo.py in the
+# normal tier, its other test modules in the release tier
+kind = "suite"
+
+[package.cairosvg]
+# its API tests from its sdist, one group in tests/upstream/cairosvg.toml; its non-regression
+# suite compares with an older CairoSVG from a git submodule, not in the sdist, and is not run (the
+# golden job svg_to_png checks its rendering against native cairo)
+kind = "suite"
+
+[package.tinycss2]
+# its own suite from its sdist, one group in tests/upstream/tinycss2.toml
+kind = "suite"
+
+[package.cssselect2]
+# its own suite from its sdist, one group in tests/upstream/cssselect2.toml
+kind = "suite"
+
+[package.imageio]
+# its own suite from its sdist with its pinned test images, groups in tests/upstream/imageio.toml:
+# a smoke group in the normal tier, the whole suite in the release tier
+kind = "suite"

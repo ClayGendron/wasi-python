@@ -60,6 +60,15 @@
 # their PKG-INFO.
 # drawsvg: its pure wheel, whole: its raster, video and colour helpers and its widgets folder stay,
 # so each names the package it lacks (CairoSVG, imageio, pwkit, ipywidgets) as it does natively.
+# cairocffi and CairoSVG, from their sdists (cairocffi's as step 56 unpacked it), staged as
+# python-docx is: cairocffi's package without
+# its ffi.py and its four test modules, and with recipes/cairocffi_ffi_stand_in.py as its ffi.py,
+# which binds the linked _cairocffi_api (step 56) in place of loading cairo at run time; CairoSVG's
+# package, with its carried patch, which reads its VERSION file through the package's loader, so it
+# imports from the zip, and without its test module. Each staged folder differs from its sdist's by
+# exactly those files and the stand-in, or the step stops. CairoSVG's Python source rides beside its
+# bytecode (`--source`), as its licence, LGPL-3.0, asks. tinycss2, cssselect2 and imageio: their
+# pure wheels.
 # Last, make_stdlib_zip.py writes the folder table into the zip's archive comment: each top-level
 # folder's run of the directory, which a plain start reads only when a program first uses that
 # folder. The snapshot reads the whole directory at build time, as before.
@@ -81,6 +90,7 @@ done
 [ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"
 [ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"
 [ -d "$B/statsmodels-install/statsmodels" ] || die "build/statsmodels-install/statsmodels is missing: run step 59"
+[ -d "$B/cairocffi-1.7.1/cairocffi" ] || die "build/cairocffi-1.7.1 is missing: run step 56"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -96,9 +106,9 @@ done
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
 remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" \
   "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pdfminer_six-20260107" "$B/xarray-2026.9.0" \
-  "$B/pure-install"
+  "$B/cairosvg-2.9.1" "$B/pure-install"
 for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2 python_docx-1.2.0 \
-  python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0; do
+  python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0 cairosvg-2.9.1; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -112,6 +122,49 @@ cp -R "$B/python_docx-1.2.0/src/docx" "$B/pure-install/docx"
 cp -R "$B/python_pptx-1.0.2/src/pptx" "$B/pure-install/pptx"
 cp -R "$B/pdfminer_six-20260107/pdfminer" "$B/pure-install/pdfminer"
 cp -R "$B/xarray-2026.9.0/xarray" "$B/pure-install/xarray"
+# A package staged with files left out and stand-ins put in: each left-out file must exist in the
+# sdist, and the staged folder must differ from the sdist's folder by exactly those files and the
+# stand-ins (each `<name>=<recipe>`), so an upstream file renamed or added is seen here.
+stage() { # sdist package folder, staged folder, "left-out files", then stand-ins
+  src=$1 dst=$2 out=$3
+  shift 3
+  for f in $out; do
+    [ -f "$src/$f" ] || die "$src has no $f to leave out"
+  done
+  cp -R "$src" "$dst"
+  for f in $out; do rm "$dst/$f"; done
+  for pair in "$@"; do
+    cp "${pair#*=}" "$dst/${pair%%=*}"
+  done
+  # The expected difference: "- <file>" for each file left out and not put back, and the name of
+  # each stand-in, whose bytes differ from the sdist's file or which the sdist lacks.
+  ins=" "
+  want=""
+  for pair in "$@"; do
+    ins="$ins${pair%%=*} "
+    want="$want${pair%%=*}
+"
+  done
+  for f in $out; do
+    case "$ins" in
+      *" $f "*) ;;
+      *) want="$want- $f
+";;
+    esac
+  done
+  got=$(cd "$src" && find . -type f | sed 's#^\./##' | sort > "$B/.stage-src"
+    cd "$dst" && find . -type f | sed 's#^\./##' | sort > "$B/.stage-dst"
+    { comm -23 "$B/.stage-src" "$B/.stage-dst" | sed 's/^/- /'
+      comm -13 "$B/.stage-src" "$B/.stage-dst"
+      comm -12 "$B/.stage-src" "$B/.stage-dst" | while read -r f; do cmp -s "$src/$f" "$dst/$f" || echo "$f"; done; })
+  rm -f "$B/.stage-src" "$B/.stage-dst"
+  [ "$(printf '%s\n' "$got" | sort)" = "$(printf '%s' "$want" | sort)" ] \
+    || die "build/pure-install/$(basename "$dst") differs from its sdist by: $(printf '%s ' $got), not exactly the files left out and the stand-ins"
+}
+stage "$B/cairocffi-1.7.1/cairocffi" "$B/pure-install/cairocffi" \
+  "ffi.py test_cairo.py test_numpy.py test_pixbuf.py test_xcb.py" \
+  "ffi.py=$HERE/recipes/cairocffi_ffi_stand_in.py"
+stage "$B/cairosvg-2.9.1/cairosvg" "$B/pure-install/cairosvg" "test_api.py"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -169,6 +222,9 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
   --wheel "$(pinned pdfplumber-0.11.10-py3-none-any.whl)" \
   --wheel "$(pinned drawsvg-2.4.2-py3-none-any.whl)" \
+  --wheel "$(pinned tinycss2-1.5.1-py3-none-any.whl)" \
+  --wheel "$(pinned cssselect2-0.10.1-py3-none-any.whl)" \
+  --wheel "$(pinned imageio-2.38.1-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.4/PKG-INFO=numpy" \
   --metadata "$B/pandas-3.1.0/PKG-INFO=pandas" \
   --metadata "$B/pillow-13.0.0/PKG-INFO=PIL" \
@@ -190,6 +246,9 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/pdfminer_six-20260107/PKG-INFO=pdfminer" \
   --metadata "$B/xarray-2026.9.0/PKG-INFO=xarray" \
   --entry-points "$B/xarray-2026.9.0/PKG-INFO" "$B/xarray-2026.9.0/xarray.egg-info/entry_points.txt" \
+  --metadata "$B/cairocffi-1.7.1/PKG-INFO=cairocffi" \
+  --metadata "$B/cairosvg-2.9.1/PKG-INFO=cairosvg" \
+  --source cairosvg \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \

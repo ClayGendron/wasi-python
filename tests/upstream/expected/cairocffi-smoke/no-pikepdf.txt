@@ -1,0 +1,5 @@
+cairocffi/test_cairo.py::test_metadata
+cairocffi/test_cairo.py::test_outline
+cairocffi/test_cairo.py::test_page_label
+cairocffi/test_cairo.py::test_pdf_surface
+cairocffi/test_cairo.py::test_tag

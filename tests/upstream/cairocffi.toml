@@ -1,0 +1,77 @@
+# cairocffi's own tests in the guest, from its test source, the pinned sdist, whose tests are
+# modules of the package itself (cairocffi/test_*.py); the zip leaves them out, so they are staged
+# and found through the package's path. A judge file: every edit is a judge change. test_cairo.py
+# runs in the normal tier, the other three in the release tier: each test in exactly one tier.
+# test_cairo.py imports pikepdf at its top, a compiled binding with no build here: a test-side
+# stand-in lets the module collect, and the tests that read a PDF back with it form one class.
+
+package = "cairocffi"
+driver = "package"
+grant = "/upstream-cairocffi"
+test_source = true
+budget = 39_000_000_000
+stage_folders = []
+support_files = [
+    "cairocffi/test_cairo.py",
+    "cairocffi/test_numpy.py",
+    "cairocffi/test_pixbuf.py",
+    "cairocffi/test_xcb.py",
+]
+cwd = "tree"
+markers = []
+
+[test_stand_ins]
+pikepdf = "tests/upstream/stand-ins/pikepdf.py"
+
+[package_paths]
+"cairocffi" = "cairocffi"
+
+[groups.cairocffi-smoke]
+paths = ["cairocffi/test_cairo.py"]
+smoke = "the binding's own tests of every surface, pattern, font and context call, the package from the zip"
+fuel = 22_000_000_000
+measured = 14_126_379_899
+
+[groups.cairocffi-r]
+paths = ["cairocffi/test_numpy.py", "cairocffi/test_xcb.py"]
+tier = "release"
+release_by = "path"
+fuel = 17_000_000_000
+measured = 11_053_898_634
+
+[[expected]]
+id = "no-pikepdf"
+group = "cairocffi-smoke"
+outcome = "failed"
+match = "pikepdf is not in the test kit"
+reason = "these tests read back the PDF files they write with pikepdf, a compiled QPDF binding with no wasm32-wasip1 build; the test-side stand-in raises when one opens a file, and the PDF itself is written (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-ctypes-address"
+group = "cairocffi-smoke"
+outcome = "failed"
+match = "ctypes is unavailable on wasm32-wasi"
+reason = "an ImageSurface over a bytearray takes the buffer's address through ctypes, which the guest's ctypes stand-in cannot give; an array.array works (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-tmpfile"
+group = "cairocffi-smoke"
+outcome = "failed"
+match = "CAIRO_STATUS_TEMP_FILE_ERROR"
+reason = "cairo's PostScript surface writes through a temporary file, which the guest cannot make (wasi-libc has no tmpfile), so a PSSurface raises OSError; PNG, PDF and SVG work (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["cairocffi/test_pixbuf.py"]
+reason = "cairocffi.pixbuf loads gdk-pixbuf, GLib and GObject at import, which the set does not carry: the module cannot be imported, so its tests cannot be collected; importing it raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-ctypes-address"
+group = "cairocffi-r"
+outcome = "failed"
+match = "ctypes is unavailable on wasm32-wasi"
+reason = "an ImageSurface over a numpy array takes the array's address through ctypes, which the guest's ctypes stand-in cannot give; an array.array works (README)"
+closes_with = "docs/reference/limitations.md"
