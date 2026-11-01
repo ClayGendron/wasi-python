@@ -259,9 +259,9 @@ def test_the_upstream_stage_never_takes_a_package_family(monkeypatch, tmp_path) 
 @pytest.mark.parametrize(
     ("shard", "families"),
     [
-        ("upstream-plot-b", ["matplotlib", "pillow", "regex"]),
+        ("upstream-plot-b", ["pillow", "regex"]),
         ("upstream-plot-a", ["contourpy", "matplotlib"]),
-        ("upstream-plot-i", ["contourpy"]),
+        ("upstream-plot-i", ["contourpy", "matplotlib"]),
         ("upstream-release-004", ["scipy", "statsmodels"]),
         ("upstream-numpy-a", ["cpython", "numpy", "pandas"]),
         ("upstream-sci-smoke-a", ["scipy"]),

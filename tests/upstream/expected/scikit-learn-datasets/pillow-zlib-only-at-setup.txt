@@ -1,4 +1,0 @@
-sklearn/datasets/tests/test_lfw.py::test_fetch_lfw_people_internal_cropping
-sklearn/datasets/tests/test_lfw.py::test_load_fake_lfw_pairs
-sklearn/datasets/tests/test_lfw.py::test_load_fake_lfw_people
-sklearn/datasets/tests/test_lfw.py::test_load_fake_lfw_people_too_restrictive

@@ -1,3 +1,0 @@
-lib/matplotlib/tests/test_image.py::test_imsave[jpeg]
-lib/matplotlib/tests/test_image.py::test_imsave[jpg]
-lib/matplotlib/tests/test_image.py::test_jpeg_alpha

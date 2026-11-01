@@ -73,6 +73,8 @@ JOBS = (
     "labelled_arrays",
     # drawsvg's vector drawings and animations, as SVG and HTML
     "vector_drawings",
+    # Pillow's JPEG codec, libjpeg-turbo
+    "jpeg_images",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the

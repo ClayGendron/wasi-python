@@ -19,8 +19,8 @@ The plot lands in `/tmp/job-17/plot.png` on the host. Its pixels are native matp
 
 ## Pick a format
 
-- PNG, PDF, PS, EPS and SVG save.
-- JPEG and Pillow's other codecs raise `OSError`: Pillow is built with zlib only.
+- PNG, JPEG, PDF, PS, EPS and SVG save. TIFF saves without compression.
+- WebP raises an error: Pillow is built with zlib and libjpeg-turbo, and without its other codecs.
 - Only the non-interactive backends are in the zip.
 
 For files that are the same on every run, set `rcParams["svg.hashsalt"]` and pass `metadata={"Date": None}` (SVG) or `metadata={"CreationDate": None}` (PDF), or set `SOURCE_DATE_EPOCH`, as natively.

@@ -1,17 +1,18 @@
 #!/bin/sh
-# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; contourpy and
-# matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy and numpy
-# with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3 and the host door into CPython as
-# builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
-# reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and
-# with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
-# recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP as wasi-libc's dup
-# does, and recipes/freopen_refusal.c, which refuses freopen. Last, the static constructors and
-# target features are checked against the judge's reviewed lists, so a build with a constructor no
-# review has read stops here, before step 80 would hang on it. Around the link, two checks of
-# scripts/weak_duplicates.py: before it, no weak definition that two archives share unless a review
-# allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a word;
-# after it, the link map names scikit-learn's renamed random generators and none of the originals.
+# Step 60: link numpy, pandas, the plot packages (Pillow with zlib and JPEG, kiwisolver, matplotlib;
+# contourpy and matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt,
+# scipy and numpy with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3 and the
+# host door into CPython as builtins through the build-directory Modules/Setup.local, then relink
+# the interpreter as a WASI reactor (build/out/python.wasm) with recipes/reactor_main.c in place of
+# Programs/python.o, and with three link-time refusals: recipes/iconv_refusals.c, which refuses
+# GB18030 at iconv_open, recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP
+# as wasi-libc's dup does, and recipes/freopen_refusal.c, which refuses freopen. Last, the static
+# constructors and target features are checked against the judge's reviewed lists, so a build with a
+# constructor no review has read stops here, before step 80 would hang on it. Around the link, two
+# checks of scripts/weak_duplicates.py: before it, no weak definition that two archives share unless
+# a review allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a
+# word; after it, the link map names scikit-learn's renamed random generators and none of the
+# originals.
 set -eu
 . "$(dirname "$0")/common.sh"
 
