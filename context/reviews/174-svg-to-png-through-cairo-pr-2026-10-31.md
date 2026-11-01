@@ -59,6 +59,8 @@ Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED mean
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
 1–6. Fixed in `1d899fed` (READ). The stand-ins are verdict-bearing and `test_rules.py` agrees (EXECUTED). `LICENSES/cairosvg.txt` carries the date and `LICENSES/cffi.txt` the `malloc_closure.h` part, in the rebuilt set (EXECUTED).
+
+
 7. Closed by the orchestrator: the Windows box ticked with run 41276016814.
 
 ## Verdict
