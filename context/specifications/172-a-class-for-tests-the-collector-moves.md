@@ -51,7 +51,7 @@ A change to the set that only moves the collector's timing no longer turns tqdm-
 - `tests/harness/upstream.py`: `Klass` gains `nodes` and `outcomes` and the method `claims`; `klass_of` reads a class from its table (also used by `tests/harness/packages.py`); `judge_group` claims the named tests first through `_limited_finding`; `class_list` gives a class's list; `class_shape_errors` and `rule_errors` hold Decision 3.
 - `tests/checks/test_v1_3_upstream_suites.py`: `test_upstream_class` reads `class_list`.
 - `tests/upstream/tqdm.toml`, `tests/upstream/expected/tqdm-smoke/{no-threads,no-threads-error,no-asyncio-loop-error}.txt`, `tests/known_gaps.toml`: Decision 4.
-- `tests/unit/test_upstream.py`: ten rows.
+- `tests/unit/test_upstream.py`: eleven rows.
 
 ## Scope
 
@@ -62,12 +62,12 @@ A change to the set that only moves the collector's timing no longer turns tqdm-
 1. A node-limited class claims its tests in either order and outcome, before an ordinary class whose cause also fits. Unit row `test_a_node_limited_class_claims_its_nodes_first_and_in_either_outcome`, seen failing first.
 2. A named test that passes or fails for another cause is a group finding. Unit row `test_a_node_limited_classs_test_that_passes_or_fails_for_another_cause_is_a_finding`, seen failing first.
 3. A node-limited class's list is its nodes, and an absent one changes the digest. Unit row `test_a_node_limited_classs_list_is_its_nodes_and_an_absent_one_is_a_finding`, seen failing first.
-4. The rules of Decision 3. Unit rows `test_a_node_limited_class_needs_no_list_file_but_its_gap` and six cases of `test_a_node_limited_classs_shape_is_held_by_the_rules`, each seen failing first.
+4. The rules of Decision 3. Unit rows `test_a_node_limited_class_needs_no_list_file_but_its_gap`, six cases of `test_a_node_limited_classs_shape_is_held_by_the_rules` and `test_a_node_limited_class_in_cpythons_family_is_refused`, each seen failing first.
 5. tqdm-smoke's checks give the same verdicts and the same digest for every class in both states. EXECUTED on three sets (Landing notes).
 
 ## Landing notes
 
-**Seen failing first** (EXECUTED, 2026-10-31): the ten unit rows failed with `Klass` given its two fields and no behaviour (10 failed), then passed.
+**Seen failing first** (EXECUTED, 2026-10-31): the ten unit rows failed with `Klass` given its two fields and no behaviour (10 failed), then passed. The eleventh, for CPython's family, was added at the review: it failed with the refusal removed and passed with it restored.
 
 **Both states** (EXECUTED, 2026-10-31). tqdm-smoke's six checks, run locally on three sets:
 

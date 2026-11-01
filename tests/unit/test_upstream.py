@@ -680,6 +680,15 @@ def test_a_node_limited_classs_shape_is_held_by_the_rules(work, classes, error) 
     assert any(error in e for e in errors), errors
 
 
+def test_a_node_limited_class_in_cpythons_family_is_refused(work) -> None:
+    """CPython's judge reads `outcome` alone, so a class there that names its tests would claim
+    nothing, and its gap would point away from the cause."""
+    cfg = _cfg(package="python", expected=[_limited()], runner="regrtest")
+    gaps = {upstream.class_node("g", "timed")}
+    errors = upstream.rule_errors({"python": cfg}, gaps, expected_dir=work / "expected")
+    assert any("names nodes, which only a pytest family's judge reads" in e for e in errors), errors
+
+
 def test_paths_that_are_not_tarball_members_fail_the_rules(work) -> None:
     cfg = _cfg(not_selected=[upstream.NotSelected(("numpy/tests/test_gone.py",), "r", "README.md")])
     members = {"numpy/tests/test_a.py"}
