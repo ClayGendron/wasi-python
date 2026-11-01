@@ -48,17 +48,17 @@ mkdir -p "$N/src" "$P/lib/pkgconfig" "$P/include" "$N/site"
 CC=${CC:-cc}
 echo "host compiler: $("$CC" --version 2>&1 | head -n 1)"
 FLAGS="-O2 -ffp-contract=off -fPIC"
-for t in zlib-1.3.1.tar.gz freetype-2.14.3.tar.xz pixman-0.46.4.tar.xz libpng-1.6.59.tar.xz \
+for t in zlib-1.3.2.tar.gz freetype-2.14.3.tar.xz pixman-0.46.4.tar.xz libpng-1.6.59.tar.xz \
   cairo-1.18.6.tar.xz; do
   tar -xf "$(pinned "$t")" -C "$N/src"
 done
-for top in zlib-1.3.1 freetype-2.14.3 pixman-0.46.4 libpng-1.6.59 cairo-1.18.6; do
+for top in zlib-1.3.2 freetype-2.14.3 pixman-0.46.4 libpng-1.6.59 cairo-1.18.6; do
   sh "$HERE/scripts/steps/apply_patches.sh" "$N/src/$top" "$HERE/recipes/patches/$top" > /dev/null
 done
 
 # zlib, as step 30 configures it.
 mkdir -p "$N/zlib-build"
-(cd "$N/zlib-build" && CC="$CC" CFLAGS="$FLAGS" "$N/src/zlib-1.3.1/configure" --static --prefix="$P" \
+(cd "$N/zlib-build" && CC="$CC" CFLAGS="$FLAGS" "$N/src/zlib-1.3.2/configure" --static --prefix="$P" \
   > "$N/zlib.log" 2>&1 && make -j8 libz.a >> "$N/zlib.log" 2>&1 && make install >> "$N/zlib.log" 2>&1) \
   || die "zlib did not build (build/cairo-native/zlib.log)"
 

@@ -3,12 +3,15 @@
 Usage: svg_to_png.py <data dir> <out dir> (both unused). Each image is printed as its size and the
 SHA-256 of its RGBA pixels, decoded by Pillow, so the line holds for every PNG encoder that writes
 the same pixels; the PNG files' own bytes are the same-bytes gate's. CairoSVG draws a drawing with
-lines, shapes, a path, text on a path, an arc, a marker and a gradient; text in the generic
-families and three DejaVu names, bold and italic, at 12 and 40 px; gradients, opacity, a clip, a
-mask, dashes, markers and an embedded PNG. cairocffi draws arcs, curves and a radial gradient, and
-writes a PNG to a stream and reads it back. `svg2pdf` writes a PDF, whose page count, media box
-and text pypdf reads. Text is drawn through cairo's toy font API, which in this build draws
-matplotlib's DejaVu faces; natively the same map runs over the same files.
+lines, shapes, a path, text on a path, an arc, a marker and a gradient; text in the generic families
+and three DejaVu names, bold and italic, at 12 and 40 px; gradients, opacity, a clip, a mask,
+dashes, markers and an embedded PNG. cairocffi draws arcs, curves and a radial gradient, and writes
+a PNG to a stream and reads it back. `svg2pdf` writes a PDF, whose page count, media box and text
+pypdf reads. drawsvg's README drawing goes to PNG through `svg2png` (400 x 200) and through
+drawsvg's own `rasterize()`, and three frames to a GIF through drawsvg's `save_video`, which imageio
+writes with Pillow; the GIF's frame count and each frame's pixels are printed. Text is drawn through
+cairo's toy font API, which in this build draws matplotlib's DejaVu faces; natively the same map
+runs over the same files.
 """
 
 import hashlib
@@ -17,6 +20,7 @@ from importlib.metadata import version
 
 import cairocffi as cairo
 import cairosvg
+import drawsvg as draw
 import pypdf
 from PIL import Image
 
@@ -25,6 +29,8 @@ print(
     f"cairosvg={version('cairosvg')}",
     f"cairocffi={version('cairocffi')}",
     f"cairo={cairo.cairo_version_string()}",
+    f"drawsvg={version('drawsvg')}",
+    f"imageio={version('imageio')}",
 )
 
 
@@ -151,3 +157,48 @@ reader = pypdf.PdfReader(io.BytesIO(pdf))
 page = reader.pages[0]
 print("pdf pages", len(reader.pages), "mediabox", [float(v) for v in page.mediabox])
 print("pdf text", repr(" ".join(page.extract_text().split())))
+
+# drawsvg's README drawing, rasterized two ways.
+d = draw.Drawing(200, 100, origin="center")
+d.append(
+    draw.Lines(-80, 45, 70, 49, 95, -49, -90, -40, close=False, fill="#eeee00", stroke="black")
+)
+d.append(draw.Rectangle(-80, -50, 40, 50, fill="#1248ff"))
+d.append(draw.Circle(-40, 10, 30, fill="red", stroke_width=2, stroke="black"))
+p = draw.Path(stroke_width=2, stroke="lime", fill="black", fill_opacity=0.2)
+p.M(-10, -20).C(30, 10, 30, -50, 70, -20)
+d.append(p)
+d.append(draw.Text("Basic text", 8, -10, -35, fill="blue"))
+d.append(draw.Text("Path text", 8, path=p, text_anchor="start", line_height=1))
+d.append(
+    draw.ArcLine(60, 20, 20, 60, 270, stroke="red", stroke_width=5, fill="red", fill_opacity=0.2)
+)
+arrow = draw.Marker(-0.1, -0.51, 0.9, 0.5, scale=4, orient="auto")
+arrow.append(draw.Lines(-0.1, 0.5, -0.1, -0.5, 0.9, 0, fill="red", close=True))
+d.append(draw.Line(30, 20, 0, 10, stroke="red", stroke_width=2, fill="none", marker_end=arrow))
+g = draw.LinearGradient(-50, -50, 50, 50)
+g.add_stop(0, "green")
+g.add_stop(1, "red", 0.5)
+d.append(draw.Rectangle(40, -45, 30, 30, fill=g))
+d.set_pixel_scale(2)
+show("drawsvg svg2png", cairosvg.svg2png(bytestring=d.as_svg().encode()))
+show("drawsvg rasterize", d.rasterize().png_data)
+
+
+def frame(i: int):
+    f = draw.Drawing(60, 40)
+    f.append(draw.Rectangle(0, 0, 60, 40, fill="white"))
+    f.append(draw.Circle(10 + 20 * i, 20, 8, fill=["red", "green", "blue"][i]))
+    f.append(draw.Text(f"{i}", 10, 50, 35, fill="black"))
+    return f
+
+
+frames = [frame(i) for i in range(3)]
+gif = io.BytesIO()
+draw.video.save_video(frames, gif, format="GIF", duration=100)
+reader = Image.open(io.BytesIO(gif.getvalue()))
+print("drawsvg gif frames", reader.n_frames, reader.size)
+for i in range(reader.n_frames):
+    reader.seek(i)
+    pixels = reader.convert("RGBA").tobytes()
+    print(f"drawsvg gif frame {i}", hashlib.sha256(pixels).hexdigest())
