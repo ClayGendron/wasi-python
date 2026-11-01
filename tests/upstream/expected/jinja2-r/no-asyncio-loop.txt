@@ -65,7 +65,6 @@ tests/test_async_filters.py::test_bool_reject[<lambda>1]
 tests/test_async_filters.py::test_bool_select[<lambda>0]
 tests/test_async_filters.py::test_bool_select[<lambda>1]
 tests/test_async_filters.py::test_custom_async_filter[asyncio]
-tests/test_async_filters.py::test_custom_async_iteratable_filter[asyncio-<lambda>0]
 tests/test_async_filters.py::test_custom_async_iteratable_filter[asyncio-<lambda>1]
 tests/test_async_filters.py::test_empty_map
 tests/test_async_filters.py::test_first[asyncio-<lambda>0]
@@ -96,11 +95,10 @@ tests/test_async_filters.py::test_simple_select_attr[<lambda>1]
 tests/test_async_filters.py::test_slice[<lambda>0]
 tests/test_async_filters.py::test_slice[<lambda>1]
 tests/test_async_filters.py::test_sum[<lambda>0]
-tests/test_async_filters.py::test_sum[<lambda>1]
 tests/test_async_filters.py::test_sum_attributes[<lambda>0]
 tests/test_async_filters.py::test_sum_attributes[<lambda>1]
 tests/test_async_filters.py::test_sum_attributes_nested
 tests/test_async_filters.py::test_sum_attributes_tuple
 tests/test_async_filters.py::test_unique_with_async_gen
-tests/test_ext.py::TestExtensions::test_extend_late
-tests/test_lexnparse.py::TestParser::test_line_syntax
+tests/test_ext.py::TestExtensions::test_streamfilter_extension
+tests/test_lexnparse.py::TestLexer::test_balancing

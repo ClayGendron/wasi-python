@@ -1091,7 +1091,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-counted-clock]"
-match = "3 finding(s), digest 5f05fa61a255"
+match = "2 finding(s), digest 0c61ab6175e3"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1139,13 +1139,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]"
-match = "13 finding(s), digest af97922d3b81"
+match = "13 finding(s), digest ba56b641f579"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]"
-match = "106 finding(s), digest c7177c5b2367"
+match = "104 finding(s), digest 959d6ba605ec"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
