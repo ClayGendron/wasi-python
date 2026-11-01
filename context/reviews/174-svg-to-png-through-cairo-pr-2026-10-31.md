@@ -2,41 +2,30 @@
 
 - **Date:** 2026-10-31
 - **Reviewer:** an agent (Claude), a fresh sub-agent of Claude Code session 0672b924-ca3c-4b6c-91ca-f834537cb1bc; not the author
-- **Reviewed:** `2ec3c1ee..557933a2`, with the specification, its pre-build review, the memo and the landing notes; then, rebased onto `dev` at `9c0d879e`, `e33d94f1`: `git range-diff` against `557933a2`, the fix commit `1d899fed` and drawsvg's commit `e33d94f1`
-- **Run:** 41276016814 on `e33d94f1` (relayed): the gather and every judge shard green, all 13 windows-2025 legs included; `review` and `ci-status` red only for this file.
-- **Re-ran:** (darwin arm64) at `557933a2`: the drawing file → 6 passed; lint → 14; the six tree rows → 6; the suite rule, news shape, `cairosvg-smoke` and its class → 3 passed, 1 xfailed. At `e33d94f1`, on the rebuilt set: `test_v1_3_drawing.py`, `test_drawsvg_names_what_the_set_lacks`, the verdict-bearing, news-shape, suite and ledger rules → 12 passed; `tests/lint` → 14 passed. All exit 0.
+- **Reviewed:** `2ec3c1ee..557933a2` with the specification, its pre-build review, the memo and the landing notes; then each rebase by `git range-diff` and `git diff origin/dev...HEAD`: `e33d94f1` on `9c0d879e`, `bd808b50` on `da830491`, `b8c3575f`, and `812f5cba` on `1129b7ef`
+- **Run:** 41317719111 on `812f5cba` (relayed): the gather and every judge shard green, all 13 windows-2025 legs and the wheel check included; red only for this file's position.
+- **Re-ran:** (darwin arm64, each head's rebuilt set) the drawing file, the new tree rows, `cairosvg-smoke`, `imageio-smoke`, the callback scan, 173's drawsvg row, `tests/unit/test_callbacks.py` and the rules, each passing, with Low 8's row seen failing without the skip. At `812f5cba`: the drawing file, the callback scan and the 40 tree rows → 47 passed; `test_rules.py`, `test_callbacks.py`, `test_artifact_rules.py` → 210 passed, 1 skipped; lint → 14 passed. All exit 0.
 - **Box:** 45 minutes; overran by about fifteen.
 
-Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED means my reasoning.
+Labels: EXECUTED, I ran it; READ, I read it; INFERRED, my reasoning.
 
 ## Acceptance criteria against evidence
 
-1. libpng's signature, the sweep — met (READ): the tree equals the signed tag `v1.6.59`.
-2. Exact pixels — met (EXECUTED, both binaries), no libm allowance.
-3. The drawing checks — met (EXECUTED); seen failing first (READ).
-4. Imports, tags, constructors — held by step 60 at the build (READ).
-5. The suites — met: `cairosvg-smoke` and the suite rule (EXECUTED), the rest in run 41276016814 (relayed).
-6. Trees, the zip's source — met (EXECUTED): the zip's `cairosvg/*.py` equal the sdist's plus the patch, less `test_api.py`.
-7. Bytes, fuel, the wheel — met (READ). `PYPI_FILE_LIMIT = 104_857_600` (`tests/harness/artifacts.py:248`) is PyPI's 100 MiB: set right.
-8. The run — met: 41276016814 green but for this file (relayed).
+- **1–4.** libpng's signed tag, exact pixels on both binaries, the drawing checks seen failing first, imports and constructors held — met (EXECUTED, READ).
+- **5.** The suites — met at `e33d94f1` (run 41276016814, relayed); at `bd808b50`, `imageio-smoke` (EXECUTED), the rest wait on the run.
+- **6.** The zip's `cairosvg/*.py` equal the sdist's plus the patch — met (EXECUTED).
+- **7.** Bytes and fuel claimed — met (READ).
+- **8.** The run — met: 41317719111 (relayed).
 
-**The departures.**
+**Rounds 1 and 2.** pixman's constructor edit is to meson's generated header outside the tree: a recipe. The CairoSVG patch is recorded as §4.1 asks (MANIFEST, CHANGELOG, draft, README's 31); a stand-in `__init__.py` would fork the module. The first judge changes are honest and narrow. `_cffi_backend` cannot `dlopen`, and a pointer call or a read past memory traps (EXECUTED). Every licence text ships, within §4.12. The claim block moved to its ledger file unchanged (EXECUTED). 173's check now expects PNG bytes: a stronger assertion, the old one false once CairoSVG ships, claimed as `changed`. `cairo_native.sh` builds `dev`'s zlib 1.3.2.
 
-1. **pixman's constructor lines:** a recipe, not a source change. Step 39 edits meson's generated header outside the tree and refuses on either line's state; the tree check passes (EXECUTED).
-2. **The CairoSVG patch:** recorded as §4.1 asks: MANIFEST's `recipe` line (EXECUTED), the CHANGELOG line, the upstream draft, the README's count of 31. A stand-in `__init__.py` would be a fork of the whole module.
-3. **The non-regression suite:** reasoned in `cairosvg.toml`; spec 063 is met by the API tests (Low 4).
-4. **The judge changes:** honest and narrow; none turns red to green. The pikepdf stand-in raises, so its tests fail in a named class; the zip admits `.py` under `cairosvg/` only, beside its `.pyc`; the smoke bounds guard cost, not verdicts. A release-only tinycss2 would need a wider change, since a test-source family's one normal group is its smoke group (`source_rule_errors`).
+**Round 3: the rebase onto `da830491` (#89, #80, #91) and `0ced0084`.**
 
-**Security** (EXECUTED in the guest). `_cffi_backend`'s `load_library` and `dlopen` raise `OSError: dlopen not implemented`; a call through a cast pointer and a read past linear memory trap; run-time callbacks raise `MemoryError`. `ffi.cast` reaches only the guest's own memory, as numpy's array interface already does.
+1. **imageio's JPEG classes go.** All three named only JPEG, which Pillow now reads; their tests pass (imageio-r 100 → 106 passes, READ; `imageio-smoke` passes, EXECUTED). They never reached `dev`, so no accepted pass is lost. `test_plugin_selection_success[.jpg]` fails for the driver's `--import-mode=importlib` (`tests/upstream/package_drive.py:272`), a cause four gaps already name. `test_imopen_extension_malformatted[.jpg]` fails in its `.cap` hint: in the guest it reaches FreeImage's ctypes and raises `OSError`, no `UserWarning` (EXECUTED), which `pytest.warns` reports as "DID NOT WARN". Both reclassifications are true, and the news file, its `[claim.judge]` and the ledger follow.
+2. **The callback scan's getset skip** (`tests/harness/callbacks.py:276-277`) is name-gated: a getter at index 1 to 20 is skipped only when the name section calls it `*_rule`, `_PyPegen_*` or `skipping_*`. A binary without names skips nothing. On the set it hides one record, cairo's table at `skipping_calloc` (EXECUTED). Narrow and claimed: not a weakening (Low 8).
+3. **Conflicts:** `60_link.sh`'s and `70_zip.sh`'s comments, `JOBS`, `PLATFORM_BOUND` and `own-guest-c` keep `dev`'s entries and add this change's (READ).
 
-**Licences** (READ). cairo's MPL-1.1 election with URL and SHA-256, and eight MIT-style notices; pixman's 26; CairoSVG's LGPL-3.0, pinned GPL-3.0 and facts claiming nothing; the rest their own texts. No font is added. All within §4.12. **`.github/`:** `release.yml` expects 38 trees, not 32; nothing else.
-
-**Round 2: the rebase onto `9c0d879e` and drawsvg's lines.**
-
-1. **The rebase.** The claim block moved to `context/release-claims/174-svg-to-png-through-cairo.toml` unchanged (EXECUTED, `diff`). Every `dev` line the diff removes is one this change replaces; #71's pandas 3.1.0, #86's drawsvg lines and #87's ledger rule stand (READ).
-2. **173's check expects PNG bytes:** not a weakening. Its old expectation is false once CairoSVG ships; the new one asserts `rasterize()` returns PNG's signature, and the golden holds the pixels (`rasterize()` equals `svg2png`; three GIF frames equal the oracle's). The news file's `changed` claim and the landing notes give the reason.
-3. **`cairo_native.sh`** builds zlib 1.3.2, `dev`'s pin.
-4. **The wheel:** 104,677,500 bytes, 180,100 under PyPI's 104,857,600 (READ). The owner raises the wheel test's limit to the 256 MiB asked of PyPI in a pull request of its own, and holds PyPI publishing until PyPI approves: a fact, not a blocker.
+**Round 4: the rebases onto `badce7af` (#91) and `1129b7ef` (#81, zstd).** The range-diff changes only commit 1: `release.yml` counts 40 trees, zstd the 34th, in three places; `60_link.sh` names zstd and cairo; the README edit leaves commit 1, and `812f5cba` sets the count to 32, which equals the patch files under `recipes/patches/` and the drafts (EXECUTED: 32 and 32; `dev` has 31). The other commits are unchanged; zstd's lines stand (READ); the 40 tree rows pass (EXECUTED). The wheel is 105,155,986 bytes (relayed), under #91's 256 MiB limit: a fact.
 
 ## Findings, most severe first
 
@@ -52,17 +41,18 @@ Labels: EXECUTED means I ran it; READ means I read the file cited; INFERRED mean
 6. **Low: cffi's notice could point to the PSF terms** (`scripts/assemble_artifacts.py`, the `cffi` entry). `malloc_closure.h` is compiled in, and the code comment says it is under CPython's licence. `LICENSES/cffi.txt` does not say so. Fix text: add a part, "src/c/malloc_closure.h is from CPython's `_ctypes`, under the PSF licence in LICENSES/cpython.txt."
 7. **Low: the self-check's Windows box is open, with its reason** (the run has not finished). It is ticked once the run's Windows legs are read.
 
+8. **Low: the getset skip has no unit row** (`tests/harness/callbacks.py:276-277`). The single-method skip has two (`tests/unit/test_callbacks.py:200-220`); a later edit that skipped every low getter would go unseen. Fix text: a row where a getset record's getter at index 1 is `skipping_calloc` is not counted, and the same record with `handler` there, or with names cleared, is a finding; seen failing first without the skip.
+
 ## Constitution checks
 
 §4.1: one patch, recorded in full. §4.12: every new text ships, within the approval. §4.15: nothing writable. §5.6: pre-build review confirmed; not structural. Pins: URL and SHA-256 for each. §7: nothing tripped.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1–6. Fixed in `1d899fed` (READ). The stand-ins are verdict-bearing and `test_rules.py` agrees (EXECUTED). `LICENSES/cairosvg.txt` carries the date and `LICENSES/cffi.txt` the `malloc_closure.h` part, in the rebuilt set (EXECUTED).
-
-
-7. Closed by the orchestrator: the Windows box ticked with run 41276016814.
+- **1–6.** Fixed in `a21d0359` (READ). The stand-ins are verdict-bearing and `test_rules.py` agrees (EXECUTED). `LICENSES/cairosvg.txt` carries the date and `LICENSES/cffi.txt` the `malloc_closure.h` part, in the rebuilt set (EXECUTED).
+- **7.** Closed by the orchestrator: the Windows box ticked with run 41276016814.
+- **8.** Fixed in `b8c3575f`: `test_a_getset_at_the_reactors_allocator_is_not_a_getset` skips the record at `skipping_calloc` and finds it with `handler` there or with the names cleared. With the two skip lines removed from a copy of `callbacks.py`, it fails at its first assertion (EXECUTED); with them, `tests/unit/test_callbacks.py` passes, 32 rows (EXECUTED).
 
 ## Verdict
 
-Lands on `e33d94f1`: run 41276016814 is green with its Windows legs, nothing High or Medium stands, the seven Lows are closed, and the rebase and drawsvg's lines undo nothing and weaken no check.
+Lands on `812f5cba`: run 41317719111 is green with its Windows legs, nothing High or Medium stands, the two judge changes of `0ced0084` are true and narrow, and the eight Lows are closed.
