@@ -1,5 +1,0 @@
-[[claim]]
-spec = "169"
-passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-archives]"]
-grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
-growth = "libzstd 1.5.7 is linked into _zstd, so test_zipimport's two Zstandard ZIP64 tests, which want the largefile resource, run in cpython-release-archives: 4 to 6 passes, 99.7 G to 248.9 G measured on darwin arm64, its cap 150 G to 380 G. Every other release group grows a little: shutil, tempfile and zipfile now import _zstd, compression.zstd and _zstdfile at module top, and every guest that runs a group imports shutil (pytest's pathlib, capture and tmpdir, or regrtest), about 10.4 M more fuel a guest (import shutil 410.0 M to 420.4 M on python.wasm, darwin arm64)"

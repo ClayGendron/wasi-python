@@ -2,6 +2,220 @@
 
 `release/version.py date` moves each file of the ledger (`release-claims/NNN-<slug>.toml`, one per pull request) here, under the version it dates and under the file's name, in file-name order, before the release pull request, and removes the file; the ledger's folder keeps its README alone. The release pull request's gather and acceptance read the version's blocks, with any file written since, as their claims (`progress/README.md`, "The release tier" and "Acceptance from CI's record"). Until 0.1.0 the release acceptance moved them. Until 0.1.2 the ledger was `release-tier-claims.toml` and this file `release-tier-claims-history.md`, and they carried release-tier claims alone; the 0.1.2 block below names the ledger by its old name, as it was written. Until specification 177 the ledger was the single file `release-claims.toml`, whose blocks `date` moved as one fence; 0.1.2's section and those before it keep that shape.
 
+## 0.1.3
+
+Moved by `release/version.py date` on 2026-11-01, before the release pull request.
+
+`159-the-runs-take-the-shape-the-data-asks-for.toml`:
+
+```toml
+[[claim]]
+spec = "159"
+new = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-uniform-P]"]
+retired = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-r-stats-4-continuous-rv-2]"]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[sympy-*"]
+growth = "sympy's release tier under CPython 3.15.2. One group measured, on darwin arm64 against dev's set: sympy-r-stats-4-continuous-rv-2, the single test test_uniform_P, 3,542,150,840,058 fuel against the accepted 2,865,065,511,960 (+23.6%); its leg passed the release judge job's 30 minutes in the weekly-shape run 41201012715, so by the owner's choice of 2026-10-31 the group is retired and the test is the trap sympy-slow-uniform-P, run alone to the 50 G cap, a gap. Its neighbours, run on the same set: sympy-r-stats-4-continuous-rv-1 +0.070% and -3 -0.050%, the same passes. Why test_uniform_P grew is not established (CPython 3.15.2's C-stack check in tuple hashing is a hypothesis). The other sympy groups are read at the next weekly run, under CPython 3.15.2"
+```
+
+`165-python-docx-and-python-pptx.toml`:
+
+```toml
+[[claim]]
+spec = "165"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[python-docx-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[python-pptx-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-docx-r-bytesio-mocked-in-a-fixture]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-fixture]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-test]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "python-docx 1.2.0 and python-pptx 1.0.2 join the zip, 214 members, so every guest's zip directory is larger: a plain start +1.93% and a snapshot start +1.01% in fuel (darwin arm64). Their whole suites measure 105.8 G (1,571 passes) and 150.0 G (2,677 passes) on darwin arm64; six tests that patch io.BytesIO for the whole interpreter fail under the driver's sys capture, as natively under --capture=sys"
+```
+
+`166-the-pins-move-for-0-1-3.toml`:
+
+```toml
+[[claim]]
+spec = "166"
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pypdf-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
+]
+grows = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-slow-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scipy-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[contourpy-*",
+]
+growth = "the pins move for 0.1.3's first pull request: CPython 3.15.2, numpy 2.5.4, pypdf 6.21.4, soupsieve 3.0.4, wrapt 2.5.2, tzdata 2026.6. Measured on darwin arm64 against dev's set: numpy's, pandas' and CPython's 18 release groups +0.199% in sum (median +0.134%, from -0.130% to +1.108%, cpython-release-b-inline the most), every pass count the same; pypdf-r -2.417% with 1,695 passes (1,474: three releases' new tests); soupsieve-r 31.4 G to 185.8 G (cap 280 G) with 400 passes (322): 3.0.4's new tests, and test_api.py, whole, moved to it from soupsieve-smoke, whose two new exhaustive tests measure about 141 G, past a smoke group's 100 G. The release groups over numpy (scipy, scikit-learn, statsmodels, matplotlib, contourpy) are read at the first weekly run after the merge, numpy 2.5.4 under each"
+
+[[claim]]
+spec = "166"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pandas-categories]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-pandas-inplace-deprecated]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-1-pandas-inplace-deprecated]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-2-pandas-inplace-deprecated]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-pandas-multiindex-sel]",
+]
+changed = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-a]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-slow-b]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-datasets]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-graphics-to-multivariate-factor_rotation]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-tsa-statespace-1]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[statsmodels-tsa-statespace-2]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rest]",
+]
+fewer = "pandas 3.1.0, the second pull request: pandas-slow-a 2,259 -> 2,256 and pandas-slow-b 28 -> 26. 3.1.0 drops the slow mark from test_where_inplace_casting, test_unstack_number_of_levels_larger_than_int32_warns, test_pivot_number_of_levels_larger_than_int32_warns and test_isocalendar, so their six nodes move to the normal groups; beyond the owner's 41, slow-b's three test_categorical_dtype_high_cardinality_numeric cases ([c_high], [c_low], [python]), which 3.1.0 rewrote, fail as its wasm32-int32 class says, numpy's 32-bit default integer confirmed in the guest (the test's expected categories take numpy's 32-bit default integer; read_csv's int64 categories are native's); four new parallel-read tests pass. Known upstream failures the owner accepted on 2026-10-31 with pandas 3.1.0, the same natively: scikit-learn-datasets 356 -> 329 (27 openml tests: pandas 3.1.0 infers numeric categories, which scikit-learn 1.9.1's ARFF parser passes to re.search; class pandas-categories, closed by scikit-learn's next release), and statsmodels' graphics-to-multivariate-factor_rotation 423 -> 422, tsa-statespace-1 1,049 -> 1,037 and tsa-statespace-2 591 -> 590 (14 tests: pandas 3.1.0's Pandas4Warning on the inplace keyword statsmodels 0.15.0 passes; class pandas-inplace-deprecated, closed by statsmodels' next release). The 42nd, accepted by the owner on 2026-10-31 after xarray reached dev: xarray-r-rest loses one pass, xarray/tests/test_indexes.py::TestPandasMultiIndex::test_sel (pandas 3.1.0's MultiIndex.get_loc raises KeyError for a key longer than the index's depth where xarray 2026.9.0's test expects its own error; the same natively; class pandas-multiindex-sel, closed by xarray's next release)"
+[claim.judge]
+"tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "CPython 3.15.2 (166's first pull request) collects the stray event loops of jinja2's async tests at other moments: four tests join the failed class (two that errored at teardown, two that see an earlier test's loop) and two leave it, passing; 106 members, jinja2-r's pass count unchanged; the weekly-shape run 41201012715 (shard upstream-release-039) saw it"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop-error.txt" = "the same trade: two tests join the teardown-error class and two leave it for the failed class; 13 members"
+"tests/upstream/xarray.toml" = "a new class, pandas-multiindex-sel, in xarray-r-rest: test_sel fails on pandas 3.1.0, natively too, the 42nd test the owner accepted on 2026-10-31; fails-natively's reason names pandas 3.1.0, under which the test still fails natively"
+"tests/upstream/expected/xarray-r-rest/pandas-multiindex-sel.txt" = "the class's one member, TestPandasMultiIndex::test_sel"
+"tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop counts 106 findings and jinja2-r-no-asyncio-loop-error 13, their digests following the trade; xarray-r-rest-pandas-multiindex-sel is a new gap of 1 finding, closed by xarray's next release; xarray-r-dataset-fails-natively's reason names pandas 3.1.0"
+```
+
+`167-pdfplumber-plotly-xarray-and-zstd.toml`:
+
+```toml
+[[claim]]
+spec = "167"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfplumber-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfminer-six-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-dataarray]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rolling]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-backends]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-dataset]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-plot]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-arrays]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-coding]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rest]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2-in-a-test]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-ghostscript]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cryptography]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cjk-cmaps]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-threads]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-arrays-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-coding-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the zip, 185 members, so every guest's zip directory is larger: a plain start +1.68% and a snapshot start +0.77% in fuel (darwin arm64). Their release groups measure pdfplumber-r 171.5 G (104 passes), pdfminer-six-r 86.9 G (184 passes) and xarray's eight 1,536.7 G (7,712 passes) on darwin arm64; the failures fall in sixteen classes, each named in its family's TOML"
+
+[[claim]]
+spec = "167"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[plotly-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-read-only-source]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-anywidget]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-scikit-image]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-ipython]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-polars-pyarrow]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-requests]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-wasm32-maxsize]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-fails-natively-in-one-session]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "plotly 7.1.0 joins the zip, 1,529 members: on top of 175 and 176's directory read by folder, a plain start +0.21% and a snapshot start +2.11% in fuel (darwin arm64). Its release group, plotly-r, measures 214.8 G with 2,062 passes on darwin arm64; its 36 failures fall in eight classes, each named in its TOML"
+```
+
+`169-zstd-built-in.toml`:
+
+```toml
+[[claim]]
+spec = "169"
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-release-archives]"]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "libzstd 1.5.7 is linked into _zstd, so test_zipimport's two Zstandard ZIP64 tests, which want the largefile resource, run in cpython-release-archives: 4 to 6 passes, 99.7 G to 248.9 G measured on darwin arm64, its cap 150 G to 380 G. Every other release group grows a little: shutil, tempfile and zipfile now import _zstd, compression.zstd and _zstdfile at module top, and every guest that runs a group imports shutil (pytest's pathlib, capture and tmpdir, or regrtest), about 10.4 M more fuel a guest (import shutil 410.0 M to 420.4 M on python.wasm, darwin arm64)"
+```
+
+`170-pillow-reads-and-writes-jpeg.toml`:
+
+```toml
+[[claim]]
+spec = "170"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-no-jpeg2k-or-tiff]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-no-jpeg2k-or-tiff]",
+]
+retired = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-zlib-only]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-zlib-only]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pillow-zlib-only-at-setup]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pypdf-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-datasets]",
+]
+grows = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[scikit-learn-datasets]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pypdf-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[openpyxl-r]",
+]
+growth = "Pillow gains JPEG through libjpeg-turbo 3.2.0, and python.wasm grows by 520,394 bytes. Measured on darwin arm64: scikit-learn-datasets 65.6 G (Linux) to 90.9 G with 360 passes (356): the faces dataset's JPEG fixtures now write, so its four tests run, and its cap moves to 140 G by the 1.5 rule; pypdf-r 1,703 passes (1,695 after 166), eight JPEG tests passing, 358.8 G; openpyxl-r 63.2 G (+0.1%), its pass count the same"
+```
+
+`171-the-packages-a-set-carries.toml`:
+
+```toml
+[[claim]]
+spec = "171"
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "each distribution's .dist-info gains its top_level.txt, 58 members after 167, so every guest's zip directory is larger: a plain start 282,492,922 to 283,900,438 fuel (+0.50%) and a snapshot start 54,644,143 to 54,695,369 (+0.09%), measured on darwin arm64 against dev's set at a750e8fe"
+```
+
+`174-svg-to-png-through-cairo.toml`:
+
+```toml
+[[claim]]
+spec = "174"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cairocffi-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[imageio-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-r-no-ctypes-address]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-fails-natively]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-wasi-platform]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-legacy-tifffile]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-importlib-module-names]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes-warning]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "cairo and cairocffi's bindings are linked in and cairocffi, CairoSVG, tinycss2, cssselect2 and imageio join the zip, 119 members, so every guest's zip directory is larger: a plain start +0.99% and a snapshot start +0.49% in fuel (darwin arm64). Their release groups measure cairocffi-r 11.1 G and imageio-r 295.1 G (106 passes) on darwin arm64; the failures fall in eight classes, each named in its family's TOML"
+```
+
+`176-the-end-of-a-call-frees-nothing.toml`:
+
+```toml
+[[claim]]
+spec = "176"
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "175 reads the stdlib zip by folder on the plain binary and keeps its dict past teardown, and 176 keeps teardown's freed blocks within a 1 MiB budget, so most calls end on less fuel; but the link now wraps the C library's allocators, and every allocation of every call checks one flag. Measured on darwin arm64 against 175's set, calls ended by os._exit(0): a bare call +0.36% (plain) and +0.61% (snapshot), a pandas groupby +0.20% and +0.23%; each whole call, teardown included, still uses less fuel than before (a pandas groupby 4,766,096,475 to 4,730,329,497 on the snapshot). A release group that allocates much and finalizes little grows by up to the wrappers' cost"
+```
+
 ## 0.1.2
 
 Moved by `release/version.py date` on 2026-10-29, before the release pull request.

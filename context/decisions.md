@@ -597,3 +597,9 @@ The code stays embedder-neutral (§4.5). The capabilities that agent use needs a
 - **Asked:** 2026-11-01, by the orchestrating session, with the AskUserQuestion tool, after #92's review (Low 1) found that specification 167's own rule ("the owner is asked with the swept list") had not been met. **Source:** `reviews/167-pdfplumber-plotly-xarray-and-zstd-pr-2026-11-01.md`.
 - **The swept additions:** plotly.min.js bundles native-promise-only, buffer, safe-buffer, the assert module's comparisons, object-assign (MIT) and ieee754 (BSD-3-Clause), none named by the pre-build list or §4.12's line of 2026-10-31; and seven of plotly's bundled datasets state no source. Every notice ships in `LICENSES/plotly.txt`.
 - **The owner's decision:** "Approve all": the six libraries, and the seven datasets under plotly's MIT licence. Constitution §4.12 is amended with them.
+
+## 0.1.3 goes to GitHub first, and cairo's source offer
+
+- **Asked:** 2026-11-01, by the orchestrating session, with the AskUserQuestion tool, from the 0.1.3 security review's R6 and L5 (`reviews/0.1.3-security-review-2026-11-01.md`). The wheel is 112,145,034 bytes, past PyPI's default 104,857,600, and no grant from PyPI is recorded.
+- **The owner's decision (where 0.1.3 goes):** "GitHub now, PyPI later". The owner tags 0.1.3 with `PYPI_PUBLISH` off, so the release is GitHub's: the wheel, the set and their attestation. The notes' summary says so. When PyPI raises the project's limit, the owner sets `PYPI_FILE_LIMIT_GRANTED` and uploads (`docs/contributing/release-process.md`).
+- **The owner's decision (cairo's MPL-1.1 source offer):** "Upstream address suffices". The pinned upstream tarball, `cairo-1.18.6.tar.xz` by its URL and SHA-256 in `downloads/SHA256SUMS`, is the source offer; the release attaches no copy.
