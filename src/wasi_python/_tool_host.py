@@ -42,8 +42,10 @@ _MAX_ABANDONED_IN_PROCESS = 64
 _TOOL_WAIT_CEILING = 3600.0  # the longest a tool call waits when nothing else bounds it
 _DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
 _SURROGATE = re.compile("[\ud800-\udfff]")
-# One token per match, never retried: an escape pair, a quote or a bracket (rule 3).
-_TOKEN = re.compile(r'\\.|["\[\]{}]', re.S)
+# One token per match, never retried: an escape pair, a quote, a bracket or a comma (rule 3). It
+# reads the frame's bytes, so a frame refused by its shape is never decoded: in UTF-8 no byte of
+# a character past ASCII is one of these.
+_TOKEN = re.compile(rb'\\.|["\[\]{},]', re.S)
 
 
 # -------------------------------------------------------------------------------------------------
@@ -54,27 +56,44 @@ class _Refused(Exception):
     """A frame that breaks the protocol's rules: a `protocol` answer."""
 
 
-def _nesting(text: str) -> int:
-    """The deepest nesting of arrays and objects outside strings, in one pass over the text: a
-    regular expression that skips whole strings would be retried at every quote of an
-    unterminated one, which is quadratic on a guest's megabyte."""
-    depth = deepest = 0
-    inside = False
-    for m in _TOKEN.finditer(text):
+class _Shape(NamedTuple):
+    """What one pass over a frame's bytes finds outside and inside its strings."""
+
+    depth: int  # the deepest nesting of arrays and objects
+    values: int  # the values outside strings, each array, object and comma opening one
+    text: int  # the bytes inside strings, less what each escape adds: at most their UTF-8
+
+
+def _nesting(frame: bytes, most: int | None = None) -> _Shape:
+    """The frame's shape in one pass over its bytes, which stops once the nesting passes its
+    bound or the values pass `most`: a regular expression that skips whole strings would be
+    retried at every quote of an unterminated one, which is quadratic on a guest's megabyte. An
+    escape is at least one byte once decoded: `\\uXXXX` six bytes, any other pair two."""
+    depth = deepest = count = text = 0
+    opened = -1  # where the string being read began, or -1 outside one
+    for m in _TOKEN.finditer(frame):
         token = m.group()
-        if inside:
-            inside = token != '"'  # an escape pair or a bracket stays inside the string
-        elif token == '"':
-            inside = True
-        elif token in "[{":
-            depth += 1
-            if depth > deepest:
-                deepest = depth
-                if deepest > _TOOL_NESTING:
-                    break
-        elif token in "]}":
+        if opened >= 0:
+            if token == b'"':
+                text += m.start() - opened - 1
+                opened = -1
+            elif token[0] == 0x5C:  # an escape pair; a bracket or a comma is the string's own
+                text -= 5 if token == b"\\u" else 1
+        elif token == b'"':
+            opened = m.start()
+        elif token == b"]" or token == b"}":
             depth -= 1
-    return deepest
+        elif token == b"[" or token == b"{" or token == b",":  # an escape pair here is not JSON
+            count += 1
+            if most is not None and count > most:
+                break
+            if token != b",":
+                depth += 1
+                if depth > deepest:
+                    deepest = depth
+                    if deepest > _TOOL_NESTING:
+                        break
+    return _Shape(deepest, count, text)
 
 
 def _no_constant(name: str) -> Any:
@@ -105,15 +124,20 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
-def _parse(frame: bytes) -> _Json:
-    """The frame's parse rules, then the `$bytes` objects decoded."""
+def _parse(frame: bytes, most: int | None = None, shape: _Shape | None = None) -> _Json:
+    """The frame's parse rules, then the `$bytes` objects decoded. With `most`, a frame that
+    holds more values than that outside its strings is refused before it is decoded, so the
+    parse costs about the frame's length whatever it holds. `shape` is the frame's, when the
+    caller has read it already."""
+    depth, count, _ = _nesting(frame, most) if shape is None else shape
+    if depth > _TOOL_NESTING:
+        raise _Refused(f"the frame nests deeper than {_TOOL_NESTING} levels")
+    if most is not None and count > most:
+        raise _Refused(f"the frame holds more than {most} values outside its strings")
     try:
         text = frame.decode("utf-8")
     except UnicodeDecodeError:
         raise _Refused("the frame is not UTF-8") from None
-    depth = _nesting(text)
-    if depth > _TOOL_NESTING:
-        raise _Refused(f"the frame nests deeper than {_TOOL_NESTING} levels")
     try:
         value = json.loads(
             text,

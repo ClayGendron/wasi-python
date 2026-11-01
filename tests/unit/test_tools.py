@@ -924,7 +924,7 @@ def test_the_nesting_scan_is_one_pass(monkeypatch, text) -> None:
     seen once, whatever the frame (a regular expression retried at every quote is quadratic)."""
     counter = CountingPattern(H._TOKEN)
     monkeypatch.setattr(H, "_TOKEN", counter)
-    H._nesting(text)
+    H._nesting(text.encode())
     assert counter.matches <= len(text)
     c = Counter()
     host = H._ToolHost(counting_tools(c), gate=c.gate)
