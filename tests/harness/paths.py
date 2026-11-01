@@ -193,6 +193,18 @@ LICENCE_COMPONENTS = (
     "xarray",
     # drawsvg, its wheel's MIT licence
     "drawsvg",
+    # SVG to PNG through cairo: cairo under MPL-1.1 with the MIT-style notices of nine files,
+    # pixman with each compiled file's notice, libpng, cffi, cairocffi, CairoSVG's LGPL-3.0 with
+    # GPL-3.0's text, and the three wheels' licences
+    "cairo",
+    "pixman",
+    "libpng",
+    "cffi",
+    "cairocffi",
+    "cairosvg",
+    "tinycss2",
+    "cssselect2",
+    "imageio",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -271,6 +283,15 @@ PACKAGES = (
     "pdfminer-six",
     "xarray",
     "drawsvg",
+    "pixman",
+    "libpng",
+    "cairo",
+    "cffi",
+    "cairocffi",
+    "cairosvg",
+    "tinycss2",
+    "cssselect2",
+    "imageio",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

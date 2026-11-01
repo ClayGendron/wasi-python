@@ -1,0 +1,5 @@
+tests/test_pillow.py::test_jpg_compression
+tests/test_pillow.py::test_write_jpg_to_bytes_io
+tests/test_pillow.py::test_write_single_frame[chelsea.npy-iio.jpeg-pil.jpg]
+tests/test_pillow.py::test_write_single_frame[chelsea.npy-iio.jpg-pil.jpg]
+tests/test_pillow.py::test_write_to_bytes_jpg

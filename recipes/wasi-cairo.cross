@@ -1,0 +1,39 @@
+# Meson cross file: cairo's C libraries (pixman, cairo) -> wasm32-wasip1 as static archives (step
+# 39). It is recipes/wasi-plot-libs.cross with two changes: pkg-config also searches step 39's own
+# prefix, where libpng's and pixman's .pc files are, and ttx (fontTools' tool, which cairo's meson
+# looks for to build its tests' fonts) is named by a path that does not exist, as cmake is, so no
+# host's ttx is ever run and every host configures alike. The build step rewrites @ROOT@
+# (the repository root) and @SDK@ (scripts/line.conf's WASI_SDK_DIR).
+[binaries]
+c = '@ROOT@/scripts/wasi-cc'
+cpp = '@ROOT@/scripts/wasi-cxx'
+ar = '@ROOT@/build/tools/@SDK@/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/@SDK@/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/@SDK@/bin/llvm-strip'
+nm = '@ROOT@/build/tools/@SDK@/bin/llvm-nm'
+# The pinned pkgconf binary (step 10), never a pkg-config on PATH.
+pkg-config = '@ROOT@/build/tools/pylib/pkgconf/.bin/pkgconf'
+# A program that does not exist: meson then never finds a dependency through a host's CMake, so
+# every build host takes the same path.
+cmake = '@ROOT@/build/no-cmake'
+ttx = '@ROOT@/build/no-ttx'
+
+[host_machine]
+system = 'wasi'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
+skip_sanity_check = true
+# Only the libraries this build made: step 39's, step 37's FreeType and step 30's zlib (one zlib is
+# linked). pkgconf's own default search path is replaced.
+pkg_config_libdir = ['@ROOT@/build/cairo-libs/lib/pkgconfig', '@ROOT@/build/plot-libs/lib/pkgconfig', '@ROOT@/build/zlib-wasi/lib/pkgconfig']
+
+[built-in options]
+# -ffile-prefix-map: no builder's path in __FILE__ strings, so the binary's hash does not depend on the checkout.
+# C: setjmp/longjmp through the exception-handling proposal, as for FreeType.
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-enable-sjlj', '-mllvm', '-wasm-use-legacy-eh=false']
+# No C++: pixman and cairo are C.
+# No link args: the one real link is python.wasm's own.

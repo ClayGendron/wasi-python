@@ -32,7 +32,7 @@ A *golden job* is a fixed program whose output the project compares with native 
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray and drawsvg:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, and imageio:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -40,7 +40,9 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
 | | xlrd 2.0.2 | read old `.xls` files |
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
-| drawing | drawsvg 2.4.2 | vector drawings and SMIL animations, saved as SVG or HTML |
+| drawing | drawsvg 2.4.2 | vector drawings and SMIL animations, saved as SVG, HTML, PNG or GIF |
+| | CairoSVG 2.9.1, tinycss2 1.5.1, cssselect2 0.10.1 | any SVG to PNG, PDF or SVG, drawn by cairo through cairocffi |
+| | imageio 2.38.1 | images and animated GIFs through Pillow |
 | labelled arrays | xarray 2026.9.0 | n-dimensional arrays with named dimensions and labels; netCDF3 through scipy |
 | PDF | pypdf 6.21.4 | read, extract text, merge, split, encrypt (RC4) |
 | | reportlab 5.0.1 | write PDFs: text, tables, charts, Unicode text, images |
@@ -70,7 +72,7 @@ pyyaml and markupsafe come from their source releases and run as pure Python: py
 
 python-docx and python-pptx start from their own default templates, which they read from the zip. python-pptx's `fit_text()` needs Pillow's FreeType module, which the set lacks: it raises `OSError` looking for the system's fonts, or `ImportError` when given `font_file=`. Set a font size instead.
 
-Each family has a golden job whose output equals native Python's at the same pins. drawsvg ships no tests of its own, so the project checks it instead: its golden job shows the guest writes native drawsvg's SVG and HTML bytes, and a second check shows what the set lacks raises by name.
+Each family has a golden job whose output equals native Python's at the same pins. drawsvg ships no tests of its own, so the project checks it instead: its golden job shows the guest writes native drawsvg's SVG and HTML bytes, the SVG-to-PNG job its PNGs and GIFs pixel for pixel, and a second check shows what the set lacks raises by name.
 
 ## What is not carried
 
@@ -82,16 +84,18 @@ These are not in the set, so each raises its `ImportError`, as it does natively 
 - `antlr4` and `lark`, for sympy's `parse_latex`;
 - `odfpy`, for pandas' `engine="odf"`, and `pyxlsb`, for `.xlsb` files;
 - `cssselect` and `lxml_html_clean`, for `lxml.cssselect` and `lxml.html.clean`;
-- `cairosvg` and `imageio`, for drawsvg's PNG, GIF, video and sprite-sheet output;
+- `imageio-ffmpeg`, for drawsvg's and imageio's video output;
 - `pwkit`, for `drawsvg.color`, and `ipywidgets`, for `drawsvg.widgets`.
 
 pdfplumber's `page.to_image()` needs pypdfium2, which is not carried; it raises `ModuleNotFoundError`. pdfminer.six reads files encrypted with RC4, and raises `ModuleNotFoundError` naming `cryptography` for one encrypted with AES. xarray's other file engines (netCDF4, h5netcdf, zarr) and its tutorial data are not carried; netCDF3 works through scipy, a file by path with `open_dataset(path, mmap=False)`.
 
 reportlab's bitmap renderer needs rlPyCairo, which is not carried either; it raises `RenderPMError`. Draw reportlab charts to PDF or SVG instead.
 
+CairoSVG and cairocffi draw through cairo, which is built in. Text is drawn in matplotlib's DejaVu fonts: serif families in DejaVu Serif, monospace ones in DejaVu Sans Mono, and every other family in DejaVu Sans. imageio writes GIFs and reads and writes the formats Pillow knows; its plugins that need a program or a compiled package it does not carry (ffmpeg, PyAV, FreeImage, OpenCV, GDAL and others) raise when used.
+
 ## Adding a package of your own
 
-You cannot add a compiled package: the guest has no `dlopen` and loads no shared library. A pure-Python package can come from a read-only grant named in `import_path=`, as on the [guest filesystem](guest-filesystem.md#the-import-path) page. It comes after the runtime on the import path, so a module the set already has is always the set's.
+You cannot add a compiled package: the guest has no `dlopen` and loads no shared library. A pure-Python package can come from a read-only grant named in `import_path=`, as on the [guest filesystem](guest-filesystem.md#the-import-path) page. It comes after the runtime on the import path, so a module the set already has is the set's, unless the program moves that folder ahead of the zip on `sys.path` before the module's first import.
 
 There is no `pip` inside the guest.
 
@@ -124,4 +128,4 @@ The list is the runtime's. A package a grant adds through `import_path=` is not 
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray and drawsvg in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG and imageio in the zip, each at one pinned version.

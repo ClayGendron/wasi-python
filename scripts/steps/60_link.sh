@@ -1,7 +1,8 @@
 #!/bin/sh
 # Step 60: link numpy, pandas, the plot packages (Pillow with zlib and JPEG, kiwisolver, matplotlib;
 # contourpy and matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt,
-# scipy and numpy with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3, zstd and
+# scipy and numpy with one OpenBLAS, scikit-learn, statsmodels, cffi's backend and cairocffi's
+# bindings with cairo, zlib, bz2, lzma, sqlite3, zstd and
 # the host door into CPython as builtins through the build-directory Modules/Setup.local, then relink
 # the interpreter as a WASI reactor (build/out/python.wasm) with recipes/reactor_main.c in place of
 # Programs/python.o, and with three link-time refusals: recipes/iconv_refusals.c, which refuses
@@ -43,6 +44,8 @@ PM="$B/plot-modules"
 [ -s "$B/numpy-shims/libnumpy_lapack_shims.a" ] || die "build/numpy-shims/libnumpy_lapack_shims.a is missing: run step 40"
 # Step 59's modules.
 [ -d "$B/statsmodels-modules/statsmodels" ] || die "build/statsmodels-modules/statsmodels is missing: run step 59"
+# Step 56's modules: cffi's backend and cairocffi's bindings, with cairo.
+[ -d "$B/cffi-modules" ] || die "build/cffi-modules is missing: run step 56"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
@@ -53,7 +56,7 @@ mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" --against "$W/Modules/config.c" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
   PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" \
   contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build" scipy="$B/scipy-modules" \
-  sklearn="$B/sklearn-modules" statsmodels="$B/statsmodels-modules"
+  sklearn="$B/sklearn-modules" statsmodels="$B/statsmodels-modules" cffi="$B/cffi-modules"
 
 # makesetup takes *.a tokens as libraries: each module's archive is copied under a unique name, and
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
@@ -69,7 +72,7 @@ deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
   kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" contourpy:"$PM/contourpy" \
   regex:"$B/regex-build" lxml:"$B/lxml-build" scipy:"$B/scipy-modules" sklearn:"$B/sklearn-modules" \
-  statsmodels:"$B/statsmodels-modules"; do
+  statsmodels:"$B/statsmodels-modules" cffi:"$B/cffi-modules"; do
   pkg=${pair%%:*}
   dir=${pair#*:}
   for so in $(find "$dir" -name "*.cpython-$PYTHON_TAG-wasm32-wasi.so" | sort); do

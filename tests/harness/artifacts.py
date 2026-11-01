@@ -208,14 +208,23 @@ def exception_errors(binary: Path) -> list[str]:
     return errors
 
 
+# The packages whose Python source the zip carries beside their bytecode, as their licence asks:
+# CairoSVG's LGPL-3.0. Every source there has its .pyc.
+SOURCE_PACKAGES = ("cairosvg/",)
+
+
 def stdlib_zip_errors(z: Path) -> list[str]:
     errors = []
     with zipfile.ZipFile(z) as archive:
+        names = set(archive.namelist())
         for info in archive.infolist():
             if info.is_dir():
                 continue
             if info.filename.endswith(".py"):
-                errors.append(f"{info.filename}: source, not bytecode")
+                if not info.filename.startswith(SOURCE_PACKAGES):
+                    errors.append(f"{info.filename}: source, not bytecode")
+                elif info.filename + "c" not in names:
+                    errors.append(f"{info.filename}: source with no bytecode beside it")
             if info.compress_type != zipfile.ZIP_DEFLATED:
                 errors.append(f"{info.filename}: stored, not deflated")
     return errors[:20]

@@ -1,0 +1,115 @@
+# imageio's own tests in the guest, from its test source, the pinned sdist, with its test images
+# from imageio/test_images at one pinned commit, staged as .test_images beside the tests, where its
+# conftest looks before it would clone them with git. Its tests import that conftest as a module,
+# so the tests folder is on the path, as pytest's default import mode puts it. A judge file: every edit is a judge change. The
+# whole suite runs in the release tier, a smoke group in the normal tier: each test in exactly one
+# tier.
+
+package = "imageio"
+driver = "package"
+grant = "/upstream-imageio"
+test_source = true
+wheel = "imageio-2.38.1-py3-none-any.whl"
+budget = 484_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = [".", "tests"]
+cwd = "tree"
+markers = []
+args = ["-m", "not needs_internet"]
+deselect_reason = "the needs_internet tests download their files, as imageio's conftest marks them; the guest has no network"
+
+[test_stand_ins]
+pytest_cache_stand_in = "tests/upstream/stand-ins/pytest_cache_stand_in.py"
+
+[extra_sources]
+".test_images" = "imageio-test-images"
+
+[groups.imageio-smoke]
+paths = ["tests/test_pillow.py"]
+smoke = "the Pillow plugin, which drawsvg's GIFs are written through, the package from the zip"
+fuel = 71_000_000_000
+measured = 46_984_072_819
+
+[groups.imageio-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 413_000_000_000
+measured = 275_046_621_610
+
+[[expected]]
+id = "no-jpeg"
+group = "imageio-smoke"
+outcome = "failed"
+match = "encoder jpeg not available"
+reason = "the set's Pillow has no JPEG codec until Pillow is built with libjpeg-turbo, so writing a JPEG raises OSError (README)"
+closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
+
+[[expected]]
+id = "fails-natively"
+group = "imageio-smoke"
+outcome = "failed"
+match = "^ValueError: Invalid mode for data type"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
+closes_with = "context/roadmap.md"
+
+[[not_selected]]
+files = ["tests/test_freeimage.py"]
+reason = "the FreeImage plugin's tests load the FreeImage library through ctypes at import, and the guest loads no library: the module cannot be collected; the plugin raises OSError when used (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-ctypes"
+group = "imageio-r"
+outcome = "failed"
+match = "ctypes is unavailable on wasm32-wasi"
+reason = "these tests reach a plugin that loads its library through ctypes (FreeImage's, or numpy's ctypes types in the SPE and SWF readers), and the guest's ctypes stand-in loads nothing: it raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-jpeg"
+group = "imageio-r"
+outcome = "failed"
+match = "(en|de)coder jpeg not available"
+reason = "the set's Pillow has no JPEG codec until Pillow is built with libjpeg-turbo, so reading or writing a JPEG raises OSError (README)"
+closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
+
+[[expected]]
+id = "no-jpeg-plugin"
+group = "imageio-r"
+outcome = "failed"
+match = "^assert False$|DID NOT WARN"
+reason = "with no JPEG codec in the set's Pillow, imageio finds no plugin that writes a .jpg, so selecting one by that extension fails where natively Pillow's is found (README)"
+closes_with = "context/specifications/170-pillow-reads-and-writes-jpeg.md"
+
+[[expected]]
+id = "no-processes"
+group = "imageio-r"
+outcome = "failed"
+match = "wasi does not support processes"
+reason = "no processes: these tests start a Python subprocess to time imageio's import (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "fails-natively"
+group = "imageio-r"
+outcome = "failed"
+match = "^ValueError: Invalid mode for data type"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "wasi-platform"
+group = "imageio-r"
+outcome = "failed"
+match = "assert None in"
+reason = "imageio's get_platform() names Windows, Linux, macOS and FreeBSD hosts only; the guest's sys.platform is wasi, so it answers None (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "legacy-tifffile"
+group = "imageio-r"
+outcome = "failed"
+match = "has no attribute 'tostring'"
+reason = "imageio writes this TIFF through its bundled legacy tifffile here, which calls ndarray.tostring, removed in numpy 2; natively the same test passes, its writer chosen otherwise (README)"
+closes_with = "context/roadmap.md"

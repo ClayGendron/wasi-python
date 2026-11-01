@@ -110,6 +110,8 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/bf/67/fcd20a9e78fd6bba952e982a86e98e0240a95a216143eab389cbef045d43/pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl
     # numpy for the build host, whose f2py writes scipy's Fortran-wrapper C
     get https://files.pythonhosted.org/packages/47/c0/d0b335a499a04b65f532c3f034346ef390f81299060f928492dabc1e0272/numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl
+    # cffi for the build host, which writes cairocffi's bindings as C at build time
+    get https://files.pythonhosted.org/packages/0c/75/2f5207ff6d1a613133b23a5203cc0c2a628313b5eb3974d7956ae3c57950/cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl
     ;;
   LINUX_AARCH64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-linux.tar.gz wasi-sdk-34.0-arm64-linux.tar.gz
@@ -119,6 +121,8 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/35/54/7368ce188625e39acc03ee362bb86cc9bfa6ad15e25c50889ae36e2889b3/ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
     get https://files.pythonhosted.org/packages/42/b9/6c5293a5c65de1152db827cffaaede42a001c5913927e1ef2e8e8aae139f/pkgconf-3.0.7.post0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
     get https://files.pythonhosted.org/packages/b3/02/5dad269b02166965a7b4ca14adaddd75dbee0de42435bfecf561b84ba5a6/numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
+    # cffi for the build host, which writes cairocffi's bindings as C at build time
+    get https://files.pythonhosted.org/packages/e2/31/9e1313b0a6e30e91b3b3d3fff51ae99c857c07738e3afcce1f7334e1b7ab/cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
     ;;
   LINUX_X86_64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz wasi-sdk-34.0-x86_64-linux.tar.gz
@@ -128,6 +132,8 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     get https://files.pythonhosted.org/packages/6c/eb/4a4fe6c178d4447f3a3189b5fb740a76dc7ef8846a57886270315f22f7ee/pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
     get https://files.pythonhosted.org/packages/93/3a/01360c8036822ed9f7aa32189a77d1476567ec1e8e1383522389e4faac45/numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+    # cffi for the build host, which writes cairocffi's bindings as C at build time
+    get https://files.pythonhosted.org/packages/44/16/29e6d01b388bef055ecd6ca8244b3f4d336bd09e92d5d892187b9601084e/cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     # The fallback's compiler: the arm64 Linux
     # SDK's clang, under Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries
     # that clang loads, each a snapshot.debian.org URL, which does not change when Debian moves on.
@@ -256,6 +262,21 @@ get https://files.pythonhosted.org/packages/34/a4/5cec1112009f0439a5ca6afa8ace32
 get https://files.pythonhosted.org/packages/ff/f5/781c70b234f54e0401f4f7c4427a7486da38d50dbb138c7d7c55144b3d86/xarray-2026.9.0.tar.gz xarray-2026.9.0.tar.gz
 # drawsvg, its pure wheel: vector drawings and SMIL animations as SVG and HTML
 get https://files.pythonhosted.org/packages/15/5a/c47c10de42c49a3a9957123d77e5692b56b4fbc342b55285b52c41a8f1c1/drawsvg-2.4.2-py3-none-any.whl drawsvg-2.4.2-py3-none-any.whl
+# SVG to PNG through cairo: pixman, libpng and cairo, built from their release tarballs (libpng's
+# 614 files equal the tree of its tag v1.6.59, whose signature is Cosmin Truta's key
+# 1FED507E3236B4A6E53E922BB292C64843FF5BCF); cffi's sdist, whose C backend is built in, and
+# pycparser, which the build host's cffi reads cairocffi's declarations with; cairocffi and
+# CairoSVG from their sdists; tinycss2, cssselect2 and imageio, each its pure wheel
+get https://www.cairographics.org/releases/pixman-0.46.4.tar.xz pixman-0.46.4.tar.xz
+get https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz libpng-1.6.59.tar.xz
+get https://www.cairographics.org/releases/cairo-1.18.6.tar.xz cairo-1.18.6.tar.xz
+get https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz cffi-2.1.1.tar.gz
+get https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl pycparser-3.12-py3-none-any.whl
+get https://files.pythonhosted.org/packages/70/c5/1a4dc131459e68a173cbdab5fad6b524f53f9c1ef7861b7698e998b837cc/cairocffi-1.7.1.tar.gz cairocffi-1.7.1.tar.gz
+get https://files.pythonhosted.org/packages/c6/80/db62c0a96d2e55282c83524f6b1d02f09c7fd7f612e93bf83e30de1dc75c/cairosvg-2.9.1.tar.gz cairosvg-2.9.1.tar.gz
+get https://files.pythonhosted.org/packages/60/45/c7b5c3168458db837e8ceab06dc77824e18202679d0463f0e8f002143a97/tinycss2-1.5.1-py3-none-any.whl tinycss2-1.5.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/bd/59/6b1daa3b94de8970e2a2787ba73616c2d0675d2f948ef4cad8bef7f21bc6/cssselect2-0.10.1-py3-none-any.whl cssselect2-0.10.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/7d/8a/3b7f62b9df56460959f1b9bef094248d2a4d7f393c5b0d2da8efcdf0e40e/imageio-2.38.1-py3-none-any.whl imageio-2.38.1-py3-none-any.whl
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)
@@ -275,6 +296,9 @@ get https://raw.githubusercontent.com/unicode-org/unicodetools/4fd8eca90b30aa4c7
 # The full MPL-2.0 text tqdm's notice needs: its wheel carries only Exhibit A;
 # SPDX's license-list-data at a commit, so the bytes cannot change
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MPL-2.0.txt spdx-31ba1a50-MPL-2.0.txt
+# The full GPL-3.0 text CairoSVG's LGPL-3.0 builds on, which CairoSVG's own LICENSE does not
+# carry; from the same SPDX commit
+get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/GPL-3.0-only.txt spdx-31ba1a50-GPL-3.0-only.txt
 # The notices of three projects scikit-learn adapts code from with no full notice of their own:
 # numpydoc's docscrape, django's slugify and pytest's lines in
 # sklearn/utils/_testing.py, each at the last commit that touched the file
@@ -331,6 +355,13 @@ tests https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a
 # tests read
 tests https://github.com/jsvine/pdfplumber/archive/refs/tags/v0.11.10.tar.gz pdfplumber-0.11.10-tag.tar.gz
 tests https://github.com/pdfminer/pdfminer.six/archive/refs/tags/20260107.tar.gz pdfminer_six-20260107-tag.tar.gz
+# The tests of the packages that draw through cairo: tinycss2's, cssselect2's and imageio's sdists,
+# and imageio's test images at one commit, which its suite would clone with git. CairoSVG's own
+# tests are in its sdist (cairosvg/test_api.py), and cairocffi's in its sdist too.
+tests https://files.pythonhosted.org/packages/a3/ae/2ca4913e5c0f09781d75482874c3a95db9105462a92ddd303c7d285d3df2/tinycss2-1.5.1.tar.gz tinycss2-1.5.1.tar.gz
+tests https://files.pythonhosted.org/packages/06/00/2456b6b664c7a770989cbe3c352aac4eb962c938486f03a2e1255ae963c6/cssselect2-0.10.1.tar.gz cssselect2-0.10.1.tar.gz
+tests https://files.pythonhosted.org/packages/f3/cd/69e4ac55b6dafdd2b5f32075236841a3945dea7323d0232d80f28c37cea8/imageio-2.38.1.tar.gz imageio-2.38.1.tar.gz
+tests https://github.com/imageio/test_images/archive/f676c96b1af7e04bb1eed1e4551e058eb2f14acd.tar.gz imageio-test-images-f676c96b-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

@@ -80,3 +80,12 @@ pdfminer-six: pdfminer pdfminer.high_level
 pdfplumber: pdfplumber
 xarray: xarray
 drawsvg: drawsvg
+pixman:
+libpng:
+cairo:
+cffi: _cffi_backend
+cairocffi: cairocffi
+cairosvg: cairosvg
+tinycss2: tinycss2
+cssselect2: cssselect2
+imageio: imageio imageio.v2 imageio.v3

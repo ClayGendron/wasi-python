@@ -1,0 +1,9 @@
+versions cairosvg=2.9.1 cairocffi=1.7.1 cairo=1.18.6
+drawing 400x200 RGBA 8a7f3ebea680c51a4b23de6934217b3ce841e994f13d5ce174b5acd5702f2e21
+text 640x1162 RGB 5512d53127cdc239f83576ee236e369d420e62e394dfc2026fb62892bd502a23
+effects 320x240 RGBA 191deab8cde0480cb294145f924c7e2e8a4ee721209d4e0e1c3121b5b963f5e1
+effects-x2 640x480 RGBA 25d938168cda5bc79714d5c09acec1457fbc92c438398872ed6e69c2a6fd9b8e
+cairocffi 200x160 RGB f38587170368288760b600205befc79d5522a65495269b1e8230d1855f67abb7
+round trip 200 160 True
+pdf pages 1 mediabox [0.0, 0.0, 300.0, 150.0]
+pdf text 'Text along a curve, in DejaVu Sans Basic text'

@@ -1,0 +1,16 @@
+[[claim]]
+spec = "174"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cairocffi-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[imageio-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-r-no-ctypes-address]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-jpeg]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-jpeg-plugin]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-fails-natively]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-wasi-platform]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-legacy-tifffile]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "cairo and cairocffi's bindings are linked in and cairocffi, CairoSVG, tinycss2, cssselect2 and imageio join the zip, 119 members, so every guest's zip directory is larger: a plain start +0.99% and a snapshot start +0.49% in fuel (darwin arm64). Their release groups measure cairocffi-r 11.1 G and imageio-r 275.0 G (100 passes) on darwin arm64; the failures fall in eight classes, each named in its family's TOML"
