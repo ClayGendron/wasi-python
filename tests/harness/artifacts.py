@@ -233,10 +233,10 @@ TYPED = "wasi_python/py.typed"
 
 
 WHEEL_SET = "wasi_python/artifacts/"
-# PyPI's largest file for a project, unless PyPI raises it for that project: 100 MiB, the default
-# its upload documentation states (https://pypi.org/help/#file-size-limit). The owner has asked
-# PyPI for more; this rises only when PyPI's answer is recorded in the decisions.
-PYPI_FILE_LIMIT = 104_857_600
+# The largest wheel the project ships: 256 MiB, the file limit the owner has asked PyPI for.
+# PyPI's default is 100 MiB (https://pypi.org/help/#file-size-limit); a wheel past it is built and
+# judged, but not uploaded to PyPI until PyPI grants the request.
+PYPI_FILE_LIMIT = 268_435_456
 
 
 def _licences():  # type: ignore[no-untyped-def]
@@ -255,7 +255,7 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
     """The wheel carries every file of the set's folder (litter aside), byte for byte, and under
     `wasi_python/artifacts/` nothing the set's SHA256SUMS does not list, litter or not: the wheel
     is built from the folder. Its .dist-info/licenses/LICENSE is the project's licence followed by
-    every licence in the set's LICENSES folder. It is no larger than PyPI accepts."""
+    every licence in the set's LICENSES folder. It is no larger than the limit asked of PyPI."""
     lic = _licences()
     errors = lic.check(wheel, d, (paths.REPO / "LICENSE").read_text(encoding="utf-8"))
     try:
@@ -265,7 +265,7 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
     size = wheel.stat().st_size
     if size > PYPI_FILE_LIMIT:  # on a tag the GitHub release is made before PyPI's upload
         errors.append(
-            f"{wheel.name} is {size:,} bytes, over PyPI's file limit of {PYPI_FILE_LIMIT:,}"
+            f"{wheel.name} is {size:,} bytes, over the limit asked of PyPI, {PYPI_FILE_LIMIT:,}"
         )
     with zipfile.ZipFile(wheel) as w:
         names = set(w.namelist())

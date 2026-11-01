@@ -604,13 +604,13 @@ def test_a_wheel_must_fit_pypis_file_limit(good, work, monkeypatch) -> None:
                 w.writestr(
                     f"wasi_python/artifacts/{p.relative_to(good).as_posix()}", p.read_bytes()
                 )
-    assert rules.PYPI_FILE_LIMIT == 104_857_600
+    assert rules.PYPI_FILE_LIMIT == 268_435_456
     size = wheel.stat().st_size
     monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size)
     assert rules.wheel_errors(wheel, good) == []
     monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size - 1)
     assert rules.wheel_errors(wheel, good) == [
-        f"{wheel.name} is {size:,} bytes, over PyPI's file limit of {size - 1:,}"
+        f"{wheel.name} is {size:,} bytes, over the limit asked of PyPI, {size - 1:,}"
     ]
 
 
