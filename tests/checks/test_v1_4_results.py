@@ -5,7 +5,8 @@ and what the program passed to `display()` as `Completed.displays`, typed record
 printed byte can forge; with `figures=True` too, its matplotlib figures as PNG displays. Without
 it, stdout is today's to the byte. Every row goes through the public API on the built set and
 records fuel as a count, never a time; a row that imports numpy keeps its fuel as a fact, since
-numpy's random module moves a call's count by a little from run to run. matplotlib needs a
+numpy's random module moves a call's count by a little from run to run, and so does a row on the
+plain reactor, whose hash secret is seeded at random on each start. matplotlib needs a
 writable folder for its cache, so its rows have a private root.
 """
 
@@ -223,8 +224,10 @@ def test_a_fork_of_a_checkpoint_takes_its_own_starts_mode(fact) -> None:
 
 
 @pytest.mark.parametrize("snapshot", [True, False])
-def test_both_binaries_return_the_same_records(snapshot, metric) -> None:
-    """The snapshot binary and the plain reactor return the same value and displays."""
+def test_both_binaries_return_the_same_records(snapshot, metric, fact) -> None:
+    """The snapshot binary and the plain reactor return the same value and displays. The
+    snapshot's hash secret is fixed, so its fuel is exact and ratcheted; the plain reactor's is
+    random, so its fuel moves from run to run and is reported only."""
     wp = _wp()
     code = "print('a')\ndisplay('b')\n[1, 2]"
     done = wp.run(["-c", code], results=True, snapshot=snapshot, fuel=FUEL)
@@ -232,4 +235,4 @@ def test_both_binaries_return_the_same_records(snapshot, metric) -> None:
     records = [(dict(d.data), d.truncated, d.stdout_at, d.stderr_at) for d in done.displays]
     assert records == [({"text/plain": "'b'"}, (), 2, 0)]
     assert (_text(done.value), done.value.stdout_at, done.stdout) == ("[1, 2]", 2, b"a\n")
-    metric("fuel", done.fuel_used)
+    (metric if snapshot else fact)("fuel", done.fuel_used)
