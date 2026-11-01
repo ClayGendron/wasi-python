@@ -49,8 +49,9 @@ PYPROJECT = REPO / "pyproject.toml"
 CHANGELOG = REPO / "CHANGELOG.md"
 CHANGES = REPO / "context" / "changes"
 PACKAGES = REPO / "docs" / "reference" / "packages.md"
-# The release's claims ledger and its history by release, which `date` moves the blocks into.
-LEDGER = REPO / "context" / "release-claims.toml"
+# The release's claims ledger, a folder of one file per pull request, and its history by release,
+# which `date` moves each file's blocks into before removing the file.
+LEDGER = REPO / "context" / "release-claims"
 LEDGER_HISTORY = REPO / "context" / "release-claims-history.md"
 NEWS_READER = REPO / "tests" / "harness" / "news.py"
 # The packages page's table the news files' rows belong to.
@@ -404,8 +405,9 @@ def _check(a: argparse.Namespace) -> int:
 def _date(a: argparse.Namespace) -> int:
     """Date the version's section: a change for the pull request into dev that comes before the
     release pull request. A news file merged after bump is joined to the section first and
-    removed, so its line reaches the notes; the release ledger's blocks move under the
-    version in the ledger's history, which the release pull request's acceptance reads. Every
+    removed, so its line reaches the notes; each release ledger file's blocks move under the
+    version in the ledger's history and the file is removed, which the release pull request's
+    acceptance reads. Every
     edit is made before any is written. It commits nothing."""
     version = Version.parse(read_version(INIT.read_text()))
     day = a.day or datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
@@ -423,13 +425,12 @@ def _date(a: argparse.Namespace) -> int:
     changelog = date_section(changelog, version, day)
     rows = [row for n in sorted(news, key=lambda n: n.name) for row in n.rows]
     page = add_rows(PACKAGES.read_text(), rows) if rows else None
-    moved = None
-    if LEDGER.is_file() and LEDGER_HISTORY.is_file():
+    moved, files = None, {}
+    if LEDGER.is_dir() and LEDGER_HISTORY.is_file():
         reader = _reader()
+        files = reader.ledger_files(LEDGER)
         try:
-            moved = reader.move_ledger(
-                LEDGER.read_text(), LEDGER_HISTORY.read_text(), str(version), day
-            )
+            moved = reader.move_ledger(files, LEDGER_HISTORY.read_text(), str(version), day)
         except reader.NewsError as e:
             raise ReleaseError(f"the release ledger: {e}") from None
     CHANGELOG.write_text(changelog)
@@ -438,8 +439,9 @@ def _date(a: argparse.Namespace) -> int:
     for n in news:
         (CHANGES / f"{n.name}.md").unlink()
     if moved is not None:
-        LEDGER.write_text(moved[0])
-        LEDGER_HISTORY.write_text(moved[1])
+        LEDGER_HISTORY.write_text(moved)
+        for name in files:
+            (LEDGER / name).unlink()
     told = f"; {len(news)} news file(s) joined and removed" if news else ""
     print(f"dated {version} {day}{told}: commit through a pull request into dev")
     return 0

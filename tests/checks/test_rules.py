@@ -456,22 +456,22 @@ VERDICT_BEARING = (
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
-    "context/release-claims.toml",
+    "context/release-claims/**",
 )
 
 
 def test_the_release_ledger_holds_claim_blocks_in_their_shape() -> None:
-    """The release ledger, and every block its history keeps under a version, is `[[claim]]`
-    tables in the news files' claim shape, so a broken block is red on the pull request that adds
-    it, not at the release pull request that reads it."""
+    """Each file of the release ledger, and every block its history keeps under a version, is
+    `[[claim]]` tables in the news files' claim shape, so a broken block is red on the pull
+    request that adds it, not at the release pull request that reads it."""
     from harness import news
 
     errors = []
-    ledger = paths.REPO / news.LEDGER
-    try:
-        news.ledger_tables(news.LEDGER, ledger.read_text(encoding="utf-8"))
-    except (OSError, news.NewsError) as e:
-        errors.append(str(e))
+    for name, text in news.ledger_files(paths.REPO / news.LEDGER).items():
+        try:
+            news.ledger_file_claims(name, text)
+        except news.NewsError as e:
+            errors.append(str(e))
     history_file = paths.REPO / news.LEDGER_HISTORY
     text = history_file.read_text(encoding="utf-8") if history_file.is_file() else ""
     if not text:
@@ -481,6 +481,28 @@ def test_the_release_ledger_holds_claim_blocks_in_their_shape() -> None:
             news.ledger_tables(f"{news.LEDGER_HISTORY} block {n}", block)
         except news.NewsError as e:
             errors.append(str(e))
+    assert not errors, scan.report(errors)
+
+
+def test_the_release_ledger_is_a_file_per_pull_request() -> None:
+    """The release ledger is a folder of one file per pull request, each named after its news
+    file, `NNN-<slug>.toml`, beside the folder's README: two open pull requests that each write
+    a reason for the release write two files, so neither conflicts with the other's merge. The
+    single file every pull request once appended to does not come back."""
+    from harness import news
+
+    errors = []
+    if (paths.REPO / news.OLD_LEDGER).exists():
+        errors.append(
+            f"{news.OLD_LEDGER} is back: a pull request writes its claim blocks in its own file, "
+            f"{news.LEDGER}/NNN-<slug>.toml, named after its news file"
+        )
+    folder = paths.REPO / news.LEDGER
+    if not (folder / "README.md").is_file():
+        errors.append(f"{news.LEDGER}/README.md is missing: it keeps the folder and says its rule")
+    for p in sorted(folder.iterdir()) if folder.is_dir() else ():
+        if p.name != "README.md" and not news.LEDGER_NAME.fullmatch(p.name):
+            errors.append(f"{news.LEDGER}/{p.name}: a ledger file is named NNN-<slug>.toml")
     assert not errors, scan.report(errors)
 
 

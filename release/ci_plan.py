@@ -128,13 +128,17 @@ PLATFORM_PREFIX = "_platform"
 ENGINE_PIN = "uv.lock"
 # The judge's code and data folders; tests/judge_options registers an option every pytest run
 # reads before any conftest, so it steers the judge as tests/conftest.py does.
-HARNESS_DIRS = ("tests/harness/", "tests/judge_options/", "context/upstream/")
+HARNESS_DIRS = (
+    "tests/harness/",
+    "tests/judge_options/",
+    "context/upstream/",
+    "context/release-claims/",
+)
 HARNESS_FILES = (
     "tests/conftest.py",
     "tests/release_shards.toml",
     "tests/known_gaps.toml",
     "context/embedders.txt",
-    "context/release-claims.toml",
     ".gitattributes",
 )
 
@@ -194,7 +198,16 @@ def agents_only(changed: list[str]) -> bool:
 
 # The release's preparation: bump's version line and date's moves, with the release's reviews.
 VERSION_FILE = "src/wasi_python/__init__.py"
-LEDGER_FILES = ("context/release-claims.toml", "context/release-claims-history.md")
+# The release ledger: a folder of one file per pull request, named after its news file, and its
+# history by release; and the single file it was until then, which may not come back.
+LEDGER_DIR = "context/release-claims/"
+LEDGER_HISTORY = "context/release-claims-history.md"
+OLD_LEDGER = "context/release-claims.toml"
+
+
+def is_ledger(path: str) -> bool:
+    """A path of the release ledger: a file in its folder, or its history."""
+    return path == LEDGER_HISTORY or path.startswith(LEDGER_DIR)
 
 
 def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bool) -> bool:
@@ -207,7 +220,7 @@ def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bo
     if VERSION_FILE not in paths_ or not version_line_only:
         return False
     for status, path in changes:
-        if path == VERSION_FILE or path in LEDGER_FILES:
+        if path == VERSION_FILE or is_ledger(path):
             continue
         if NEWS.fullmatch(path) and status == "D":
             continue
@@ -227,47 +240,106 @@ def _news():
     return mod
 
 
-def ledger_move_refusal(base: tuple[str, str], head: tuple[str, str], version: str) -> str | None:
+def ledger_move_refusal(
+    base: tuple[dict[str, str], str], head: tuple[dict[str, str], str], version: str
+) -> str | None:
     """Why a preparation's change to the release ledger is not `date`'s move with any claim block
     the preparation adds, or None when it is (or the ledger did not change). `base` and `head` are
-    (the ledger, its history) at the merge base and at the head. The preparation is where a reason
-    an acceptance on dev recorded as missing is written, so an added block in a claim's shape is
-    admitted, before the move (moved under the version after the base's blocks) or after it (left
-    in the ledger); the base's blocks are reasons already given, which the move carries whole."""
+    (the ledger's files, name to text; its history) at the merge base and at the head. The
+    preparation is where a reason an acceptance on dev recorded as missing is written, so an added
+    block in a claim's shape is admitted: in a file moved under the version (a new one, or after
+    a base file's blocks) or in a file left in the folder after the move. Each base file's blocks
+    are reasons already given, which the move carries whole."""
     if head == base:
         return None
-    lines = base[0].splitlines(keepends=True)
-    at = next((k for k, line in enumerate(lines) if not line.startswith("#")), len(lines))
-    header, kept = "".join(lines[:at]), "".join(lines[at:]).strip()
-    if not head[0].startswith(header):
-        return "the ledger's header comments changed, which date's move keeps"
     said = r"Moved by `release/version.py date` on (\d{4}-\d{2}-\d{2})"
     m = re.search(rf"^## {re.escape(version)}\n\n" + said, head[1], re.M)
     if m is None:
         return f"the ledger's history has no section for {version} that date's move writes"
     news = _news()
-    moved = news.moved_blocks(head[1], version)
-    if kept and moved != kept and not moved.startswith(kept + "\n"):
-        return f"a block the base's ledger held was dropped or edited under ## {version}"
-    added = moved[len(kept) :].lstrip()
-    if kept and added and not added.startswith("[[claim]]"):
-        # Text after the base's last block that is not a new table continues that block, so it
-        # would be read as a reason given under the base block's spec: an edit, not an addition.
-        return (
-            f"text added after the base's last block under ## {version} does not begin a new "
-            "[[claim]] block, so it edits that block"
-        )
+    moved = news.moved_files(head[1], version)
+    for name, text in base[0].items():
+        kept, now = text.strip(), moved.get(name)
+        if now is None or (now != kept and not now.startswith(kept + "\n")):
+            return f"{name}, a ledger file the base held, was dropped or edited under ## {version}"
+        if head[0].get(name, "").strip() == kept:
+            return f"{name} is moved under ## {version} and left in the folder too"
+        if now[len(kept) :].lstrip() and not now[len(kept) :].lstrip().startswith("[[claim]]"):
+            # Text after the file's last block that is not a new table continues that block, so it
+            # would be read as a reason given under that block: an edit, not an addition.
+            return (
+                f"text added after {name}'s last block under ## {version} does not begin a new "
+                "[[claim]] block, so it edits that block"
+            )
     try:
-        news.ledger_tables(news.LEDGER, head[0])
-        want = news.move_ledger(header + "\n" + moved, base[1], version, m[1])
+        for name, text in head[0].items():
+            news.ledger_file_claims(name, text)
+        want = news.move_ledger(moved, base[1], version, m[1])
     except news.NewsError as e:
         return f"a block is not in a claim's shape: {e}"
-    if head[1] != want[1]:
+    if head[1] != want:
         return (
-            f"the ledger's history is not date's move of the base's blocks under ## {version}, "
-            "with any added claim block after them"
+            f"the ledger's history is not date's move of the base's files under ## {version}, "
+            "with any added claim block"
         )
     return None
+
+
+def claim_blocks(text: str) -> list[str]:
+    """Each [[claim]] block of ledger text, stripped, from its header to the next one."""
+    chunks = re.split(r"(?m)^(?=\[\[claim\]\])", text)
+    return [c.strip() for c in chunks if c.startswith("[[claim]]")]
+
+
+def ledger_refusals(changed: list[str], base: dict[str, str], head: dict[str, str]) -> list[str]:
+    """What a pull request into dev may not do to the release ledger: `base` and `head` are its
+    files, path to text, at the merge base and at the head, the single file it once was among
+    them. A [[claim]] block the head holds that the base did not (an added block, or an edited
+    one) lies in a file of the folder named after one of the pull request's news files; a block
+    the base held is not dropped from another's file; and the single file does not come back.
+    A block moved whole from one file to another is neither added nor dropped."""
+    stems = {m[1] for p in changed if (m := NEWS.fullmatch(p))}
+
+    def own(path: str) -> bool:
+        name = path[len(LEDGER_DIR) :]
+        return path.startswith(LEDGER_DIR) and name.removesuffix(".toml") in stems
+
+    out = []
+    if OLD_LEDGER in head:
+        out.append(
+            f"{OLD_LEDGER} is back: each pull request writes its claim blocks in a file of its "
+            f"own, {LEDGER_DIR}<its news file's NNN-slug>.toml"
+        )
+    left = {}
+    for text in base.values():
+        for b in claim_blocks(text):
+            left[b] = left.get(b, 0) + 1
+    # The pull request's own files first: a block it moves into them from elsewhere is matched
+    # there, so a copy left behind in another's file still counts as added there.
+    for path in sorted(head, key=lambda p: (not own(p), p)):
+        for b in claim_blocks(head[path]):
+            if left.get(b):
+                left[b] -= 1
+            elif not own(path):
+                out.append(
+                    f"{path} gains a [[claim]] block (spec {_spec_of(b)}), but a pull request "
+                    f"writes its blocks only in its own file, {LEDGER_DIR}<its news file's "
+                    "NNN-slug>.toml"
+                )
+    for path in sorted(base):
+        for b in claim_blocks(base[path]):
+            if left.get(b) and not own(path):
+                left[b] -= 1
+                out.append(
+                    f"{path} loses a [[claim]] block (spec {_spec_of(b)}) of another change; "
+                    "only date's move in the release's preparation removes one"
+                )
+    return out
+
+
+def _spec_of(block: str) -> str:
+    m = re.search(r'^spec = "([^"]*)"', block, re.M)
+    return m[1] if m else "?"
 
 
 def version_line_only(diff: str) -> bool:
@@ -329,12 +401,14 @@ class Commit:
 @dataclass
 class PullRequest:
     """What the review check reads of a pull request: its description (the self-check), its
-    commits oldest first, and each review file's text at its head (absent when deleted)."""
+    commits oldest first, and each review file's text at its head (absent when deleted); and,
+    when it changes the release ledger, the ledger's files at its merge base and at its head."""
 
     body: str
     commits: list[Commit]
     files: dict[str, str]
     title: str = ""
+    ledger: tuple[dict[str, str], dict[str, str]] | None = None
 
 
 @dataclass
@@ -548,6 +622,8 @@ def refusals(
             "the release's preparation may change the release ledger only by date's move and "
             f"added claim blocks: {d.preparation_refusal}"
         )
+    if into_dev(event) and pr is not None and pr.ledger is not None and not d.release_preparation:
+        out += ledger_refusals(changed or [], *pr.ledger)
     documented = changed is not None and (docs_only(changed) or d.release_preparation)
     if into_dev(event) and changed is not None and not documented and not d.news:
         out.append(
@@ -1058,7 +1134,24 @@ def read_pull_request(
             )
             if r.returncode == 0:
                 files[path] = r.stdout
-    return PullRequest(body, commits, files, title)
+    ledger = None
+    if any(is_ledger(p) or p == OLD_LEDGER for p in changed):
+        ledger = (ledger_texts(repo, base, OLD_LEDGER), ledger_texts(repo, head, OLD_LEDGER))
+    return PullRequest(body, commits, files, title, ledger)
+
+
+def ledger_texts(repo: Path, ref: str, *more: str) -> dict[str, str]:
+    """The release ledger's .toml files at a commit, with any of the paths `more` it holds: path
+    to text."""
+    listed = git_paths(repo, "ls-tree", "-r", "--name-only", ref, "--", LEDGER_DIR, *more)
+    out = {}
+    for path in listed:
+        if path.endswith(".toml"):
+            r = subprocess.run(
+                ["git", "-C", str(repo), "show", f"{ref}:{path}"], capture_output=True, text=True
+            )
+            out[path] = r.stdout if r.returncode == 0 else ""
+    return out
 
 
 def event_of(environ) -> Event:
@@ -1106,16 +1199,16 @@ def from_runner(
             pairs = status_pairs(base, head)
             diff = _git("diff", "-U0", base, head, "--", VERSION_FILE)
             preparation = is_release_preparation(pairs, version_line_only(diff))
-            if preparation and set(LEDGER_FILES) & set(changed):
-                text = {
-                    (ref, path): _show(ref, path) for ref in (base, head) for path in LEDGER_FILES
-                }
+            if preparation and any(is_ledger(p) for p in changed):
                 version = re.search(r'^__version__ = "([^"]+)"$', _show(head, VERSION_FILE), re.M)
-                why = ledger_move_refusal(
-                    (text[(base, LEDGER_FILES[0])], text[(base, LEDGER_FILES[1])]),
-                    (text[(head, LEDGER_FILES[0])], text[(head, LEDGER_FILES[1])]),
-                    version[1] if version else "",
-                )
+                at = {
+                    ref: (
+                        {p[len(LEDGER_DIR) :]: t for p, t in ledger_texts(REPO, ref).items()},
+                        _show(ref, LEDGER_HISTORY),
+                    )
+                    for ref in (base, head)
+                }
+                why = ledger_move_refusal(at[base], at[head], version[1] if version else "")
                 if why:
                     preparation, refused_preparation = False, why
         runs = (

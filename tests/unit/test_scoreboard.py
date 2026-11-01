@@ -216,7 +216,8 @@ def test_accept_judge_is_refused_as_unnecessary_when_no_verdict_bearing_file_cha
         "tests/upstream/python/cpython-a.txt",
         "tests/release_shards.toml",
         "tests/public_api.txt",
-        "context/release-claims.toml",
+        "context/release-claims/166-the-pins-move.toml",
+        "context/release-claims/README.md",
     ],
 )
 def test_accept_judge_is_required_when_a_verdict_bearing_file_changed(verdict_file) -> None:

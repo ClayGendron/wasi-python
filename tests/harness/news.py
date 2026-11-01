@@ -425,13 +425,22 @@ def reason(claims: list[Claim], kind: str, key: str) -> str | None:
 # The release ledger
 
 # Any claim the release must see whose news file will not be there: a pull request that changes a
-# release-tier row, or what one runs, appends its [[claim]] block, since the run after its merge
-# judges the normal tier alone; and the release's preparation appends the reason for a row an
-# acceptance on dev recorded unclaimed. The date before the release pull request (`release/
-# version.py date`) moves the blocks under `## <version>` in the history, and the release pull
-# request's gather and acceptance read both: what the date moved and anything appended since.
-LEDGER = "context/release-claims.toml"
+# release-tier row, or what one runs, writes its [[claim]] blocks into a file of its own in the
+# ledger's folder, named after its news file, since the run after its merge judges the normal
+# tier alone; and the release's preparation writes the reason for a row an acceptance on dev
+# recorded unclaimed into the file of the change it explains. One file per pull request, as the
+# news files are, so two open pull requests never write the same file. The date before the
+# release pull request (`release/version.py date`) moves each file under `## <version>` in the
+# history and removes it, and the release pull request's gather and acceptance read both: what
+# the date moved and any file written since. The folder's README stays, so the folder does.
+LEDGER = "context/release-claims"
 LEDGER_HISTORY = "context/release-claims-history.md"
+# The single file the ledger was until every pull request had a file of its own: every pull
+# request appended to its end, so each merge made every other open one conflict.
+OLD_LEDGER = "context/release-claims.toml"
+LEDGER_NAME = re.compile(r"(\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.toml")
+# A file the date moved, in the history: its name in backticks, then its blocks in a fence.
+MOVED_FILE = re.compile(r"^`(" + LEDGER_NAME.pattern + r")`:\n\n```toml\n(.*?)^```$", re.M | re.S)
 VERSION_FILE = "src/wasi_python/__init__.py"
 
 
@@ -445,16 +454,39 @@ def package_version(repo: Path) -> str:
     return m[1] if m else ""
 
 
-def ledger_tables(name: str, text: str) -> list[Claim]:
-    """The ledger's claims, or NewsError naming what is wrong: [[claim]] tables alone, each in a
-    news file's claim shape, its spec any specification's number."""
+def ledger_tables(name: str, text: str, spec: str | None = None) -> list[Claim]:
+    """The claims of ledger text, or NewsError naming what is wrong: [[claim]] tables alone, each
+    in a news file's claim shape, its spec `spec` or, when None, any specification's number."""
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
         raise NewsError(f"{name}: not TOML ({e})") from e
     if set(data) - {"claim"} or not isinstance(data.get("claim", []), list):
         raise NewsError(f"{name}: the ledger holds only [[claim]] tables")
-    return _claim_tables(name, data.get("claim", []), None)
+    return _claim_tables(name, data.get("claim", []), spec)
+
+
+def ledger_file_claims(name: str, text: str) -> list[Claim]:
+    """The claims of one ledger file, `name` its file name: named NNN-<slug>.toml after its news
+    file, at least one [[claim]] table, each of spec NNN."""
+    m = LEDGER_NAME.fullmatch(name)
+    if m is None:
+        raise NewsError(f"{LEDGER}/{name}: a ledger file is named NNN-<slug>.toml, as news files")
+    found = ledger_tables(f"{LEDGER}/{name}", text, m[1])
+    if not found:
+        raise NewsError(f"{LEDGER}/{name}: a ledger file holds at least one [[claim]] table")
+    return found
+
+
+def ledger_files(folder: Path) -> dict[str, str]:
+    """Each .toml file in the ledger's folder, by name, in name order; none without the folder."""
+    if not folder.is_dir():
+        return {}
+    return {
+        p.name: p.read_text(encoding="utf-8")
+        for p in sorted(folder.iterdir())
+        if p.is_file() and p.suffix == ".toml"
+    }
 
 
 def _section(text: str, version: str) -> str | None:
@@ -465,7 +497,7 @@ def _section(text: str, version: str) -> str | None:
 
 def ledger_claims(repo: Path) -> list[Claim]:
     """The release ledger's claims: the blocks the date moved under this version in the history,
-    then any still in the ledger."""
+    then those of each file still in the folder, by file name."""
     out = []
     history = repo / LEDGER_HISTORY
     body = (
@@ -475,35 +507,30 @@ def ledger_claims(repo: Path) -> list[Claim]:
     )
     for n, block in enumerate(FENCE.findall(body or ""), 1):
         out += ledger_tables(f"{LEDGER_HISTORY} block {n}", block)
-    ledger = repo / LEDGER
-    if ledger.is_file():
-        out += ledger_tables(LEDGER, ledger.read_text(encoding="utf-8"))
+    for name, text in ledger_files(repo / LEDGER).items():
+        out += ledger_file_claims(name, text)
     return out
 
 
-def moved_blocks(history: str, version: str) -> str:
-    """The TOML the date moved under `## <version>` in the history, stripped; empty when the
-    section has no block or there is no section."""
-    found = FENCE.findall(_section(history, version) or "")
-    return found[0].strip() if found else ""
+def moved_files(history: str, version: str) -> dict[str, str]:
+    """Each ledger file the date moved under `## <version>` in the history, by name, its blocks
+    stripped; empty when the section moved none or there is no section."""
+    return {m[1]: m[3].strip() for m in MOVED_FILE.finditer(_section(history, version) or "")}
 
 
-def move_ledger(ledger: str, history: str, version: str, day: str) -> tuple[str, str]:
-    """The ledger with its blocks moved under `## <version>` in the history, newest first: (the
-    ledger's header comments alone, the history with the new section). The blocks are checked
-    for their shape first; a history that already has the version's section refuses."""
+def move_ledger(files: dict[str, str], history: str, version: str, day: str) -> str:
+    """The history with the ledger's files (`files`, name to text) moved under `## <version>`,
+    newest section first, each under its name in file-name order. Each file is checked for its
+    shape first; a history that already has the version's section refuses."""
     if _section(history, version) is not None:
         raise NewsError(f"{LEDGER_HISTORY} already has a section for {version}")
-    lines = ledger.splitlines(keepends=True)
-    at = next((k for k, line in enumerate(lines) if not line.startswith("#")), len(lines))
-    header, blocks = "".join(lines[:at]), "".join(lines[at:]).strip()
-    ledger_tables(LEDGER, blocks)
+    for name, text in files.items():
+        ledger_file_claims(name, text)
     said = f"Moved by `release/version.py date` on {day}, before the release pull request."
-    body = f"```toml\n{blocks}\n```" if blocks else "No block was in the ledger at the date."
+    moved = [f"`{name}`:\n\n```toml\n{files[name].strip()}\n```" for name in sorted(files)]
+    body = "\n\n".join(moved) if moved else "No block was in the ledger at the date."
     section = f"## {version}\n\n{said}\n\n{body}\n\n"
     first = re.search(r"^## ", history, re.M)
     if first is None:
-        new = history.rstrip("\n") + "\n\n" + section.rstrip("\n") + "\n"
-    else:
-        new = history[: first.start()] + section + history[first.start() :]
-    return header, new
+        return history.rstrip("\n") + "\n\n" + section.rstrip("\n") + "\n"
+    return history[: first.start()] + section + history[first.start() :]

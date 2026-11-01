@@ -298,10 +298,9 @@ def test_the_reason_a_claim_gives_for_each_kind_of_row() -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The release ledger: a pull request, or the release's preparation, appends a claim block; the
-# date before the release moves the blocks under the version; the release's acceptance reads both
+# The release ledger: a folder of one file per pull request, named after its news file; the date
+# before the release moves each file under the version; the release's acceptance reads both
 
-HEADER = "# The release claims ledger.\n# Each block is appended by its pull request.\n"
 BLOCK = (
     '[[claim]]\nspec = "140"\ngrows = ["tests/checks/test_v1_3_x.py::test_slow"]\n'
     'growth = "a pin moved"\n'
@@ -309,13 +308,16 @@ BLOCK = (
 HISTORY = "# The release claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n\n```toml\n" + (
     '[[claim]]\nspec = "102"\nnew = ["tests/checks/test_v1_3_x.py::test_old"]\n```\n'
 )
+FILE = "140-a-pin-moved.toml"
 
 
-def _ledger_repo(tmp_path: Path, ledger: str, history: str) -> Path:
+def _ledger_repo(tmp_path: Path, files: dict[str, str], history: str) -> Path:
     (tmp_path / "src" / "wasi_python").mkdir(parents=True)
     (tmp_path / "src" / "wasi_python" / "__init__.py").write_text('__version__ = "0.1.1"\n')
-    (tmp_path / "context").mkdir()
-    (tmp_path / news.LEDGER).write_text(ledger)
+    (tmp_path / news.LEDGER).mkdir(parents=True)
+    (tmp_path / news.LEDGER / "README.md").write_text("# The ledger\n")
+    for name, text in files.items():
+        (tmp_path / news.LEDGER / name).write_text(text)
     (tmp_path / news.LEDGER_HISTORY).write_text(history)
     return tmp_path
 
@@ -326,29 +328,55 @@ def test_the_release_reads_the_ledger_and_its_versions_moved_blocks(tmp_path: Pa
         '## 0.1.1\n\nMoved.\n\n```toml\n[[claim]]\nspec = "139"\npasses = ["x"]\n'
         'fewer = "a group moved"\n```\n\n## 0.1.0',
     )
-    repo = _ledger_repo(tmp_path, HEADER + "\n" + BLOCK, moved)
+    repo = _ledger_repo(tmp_path, {FILE: BLOCK}, moved)
     claims = news.ledger_claims(repo)
-    assert sorted(c.spec for c in claims) == ["139", "140"]  # not 0.1.0's
+    assert [c.spec for c in claims] == ["139", "140"]  # not 0.1.0's
     assert (
         news.reason(claims, "grows", "tests/checks/test_v1_3_x.py::test_slow") == "140: a pin moved"
     )
     assert news.package_version(repo) == "0.1.1"
 
 
-def test_date_moves_the_ledgers_blocks_under_the_version(tmp_path: Path) -> None:
-    ledger, history = news.move_ledger(HEADER + "\n" + BLOCK, HISTORY, "0.1.1", "2026-10-26")
-    assert ledger == HEADER
+def test_the_ledgers_files_are_read_in_file_name_order(tmp_path: Path) -> None:
+    """One file per pull request, read by name, whatever order they were written in; the
+    folder's README and anything not .toml are not ledger files."""
+    later = '[[claim]]\nspec = "171"\ngrows = ["x"]\ngrowth = "the zip grew"\n'
+    repo = _ledger_repo(tmp_path, {"171-later.toml": later, FILE: BLOCK}, "# history\n")
+    (repo / news.LEDGER / "notes.txt").write_text("not a ledger file\n")
+    assert list(news.ledger_files(repo / news.LEDGER)) == [FILE, "171-later.toml"]
+    assert [c.spec for c in news.ledger_claims(repo)] == ["140", "171"]
+    assert news.ledger_files(tmp_path / "absent") == {}
+
+
+def test_a_ledger_file_is_named_after_its_news_file_and_holds_its_own_blocks() -> None:
+    assert [c.spec for c in news.ledger_file_claims(FILE, BLOCK)] == ["140"]
+    with pytest.raises(news.NewsError, match="named NNN-<slug>.toml"):
+        news.ledger_file_claims("release-claims.toml", BLOCK)
+    with pytest.raises(news.NewsError, match="not the file's 141"):
+        news.ledger_file_claims("141-another.toml", BLOCK)
+    with pytest.raises(news.NewsError, match="at least one"):
+        news.ledger_file_claims(FILE, "# nothing yet\n")
+
+
+def test_date_moves_the_ledgers_files_under_the_version(tmp_path: Path) -> None:
+    later = '[[claim]]\nspec = "171"\ngrows = ["x"]\ngrowth = "the zip grew"\n'
+    history = news.move_ledger(
+        {"171-later.toml": later, FILE: BLOCK}, HISTORY, "0.1.1", "2026-10-26"
+    )
     assert history.index("## 0.1.1") < history.index("## 0.1.0")
-    repo = _ledger_repo(tmp_path, ledger, history)
-    assert [c.spec for c in news.ledger_claims(repo)] == ["140"]
+    assert history.index(f"`{FILE}`:") < history.index("`171-later.toml`:")
+    repo = _ledger_repo(tmp_path, {}, history)
+    assert [c.spec for c in news.ledger_claims(repo)] == ["140", "171"]
     with pytest.raises(news.NewsError, match="already has a section for 0.1.1"):
-        news.move_ledger(HEADER, history, "0.1.1", "2026-10-27")
-    _, empty = news.move_ledger(HEADER, HISTORY, "0.1.1", "2026-10-26")
+        news.move_ledger({}, history, "0.1.1", "2026-10-27")
+    empty = news.move_ledger({}, HISTORY, "0.1.1", "2026-10-26")
     assert "No block was in the ledger at the date." in empty.split("## 0.1.0")[0]
+    with pytest.raises(news.NewsError, match="named NNN-<slug>.toml"):
+        news.move_ledger({"stray.toml": BLOCK}, HISTORY, "0.1.1", "2026-10-26")
 
 
 def test_a_broken_ledger_block_is_refused(tmp_path: Path) -> None:
-    repo = _ledger_repo(tmp_path, HEADER + '[[claim]]\nspec = "140"\ngrows = ["x"]\n', HISTORY)
+    repo = _ledger_repo(tmp_path, {FILE: '[[claim]]\nspec = "140"\ngrows = ["x"]\n'}, HISTORY)
     with pytest.raises(news.NewsError, match="grows needs growth"):
         news.ledger_claims(repo)
 
@@ -370,10 +398,58 @@ def test_a_removed_news_files_claims_are_read_whatever_its_changelog(tmp_path: P
         news.claims_only("123-other.md", old)
 
 
-def test_the_blocks_date_moved_under_a_version_are_read_back() -> None:
-    moved = news.move_ledger(HEADER + "\n" + BLOCK, HISTORY, "0.1.1", "2026-10-30")[1]
-    assert news.moved_blocks(moved, "0.1.1") == BLOCK.strip()
-    assert news.moved_blocks(moved, "0.1.0").startswith("[[claim]]")
-    assert news.moved_blocks(moved, "0.0.9") == ""
-    empty = news.move_ledger(HEADER, HISTORY, "0.1.1", "2026-10-30")[1]
-    assert news.moved_blocks(empty, "0.1.1") == ""
+def test_the_files_date_moved_under_a_version_are_read_back() -> None:
+    moved = news.move_ledger({FILE: BLOCK}, HISTORY, "0.1.1", "2026-10-30")
+    assert news.moved_files(moved, "0.1.1") == {FILE: BLOCK.strip()}
+    assert news.moved_files(moved, "0.1.0") == {}  # moved as one block, before a file each
+    assert news.moved_files(moved, "0.0.9") == {}
+    empty = news.move_ledger({}, HISTORY, "0.1.1", "2026-10-30")
+    assert news.moved_files(empty, "0.1.1") == {}
+
+
+# The five blocks the single ledger held when it became a folder, cut to the keys that matter
+# here, in the order they were appended. Two name rows a third names too, so the order decides
+# which reason a row is quoted with, and nothing else.
+OLD_ORDER = (
+    ("166-the-pins-move.toml", '[[claim]]\nspec = "166"\npasses = ["S::t[pypdf-r]"]\n'
+     'grows = ["S::t[numpy-slow-*", "S::t[scipy-*"]\ngrowth = "the pins move"\n'),
+    ("165-docx-and-pptx.toml", '[[claim]]\nspec = "165"\nnew = ["S::t[python-docx-r]"]\n'
+     'grows = ["S::*"]\ngrowth = "two packages join the zip"\n'),
+    ("159-the-runs-take-shape.toml", '[[claim]]\nspec = "159"\nnew = ["S::trap[sympy-P]"]\n'
+     'retired = ["S::t[sympy-r-2]"]\ngrows = ["S::t[sympy-*"]\ngrowth = "sympy grew"\n'),
+    ("167-pdfplumber-and-xarray.toml", '[[claim]]\nspec = "167"\nnew = ["S::t[xarray-r-plot]"]\n'
+     'grows = ["S::*"]\ngrowth = "three packages join the zip"\n'
+     '[claim.judge]\n"tests/known_gaps.toml" = "a gap"\n'),
+    ("171-the-packages-a-set-carries.toml", '[[claim]]\nspec = "171"\ngrows = ["S::*"]\n'
+     'growth = "the zip grows its top_level.txt"\n'),
+)  # fmt: skip
+ROWS = ("S::t[pypdf-r]", "S::t[numpy-slow-a]", "S::t[scipy-1]", "S::t[sympy-r-1]",
+        "S::t[sympy-r-2]", "S::t[python-docx-r]", "S::trap[sympy-P]", "S::t[other]",
+        "tests/known_gaps.toml", "tests/upstream/numpy.toml", "T::t[x]")  # fmt: skip
+KINDS = ("new", "retired", "changed", "passes", "grows", "judge", "moved")
+
+
+def _old_ledger(tmp_path: Path, blocks) -> list[news.Claim]:
+    """What the single ledger file gave the release: the version's moved blocks, then the file's
+    blocks read as one, in the order they were appended."""
+    old = tmp_path / "old"
+    repo = _ledger_repo(old, {}, HISTORY)
+    text = "# The release claims ledger.\n\n" + "\n".join(b for _, b in blocks)
+    return news.ledger_claims(repo) + news.ledger_tables("context/release-claims.toml", text)
+
+
+def test_the_folder_gives_the_release_the_claims_the_single_file_gave(tmp_path: Path) -> None:
+    """The same blocks give the same claims, whether in the single file or a file each. Read in
+    file-name order the two lists are equal, entry for entry, so every reason quoted is the same;
+    against the order they were appended, the claims are the same set, and every row is claimed
+    or unclaimed alike under every kind: what the acceptance and the release's reconciliation
+    decide does not move. Only a row two blocks name may be quoted with the other's reason."""
+    new = news.ledger_claims(_ledger_repo(tmp_path / "new", dict(OLD_ORDER), HISTORY))
+    assert new == _old_ledger(tmp_path / "by-name", sorted(OLD_ORDER))
+    old = _old_ledger(tmp_path / "appended", OLD_ORDER)
+    assert sorted(new, key=lambda c: c.spec) == sorted(old, key=lambda c: c.spec)
+    for kind in KINDS:
+        for row in ROWS:
+            assert (news.reason(new, kind, row) is None) == (news.reason(old, kind, row) is None)
+    assert news.reason(old, "grows", "S::t[sympy-r-1]") == "165: two packages join the zip"
+    assert news.reason(new, "grows", "S::t[sympy-r-1]") == "159: sympy grew"

@@ -1,0 +1,4 @@
+[[claim]]
+spec = "171"
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "each distribution's .dist-info gains its top_level.txt, 58 members after 167, so every guest's zip directory is larger: a plain start 282,492,922 to 283,900,438 fuel (+0.50%) and a snapshot start 54,644,143 to 54,695,369 (+0.09%), measured on darwin arm64 against dev's set at a750e8fe"

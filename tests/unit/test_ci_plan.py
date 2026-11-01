@@ -58,7 +58,7 @@ ROWS = [
     ("tests/release_shards.toml", {"harness"}),
     ("tests/known_gaps.toml", {"harness"}),
     ("context/embedders.txt", {"harness"}),
-    ("context/release-claims.toml", {"harness"}),
+    ("context/release-claims/166-the-pins-move.toml", {"harness"}),
     ("context/upstream/patches/x.md", {"harness"}),
     (".gitattributes", {"harness"}),
     ("tests/upstream/numpy.toml", {"upstream"}),
@@ -1329,7 +1329,8 @@ PREPARATION = [
     ("M", "CHANGELOG.md"),
     ("D", "context/changes/140-a-change.md"),
     ("M", "docs/reference/packages.md"),
-    ("M", "context/release-claims.toml"),
+    ("D", "context/release-claims/140-a-change.toml"),
+    ("A", "context/release-claims/141-a-late-reason.toml"),
     ("M", "context/release-claims-history.md"),
     ("A", "context/reviews/0.1.1-structural-review-2026-10-26.md"),
 ]
@@ -1368,27 +1369,29 @@ def test_only_the_version_line_may_move_in_the_version_file() -> None:
 
 
 # The ledger in a preparation: date's move, with any claim block the preparation adds, or the
-# preparation is refused, named.
+# preparation is refused, named. The ledger is a folder of one file per pull request.
 
-LEDGER_HEADER = "# The release claims ledger.\n# Appended by its pull request.\n"
+LEDGER_NAME = "140-a-change.toml"
 LEDGER_BLOCK = (
     '[[claim]]\nspec = "140"\ngrows = ["tests/checks/test_v1_3_x.py::test_slow"]\n'
     'growth = "a pin moved"\n'
 )
 LEDGER_HISTORY = "# The release claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n"
+BASE = ({LEDGER_NAME: LEDGER_BLOCK}, LEDGER_HISTORY)
 
 
-def _moved(ledger: str = LEDGER_HEADER + "\n" + LEDGER_BLOCK) -> tuple[str, str]:
-    return news.move_ledger(ledger, LEDGER_HISTORY, "0.1.1", "2026-10-26")
+def _moved(files=None, left=None) -> tuple[dict[str, str], str]:
+    """date's move of `files` (the base's file by default), with `left` in the folder after it."""
+    files = {LEDGER_NAME: LEDGER_BLOCK} if files is None else files
+    return dict(left or {}), news.move_ledger(files, LEDGER_HISTORY, "0.1.1", "2026-10-26")
 
 
 def test_a_preparation_whose_ledger_is_dates_exact_move_is_a_preparation() -> None:
-    head_ledger, head_history = _moved()
-    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
-    assert ci_plan.ledger_move_refusal(base, (head_ledger, head_history), "0.1.1") is None
-    assert ci_plan.ledger_move_refusal(base, base, "0.1.1") is None  # the ledger not touched
+    assert ci_plan.ledger_move_refusal(BASE, _moved(), "0.1.1") is None
+    assert ci_plan.ledger_move_refusal(BASE, BASE, "0.1.1") is None  # the ledger not touched
 
 
+EXTRA_NAME = "999-a-late-reason.toml"
 EXTRA = (
     '[[claim]]\nspec = "999"\npasses = ["tests/checks/test_v1_3_x.py::test_new"]\n'
     'fewer = "two tests moved to the release tier"\n'
@@ -1397,45 +1400,145 @@ EXTRA = (
 
 def test_a_preparation_may_add_a_claim_block_to_the_ledger() -> None:
     """The preparation is where a reason missing at a merge is written, by the author who knows
-    it: a block added before date's move (so moved under the version beside the base's) or after
-    it (so left in the ledger) is admitted, of any claim's kind."""
-    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
-    before = _moved(LEDGER_HEADER + "\n" + LEDGER_BLOCK + "\n" + EXTRA)
-    assert ci_plan.ledger_move_refusal(base, before, "0.1.1") is None
-    head_ledger, head_history = _moved()
-    after = (head_ledger + "\n" + EXTRA, head_history)
-    assert ci_plan.ledger_move_refusal(base, after, "0.1.1") is None
-    empty = (LEDGER_HEADER, LEDGER_HISTORY)
-    assert ci_plan.ledger_move_refusal(empty, _moved(LEDGER_HEADER + "\n" + EXTRA), "0.1.1") is None
+    it: a block added before date's move (in a file of its own, or after a base file's blocks, so
+    moved under the version) or after it (so left in the folder) is admitted, of any kind."""
+    before = _moved({LEDGER_NAME: LEDGER_BLOCK, EXTRA_NAME: EXTRA})
+    assert ci_plan.ledger_move_refusal(BASE, before, "0.1.1") is None
+    grown = LEDGER_BLOCK + '\n[[claim]]\nspec = "140"\npasses = ["y"]\nfewer = "z"\n'
+    assert ci_plan.ledger_move_refusal(BASE, _moved({LEDGER_NAME: grown}), "0.1.1") is None
+    after = _moved(left={EXTRA_NAME: EXTRA})
+    assert ci_plan.ledger_move_refusal(BASE, after, "0.1.1") is None
+    empty = ({}, LEDGER_HISTORY)
+    assert ci_plan.ledger_move_refusal(empty, _moved({EXTRA_NAME: EXTRA}), "0.1.1") is None
 
 
 def test_a_preparation_that_edits_or_drops_a_ledger_block_is_refused_named() -> None:
-    """The base's blocks are reasons already given: date moves them whole, and a preparation that
-    edits or drops one, breaks an added block's shape or rewrites the header is refused."""
-    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
-    head_ledger, head_history = _moved()
-    edited = head_history.replace("a pin moved", "a pin moved twice")
-    why = ci_plan.ledger_move_refusal(base, (head_ledger, edited), "0.1.1")
-    assert why and "dropped or edited" in why, why
-    dropped = _moved(LEDGER_HEADER + "\n" + EXTRA)
-    assert "dropped or edited" in ci_plan.ledger_move_refusal(base, dropped, "0.1.1")
-    # A key or sub-table appended after the base's last block continues that block, under its
+    """The base's files are reasons already given: date moves each whole, and a preparation that
+    edits or drops one, leaves one in the folder too, or breaks an added block's shape is
+    refused."""
+    files, history = _moved()
+    edited = history.replace("a pin moved", "a pin moved twice")
+    why = ci_plan.ledger_move_refusal(BASE, (files, edited), "0.1.1")
+    assert why and "dropped or edited" in why and LEDGER_NAME in why, why
+    dropped = _moved({EXTRA_NAME: EXTRA})
+    assert "dropped or edited" in ci_plan.ledger_move_refusal(BASE, dropped, "0.1.1")
+    # A key or sub-table appended after the file's last block continues that block, under its
     # spec: an edit of it, not an added block.
     tail = '[claim.judge]\n"tests/known_gaps.toml" = "a new allowance"\n'
-    continued = _moved(LEDGER_HEADER + "\n" + LEDGER_BLOCK + tail)
-    why_tail = ci_plan.ledger_move_refusal(base, continued, "0.1.1")
+    continued = _moved({LEDGER_NAME: LEDGER_BLOCK + tail})
+    why_tail = ci_plan.ledger_move_refusal(BASE, continued, "0.1.1")
     assert why_tail and "[[claim]]" in why_tail, why_tail
     broken = '[[claim]]\nspec = "999"\ngrows = ["x"]\n'  # grows without its growth
-    kept = ci_plan.ledger_move_refusal(base, (head_ledger + "\n" + broken, head_history), "0.1.1")
+    kept = ci_plan.ledger_move_refusal(BASE, _moved(left={EXTRA_NAME: broken}), "0.1.1")
     assert kept and "growth" in kept, kept
-    renamed = ci_plan.ledger_move_refusal(base, ("# another\n", head_history), "0.1.1")
-    assert renamed and "header" in renamed, renamed
-    moved_by_hand = head_history.replace("Moved by `release/version.py date`", "Moved", 1)
-    assert "no section" in ci_plan.ledger_move_refusal(base, (head_ledger, moved_by_hand), "0.1.1")
-    changed = [VERSION_FILE, "CHANGELOG.md", *ci_plan.LEDGER_FILES]
+    twice = ci_plan.ledger_move_refusal(BASE, _moved(left={LEDGER_NAME: LEDGER_BLOCK}), "0.1.1")
+    assert twice and "left in the folder" in twice, twice
+    moved_by_hand = history.replace("Moved by `release/version.py date`", "Moved", 1)
+    assert "no section" in ci_plan.ledger_move_refusal(BASE, (files, moved_by_hand), "0.1.1")
+    changed = [VERSION_FILE, "CHANGELOG.md", "context/release-claims/" + LEDGER_NAME,
+               ci_plan.LEDGER_HISTORY]  # fmt: skip
     d = ci_plan.decide(changed, PR_DEV, preparation_refusal=why)
     assert not d.docs_only and d.judge
     assert any(why in r for r in ci_plan.refusals(d, PR_DEV, changed, _pr(commits=[])))
+
+
+# A pull request into dev writes the release ledger in its own files alone: the file named
+# after its news file. Two open pull requests then never write one file, so neither conflicts
+# with the other's merge.
+
+OWN_FILE = "context/release-claims/999-a-change.toml"  # NEWS's
+OTHERS_FILE = "context/release-claims/140-a-change.toml"
+OTHER_BLOCK = '[[claim]]\nspec = "999"\ngrows = ["x"]\ngrowth = "y"\n'
+
+
+def _ledger_refused(base: dict[str, str], head: dict[str, str]) -> list[str]:
+    changed = ["src/x.py", NEWS, REVIEW, *sorted(set(base) | set(head))]
+    pr = _pr()
+    pr.ledger = (base, head)
+    d = ci_plan.decide(changed, PR_DEV)
+    return [r for r in ci_plan.refusals(d, PR_DEV, changed, pr) if "release-claims" in r]
+
+
+def test_a_pull_request_writes_its_claim_blocks_in_its_own_ledger_file() -> None:
+    """A new file named after the pull request's news file, or a block added to it, is its own;
+    the same block in another change's file, a block of another's edited, or the single file
+    every pull request once appended to brought back, is refused, named."""
+    base = {OTHERS_FILE: LEDGER_BLOCK}
+    assert _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK}) == []
+    assert (
+        _ledger_refused({OWN_FILE: OTHER_BLOCK}, {OWN_FILE: OTHER_BLOCK + "\n" + OTHER_BLOCK}) == []
+    )
+    added = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK + "\n" + OTHER_BLOCK})
+    assert len(added) == 1 and OTHERS_FILE in added[0] and "own file" in added[0], added
+    edited = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK.replace("a pin moved", "it grew")})
+    assert any("gains" in r for r in edited) and any("loses" in r for r in edited), edited
+    back = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK, "context/release-claims.toml": ""})
+    assert len(back) == 1 and "is back" in back[0], back
+    appended = {OTHERS_FILE: LEDGER_BLOCK, "context/release-claims.toml": OTHER_BLOCK}
+    assert len(_ledger_refused(base, appended)) == 2
+
+
+def test_a_pull_request_may_not_drop_another_changes_claim_block() -> None:
+    base = {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK}
+    dropped = _ledger_refused(base, {OWN_FILE: OTHER_BLOCK})
+    assert len(dropped) == 1 and "loses" in dropped[0] and OTHERS_FILE in dropped[0], dropped
+    assert (
+        _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK}) == []
+    )  # its own block it may take back
+
+
+def test_the_single_ledgers_blocks_move_whole_into_their_files() -> None:
+    """The pull request that made the ledger a folder moved each block of the single file, byte
+    for byte, into the file of the change that wrote it: no block is added or dropped, so it is
+    not refused, though no file it writes is named after its own news file."""
+    single = "# The release claims ledger.\n\n" + LEDGER_BLOCK + "\n" + EXTRA
+    head = {OTHERS_FILE: LEDGER_BLOCK, "context/release-claims/" + EXTRA_NAME: EXTRA}
+    assert _ledger_refused({"context/release-claims.toml": single}, head) == []
+    copied = {**head, "context/release-claims.toml": single}
+    assert _ledger_refused({"context/release-claims.toml": single}, copied)
+
+
+def test_the_preparation_is_not_held_to_its_own_ledger_file() -> None:
+    """date moves every file, and the preparation writes a late reason into the file of the
+    change it explains; its own check is that the move is date's (above)."""
+    changed = [p for _, p in PREPARATION]
+    pr = _pr(commits=[])
+    pr.ledger = (
+        {OTHERS_FILE: LEDGER_BLOCK},
+        {"context/release-claims/141-a-late-reason.toml": EXTRA},
+    )
+    d = ci_plan.decide(changed, PR_DEV, release_preparation=True)
+    assert ci_plan.refusals(d, PR_DEV, changed, pr) == []
+
+
+def test_the_pull_request_reads_the_ledger_when_it_changes_it(tmp_path) -> None:
+    """The ledger's .toml files at the merge base and the head, the single file among them where
+    a commit has it; nothing is read when no ledger path changed."""
+    if shutil.which("git") is None:
+        pytest.skip("git is not installed")
+    run = lambda *a: subprocess.run(["git", "-C", str(tmp_path), *a], check=True,  # noqa: E731
+                                    capture_output=True, text=True).stdout.strip()  # fmt: skip
+    run("init", "-q")
+    run("config", "user.email", "a@b.c")
+    run("config", "user.name", "a")
+    (tmp_path / "context").mkdir()
+    (tmp_path / "context" / "release-claims.toml").write_text(LEDGER_BLOCK)
+    run("add", "-A")
+    run("commit", "-qm", "base")
+    base = run("rev-parse", "HEAD")
+    (tmp_path / "context" / "release-claims.toml").unlink()
+    (tmp_path / "context" / "release-claims").mkdir()
+    (tmp_path / "context" / "release-claims" / "README.md").write_text("# The ledger\n")
+    (tmp_path / "context" / "release-claims" / LEDGER_NAME).write_text(LEDGER_BLOCK)
+    run("add", "-A")
+    run("commit", "-qm", "head")
+    changed = ci_plan._diff(base, "HEAD", tmp_path)
+    pr = ci_plan.read_pull_request(tmp_path, base, "HEAD", "", changed)
+    assert pr.ledger == (
+        {"context/release-claims.toml": LEDGER_BLOCK},
+        {"context/release-claims/" + LEDGER_NAME: LEDGER_BLOCK},
+    )
+    assert ci_plan.read_pull_request(tmp_path, base, "HEAD", "", ["src/x.py"]).ledger is None
 
 
 # ---------------------------------------------------------------------------------------------

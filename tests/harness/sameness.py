@@ -23,10 +23,10 @@ compared, and `notes` names it; `suite` is the sum of the darwin runs' suites.
     uv run python tests/harness/sameness.py A.json B.json
     uv run python tests/harness/sameness.py --claims wave.toml [--except NNN] A.json B.json
 
-    uv run python tests/harness/sameness.py --tier-rows release [--claims ledger.toml] A.json B.json
+    uv run python tests/harness/sameness.py --tier-rows release [--claims ledger/] A.json B.json
 
 prints the differences, one per line, and exits 1 when there are any; with `--claims`, only those
-no claim explains (a claim list is what B has that A lacks, by kind). Notes
+no claim explains (a claim list, or a folder of them, is what B has that A lacks, by kind). Notes
 go to stderr. A record or a claim list it cannot read exits 2.
 
 Release-tier rows (a record's `release_checks`) are compared only when both records judged the
@@ -346,6 +346,9 @@ class Claim:
 
 
 def load_claims(path: Path) -> list[Claim]:
+    """The claims of a claim list, or of every .toml file in a folder of them, by file name."""
+    if Path(path).is_dir():
+        return [c for p in sorted(Path(path).glob("*.toml")) for c in load_claims(p)]
     try:
         data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
@@ -468,7 +471,7 @@ def main(argv: list[str]) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(prog="sameness.py")
-    ap.add_argument("--claims", type=Path, help="a claim list ([[claim]] tables)")
+    ap.add_argument("--claims", type=Path, help="a claim list, or a folder of them")
     ap.add_argument("--except", dest="drop", action="append", default=[], metavar="SPEC")
     ap.add_argument("--tier-rows", choices=["release"], help="compare the release-tier rows alone")
     ap.add_argument("a", type=Path)

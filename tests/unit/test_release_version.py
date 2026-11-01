@@ -38,7 +38,7 @@ def _no_real_git_and_no_real_files(tmp_path_factory, monkeypatch) -> None:
     own = tmp_path_factory.mktemp("release-files")
     (own / "changes").mkdir()
     for name, path in (("CHANGES", own / "changes"), ("PACKAGES", own / "packages.md"),
-                       ("LEDGER", own / "ledger.toml"),
+                       ("LEDGER", own / "ledger"),
                        ("LEDGER_HISTORY", own / "ledger-history.md")):  # fmt: skip
         monkeypatch.setattr(version, name, path)
 
@@ -425,50 +425,72 @@ def test_release_refuses_a_section_still_unreleased(tmp_path: Path, monkeypatch)
     assert not [c for c in calls if c[0] in ("commit", "push") or c[:2] == ("tag", "-a")]
 
 
-def test_the_ledger_is_the_release_claims_file() -> None:
-    """One ledger of any claim the release reconciles, beside its history by release; the judge's
-    reader and the release's commands name the same two files."""
-    assert REAL_LEDGER == (paths.REPO / "context" / "release-claims.toml",
+def test_the_ledger_is_the_release_claims_folder() -> None:
+    """One ledger of any claim the release reconciles, a folder of one file per pull request,
+    beside its history by release; the judge's reader and the release's commands name the same
+    two paths."""
+    assert REAL_LEDGER == (paths.REPO / "context" / "release-claims",
                            paths.REPO / "context" / "release-claims-history.md")  # fmt: skip
     assert REAL_LEDGER == (paths.REPO / version._reader().LEDGER,
                            paths.REPO / version._reader().LEDGER_HISTORY)  # fmt: skip
 
 
+def _ledger_files(tmp_path: Path, monkeypatch, files: dict[str, str]) -> tuple[Path, Path]:
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    ledger, history = tmp_path / "ledger", tmp_path / "history.md"
+    init.write_text(INIT)
+    log.write_text(LOG)
+    ledger.mkdir()
+    (ledger / "README.md").write_text("# The ledger\n")
+    for name, text in files.items():
+        (ledger / name).write_text(text)
+    history.write_text("# history\n\nIntro.\n")
+    for name, path in (("INIT", init), ("CHANGELOG", log), ("LEDGER", ledger),
+                       ("LEDGER_HISTORY", history)):  # fmt: skip
+        monkeypatch.setattr(version, name, path)
+    return ledger, history
+
+
 def test_date_moves_a_claim_of_any_kind_under_the_version(tmp_path: Path, monkeypatch) -> None:
     """The ledger carries any claim block, a fall in passes, a tier move or a judge file as well as
     a growth, and date moves each whole."""
-    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
-    ledger, history = tmp_path / "ledger.toml", tmp_path / "history.md"
-    init.write_text(INIT)
-    log.write_text(LOG)
     block = (
         '[[claim]]\nspec = "161"\npasses = ["g"]\nfewer = "two tests moved"\n'
         '[claim.judge]\n"tests/known_gaps.toml" = "a new allowance"\n'
         '[claim.moved]\n"tests/checks/test_x.py::test_y" = "it is slow"\n'
     )
-    ledger.write_text("# header\n\n" + block)
-    history.write_text("# history\n\nIntro.\n")
-    for name, path in (("INIT", init), ("CHANGELOG", log), ("LEDGER", ledger),
-                       ("LEDGER_HISTORY", history)):  # fmt: skip
-        monkeypatch.setattr(version, name, path)
+    ledger, history = _ledger_files(tmp_path, monkeypatch, {"161-growth.toml": block})
     assert version.main(["date", "--day", "2026-10-30"]) == 0
-    assert ledger.read_text() == "# header\n"
     assert "## 0.1.0a1" in history.read_text() and block.strip() in history.read_text()
+    assert [p.name for p in ledger.iterdir()] == ["README.md"]
 
 
-def test_date_moves_the_release_tier_ledger_under_the_version(tmp_path: Path, monkeypatch) -> None:
-    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
-    ledger, history = tmp_path / "ledger.toml", tmp_path / "history.md"
-    init.write_text(INIT)
-    log.write_text(LOG)
-    ledger.write_text('# header\n\n[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n')
-    history.write_text("# history\n\nIntro.\n")
-    for name, path in (("INIT", init), ("CHANGELOG", log), ("LEDGER", ledger),
-                       ("LEDGER_HISTORY", history)):  # fmt: skip
-        monkeypatch.setattr(version, name, path)
+def test_date_moves_each_ledger_file_under_the_version_and_removes_it(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Each file moves under its own name, in file-name order, and is removed; the folder's
+    README stays, so the folder does."""
+    files = {
+        "171-the-zip.toml": '[[claim]]\nspec = "171"\ngrows = ["x"]\ngrowth = "y"\n',
+        "140-a-pin.toml": '[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n',
+    }
+    ledger, history = _ledger_files(tmp_path, monkeypatch, files)
     assert version.main(["date", "--day", "2026-10-26"]) == 0
-    assert ledger.read_text() == "# header\n"
-    assert "## 0.1.0a1" in history.read_text() and 'spec = "140"' in history.read_text()
+    text = history.read_text()
+    assert "## 0.1.0a1" in text and text.index("`140-a-pin.toml`:") < text.index(
+        "`171-the-zip.toml`:"
+    )
+    assert [p.name for p in ledger.iterdir()] == ["README.md"]
+
+
+def test_date_refuses_a_ledger_file_out_of_shape_and_writes_nothing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    ledger, history = _ledger_files(
+        tmp_path, monkeypatch, {"ledger.toml": '[[claim]]\nspec = "1"\n'}
+    )
+    assert version.main(["date", "--day", "2026-10-26"]) == 1
+    assert (ledger / "ledger.toml").exists() and "## 0.1.0a1" not in history.read_text()
 
 
 def test_date_assembles_a_news_file_merged_after_bump(tmp_path: Path, monkeypatch) -> None:
