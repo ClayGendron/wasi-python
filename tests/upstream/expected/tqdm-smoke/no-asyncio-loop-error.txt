@@ -8,4 +8,3 @@ tests/tests_asyncio.py::test_generators
 tests/tests_asyncio.py::test_nested
 tests/tests_asyncio.py::test_range
 tests/tests_pandas.py::test_pandas_rolling_expanding
-tests/tests_perf.py::test_iter_basic_overhead
