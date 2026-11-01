@@ -12,7 +12,6 @@
 
 - **A carried patch lets pdfminer.six start without cryptography.** `recipes/patches/pdfminer_six-20260107/0001-import-cryptography-where-aes-runs.patch` moves pdfminer's two `cryptography` imports into the one helper its AES paths call, so plain and RC4 files read without it. [Carrying a patch](https://claygendron.github.io/wasi-python/contributing/carrying-a-patch/)
 - **A carried patch lets plotly read its data from the zip.** `recipes/patches/plotly-7.1.0/0001-data-as-package-data.patch` reads the validators' table and the datasets through the package's loader, as plotly already reads plotly.js. [Carrying a patch](https://claygendron.github.io/wasi-python/contributing/carrying-a-patch/)
-- **The wheel's size is checked against PyPI's file limit.** The artifact rules refuse a wheel over 104,857,600 bytes (100 MiB), PyPI's limit until it raises the project's, on every run that builds one, so no tag makes a GitHub release whose wheel PyPI would refuse. [Release process](https://claygendron.github.io/wasi-python/contributing/release-process/)
 
 ## Package rows
 
