@@ -608,7 +608,7 @@ def test_a_wheel_must_fit_pypis_file_limit(good, work, monkeypatch) -> None:
     assert rules.wheel_errors(wheel, good) == []
     monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size - 1)
     assert rules.wheel_errors(wheel, good) == [
-        f"{wheel.name} is {size:,} bytes, over PyPI's file limit of {size - 1:,}"
+        f"{wheel.name} is {size:,} bytes, over the limit asked of PyPI, {size - 1:,}"
     ]
 
 
