@@ -70,7 +70,7 @@ pyyaml and markupsafe come from their source releases and run as pure Python: py
 
 python-docx and python-pptx start from their own default templates, which they read from the zip. python-pptx's `fit_text()` needs Pillow's FreeType module, which the set lacks: it raises `OSError` looking for the system's fonts, or `ImportError` when given `font_file=`. Set a font size instead.
 
-Each family has a golden job whose output equals native Python's at the same pins. drawsvg ships no tests of its own, so its golden job is its only check: it shows the guest writes native drawsvg's SVG and HTML bytes.
+Each family has a golden job whose output equals native Python's at the same pins. drawsvg ships no tests of its own, so the project checks it instead: its golden job shows the guest writes native drawsvg's SVG and HTML bytes, and a second check shows what the set lacks raises by name.
 
 ## What is not carried
 
