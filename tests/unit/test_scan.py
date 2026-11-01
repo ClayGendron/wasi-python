@@ -3591,6 +3591,7 @@ def test_the_ci_status_scan_names_each_breach(job, old, new, error) -> None:
 
 
 # A pushed tag's run: each mutant named by tag_run_errors.
+PYPI_LIMIT_STEP = scan.PYPI_LIMIT_STEP
 TAG_PROOF_RUN = 'uv run python tests/harness/gather.py --prove-set "$sums" "$wasm"'
 BAD_TAG_RUN = [
     ("plan", "      publish: ${{ steps.plan.outputs.publish }}\n", "",
@@ -3618,6 +3619,18 @@ BAD_TAG_RUN = [
      "judged does not run"),
     ("attest", "same-bytes, judged]", "same-bytes]", "attest does not need judged"),
     ("publish", "attest, judged]", "attest]", "publish does not need judged"),
+    # The wheel's limit: read from another condition than pypi's, from no variable, or skipped.
+    ("judged", "TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}", "TO_PYPI: ${{ vars.PYPI_PUBLISH }}",
+     "judged does not run 'The wheel is within"),
+    ("judged", "          TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}\n", "",
+     "judged does not run 'The wheel is within"),
+    ("judged", "${{ vars.PYPI_FILE_LIMIT_GRANTED }}", "268435456",
+     "judged does not run 'The wheel is within"),
+    ("judged", f"      - name: {PYPI_LIMIT_STEP}\n",
+     f"      - name: {PYPI_LIMIT_STEP}\n        if: vars.PYPI_PUBLISH == 'true'\n",
+     "judged does not run 'The wheel is within"),
+    ("judged", f"      - name: {PYPI_LIMIT_STEP}\n", "      - name: The wheel's size\n",
+     "judged does not run 'The wheel is within"),
 ]  # fmt: skip
 
 
