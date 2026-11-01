@@ -220,6 +220,53 @@ def test_a_low_index_that_is_no_parser_rule_is_checked(work, at_one) -> None:
     assert low in found and len(found) == 2, found
 
 
+def _low_getset_module(work, at_one: str):
+    """A code-referenced record that reads as a one-entry PyGetSetDef array, its getter at table
+    index 1, where the function `at_one` sits with three parameters, as cairo's tag-attribute
+    table reads: {name, 3, 0} twice, so a doc pointer and a small closure follow the getter."""
+    blob, at = _strings()
+    record = struct.pack("<5I", at["look"], 1, 0, at["single"], 3) + bytes(20)
+    data = "\n".join(
+        f'  (data (i32.const {a}) "{_escape(b)}")' for a, b in [(STRINGS, blob), (1300, record)]
+    )
+    return wasm.parse_file(
+        wat.build(
+            work,
+            f"gs-{at_one}.wasm",
+            f"""
+(module
+  (func ${at_one} (param i32 i32 i32) (result i32) (local.get 0))
+  (func (export "make") (result i32) (i32.const 1300))
+  (table 25 funcref)
+  (elem (i32.const 1) ${at_one})
+  (memory 1)
+{data}
+)
+""",
+        )
+    )
+
+
+GETSET_FINDING = (
+    "getter look: table index 1 has (i32, i32, i32) -> (i32), called as (i32, i32) -> (i32)"
+)
+
+
+def test_a_getset_at_the_reactors_allocator_is_not_a_getset(work) -> None:
+    """A record whose getter, at table index 1 to 20, the name section names as the reactor's
+    start-up allocator is not read as a PyGetSetDef (cairo's build: its tag-attribute table,
+    {"tag_name", ATTRIBUTE_STRING = 3, 0}); with another function there, or with the names gone,
+    the same record is a getter like any other."""
+    report = callbacks.scan(_low_getset_module(work, "skipping_calloc"))
+    assert callbacks.findings(report) == []
+    assert report.coverage["getsets"] == 0
+    mod = _low_getset_module(work, "handler")
+    assert callbacks.findings(callbacks.scan(mod)) == [f"{GETSET_FINDING} (handler)"]
+    mod = _low_getset_module(work, "skipping_calloc")
+    mod.names.clear()
+    assert callbacks.findings(callbacks.scan(mod)) == [GETSET_FINDING]
+
+
 # ---------------------------------------------------------------------------------------------
 # The slot scan (`callbacks.scan_slots`) on small modules. Functions $u (i32) -> (i32),
 # $d (i32) -> (), $b (i32, i32) -> (i32) and $t (i32, i32, i32) -> (i32) sit at table indices 21
