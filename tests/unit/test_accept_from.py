@@ -543,13 +543,13 @@ def test_the_release_is_refused_while_a_row_accepted_unclaimed_has_no_claim(inpu
     _release(_accepted_on_dev(inputs))
     why = refused(inputs)
     assert "history line 2" in why and TOOLS in why and "fuel 100 -> 120" in why, why
-    assert news.LEDGER in why and "context/release-claims.toml" == news.LEDGER
+    assert f"{news.LEDGER}/NNN-<slug>.toml" in why and news.LEDGER == "context/release-claims"
 
 
 def test_a_ledger_claim_clears_a_row_accepted_unclaimed(inputs, tmp_path) -> None:
     _release(_accepted_on_dev(inputs))
-    (tmp_path / "context").mkdir()
-    (tmp_path / news.LEDGER).write_text(
+    (tmp_path / news.LEDGER).mkdir(parents=True)
+    (tmp_path / news.LEDGER / "999-the-table.toml").write_text(
         '[[claim]]\nspec = "999"\ngrows = ["' + TOOLS + '"]\ngrowth = "the table grew"\n'
     )
     inputs.claims = news.ledger_claims(tmp_path)
@@ -831,8 +831,10 @@ def test_the_release_records_claims_are_the_ledgers_too(repo: Path) -> None:
     it and the ones the date moved under this version."""
     (repo / "src" / "wasi_python").mkdir(parents=True)
     (repo / "src" / "wasi_python" / "__init__.py").write_text('__version__ = "0.1.1"\n')
-    (repo / "context").mkdir()
-    (repo / news.LEDGER).write_text('[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n')
+    (repo / news.LEDGER).mkdir(parents=True)
+    (repo / news.LEDGER / "140-a-pin.toml").write_text(
+        '[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n'
+    )
     (repo / news.LEDGER_HISTORY).write_text("# history\n")
     _commit(repo, "start")
     release = {"meta": {"event": "pull_request", "base_ref": "main"}}

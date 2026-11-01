@@ -296,7 +296,7 @@ def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
 JUDGE_PATHS = (
     "tests",
     "context/embedders.txt",
-    "context/release-claims.toml",
+    "context/release-claims",
     "pyproject.toml",
     "uv.lock",
     "pytest.ini",
@@ -318,7 +318,7 @@ VERDICT_BEARING = (
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
-    "context/release-claims.toml",
+    "context/release-claims/**",
 )
 
 

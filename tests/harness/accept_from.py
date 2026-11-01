@@ -419,7 +419,8 @@ def reconciled(history_lines: list[str], claims: list[news.Claim]) -> list[str]:
         if news.reason(claims, str(row.get("kind")), row.get("check") or row.get("file")) is None:
             out.append(
                 f"history line {n} accepted {_said(row)} with no claim, and the release has none: "
-                f"write its [[claim]] block in {news.LEDGER}"
+                f"write its [[claim]] block in {news.LEDGER}/NNN-<slug>.toml, the file of the "
+                "change it explains, named after its news file"
             )
     return out
 

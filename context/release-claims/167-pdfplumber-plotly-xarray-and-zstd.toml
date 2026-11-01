@@ -1,0 +1,32 @@
+[[claim]]
+spec = "167"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfplumber-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pdfminer-six-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-dataarray]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rolling]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-backends]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-dataset]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-plot]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-arrays]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-coding]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[xarray-r-rest]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2-in-a-test]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-ghostscript]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cryptography]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cjk-cmaps]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-mmap]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-threads]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-arrays-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-coding-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-wasm32-int32]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "pdfplumber 0.11.10, pdfminer.six 20260107 and xarray 2026.9.0 join the zip, 185 members, so every guest's zip directory is larger: a plain start +1.68% and a snapshot start +0.77% in fuel (darwin arm64). Their release groups measure pdfplumber-r 171.5 G (104 passes), pdfminer-six-r 86.9 G (184 passes) and xarray's eight 1,536.7 G (7,712 passes) on darwin arm64; the failures fall in sixteen classes, each named in its family's TOML"

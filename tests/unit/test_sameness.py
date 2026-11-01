@@ -562,6 +562,14 @@ def test_the_ledger_explains_a_growth_and_leaves_a_lost_pass(tmp_path) -> None:
     assert left == [f"{U}: status 'pass' != 'fail'"], left
 
 
+def test_a_folder_of_claim_lists_is_read_in_file_name_order(tmp_path) -> None:
+    """The release ledger is a folder of one file per pull request: --claims takes it whole."""
+    (tmp_path / "171-b.toml").write_text('[[claim]]\nspec = "171"\nunits = 1\n')
+    (tmp_path / "102-a.toml").write_text('[[claim]]\nspec = "102"\nunits = 2\n')
+    (tmp_path / "README.md").write_text("# not a claim list\n")
+    assert [c.spec for c in sameness.load_claims(tmp_path)] == ["102", "171"]
+
+
 def test_the_command_takes_tier_rows(tmp_path) -> None:
     a, b = tmp_path / "a.json", tmp_path / "b.json"
     a.write_text(json.dumps(tiered_local("release")))
