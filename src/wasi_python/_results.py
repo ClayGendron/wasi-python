@@ -40,7 +40,9 @@ ENVELOPE = 1024  # room for a frame's keys and its list of cut types, beside its
 # largest display the guest sends holds 19: its six keys, six MIME types, a `$bytes` object and
 # six cut types. A frame that holds more is refused before it is parsed: a parse of empty
 # objects held about fifty times the frame at once, and a parse of a few values costs about its
-# length. A tool frame holds more and goes to the tool host, which reads none past its cap.
+# length. A tool frame holds more and goes to the tool host, which reads none past its cap. A
+# frame whose strings could not fit in the room is answered too large before it is decoded, so a
+# long string past the room costs the host about the frame twice, not nine times.
 VALUES = 64
 # The guest's argument that turns results on, first after the program's name; the second form
 # adds matplotlib's figures. It is read and removed before the program sees its arguments.
@@ -174,8 +176,15 @@ class _ResultHost:
 
     def _answer(self, frame: bytes) -> bytes:
         wire = self._wire
+        shape = wire._nesting(frame, VALUES)
+        if shape.values <= VALUES and self._room and shape.text > _most_text(self._room):
+            if self._tools is None or len(frame) > wire._TOOL_REQUEST_BYTES:
+                self._records += 1  # a display that cannot fit, answered before it is decoded
+                self.cut = True
+                said = f"the frame's strings hold at least {shape.text} bytes; there is room for"
+                return self._too_large(None, said)
         try:
-            request = wire._parse(frame, VALUES)
+            request = wire._parse(frame, VALUES, shape)
         except wire._Refused as e:
             if self._tools is not None:
                 return self._tools(frame)  # a tool frame's refusal stays in the tool record
@@ -238,6 +247,13 @@ class _ResultHost:
         room = self._room or 0
         error = {"kind": "too_large", "message": f"{said} {room}" if room_said else said}
         return self._encoded({"id": frame_id, "ok": False, "error": error, "room": room})
+
+
+def _most_text(room: int) -> int:
+    """The most bytes a frame's strings hold, escapes counted as one byte, when its display fits
+    in `room`: its text as is, its PNG as base64 (four bytes for every three, padded), and its
+    keys and cut types within the envelope."""
+    return (4 * room + 8) // 3 + ENVELOPE
 
 
 def _refusal(request: dict[str, Any]) -> str | None:

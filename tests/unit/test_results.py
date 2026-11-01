@@ -507,6 +507,36 @@ def test_under_tools_a_frame_past_the_tool_cap_is_never_parsed(monkeypatch) -> N
     assert (loads.calls, tools.record.frames, host._records) == (1, 2, 0)
 
 
+def test_a_display_whose_strings_cannot_fit_is_answered_before_it_is_decoded(monkeypatch) -> None:
+    loads = Loads(monkeypatch)
+    host, _ = result_host(room=100)
+    most = (4 * 100 + 8) // 3 + R.ENVELOPE
+    raw = host(frame({"text/plain": "x" * most}))
+    a = answer(raw)
+    assert (a["id"], a["error"]["kind"], a["room"], loads.calls) == (None, "too_large", 100, 0)
+    a = answer(host(frame({"text/plain": "x" * (most - 200)})))  # judged once parsed
+    assert (a["id"], a["error"]["kind"], loads.calls) == (7, "too_large", 1)
+    lines = host(frame({"text/plain": "\n" * 1000}))  # each escape is one byte, not two
+    assert answer(lines)["id"] == 7 and loads.calls == 2
+    assert (host._records, host.cut) == (3, True)
+    png, _ = result_host(room=3000)
+    data = {"text/plain": "1", "image/png": {"$bytes": base64.b64encode(b"p" * 2999).decode()}}
+    assert answer(png(frame(data)))["kept"] is True  # its PNG as base64 still fits the room
+    tools = H._ToolHost([lookup])
+    with_tools, _ = result_host(room=10, tools=tools)
+    call = {"v": 1, "id": 2, "op": "call", "tool": "lookup", "args": {"code": "a" * 5000}}
+    assert answer(with_tools(json.dumps(call).encode()))["value"] == "a" * 5000
+
+
+def test_an_escape_outside_a_string_is_not_a_value() -> None:
+    raw = b'{"v":1}' + b"\\a" * 70
+    host, _ = result_host()
+    assert answer(host(raw))["error"]["message"].startswith("the frame is not JSON")
+    tools = H._ToolHost([lookup])
+    assert answer(tools(raw))["error"]["message"].startswith("the frame is not JSON")
+    assert H._nesting(raw)[:2] == (1, 1)
+
+
 # -------------------------------------------------------------------------------------------------
 # The guest package, loaded on the host's Python.
 
