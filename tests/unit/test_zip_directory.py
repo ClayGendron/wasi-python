@@ -9,6 +9,7 @@ import importlib.util
 import io
 import struct
 import sys
+import types
 import zipfile
 import zlib
 from pathlib import Path
@@ -536,6 +537,353 @@ def _no_private_modules_left():
         del sys.modules[name]
 
 
+# Part 4: the stdlib zip read by its folder table.
+
+TABLED = [
+    "a.pyc",
+    "nsp/x/m.pyc",
+    "pkg-1.0.dist-info/METADATA",
+    "pkg/Upper.pyc",
+    "pkg/__init__.py",
+    "pkg/__init__.pyc",
+    "pkg/data.txt",
+    "pkg/sub/m.pyc",
+    "top.pyc",
+]
+
+
+def _make_stdlib_zip():
+    sys.path.insert(0, str(paths.REPO / "scripts"))
+    try:
+        import make_stdlib_zip
+    finally:
+        sys.path.remove(str(paths.REPO / "scripts"))
+    return make_stdlib_zip
+
+
+def _tabled(work: Path, names=TABLED, edit=None) -> str:
+    """A zip of `names` with the folder table step 70 writes; `edit` rewrites the table's lines
+    (after the version line) before it goes back in."""
+    path = work / "t.zip"
+    path.write_bytes(zips.build({n: n for n in names}))
+    _make_stdlib_zip().write_folder_table(path)
+    if edit is not None:
+        data = path.read_bytes()
+        with zipfile.ZipFile(path) as z:
+            lines = z.comment.decode().splitlines()
+        table = edit(lines[0], [line.split(" ") for line in lines[1:]])
+        end = len(data) - 22 - len(z.comment)
+        path.write_bytes(data[: end + 20] + struct.pack("<H", len(table)) + table)
+    return str(path)
+
+
+def _lines(head: str, rows: list[list]) -> bytes:
+    return "".join(f"{line}\n" for line in [head, *(" ".join(map(str, r)) for r in rows)]).encode()
+
+
+def _row(rows: list[list], folder: str) -> list:
+    return next(r for r in rows if r[0] == folder)
+
+
+def _with(rows, folder, **change):
+    """The rows with one field of one folder's row changed by a function of the row."""
+    out = [list(r) for r in rows]
+    row = _row(out, folder)
+    for i, name in enumerate(("off", "size", "count", "init", "inits"), 1):
+        if name in change:
+            row[i] = change[name](row)
+    return out
+
+
+def _entry_length(path: str, name: str) -> int:
+    with zipfile.ZipFile(path) as z:
+        info = z.getinfo(name)
+    return 46 + len(name) + len(info.extra) + len(info.comment)
+
+
+AT_START = {  # each malformation the start finds: the table's text, as an edit of its lines
+    "absent": lambda head, rows: b"",
+    "another version": lambda head, rows: _lines("wasi-python folders 2", rows),
+    "a field not a number": lambda head, rows: _lines(
+        head, _with(rows, "pkg", count=lambda r: "x")
+    ),
+    "a leading zero": lambda head, rows: _lines(head, _with(rows, "pkg", off=lambda r: "0" + r[1])),
+    "no last LF": lambda head, rows: _lines(head, rows)[:-1],
+    "out of order": lambda head, rows: _lines(head, rows[::-1]),
+    "overlapping": lambda head, rows: _lines(
+        head, _with(rows, "pkg", off=lambda r: int(rows[0][1]) + 1)
+    ),
+    "past the end": lambda head, rows: _lines(
+        head, _with(rows, "pkg", size=lambda r: int(r[2]) * 100)
+    ),
+    "the walk misses a run": lambda head, rows: _lines(
+        head, _with(rows, "pkg", off=lambda r: int(r[1]) - 1, size=lambda r: int(r[2]) + 1)
+    ),
+    "a run's first entry in another folder": lambda head, rows: _lines(
+        head, [["zzz", *rows[0][1:]], *rows[1:]]
+    ),
+    "the counts do not add up": lambda head, rows: _lines(
+        head, _with(rows, "pkg", count=lambda r: int(r[3]) + 1)
+    ),
+}
+
+
+@pytest.mark.parametrize("case", AT_START)
+def test_a_table_that_does_not_fit_gives_the_full_read(zd, work, case) -> None:
+    archive = _tabled(work, edit=AT_START[case])
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    assert zd.served == {archive: "fast"} and files == zd._fast(archive)
+    assert archive not in zd._folders
+
+
+def test_an_entry_read_at_start_in_a_tabled_folder_gives_the_full_read(zd, work) -> None:
+    """The pkg run cut before its last entry, which the start would then read as its own."""
+    path = _tabled(work)
+    cut = _entry_length(path, "pkg/sub/m.pyc")
+    archive = _tabled(
+        work,
+        edit=lambda head, rows: _lines(
+            head,
+            _with(rows, "pkg", size=lambda r: int(r[2]) - cut, count=lambda r: int(r[3]) - 1),
+        ),
+    )
+    zd.tabled = archive
+    assert zd.read_directory(archive) == zd._fast(archive) and zd.served[archive] == "fast"
+
+
+def _cache(monkeypatch, archive: str, files: dict) -> None:
+    import zipimport
+
+    monkeypatch.setitem(zipimport._zip_directory_cache, archive, files)
+
+
+def test_a_load_that_does_not_fit_gives_the_full_read_in_place(zd, work, monkeypatch) -> None:
+    """The pkg run stretched over top.pyc: the start fits, the load finds another folder's name
+    and replaces the dict's contents with the full read; so does an OSError at a load."""
+    top = None
+
+    def stretch(head, rows):
+        nonlocal top
+        return _lines(
+            head, _with(rows, "pkg", size=lambda r: int(r[2]) + top, count=lambda r: int(r[3]) + 1)
+        )
+
+    top = _entry_length(_tabled(work), "top.pyc")
+    archive = _tabled(work, edit=stretch)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    assert zd.served[archive] == "folders" and "pkg/data.txt" not in files
+    _cache(monkeypatch, archive, files)
+    zd.load_all(archive)
+    assert files == zd._fast(archive) and zd.served[archive] == "fast"
+    assert zd.tabled is None and archive not in zd._folders
+
+    archive = _tabled(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    _cache(monkeypatch, archive, files)
+
+    def refuse(*args, **kwargs):
+        raise OSError("gone")
+
+    stock_open = zd._io.open_code
+    monkeypatch.setattr(zd, "_io", types.SimpleNamespace(open_code=refuse))
+    zd.load_all(archive)  # the load's read fails, and so does the full read's: stock's turn
+    monkeypatch.setattr(zd, "_io", types.SimpleNamespace(open_code=stock_open))
+    assert zd.served[archive] == "stock"
+
+
+def test_a_load_whose_read_fails_falls_back_to_the_full_read(zd, work, monkeypatch) -> None:
+    archive = _tabled(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    _cache(monkeypatch, archive, files)
+    real = zd._io.open_code
+    calls = []
+
+    def once(path):
+        calls.append(path)
+        if len(calls) == 1:
+            raise OSError("the first open fails")
+        return real(path)
+
+    monkeypatch.setattr(zd, "_io", types.SimpleNamespace(open_code=once))
+    zd.load_all(archive)
+    assert files == zd._fast(archive) and zd.served[archive] == "fast"
+
+
+def test_a_load_that_raises_leaves_its_folder_pending(zd, work, monkeypatch) -> None:
+    """A load that raises anything but OSError (an audit hook's error, a MemoryError) leaves the
+    folder pending: the exception reaches the trigger, and the next trigger loads the folder."""
+    archive = _tabled(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    _cache(monkeypatch, archive, files)
+    real = zd._io.open_code
+    calls = []
+
+    def once(path):
+        calls.append(path)
+        if len(calls) == 1:
+            raise RuntimeError("an audit hook's refusal")
+        return real(path)
+
+    monkeypatch.setattr(zd, "_io", types.SimpleNamespace(open_code=once))
+    with pytest.raises(RuntimeError):
+        zd._load(archive, "pkg", files)
+    assert "pkg" in zd._folders[archive][1] and "pkg/data.txt" not in files
+    zd.load_all(archive)
+    assert files == zd._fast(archive) and zd.served[archive] == "folders"
+    assert zd.loaded(archive) == ["nsp", "pkg"]
+
+
+def _forged_init_zip(work: Path) -> str:
+    """pkg/data.txt's extra field holds a forged central header for pkg/__init__.py, and the
+    table's init pair points at it: the start reads a package the directory does not hold."""
+    forged_name = b"pkg/__init__.py"
+    forged = (
+        struct.pack(
+            "<4s4xHHHHIIIHHH8xI", b"PK\x01\x02", 0, 0, 0, 0, 0, 0, 0, len(forged_name), 0, 0, 0
+        )
+        + forged_name
+    )
+    path = work / "forged.zip"
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for name in ("a.pyc", "pkg/data.txt", "pkg/m.pyc"):
+            info = zipfile.ZipInfo(name, zips.DATE)
+            if name == "pkg/data.txt":
+                info.extra = struct.pack("<HH", 0xCAFE, len(forged)) + forged
+            z.writestr(info, name)
+    path.write_bytes(out.getvalue())
+    _make_stdlib_zip().write_folder_table(path)
+    data = path.read_bytes()
+    cd = data.rfind(b"PK\x05\x06")
+    cd_offset = struct.unpack_from("<I", data, cd + 16)[0]
+    forged_at = data.find(forged, cd_offset) - cd_offset
+    assert forged_at > 0
+    with zipfile.ZipFile(path) as z:
+        head, row = z.comment.decode().splitlines()
+    fields = row.split(" ")
+    fields[4:6] = [str(forged_at), "1"]
+    table = f"{head}\n{' '.join(fields)}\n".encode()
+    end = len(data) - 22 - len(z.comment)
+    path.write_bytes(data[: end + 20] + struct.pack("<H", len(table)) + table)
+    return str(path)
+
+
+def test_a_table_cannot_add_an_entry_the_directory_lacks(zd, work, monkeypatch) -> None:
+    """An `__init__` entry the start read that the folder's run does not hold makes its load fall
+    back to the full read, so the forged package goes."""
+    archive = _forged_init_zip(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    assert zd.served[archive] == "folders" and "pkg/__init__.py" in files
+    _cache(monkeypatch, archive, files)
+    zd.load_all(archive)
+    assert "pkg/__init__.py" not in files and files == zd._fast(archive)
+    assert zd.served[archive] == "fast"
+
+
+def test_another_archives_table_is_read_whole(zd, work) -> None:
+    archive = _tabled(work)
+    zd.tabled = str(work / "the-stdlib.zip")
+    assert zd.read_directory(archive) == zd._fast(archive)
+    assert zd.served == {archive: "fast"}
+
+
+def _children(files: dict) -> dict:
+    out: dict = {}
+    for name in files:
+        if name:
+            out.setdefault(name.rstrip("/").rpartition("/")[0], []).append(name)
+    return out
+
+
+def test_every_folder_loaded_gives_the_full_reads_dict(zd, work, monkeypatch) -> None:
+    """At start a folder is its own name and its `__init__` entries, so zipimport tells a package
+    from a namespace package; once every folder is loaded the dict equals the full read's, each
+    folder's children in its order, and the top level's names in theirs."""
+    archive = _tabled(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    assert zd.served == {archive: "folders"}
+    assert set(files) == {
+        "a.pyc",
+        "nsp/",
+        "pkg-1.0.dist-info/METADATA",
+        "pkg-1.0.dist-info/",
+        "pkg/",
+        "pkg/__init__.py",
+        "pkg/__init__.pyc",
+        "top.pyc",
+    }
+    full = zd._fast(archive)
+    assert [files[n] for n in ("pkg/__init__.pyc", "top.pyc")] == [
+        full[n] for n in ("pkg/__init__.pyc", "top.pyc")
+    ]
+    tops = lambda f: list(dict.fromkeys(n.split("/", 1)[0] for n in f))  # noqa: E731
+    assert tops(files) == tops(full)
+    _cache(monkeypatch, archive, files)
+    zd.load_all(archive)
+    assert files == full and zd.loaded(archive) == ["nsp", "pkg"]
+    mine, theirs = _children(files), _children(full)
+    assert {k: v for k, v in mine.items() if k} == {k: v for k, v in theirs.items() if k}
+    assert sorted(mine[""]) == sorted(theirs[""])
+
+
+def test_a_trigger_after_invalidation_reads_again_first(zd, work, monkeypatch) -> None:
+    """After `invalidate_caches()`, a trigger takes the dict through the importer's own
+    `_get_files()`: the archive is read again, every folder loaded before is loaded again, and
+    then the trigger's folder."""
+    import zipimport
+
+    archive = _tabled(work)
+    for name in ("__init__", "get_data", "exec_module", "get_resource_reader"):
+        monkeypatch.setattr(zipimport.zipimporter, name, getattr(zipimport.zipimporter, name))
+    finder = zipimport._bootstrap_external.PathFinder
+    monkeypatch.setattr(finder, "find_distributions", finder.__dict__["find_distributions"])
+    monkeypatch.setattr(zipimport, "_read_directory", zipimport._read_directory)
+    monkeypatch.delitem(zipimport._zip_directory_cache, archive, raising=False)
+    zd.install(True, archive)
+    try:
+        importer = zipimport.zipimporter(archive)
+        assert zd.served == {archive: "folders"} and zd.loaded(archive) == []
+        sub = zipimport.zipimporter(f"{archive}/nsp/x")
+        assert zd.loaded(archive) == ["nsp"] and sub.prefix == "nsp/x/"
+        importer.invalidate_caches()
+        assert importer.get_data(f"{archive}/pkg/data.txt") == b"pkg/data.txt"
+        files = zipimport._zip_directory_cache[archive]
+        assert zd.loaded(archive) == ["nsp", "pkg"] and "nsp/x/m.pyc" in files
+        assert files == zd._fast(archive)
+    finally:
+        zipimport._zip_directory_cache.pop(archive, None)
+
+
+def test_the_children_map_follows_a_load(zr, zd, work, monkeypatch) -> None:
+    """The resource reader's map of each folder's children is rebuilt when a load grows the
+    dict it was built from, and a lookup through the path loads its folder."""
+    import zipimport
+
+    archive = _tabled(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    _cache(monkeypatch, archive, files)
+    zr.touch = zd.touch
+    loader = FakeLoader(archive, files)
+    root = zr.ZipDirectoryPath(loader)
+    assert sorted(p.name for p in root.iterdir()) == ["a.pyc", "nsp", "pkg", "pkg-1.0.dist-info",
+                                                      "top.pyc"]  # fmt: skip
+    pkg = root / "pkg"
+    assert [p.name for p in pkg.iterdir()] == ["Upper.pyc", "__init__.py", "__init__.pyc",
+                                               "data.txt", "sub"]  # fmt: skip
+    assert zd.loaded(archive) == ["pkg"]
+    zd.load_all(archive)
+    assert [p.name for p in (root / "nsp").iterdir()] == ["x"]
+    assert zipimport._zip_directory_cache[archive] is files
+
+
 # Part 3: the judge's zips folder, made by several processes at once.
 
 CONCURRENT_ZIPS = r"""
@@ -584,5 +932,5 @@ def test_the_judges_zips_folder_is_safe_across_processes(work) -> None:
         assert errors == [], (trial, errors)
         assert [line.rsplit(" ", 1)[0] for line in lines] == [expected] * PROCESSES, trial
         left = sorted(p.name for p in harness_tmp.iterdir())
-        assert len(left) == 1 and left[0].startswith("zips-") and left[0].endswith("-v2"), left
+        assert len(left) == 1 and left[0].startswith("zips-") and left[0].endswith("-v3"), left
         assert {line.rsplit(" ", 1)[1] for line in lines} == {left[0]}

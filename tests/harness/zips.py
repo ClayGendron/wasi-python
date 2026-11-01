@@ -5,13 +5,15 @@
 - `padded.zip`: `small.zip` plus a copy of each artifact member under `pad1/`, `pad2/` and
   `pad3/`, at zlib level 1. Nothing imports from them; they only lengthen the directory, so the
   fuel difference between the two zips, over their member counts, is a cost per member.
+- Both get the folder table step 70 writes into the artifact zip's comment, written afresh for
+  their own directories, so each pad is one tabled folder no program touches.
 - The odd zips (Zip64, a cp437 name, explicit directories, prepended bytes and a comment, a
   truncated directory) and a guest's resource zip (an LZMA member, a bad CRC, a 2 MiB member).
   Each is made in memory and checked for the feature it must have (`check_*`), so a check never
   passes on a zip that lacks it.
 
 `judge_zips(artifact_zip)` makes `small.zip` and `padded.zip` once per artifact zip, under
-build/harness/zips-<the zip's hash>-v2/, and reuses them while that zip is unchanged.
+build/harness/zips-<the zip's hash>-v3/, and reuses them while that zip is unchanged.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ import io
 import os
 import shutil
 import struct
+import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -197,11 +200,30 @@ def _members(path: Path) -> int:
         return len(z.infolist())
 
 
+def write_folder_table(path: Path) -> None:
+    """Step 70's folder table, written into the zip's comment by the build's own writer."""
+    import importlib.util
+
+    scripts = str(paths.REPO / "scripts")
+    sys.path.insert(0, scripts)  # make_stdlib_zip imports its neighbours by name
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "judge_make_stdlib_zip", paths.REPO / "scripts" / "make_stdlib_zip.py"
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(scripts)
+    module.write_folder_table(path)
+
+
 def make_small(artifact_zip: Path, out: Path) -> None:
     shutil.copyfile(artifact_zip, out)
     with zipfile.ZipFile(out, "a") as z:
         for name, text in DISTRIBUTIONS.items():
             z.writestr(_info(name), text)
+    write_folder_table(out)
 
 
 def make_padded(small: Path, artifact_zip: Path, out: Path) -> None:
@@ -214,6 +236,7 @@ def make_padded(small: Path, artifact_zip: Path, out: Path) -> None:
                 copy.compress_type = info.compress_type
                 copy.external_attr = info.external_attr
                 z.writestr(copy, data, compresslevel=1)
+    write_folder_table(out)
 
 
 @dataclass(frozen=True)
@@ -234,9 +257,9 @@ def judge_zips(artifact_zip: Path) -> JudgeZips:
     Each process builds in its own work folder and publishes it with one rename. A home that
     exists is complete, since a rename of a finished build is the only way one comes to exist,
     and no home is ever removed: a process that loses the rename drops its own work folder and
-    uses the one that won. The `-v2` name leaves any folder an earlier version made unread."""
+    uses the one that won. The `-v3` name leaves any folder an earlier version made unread."""
     sha = paths.sha256_file(artifact_zip)[:16]
-    home = paths.HARNESS_TMP / f"zips-{sha}-v2"
+    home = paths.HARNESS_TMP / f"zips-{sha}-v3"
     if not home.is_dir():
         paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
         work = Path(tempfile.mkdtemp(prefix="zips-work-", dir=paths.HARNESS_TMP))

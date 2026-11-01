@@ -51,6 +51,16 @@ skips every .dist-info and .egg-info folder, and a tree with one at its top stop
 bytes unchanged, beside that PKG-INFO's METADATA, in the folder sdist_metadata names; once every
 input is gathered, an entry-points file whose folder has no METADATA member stops the build.
 
+The folder table: once written, the zip's archive comment becomes a table of its top-level
+folders (write_folder_table), so the guest reads each folder's part of the directory only when a
+program first uses that folder. Members are written sorted, so each folder is one contiguous run
+of the directory; a line gives a folder's run (offset, size, entry count) and the run of its
+`__init__.*` entries, which a start reads so zipimport can tell a package from a namespace
+package. Every top-level folder is listed but `.dist-info` folders and names outside
+`[A-Za-z0-9_.-]`, which every start reads whole. The table is checked against the directory
+before it is written; a folder split in two runs, or a table past a comment's 65,535 bytes,
+stops the build. zipimport and zipfile ignore the comment.
+
 Import names: every distribution's .dist-info gets a top_level.txt, its top-level names sorted,
 one per line, setuptools' format, so the guest's importlib.metadata.packages_distributions()
 answers and the host can list each package with the names to import. A name is a packed
@@ -71,6 +81,7 @@ import importlib.util
 import io
 import os
 import re
+import struct
 import sys
 import zipfile
 from importlib._bootstrap_external import _code_to_hash_pyc
@@ -346,6 +357,123 @@ def import_name(name: str) -> str | None:
     return stem if dot and suffix in ("py", "pyc") else None
 
 
+FOLDER_TABLE = b"wasi-python folders 1"
+FOLDER_NAME = re.compile(r"[A-Za-z0-9_.-]+")
+END_RECORD = struct.Struct("<4s4xHHIIH")  # signature, entries here, entries, size, offset, comment
+CENTRAL = struct.Struct("<4s24xHHH")  # signature, then the name's, extra's and comment's sizes
+
+
+def tabled_folder(name: str) -> str | None:
+    """The folder of the table a member's name lies in: its top-level folder, unless that is a
+    .dist-info folder or a name outside the table's alphabet, both read at every start."""
+    top, sep, _ = name.partition("/")
+    if not sep or top.endswith(".dist-info") or not FOLDER_NAME.fullmatch(top):
+        return None
+    return top
+
+
+def folder_runs(entries: list[tuple[str, int, int]]) -> list[list]:
+    """[folder, offset, size, count, init offset, init count] for each tabled folder, in the
+    directory's order, from its entries (name, offset from the directory's first entry, length).
+    A folder whose entries are not one contiguous run, or whose `__init__.*` entries are not,
+    stops the build."""
+    runs: list[list] = []
+    seen: set[str] = set()
+    init_end = -1
+    previous = None
+    for name, offset, length in entries:
+        folder = tabled_folder(name)
+        if folder is not None and folder != previous:
+            if folder in seen:
+                raise SystemExit(f"the folder table: {folder}/ is not one run of the directory")
+            seen.add(folder)
+            runs.append([folder, offset, 0, 0, 0, 0])
+        previous = folder
+        if folder is None:
+            continue
+        run = runs[-1]
+        run[2] += length
+        run[3] += 1
+        rest = name[len(folder) + 1 :]
+        if rest.startswith("__init__.") and "/" not in rest:
+            if run[5] == 0:
+                run[4] = offset
+            elif init_end != offset:
+                raise SystemExit(f"the folder table: {folder}/__init__.* is not one run")
+            run[5] += 1
+            init_end = offset + length
+    return runs
+
+
+def check_folder_table(entries: list[tuple[str, int, int]], table: bytes) -> None:
+    """The table read back against the directory: the runs tile it in order, each run's entries
+    name its folder, its `__init__` entries are where it says, and the counts add up."""
+    lines = table.split(b"\n")
+    if lines[0] != FOLDER_TABLE or lines[-1] != b"":
+        raise SystemExit("the folder table: no version line, or a line not ended by LF")
+    at = {offset: i for i, (_, offset, _) in enumerate(entries)}
+    inside = 0
+    previous_end = 0
+    for row in lines[1:-1]:
+        folder, *fields = row.decode("ascii").split(" ")
+        offset, size, count, init_offset, init_count = map(int, fields)
+        if offset < previous_end or offset not in at:
+            raise SystemExit(f"the folder table: {folder}'s run is out of order or misplaced")
+        first = at[offset]
+        run = entries[first : first + count]
+        if len(run) != count or sum(length for _, _, length in run) != size:
+            raise SystemExit(f"the folder table: {folder}'s run does not end where it says")
+        if any(name.partition("/")[0] != folder for name, _, _ in run):
+            raise SystemExit(f"the folder table: {folder}'s run holds another folder's entry")
+        if init_count:
+            i = at.get(init_offset, -1)
+            inits = entries[i : i + init_count] if first <= i < first + count else []
+            if len(inits) != init_count or not all(
+                n.startswith(folder + "/__init__.") and n.count("/") == 1 for n, _, _ in inits
+            ):
+                raise SystemExit(f"the folder table: {folder}'s __init__ entries are misplaced")
+        inside += count
+        previous_end = offset + size
+    outside = sum(tabled_folder(name) is None for name, _, _ in entries)
+    if inside + outside != len(entries):
+        raise SystemExit("the folder table: its counts and the directory's do not add up")
+
+
+def write_folder_table(path: Path) -> int:
+    """Write the folder table into the zip's archive comment, replacing any comment there:
+    `wasi-python folders 1`, then one line per tabled folder, `<folder> <offset> <size> <count>
+    <init offset> <init count>`, each ended by LF. Offsets are bytes from the directory's first
+    entry. No member, offset or directory byte changes. Returns the table's length."""
+    data = path.read_bytes()
+    with zipfile.ZipFile(path) as z:
+        old = len(z.comment)
+    end = len(data) - END_RECORD.size - old
+    sig, count, total, cd_size, cd_offset, comment_size = END_RECORD.unpack_from(data, end)
+    if sig != b"PK\x05\x06" or comment_size != old or count != total:
+        raise SystemExit(f"{path}: no plain end record where zipfile found it")
+    if b"PK\x06\x06" in data[max(0, end - 76) : end] or end - cd_size != cd_offset:
+        raise SystemExit(f"{path}: a Zip64 zip, or bytes before it, has no folder table")
+    entries = []
+    p = cd_offset
+    for _ in range(count):
+        sig, name_size, extra_size, comment_len = CENTRAL.unpack_from(data, p)
+        if sig != b"PK\x01\x02":
+            raise SystemExit(f"{path}: a directory entry without its signature")
+        length = 46 + name_size + extra_size + comment_len
+        entries.append((data[p + 46 : p + 46 + name_size].decode("utf-8"), p - cd_offset, length))
+        p += length
+    if p != end:
+        raise SystemExit(f"{path}: the directory does not end at the end record")
+    rows = [FOLDER_TABLE.decode()]
+    rows += [" ".join(map(str, run)) for run in folder_runs(entries)]
+    table = "".join(f"{row}\n" for row in rows).encode("ascii")
+    if len(table) > 0xFFFF:
+        raise SystemExit(f"the folder table is {len(table):,} bytes, past a comment's 65,535")
+    check_folder_table(entries, table)
+    path.write_bytes(data[: end + 20] + struct.pack("<H", len(table)) + table)
+    return len(table)
+
+
 def parse_claim(spec: str) -> tuple[Path, list[str]]:
     """`--metadata <PKG-INFO>=<name>[,<name>...]`, split at the last `=`: a distribution left
     with no name could not say what to import, so the names are required."""
@@ -566,10 +694,11 @@ def main() -> None:
             z.writestr(
                 member(name), entries[name], compress_type=zipfile.ZIP_DEFLATED, compresslevel=9
             )
+    table = write_folder_table(a.out)
     n_pyc = sum(name.endswith(".pyc") for name in entries)
     print(
         f"{a.out.name}: {n_pyc} pyc, {len(entries) - n_pyc} data files, "
-        f"{a.out.stat().st_size} bytes"
+        f"{a.out.stat().st_size} bytes, a folder table of {table} bytes"
     )
 
 

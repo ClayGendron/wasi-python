@@ -35,6 +35,7 @@ test_v1_4_embedding = 10_176_733_854
 test_v1_4_prepare = 98_359_580
 test_v1_4_results = 812_295_182  # twice its largest fuel measured at its first build
 test_v1_4_starting_image = 196_856_062
+test_v1_4_the_end_of_a_call = 12_163_432_034  # twice its largest fuel measured at its first build
 # The packages' own suites, by package
 attrs = 26_636_430_164
 beautifulsoup4 = 31_356_136_972

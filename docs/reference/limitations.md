@@ -78,5 +78,7 @@ The standard library and the packages' Python code are bytecode in one read-only
 - `importlib.resources.files()` on a package in the zip gives the runtime's own reader, not a `zipfile.Path`. It lacks `root`, `at`, `glob`, `rglob` and a few more of `zipfile.Path`'s members.
 - The packages' own `tests` folders are not in the zip.
 - The snapshot runs only beside the exact stdlib zip it was built against, because zipimport's file offsets are part of the snapshot.
+- On the plain reactor, `zipimport._zip_directory_cache` and a zipimporter's `_get_files()` list only a package's own `__init__` files until a program imports the package or reads a file in it. So jinja2's `PackageLoader.list_templates()` lists nothing for a package in the zip that was never imported. Import the package first.
+- An object a program stores in zipimport's cached directory of the stdlib zip is never finalized: the interpreter keeps that directory until the instance is discarded.
 
 See also [Troubleshooting](../how-to/troubleshooting.md) and [The security model](../explanation/security-model.md).

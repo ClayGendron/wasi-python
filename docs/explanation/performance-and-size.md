@@ -21,13 +21,13 @@ The binaries hold CPython and every compiled package: numpy and scipy on one Ope
 
 | what | time | guest instructions |
 |---|---|---|
-| one call on the snapshot, `-c pass` | 16 ms | 43.8 million |
-| one call on the plain reactor, `-c pass` | 21 ms | 218 million |
+| one call on the snapshot, `-c pass` | 12 ms | 35.2 million |
+| one call on the plain reactor, `-c pass` | 23 ms | 132 million |
 | `import numpy` on the snapshot | | 0.81 billion |
-| `import pandas` on the snapshot | | 4.66 billion |
-| `import pandas` on the plain reactor | 620 ms | 4.92 billion |
+| `import pandas` on the snapshot | | 4.75 billion |
+| `import pandas` on the plain reactor | 725 ms | 5.02 billion |
 
-Most of a bare snapshot call is the interpreter finalizing after the program ends.
+These rows were measured again on 2026-10-31, with wasmtime 50 and pandas 3.1.0. Most of a bare snapshot call is the interpreter finalizing after the program ends. Finalizing runs every finalizer but no longer gives memory back to an instance that is about to be discarded. The plain reactor reads each package's part of the zip's directory only when a program first uses it.
 
 The snapshot pre-imports no package, so a call pays for what it imports, when it imports it. Some more imports on the snapshot:
 

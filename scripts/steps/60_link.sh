@@ -147,7 +147,11 @@ done
 # whose wrapper refuses GB18030, which wasi-libc decodes wrongly without an error
 # (recipes/iconv_refusals.c), and fcntl, whose wrapper answers F_DUPFD and
 # F_DUPFD_CLOEXEC with ENOTSUP, which wasi-libc 34 answers EINVAL on preview1
-# (recipes/fcntl_dup_refusal.c). Each guard is compiled by the reactor's own
+# (recipes/fcntl_dup_refusal.c). It also wraps the C library's allocators (malloc, calloc,
+# realloc, aligned_alloc, posix_memalign, and musl's __libc_malloc and __libc_calloc, which its
+# locale and time-zone code calls), so the reactor counts every allocation a call's teardown makes
+# while it skips frees, and frees what it skipped before teardown could take more than its budget
+# (recipes/reactor_main.c, "Teardown frees nothing"). Each guard is compiled by the reactor's own
 # command into its own object. Only the reactor carries them: the interpreter `make all` links
 # above is CPython's own build, never shipped.
 rm -f python.wasm Programs/python.o
@@ -168,6 +172,8 @@ for g in $GUARDS; do
   guard_objects="$guard_objects Modules/$g.o"
 done
 WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_poll_oneoff -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close -Wl,--wrap=fcntl -Wl,--wrap=freopen"
+WRAP="$WRAP -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=aligned_alloc"
+WRAP="$WRAP -Wl,--wrap=posix_memalign -Wl,--wrap=__libc_malloc -Wl,--wrap=__libc_calloc"
 link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-model=reactor $WRAP -Wl,--Map=$L/python.map -o $OUT/python.wasm Modules/reactor_main.o$guard_objects#")
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \

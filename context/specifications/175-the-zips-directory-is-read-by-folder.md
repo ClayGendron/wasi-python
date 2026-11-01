@@ -1,6 +1,6 @@
 # 175: The zip's directory is read by folder
 
-- **Status:** drafted 2026-10-31, to be reviewed before it is built (the artifact set and the build recipe: the zip's bytes, the snapshot, step 70 and the reactor; constitution §5.6). The owner chose it on 2026-10-31 (`../decisions.md`, "The zip's directory is read by folder"). Amended the same day against its pre-build review, `../reviews/175-the-zips-directory-is-read-by-folder-spec-2026-10-31.md` ("Fit to build after amendments"), every finding taken (its Disposition).
+- **Status:** built 2026-10-31 with 176 on `spec/175-176-the-zip-directory-and-the-end-of-a-call` (Landing notes), its pull request in review. Drafted 2026-10-31, to be reviewed before it is built (the artifact set and the build recipe: the zip's bytes, the snapshot, step 70 and the reactor; constitution §5.6). The owner chose it on 2026-10-31 (`../decisions.md`, "The zip's directory is read by folder"). Amended the same day against its pre-build review, `../reviews/175-the-zips-directory-is-read-by-folder-spec-2026-10-31.md` ("Fit to build after amendments"), every finding taken (its Disposition).
 - **Date:** 2026-10-31
 - **Owner:** Clay Gendron
 - **Kind:** **build-class**, **a judge change** (the bounds and checks of Decision 8, each claimed with its reason); a recipe, no carried patch (§4.1). Not structural: nothing under `src/` changes.
@@ -140,4 +140,30 @@ The news file's CHANGELOG line, its number measured:
 
 ## Landing notes
 
-To be written at the landing.
+Built 2026-10-31 by an agent (Claude Opus 5.5), a builder sub-agent of the orchestrating session, together with 176 on `spec/175-176-the-zip-directory-and-the-end-of-a-call` from `dev` at `2ec3c1ee`, then rebased onto `a0b1171d` (166's second pull request and 173). Its pre-build review is `../reviews/175-the-zips-directory-is-read-by-folder-spec-2026-10-31.md`; the pull request's review is to come. 172 had not landed (Decision 9's order): if tqdm-smoke's two tests flip with this set's allocations, 172's class holds them. Everything below is EXECUTED on an arm64 Mac (Darwin 25.5.0), fuel through the judge's driver, unless labelled.
+
+**The measure, step by step.** `dev`'s set at `2ec3c1ee` was built whole from the pins in this worktree; then this specification alone (steps 60 to 90); then both specifications (steps 60, 80, 90). Each figure is `-c pass` or the program named, its fuel and the linear memory once `run` returned:
+
+| | dev | 175 | 175 and 176 |
+|---|---|---|---|
+| plain start | 283,901,206 | 135,278,097 | 132,134,646 |
+| snapshot start | 54,696,220 | 41,551,326 | 35,186,249 |
+| snapshot `import pandas` less its start | 4,645,781,041 | 4,647,714,277 | 4,616,670,412 |
+| the same, both ended by `os._exit(0)` | 4,380,689,386 | 4,380,621,541 | 4,389,481,909 |
+| plain `import pandas`, memory | 66,322,432 | 64,356,352 | 64,356,352 |
+
+**Criterion 5.** A plain start at most half of before: 135.3 M against 284.0 M (47.6%). A snapshot start lower by at least 10 M: 13.1 M lower. The snapshot's `import pandas` less its `-c pass` within 1 M: the import itself, both calls ended by `os._exit(0)`, moved by 67,845 fuel; with teardown in both it moved by +1.93 M on this specification alone, since teardown after pandas saves 11.1 M of the kept dict and a bare call 13.1 M, and by −29.1 M with 176. The projections missed: a plain start of 135.3 M against about 113 M (+20%), and a snapshot start of 41.6 M against 38.9 M (+7%). At a real start the folder read costs 23.6 M (`_by_table` in the guest, against 175.8 M for the whole read), where the memo priced 17.8 to 18.9 M inside a call; a start also loads `encodings`, the one folder the start imports (123 members), and the plain teardown still costs 23.3 M (39.1 M before). **Bytes:** the zip 57,068,536 → 57,071,318 (+2,782: the table, 90 folders); `python.wasm` 99,497,353 → 99,511,775 (+14,422, the reader's bytecode); `python-snapshot.wasm` 104,890,482 → 104,800,506 (−89,976).
+
+**Criterion 4.** On the judge's zips: a start 9 fuel a padding member, `import pandas` 55, a first `get_data` 7 (27.1 k before); the re-read 30; a first zone 3. The pop of the stdlib dict before `os._exit(0)` costs within 1 M on both binaries, every folder loaded on the plain one; on dev's set it fails on both.
+
+**Seen failing first**, on dev's set with this branch's tests: the gate (plain), the three rows of 2,000 a member, the re-read, the fast reader's small and padded cases, every new reader row but three, `test_import_pandas_loads_exactly_its_packages`, and the pop row on both binaries. The three that pass on dev's set guard what the whole read already does: the two reads after `invalidate_caches()`, the namespace and invalidation row, and the `import_path=` zips read whole. The unit rows (`test_build_scripts.py`, 3; `test_zip_directory.py`, 18) fail on dev's recipe: no `write_folder_table`, no table read.
+
+**Where the build differs from the text.**
+- `START_FACTOR` stays 3. Decision 8 moved it to 2 on a projected plain start of about 113 M; measured, the ratio is 3.26 with this specification alone and 3.75 with 176, so 3 holds and is the stricter guard. The comment at `test_v1_3_data_stack.py:177` ("about 3.8 times") is still true.
+- `install` takes `by_folder` as its first argument; the module's own record of the archive read by folder is `tabled`. `touch(importer, at)` is the trigger the four share; `_zip_resources.touch` is set to it when `_zip_directory` loads that module.
+- `import pandas` loads the folders `numpy`, `dateutil` and `pandas`, as the memo found; the row compares the folders outside `sys.stdlib_module_names`.
+- Criterion 3's rows compare each reader's answers by folder with its answers after the cache is replaced by zipimport's whole read and every importer made again, in the same program.
+- **Review round 1** (`../reviews/175-the-zips-directory-is-read-by-folder-pr-2026-11-01.md`). Medium 1: `_load` popped a folder from the pending list before reading it, so a load that raised anything but `OSError` (an audit hook's refusal, a `MemoryError`) lost the folder for the rest of the call. It now pops only after the merge; a unit row (a stub `open_code` that raises once) and a guest row (an audit hook that refuses the load's open once, then `import tomllib` again) failed first on the old reader and pass. Low 3: a load now checks that each `__init__` entry the start read is in the folder's run, equal, and falls back otherwise; a unit row with a forged central header in an extra field failed first. Low 6: the news files give the rebased sizes. The round's set: `python.wasm` `295a67d2…` 100,660,530 bytes, `python-snapshot.wasm` `f60c3928…` 105,948,284, the zip unchanged (`207b382c…`).
+- `test_the_fast_reader_builds_zipimports_dict` compares the dicts' sorted items and each folder's children in order; only the top level's order differs.
+
+**Rebased onto `a0b1171d`** (166's pandas 3.1.0 and zlib 1.3.2, 173's drawsvg). The set was built whole from the pins with this branch (13 min 9 s), then steps 60 to 90 again for 176's fix of the function table's order: `python.wasm` `e704620c…` 100,659,378 bytes, `python-snapshot.wasm` `eb09aba2…` 105,955,016, the zip `207b382c…` 57,495,423. `dev`'s set at `a0b1171d`, built over the same tree from `dev`'s recipe (steps 60 to 90): `9800419…` 100,638,734, `f11e1285…` 106,045,881, `98ed43c0…` 57,492,608. Against it: the zip +2,815 bytes, `python.wasm` +20,644, the snapshot −90,865; a plain start 284,437,056 → 132,420,433 fuel and a snapshot start 54,840,044 → 35,202,086, both specifications together. **The wheel**, built by hand from the set: 102,612,346 bytes, 2,245,254 under 104,857,600. On this set `test_v1_3_the_zips_directory.py` (36), `test_v1_4_the_end_of_a_call.py` (142) and `test_v1_3_data_stack.py` pass, and the fast tier (4,685 checks) passed but for the callback scan, which the order fix answers (176's landing notes).
