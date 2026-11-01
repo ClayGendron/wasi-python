@@ -669,3 +669,37 @@ def test_teardown_does_not_free_the_stdlib_directory(guest, note, which) -> None
     assert stay.exit_code == 0 and drop.exit_code == 0, (stay.describe(), drop.describe())
     note(f"the pop costs {drop.fuel - stay.fuel:,} fuel")
     assert drop.fuel - stay.fuel <= 1_000_000, f"the pop costs {drop.fuel - stay.fuel:,} (1 M)"
+
+
+LOAD_RAISES = """
+import sys
+ZIP = sys._stdlib_dir
+armed = [True]
+
+def hook(event, args):
+    # Only the open a folder's load makes, the first time.
+    if not (armed[0] and event == "open" and args and args[0] == ZIP):
+        return
+    frame = sys._getframe(1)
+    while frame is not None and frame.f_code.co_name != "_load":
+        frame = frame.f_back
+    if frame is not None:
+        armed[0] = False
+        raise RuntimeError("refused once")
+
+sys.addaudithook(hook)
+try:
+    import tomllib
+    print("first: imported")
+except RuntimeError as e:
+    print("first:", e)
+import tomllib
+print("second:", tomllib.loads("a = 1"))
+"""
+
+
+def test_a_load_that_raises_is_tried_again(guest) -> None:
+    """An audit hook refuses the open of the zip that a folder's first load makes: that import
+    raises, and the folder stays pending, so the next import loads it and succeeds, as natively."""
+    r = guest("plain", ["-c", LOAD_RAISES])
+    assert (r.exit_code, r.text) == (0, "first: refused once\nsecond: {'a': 1}\n"), r.describe()

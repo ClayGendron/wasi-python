@@ -713,6 +713,79 @@ def test_a_load_whose_read_fails_falls_back_to_the_full_read(zd, work, monkeypat
     assert files == zd._fast(archive) and zd.served[archive] == "fast"
 
 
+def test_a_load_that_raises_leaves_its_folder_pending(zd, work, monkeypatch) -> None:
+    """A load that raises anything but OSError (an audit hook's error, a MemoryError) leaves the
+    folder pending: the exception reaches the trigger, and the next trigger loads the folder."""
+    archive = _tabled(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    _cache(monkeypatch, archive, files)
+    real = zd._io.open_code
+    calls = []
+
+    def once(path):
+        calls.append(path)
+        if len(calls) == 1:
+            raise RuntimeError("an audit hook's refusal")
+        return real(path)
+
+    monkeypatch.setattr(zd, "_io", types.SimpleNamespace(open_code=once))
+    with pytest.raises(RuntimeError):
+        zd._load(archive, "pkg", files)
+    assert "pkg" in zd._folders[archive][1] and "pkg/data.txt" not in files
+    zd.load_all(archive)
+    assert files == zd._fast(archive) and zd.served[archive] == "folders"
+    assert zd.loaded(archive) == ["nsp", "pkg"]
+
+
+def _forged_init_zip(work: Path) -> str:
+    """pkg/data.txt's extra field holds a forged central header for pkg/__init__.py, and the
+    table's init pair points at it: the start reads a package the directory does not hold."""
+    forged_name = b"pkg/__init__.py"
+    forged = (
+        struct.pack(
+            "<4s4xHHHHIIIHHH8xI", b"PK\x01\x02", 0, 0, 0, 0, 0, 0, 0, len(forged_name), 0, 0, 0
+        )
+        + forged_name
+    )
+    path = work / "forged.zip"
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for name in ("a.pyc", "pkg/data.txt", "pkg/m.pyc"):
+            info = zipfile.ZipInfo(name, zips.DATE)
+            if name == "pkg/data.txt":
+                info.extra = struct.pack("<HH", 0xCAFE, len(forged)) + forged
+            z.writestr(info, name)
+    path.write_bytes(out.getvalue())
+    _make_stdlib_zip().write_folder_table(path)
+    data = path.read_bytes()
+    cd = data.rfind(b"PK\x05\x06")
+    cd_offset = struct.unpack_from("<I", data, cd + 16)[0]
+    forged_at = data.find(forged, cd_offset) - cd_offset
+    assert forged_at > 0
+    with zipfile.ZipFile(path) as z:
+        head, row = z.comment.decode().splitlines()
+    fields = row.split(" ")
+    fields[4:6] = [str(forged_at), "1"]
+    table = f"{head}\n{' '.join(fields)}\n".encode()
+    end = len(data) - 22 - len(z.comment)
+    path.write_bytes(data[: end + 20] + struct.pack("<H", len(table)) + table)
+    return str(path)
+
+
+def test_a_table_cannot_add_an_entry_the_directory_lacks(zd, work, monkeypatch) -> None:
+    """An `__init__` entry the start read that the folder's run does not hold makes its load fall
+    back to the full read, so the forged package goes."""
+    archive = _forged_init_zip(work)
+    zd.tabled = archive
+    files = zd.read_directory(archive)
+    assert zd.served[archive] == "folders" and "pkg/__init__.py" in files
+    _cache(monkeypatch, archive, files)
+    zd.load_all(archive)
+    assert "pkg/__init__.py" not in files and files == zd._fast(archive)
+    assert zd.served[archive] == "fast"
+
+
 def test_another_archives_table_is_read_whole(zd, work) -> None:
     archive = _tabled(work)
     zd.tabled = str(work / "the-stdlib.zip")

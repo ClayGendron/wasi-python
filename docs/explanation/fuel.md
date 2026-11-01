@@ -30,7 +30,7 @@ Fuel counts the guest's own instructions:
 
 - **Imports.** The snapshot pre-imports no package, so a call that imports pandas or numpy pays for that import in fuel. Large packages cost far more than the program that uses them.
 - **Your program.** Every line of Python, and the C code inside numpy, pandas and the other compiled packages.
-- **Finalization.** After the program's last line, the interpreter shuts down, and that is counted too: on the snapshot about 34 million instructions more than the program's own, and more after large imports (about 73 million after `import numpy`, about 260 million after `import pandas`). Every finalizer runs as in CPython, but memory is not given back to an instance that is about to be discarded.
+- **Finalization.** After the program's last line, the interpreter shuts down, and that is counted too: on the snapshot about 34 million instructions more than the program's own, and more after large imports (about 73 million after `import numpy`, about 260 million after `import pandas`). Every finalizer runs as in CPython, but memory is not given back to an instance that is about to be discarded. To know when to stop, every allocation checks one flag, so a long call that allocates much and holds little at its end costs up to about 0.4% more than it would otherwise.
 
 Fuel does not count:
 

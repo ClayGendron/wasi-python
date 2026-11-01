@@ -875,3 +875,23 @@ def test_only_the_wrappers_call_the_c_allocators(artifacts, which) -> None:
     growers = sorted(mod.names.get(i, f"#{i}") for i, body in read.items() if body.grows)
     assert growers == ["sbrk"], growers
     assert callers.get(by_name["sbrk"], set()) == SBRK_CALLERS, callers.get(by_name["sbrk"])
+
+
+HOOKS = {"skipping_malloc", "skipping_calloc", "skipping_realloc", "skipping_free"}
+
+
+@pytest.mark.parametrize("which", WHICH)
+def test_no_hook_sits_where_the_callback_scan_reads_a_method(artifacts, which) -> None:
+    """The callback scan reads FreeType's BDF property table, `{"ADD_STYLE_NAME", 1, 1, 0}`, as a
+    method at function table index 1, called with a method's type. The hooks, found by name,
+    have other types, so none may sit there; what does must take a method's arguments."""
+    needs.need("artifact dir")
+    from harness import wasm
+
+    mod = wasm.parse_file(artifacts.binary(which))
+    placed = {mod.names.get(f): t for t, f in mod.elements.items() if mod.names.get(f) in HOOKS}
+    assert set(placed) == HOOKS, placed
+    assert 1 not in placed.values(), f"a hook sits at table index 1: {placed}"
+    method = wasm.FuncType(("i32", "i32"), ("i32",))
+    first = mod.elements[1]
+    assert mod.func_type(first) == method, (mod.names.get(first), mod.func_type(first))

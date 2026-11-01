@@ -24,7 +24,9 @@ again first, and the re-read loads again every folder loaded before. A load take
 `__init__` entries out and puts them back with the rest, so each folder's children keep the full
 read's order. A table that is absent, of another version or does not fit the directory gives the
 full read; a load that finds a wrong count, end or name, or an OSError, replaces the dict's
-contents in place with the full read and drops the table. A wrong table never yields a wrong dict.
+contents in place with the full read and drops the table, as does a load whose run lacks an
+`__init__` entry the start read, so a wrong table never yields a wrong dict. Only the stdlib zip,
+which the build writes and the set hashes, is read by its table.
 The snapshot reads the whole directory when it is built, and any other archive is read whole.
 
 It imports only `_io`, `_struct` and `zipimport` (and, through it, `_frozen_importlib_external`),
@@ -232,14 +234,14 @@ def _by_table(archive):
             return None  # the run's first entry names another folder
         if folder not in files:
             files[folder] = None
+        init = {}
         if init_count:
-            init = {}
             at = _entries(init, cd, head, arc_offset, cd_offset, init_off, off + size, init_count,
                           folder + "__init__.", None)  # fmt: skip
             if at is None or len(init) != init_count or any("/" in k[len(folder) :] for k in init):
                 return None
             files.update(init)
-        pending[folder[:-1]] = (off, size, n)
+        pending[folder[:-1]] = (off, size, n, init)
         total += n
         p = off + size
     before = len(files)
@@ -250,13 +252,20 @@ def _by_table(archive):
     _implied(files, list(files))
     _folders[archive] = [files, pending, header, arc_offset, cd_offset, head]
     for name in list(_loaded.get(archive, ())):
-        off, size, n = pending.pop(name)
+        off, size, n, init = pending.pop(name)
         new = {}
         at = _entries(new, cd, head, arc_offset, cd_offset, off, off + size, n, name + "/", None)
-        if at != off + size:
+        if at != off + size or not _fits(new, n, init):
             return None
         _merge(files, new)
     return files
+
+
+def _fits(new, n, init):
+    """Whether a folder's loaded entries are the run the table says: `n` of them, and each
+    `__init__` entry the start read among them, equal. So a table cannot add an entry the
+    directory's run lacks."""
+    return len(new) == n and all(new.get(name) == toc for name, toc in init.items())
 
 
 def _merge(files, new):
@@ -295,10 +304,10 @@ def _load(archive, folder, files):
     state = _folders.get(archive)
     if state is None or state[0] is not files:
         return
-    run = state[1].pop(folder, None)
+    run = state[1].get(folder)
     if run is None:
         return
-    off, size, n = run
+    off, size, n, init = run
     new = {}
     try:
         with _io.open_code(archive) as fp:
@@ -309,10 +318,13 @@ def _load(archive, folder, files):
             at = _entries(new, cd, state[5], state[3], state[4], 0, size, n, folder + "/", None)
     except OSError:
         at = None
-    if at != size or len(new) != n:
+    # Any other exception (an audit hook's, a MemoryError) leaves the folder pending, so the next
+    # trigger loads it.
+    if at != size or not _fits(new, n, init):
         _fall_back(archive, files)
         return
     _merge(files, new)
+    state[1].pop(folder, None)
     _loaded.setdefault(archive, {})[folder] = None
 
 
