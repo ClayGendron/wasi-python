@@ -584,3 +584,9 @@ The code stays embedder-neutral (§4.5). The capabilities that agent use needs a
 
 - **Asked:** 2026-10-31, by the orchestrating session, with the AskUserQuestion tool, after tqdm-smoke's class checks went red on #67, #71 and #81 as two tests swapped causes with the set's allocations. Specification 172.
 - **The owner's decision:** "For just those tests, one expected-failure class whose pattern matches any of the known teardown causes (no threads, no event-loop socket, unraisable-warning at teardown). They must still fail, and only for those reasons; they just stop being pinned to which one. Every other test keeps exact class membership. A judge change, recorded with your approval." Built as a node-limited class, `collector-timing`; jinja2-r's flips, which include passes, are not covered.
+
+## The wheel's check allows 256 MiB
+
+- **Asked:** 2026-11-01, by the orchestrating session, with the AskUserQuestion tool, after #88 (174) measured the wheel at 104,677,500 bytes, 180,100 under PyPI's default limit, with #80 (170) and #81 (169) still to merge. **Source:** the 2026-10-31 morning's "The wheel's size", above.
+- **The owner's decision:** "Please keep working and assume pypi granted it so increase the test, we'll wait to publish to pypi until I have the approval". The wheel's check (`tests/harness/artifacts.py`'s `PYPI_FILE_LIMIT`) moves from 104,857,600 bytes (100 MiB, PyPI's default) to 268,435,456 (256 MiB, the limit asked of PyPI). It replaces the 2026-10-31 rule that a merge keeps the wheel under PyPI's present limit, and plotly (167) no longer waits on PyPI to merge.
+- **What still waits:** the upload to PyPI. No release is tagged for PyPI with a wheel past 104,857,600 bytes until PyPI's answer is recorded here; the owner tags. If PyPI grants less than 256 MiB, the constant moves to what it grants.

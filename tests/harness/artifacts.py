@@ -233,10 +233,10 @@ TYPED = "wasi_python/py.typed"
 
 
 WHEEL_SET = "wasi_python/artifacts/"
-# PyPI's largest file for a project, unless PyPI raises it for that project: 100 MiB, the default
-# its upload documentation states (https://pypi.org/help/#file-size-limit). The owner has asked
-# PyPI for more; this rises only when PyPI's answer is recorded in the decisions.
-PYPI_FILE_LIMIT = 104_857_600
+# The largest wheel the project ships: 256 MiB, the file limit the owner has asked PyPI for.
+# PyPI's default is 100 MiB (https://pypi.org/help/#file-size-limit); a wheel past it is built and
+# judged, but not uploaded to PyPI until PyPI grants the request.
+PYPI_FILE_LIMIT = 268_435_456
 
 
 def _licences():  # type: ignore[no-untyped-def]
