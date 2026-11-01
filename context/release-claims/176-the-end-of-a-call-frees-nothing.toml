@@ -1,0 +1,5 @@
+[[claim]]
+spec = "176"
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "175 reads the stdlib zip by folder on the plain binary and keeps its dict past teardown, and 176 keeps teardown's freed blocks within a 1 MiB budget, so most calls end on less fuel; but the link now wraps the C library's allocators, and every allocation of every call checks one flag. Measured on darwin arm64 against 175's set, calls ended by os._exit(0): a bare call +0.36% (plain) and +0.61% (snapshot), a pandas groupby +0.20% and +0.23%; each whole call, teardown included, still uses less fuel than before (a pandas groupby 4,766,096,475 to 4,730,329,497 on the snapshot). A release group that allocates much and finalizes little grows by up to the wrappers' cost"
+

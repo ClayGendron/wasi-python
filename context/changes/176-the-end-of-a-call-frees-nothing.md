@@ -24,4 +24,5 @@ units = 0
 "tests/harness/instructions.py" = "new: a reader of every function body's instructions, so a check can say from the binary what calls the C library's allocators and what grows the memory"
 "tests/release_shards.toml" = "the new check file joins own-guest-c, a files shard on all three systems"
 "tests/lint/budget.toml" = "the new check file's fuel cap, twice its largest fuel measured at its first build"
+"context/release-claims.toml" = "a block for the release groups' fuel: most calls end on less, and a group that allocates much and finalizes little grows by up to the unarmed wrappers' cost"
 ```
