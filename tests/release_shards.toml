@@ -994,7 +994,7 @@ systems = ["release"]
 
 [shard.upstream-release-067]
 # xarray's two largest release groups, pdfplumber's and pdfminer.six's whole suites and plotly's:
-# 491.4 G, 349.8 G, 171.5 G, 86.9 G and 214.4 G measured on darwin-arm64. Their minutes are
+# 491.4 G, 349.8 G, 171.5 G, 86.9 G and 214.8 G measured on darwin-arm64. Their minutes are
 # estimated from that fuel at upstream-pure-r-113's rate (210.2 G in 1.52 min) until a release run
 # measures them.
 groups = ["xarray-r-plot", "xarray-r-arrays", "pdfplumber-r", "pdfminer-six-r", "plotly-r"]

@@ -20,14 +20,14 @@ kit_extra = ["pytz"]
 paths = ["tests/test_core/test_utils", "tests/test_plotly_utils/test_utils.py"]
 smoke = "the core utilities and the JSON encoder, the package from the zip"
 fuel = 17_000_000_000
-measured = 11_465_883_031
+measured = 11_476_900_702
 
 [groups.plotly-r]
 paths = ["tests"]
 tier = "release"
 release_by = "path"
 fuel = 322_000_000_000
-measured = 214_377_230_157
+measured = 214_794_939_143
 
 [[not_selected]]
 files = ["tests/test_optional/test_px"]

@@ -45,4 +45,4 @@ new = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-fails-natively-in-one-session]",
 ]
 grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
-growth = "plotly 7.1.0 joins the zip, 1,528 members, so every guest's zip directory is larger: a plain start +14.7% and a snapshot start +7.0% in fuel (darwin arm64). Its release group, plotly-r, measures 214.4 G with 2,062 passes on darwin arm64; its 36 failures fall in eight classes, each named in its TOML"
+growth = "plotly 7.1.0 joins the zip, 1,529 members: on top of 175 and 176's directory read by folder, a plain start +0.21% and a snapshot start +2.11% in fuel (darwin arm64). Its release group, plotly-r, measures 214.8 G with 2,062 passes on darwin arm64; its 36 failures fall in eight classes, each named in its TOML"
