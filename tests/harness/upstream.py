@@ -59,6 +59,7 @@ PURE_SUITES = (
     "python-docx", "python-pptx",
     "pdfplumber", "pdfminer-six", "xarray",
     "tinycss2", "cssselect2", "imageio", "cairocffi", "cairosvg",
+    "plotly",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"

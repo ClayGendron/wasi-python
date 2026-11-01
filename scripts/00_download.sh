@@ -277,6 +277,12 @@ get https://files.pythonhosted.org/packages/c6/80/db62c0a96d2e55282c83524f6b1d02
 get https://files.pythonhosted.org/packages/60/45/c7b5c3168458db837e8ceab06dc77824e18202679d0463f0e8f002143a97/tinycss2-1.5.1-py3-none-any.whl tinycss2-1.5.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/bd/59/6b1daa3b94de8970e2a2787ba73616c2d0675d2f948ef4cad8bef7f21bc6/cssselect2-0.10.1-py3-none-any.whl cssselect2-0.10.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/7d/8a/3b7f62b9df56460959f1b9bef094248d2a4d7f393c5b0d2da8efcdf0e40e/imageio-2.38.1-py3-none-any.whl imageio-2.38.1-py3-none-any.whl
+# plotly from its sdist, since it carries a patch; pure Python. Two notices its files name only by
+# URL: cmocean's licence at the last commit that touched it, and maplibre-gl-js's at the release
+# plotly.js 4.1.1 bundles
+get https://files.pythonhosted.org/packages/49/c3/72b369f5ed7701b04ab0ea3dcf83e9bbce71c0b3bc6f07f87568550d09ea/plotly-7.1.0.tar.gz plotly-7.1.0.tar.gz
+get https://raw.githubusercontent.com/matplotlib/cmocean/501d10ef9ecb3d8f56ac093894b750c8367e044a/LICENSE.txt cmocean-501d10ef-LICENSE.txt
+get https://raw.githubusercontent.com/maplibre/maplibre-gl-js/v6.9.0/LICENSE.txt maplibre-gl-js-v6.9.0-LICENSE.txt
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)
@@ -362,6 +368,8 @@ tests https://files.pythonhosted.org/packages/a3/ae/2ca4913e5c0f09781d75482874c3
 tests https://files.pythonhosted.org/packages/06/00/2456b6b664c7a770989cbe3c352aac4eb962c938486f03a2e1255ae963c6/cssselect2-0.10.1.tar.gz cssselect2-0.10.1.tar.gz
 tests https://files.pythonhosted.org/packages/f3/cd/69e4ac55b6dafdd2b5f32075236841a3945dea7323d0232d80f28c37cea8/imageio-2.38.1.tar.gz imageio-2.38.1.tar.gz
 tests https://github.com/imageio/test_images/archive/f676c96b1af7e04bb1eed1e4551e058eb2f14acd.tar.gz imageio-test-images-f676c96b-tag.tar.gz
+# plotly's release tag: its sdist holds no tests
+tests https://github.com/plotly/plotly.py/archive/refs/tags/v7.1.0.tar.gz plotly-7.1.0-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

@@ -1,0 +1,6 @@
+tests/test_plotly_utils/validators/test_integer_validator.py::test_rejection_max[10]
+tests/test_plotly_utils/validators/test_integer_validator.py::test_rejection_max[2147483647]
+tests/test_plotly_utils/validators/test_integer_validator.py::test_rejection_max[3]
+tests/test_plotly_utils/validators/test_integer_validator.py::test_rejection_min[-123]
+tests/test_plotly_utils/validators/test_integer_validator.py::test_rejection_min[-2147483648]
+tests/test_plotly_utils/validators/test_integer_validator.py::test_rejection_min[-2]

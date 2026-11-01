@@ -89,3 +89,4 @@ cairosvg: cairosvg
 tinycss2: tinycss2
 cssselect2: cssselect2
 imageio: imageio imageio.v2 imageio.v3
+plotly: plotly plotly.graph_objects plotly.express

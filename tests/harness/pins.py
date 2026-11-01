@@ -78,6 +78,8 @@ SOURCE_PATTERNS = {
     "cffi": re.compile(r"cffi-[\w.]+\.tar\.gz"),
     "cairocffi": re.compile(r"cairocffi-[\w.]+\.tar\.gz"),
     "cairosvg": re.compile(r"cairosvg-[\w.]+\.tar\.gz"),
+    # plotly from its sdist, so its carried patch has a tree
+    "plotly": re.compile(r"plotly-[\w.]+\.tar\.gz"),
     # The pure-Python packages' test sources: each package's sdist, or, where the sdist carries no
     # tests, its release tag's archive (named `-tag.tar.gz`, so no pattern meets an sdist), and
     # pypdf's sample files at the commit its release tag records. They are data the judge stages,
@@ -113,6 +115,8 @@ SOURCE_PATTERNS = {
     "cssselect2": re.compile(r"cssselect2-[\w.]+\.tar\.gz"),
     "imageio": re.compile(r"imageio-[\w.]+\.tar\.gz"),
     "imageio-test-images": re.compile(r"imageio-test-images-[0-9a-f]+-tag\.tar\.gz"),
+    # plotly's release tag: its sdist holds no tests
+    "plotly-tests": re.compile(r"plotly-[\w.]+-tag\.tar\.gz"),
     "python-dateutil": re.compile(r"python\-dateutil-[\w.]+\.tar\.gz"),
     "reportlab": re.compile(r"reportlab-[\w.]+\.tar\.gz"),
     "six": re.compile(r"six-[\w.]+\.tar\.gz"),

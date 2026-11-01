@@ -145,6 +145,15 @@ def test_vector_drawings_job_matches_native(guest) -> None:
 
 
 @pytest.mark.slow
+def test_plotly_figures_job_matches_native(guest) -> None:
+    """plotly builds a graph-objects figure and an express scatter of its iris dataset, reads its
+    tips, gapminder and election datasets, and writes JSON, an HTML fragment, an offline page with
+    plotly.js inside and a page that loads it from the CDN, as native plotly does; `to_image`
+    fails as natively without kaleido."""
+    _job(guest, "plotly_figures")
+
+
+@pytest.mark.slow
 def test_labelled_arrays_job_matches_native(guest) -> None:
     """xarray aligns two arrays on their labels, groups, rolls, resamples and interpolates through
     scipy, round-trips a DataFrame and netCDF3 bytes, and draws its HTML view from the package's
@@ -1101,4 +1110,43 @@ def test_drawsvg_names_what_the_set_lacks(guest, which) -> None:
         "color": ["ImportError", "ModuleNotFoundError", "pwkit"],
         "google font": ["URLError", "unknown url type: https"],
         "widgets": ["ModuleNotFoundError", "ipywidgets"],
+    }, got
+
+
+# plotly reads its validators' table, its datasets and plotly.js from the zip through one carried
+# patch (the golden job shows the results equal native's); its JupyterLab extension and the
+# widget's script stay out, so FigureWidget, which needs anywidget, fails as natively without it.
+PLOTLY_ZIP = """
+import json, sys, zipfile
+import plotly, plotly.graph_objects as go
+out = {"file": plotly.__file__}
+try:
+    go.FigureWidget()
+except ImportError as e:
+    out["FigureWidget"] = ["ImportError", "anywidget" in str(e)]
+with zipfile.ZipFile("/usr/local/lib/python315.zip") as z:
+    names = z.namelist()
+out["left out"] = sorted(
+    n for n in names if n.startswith("plotly/labextension/") or n.endswith("widgetbundle.js")
+)
+out["kept"] = sorted(
+    n for n in ("plotly/validators/_validators.json", "plotly/package_data/plotly.min.js")
+    if n in names
+)
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_plotly_reads_its_data_from_the_zip(guest, which) -> None:
+    """plotly imports from the zip with its validators' table and plotly.js beside it, and without
+    its notebook widget's parts, so FigureWidget raises ImportError naming anywidget."""
+    r = guest(which, ["-c", PLOTLY_ZIP], root_writable=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    assert got.pop("file").startswith("/usr/local/lib/python315.zip/"), r.text
+    assert got == {
+        "FigureWidget": ["ImportError", True],
+        "left out": [],
+        "kept": ["plotly/package_data/plotly.min.js", "plotly/validators/_validators.json"],
     }, got

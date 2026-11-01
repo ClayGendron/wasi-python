@@ -504,6 +504,7 @@ DISTRIBUTIONS = (
     "pdfminer-six",
     "pdfplumber",
     "pillow",
+    "plotly",
     "pyparsing",
     "pypdf",
     "python-dateutil",

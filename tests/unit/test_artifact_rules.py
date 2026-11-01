@@ -105,6 +105,7 @@ PIN_FILES = {
     "tinycss2-1.5.1-py3-none-any.whl": b"tinycss2 pin",
     "cssselect2-0.10.1-py3-none-any.whl": b"cssselect2 pin",
     "imageio-2.38.1-py3-none-any.whl": b"imageio pin",
+    "plotly-7.1.0.tar.gz": b"plotly pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -194,6 +195,7 @@ PACKAGES = {
     "tinycss2": "1.5.1",
     "cssselect2": "0.10.1",
     "imageio": "2.38.1",
+    "plotly": "7.1.0",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

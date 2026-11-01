@@ -1,0 +1,4 @@
+tests/test_optional/test_figure_factory/test_figure_factory.py::TestTernarycontour::test_colorscale
+tests/test_optional/test_figure_factory/test_figure_factory.py::TestTernarycontour::test_optional_arguments
+tests/test_optional/test_figure_factory/test_figure_factory.py::TestTernarycontour::test_simple_ternary_contour
+tests/test_optional/test_figure_factory/test_figure_factory.py::TestTernarycontour::test_wrong_coordinates

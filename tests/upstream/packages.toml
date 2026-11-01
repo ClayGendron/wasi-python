@@ -438,3 +438,10 @@ kind = "suite"
 # its own suite from its sdist with its pinned test images, groups in tests/upstream/imageio.toml:
 # a smoke group in the normal tier, the whole suite in the release tier
 kind = "suite"
+
+# plotly, tested from its release tag's archive.
+
+[package.plotly]
+# its own suite from its test source, groups in tests/upstream/plotly.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"

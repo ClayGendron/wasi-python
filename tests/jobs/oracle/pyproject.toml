@@ -99,6 +99,10 @@ dependencies = [
     # drawsvg at the guest's pin, its one wheel, the guest's own file: pure Python, with no extras
     # (the guest carries none of CairoSVG, imageio, pwkit or ipywidgets).
     "drawsvg==2.4.2",
+    # plotly at the guest's pin, its stock wheel (its sdist, the guest's, holds the same package
+    # files); the guest's carries one patch, which changes where its data is read from, not what is
+    # read, so equal output shows the patch changes no result.
+    "plotly==7.1.0",
 ]
 
 [tool.uv.sources]

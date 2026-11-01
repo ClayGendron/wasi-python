@@ -128,6 +128,9 @@ PACKAGES = {
     "tinycss2": "1.5.1",
     "cssselect2": "0.10.1",
     "imageio": "2.38.1",
+    # plotly from its sdist with its carried patch; plotly.js and the code it bundles under its
+    # notice
+    "plotly": "7.1.0",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -456,6 +459,33 @@ PDFMINER_NOTICES = (
 # notices of the code it adapts (from dask, pandas, NumPy, seaborn, scikit-learn, anytree and
 # Python) and of its HTML view's icons (IcoMoon's, CC BY 4.0).
 XARRAY_TOP = "xarray-2026.9.0"
+# plotly's notice: its MIT licence; the notices in its colour modules' docstrings (CARTOColors
+# under CC BY 3.0 US, cmocean under MIT, whose text is pinned, colorbrewer under the Apache licence,
+# whose text follows) and vendored pypng's (MIT); plotly.js's head comment and the bundled
+# libraries' notices its build keeps (each a /*! comment), with maplibre-gl-js's licence, which
+# plotly.js names only by URL, pinned; and the sources its datasets' loaders state.
+PLOTLY_TOP = "plotly-7.1.0"
+PLOTLY_NOTICES = (
+    ("_plotly_utils/colors/carto.py", 1, 7, ("CARTOColors", "creativecommons.org/licenses/by/3.0")),
+    ("_plotly_utils/colors/cmocean.py", 1, 7, ("cmocean", "MIT license")),
+    ("_plotly_utils/colors/colorbrewer.py", 1, 7, ("colorbrewer", "Apache license")),
+    ("_plotly_utils/png.py", 3, 32, ("pypng", "LICENCE (MIT)", "Permission is hereby granted")),
+)
+PLOTLY_JS = "plotly/package_data/plotly.min.js"
+PLOTLY_PINNED = (
+    (
+        "cmocean-501d10ef-LICENSE.txt",
+        "cmocean's licence, which _plotly_utils/colors/cmocean.py names",
+    ),
+    ("maplibre-gl-js-v6.9.0-LICENSE.txt", "maplibre-gl-js's licence, which plotly.min.js names"),
+)
+PLOTLY_DATA = """plotly's datasets (plotly/package_data/datasets), each with the source its loader in
+plotly/data/__init__.py states; the others state none:
+- gapminder: https://www.gapminder.org/data/
+- tips: https://vincentarelbundock.github.io/Rdatasets/doc/reshape2/tips.html
+- iris: https://en.wikipedia.org/wiki/Iris_flower_data_set
+- wind, election and election.geojson, carshare, stocks, experiment, medals: no source stated
+"""
 # reportlab's third-party notices, comments in its code that
 # compilation drops: each file's leading comment block, byte for byte from the pinned wheel, after
 # its wheel's LICENSE. (file, words the block must hold, what the heading says.) Sarna's notice
@@ -844,6 +874,39 @@ def pdfminer_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
     return parts
 
 
+def plotly_js_notices(path: Path) -> bytes:
+    """plotly.min.js's head comment and every /*! comment its build keeps, the bundled libraries'
+    notices, in order and byte for byte."""
+    text = path.read_text(encoding="utf-8")
+    head = text[: text.index("*/") + 2]
+    kept = re.findall(r"/\*!.*?\*/", text, flags=re.S)
+    if "plotly.js" not in head or "MIT" not in head or not any("maplibre" in k for k in kept):
+        raise SystemExit(f"{path.name} no longer opens with its notice and keeps maplibre's")
+    return ("\n\n".join([head, *kept]) + "\n").encode()
+
+
+def plotly_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/plotly.txt's parts: its licence, the notices in its colour modules and pypng,
+    plotly.js's notices, the pinned texts two of them name, the Apache-2.0 text, and its datasets'
+    sources."""
+    parts = [("plotly LICENSE.txt", (tree / "LICENSE.txt").read_bytes())]
+    parts += [
+        (f"plotly {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
+        for n, a, b, words in PLOTLY_NOTICES
+    ]
+    parts.append((f"plotly {PLOTLY_JS}, its notices", plotly_js_notices(tree / PLOTLY_JS)))
+    parts += [(f"{what} ({name})", pinned_bytes(d, name)) for name, what in PLOTLY_PINNED]
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    parts.append(
+        (
+            f"Apache License 2.0, the full text, for colorbrewer's colour schemes ({apache})",
+            pinned_bytes(d, apache),
+        )
+    )
+    parts.append(("plotly's datasets: their stated sources", PLOTLY_DATA.encode()))
+    return parts
+
+
 def dataset_copyright(tree: Path, name: str) -> str:
     """A statsmodels dataset module's COPYRIGHT string, read without running it, on one line."""
     path = tree / "statsmodels" / "datasets" / name / "data.py"
@@ -1097,6 +1160,7 @@ def main() -> None:
             ("python-pptx LICENSE", (b / "python_pptx-1.0.2" / "LICENSE").read_bytes())
         ],
         "pdfminer-six": pdfminer_parts(b / PDFMINER_TOP, d),
+        "plotly": plotly_parts(b / PLOTLY_TOP, d),
         "xarray": [("xarray LICENSE", (b / XARRAY_TOP / "LICENSE").read_bytes())]
         + [
             (f"xarray licenses/{p.name}", p.read_bytes())
