@@ -26,7 +26,7 @@ A *guest* is the Python program running inside `python.wasm`. The *host* is your
 - The guest imports two things only: the WASI preview1 calls and the one door, `host::call`.
 - It has no network, no processes and no shared libraries. Starting a thread raises `RuntimeError`.
 - Every door frame is bounded by guest memory. Nothing a frame does makes `run` raise, and an `Exception` your host function raises reaches the guest as an error with none of your text.
-- Tool-protocol frames that are too deep, too large or malformed are refused before they are parsed.
+- Tool-protocol frames that are too deep, too large or malformed are refused before they are parsed. So is a display frame that holds more values than a display needs, so a frame costs the host a few times its length at most.
 
 ### Nothing planted runs at start-up
 

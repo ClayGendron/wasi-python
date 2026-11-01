@@ -42,8 +42,8 @@ _MAX_ABANDONED_IN_PROCESS = 64
 _TOOL_WAIT_CEILING = 3600.0  # the longest a tool call waits when nothing else bounds it
 _DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
 _SURROGATE = re.compile("[\ud800-\udfff]")
-# One token per match, never retried: an escape pair, a quote or a bracket (rule 3).
-_TOKEN = re.compile(r'\\.|["\[\]{}]', re.S)
+# One token per match, never retried: an escape pair, a quote, a bracket or a comma (rule 3).
+_TOKEN = re.compile(r'\\.|["\[\]{},]', re.S)
 
 
 # -------------------------------------------------------------------------------------------------
@@ -54,27 +54,33 @@ class _Refused(Exception):
     """A frame that breaks the protocol's rules: a `protocol` answer."""
 
 
-def _nesting(text: str) -> int:
-    """The deepest nesting of arrays and objects outside strings, in one pass over the text: a
-    regular expression that skips whole strings would be retried at every quote of an
-    unterminated one, which is quadratic on a guest's megabyte."""
-    depth = deepest = 0
+def _nesting(text: str, most: int | None = None) -> tuple[int, int]:
+    """The deepest nesting of arrays and objects outside strings, and the values there, each
+    array, object and comma opening one, in one pass over the text that stops once the nesting
+    passes its bound or the values pass `most`: a regular expression that skips whole strings
+    would be retried at every quote of an unterminated one, which is quadratic on a guest's
+    megabyte."""
+    depth = deepest = count = 0
     inside = False
     for m in _TOKEN.finditer(text):
         token = m.group()
         if inside:
-            inside = token != '"'  # an escape pair or a bracket stays inside the string
+            inside = token != '"'  # an escape pair, a bracket or a comma stays inside the string
         elif token == '"':
             inside = True
-        elif token in "[{":
-            depth += 1
-            if depth > deepest:
-                deepest = depth
-                if deepest > _TOOL_NESTING:
-                    break
-        elif token in "]}":
+        elif token == "]" or token == "}":
             depth -= 1
-    return deepest
+        else:
+            count += 1
+            if most is not None and count > most:
+                break
+            if token != ",":
+                depth += 1
+                if depth > deepest:
+                    deepest = depth
+                    if deepest > _TOOL_NESTING:
+                        break
+    return deepest, count
 
 
 def _no_constant(name: str) -> Any:
@@ -105,15 +111,19 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
-def _parse(frame: bytes) -> _Json:
-    """The frame's parse rules, then the `$bytes` objects decoded."""
+def _parse(frame: bytes, most: int | None = None) -> _Json:
+    """The frame's parse rules, then the `$bytes` objects decoded. With `most`, a frame that
+    holds more values than that outside its strings is refused before it is parsed, so the parse
+    costs about the frame's length whatever it holds."""
     try:
         text = frame.decode("utf-8")
     except UnicodeDecodeError:
         raise _Refused("the frame is not UTF-8") from None
-    depth = _nesting(text)
+    depth, count = _nesting(text, most)
     if depth > _TOOL_NESTING:
         raise _Refused(f"the frame nests deeper than {_TOOL_NESTING} levels")
+    if most is not None and count > most:
+        raise _Refused(f"the frame holds more than {most} values outside its strings")
     try:
         value = json.loads(
             text,

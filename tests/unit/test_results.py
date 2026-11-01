@@ -437,6 +437,77 @@ def test_a_display_falls_after_what_printed_before_it() -> None:
 
 
 # -------------------------------------------------------------------------------------------------
+# What a frame may cost the host: a display holds a few values outside its strings.
+
+
+@tool
+def total(xs: list[int]) -> int:
+    """Add the numbers."""
+    return sum(xs)
+
+
+class Loads:
+    """The tool host's `json.loads`, counted: a frame refused before it is parsed is never
+    loaded."""
+
+    def __init__(self, monkeypatch) -> None:
+        self.calls = 0
+
+        def loads(*args: Any, **kwargs: Any) -> Any:
+            self.calls += 1
+            return json.loads(*args, **kwargs)
+
+        monkeypatch.setattr(H, "json", types.SimpleNamespace(**{**vars(json), "loads": loads}))
+
+
+def values(raw: bytes) -> int:
+    """The values a frame holds outside its strings, for a frame whose strings hold no `[`, `{`
+    or `,`: each array, object and comma opens one."""
+    return sum(raw.count(c) for c in b"[{,")
+
+
+def test_a_frame_with_more_values_than_a_display_holds_is_refused_before_it_is_parsed(
+    monkeypatch,
+) -> None:
+    loads = Loads(monkeypatch)
+    host, _ = result_host(room=None)
+    at, over = frame(x=[0] * (R.VALUES - 7)), frame(x=[0] * (R.VALUES - 6))
+    assert (values(at), values(over)) == (R.VALUES, R.VALUES + 1)
+    assert answer(host(at))["kept"] is True and loads.calls == 1
+    raw = host(over)
+    assert kind(raw) == "protocol" and f"more than {R.VALUES}" in answer(raw)["error"]["message"]
+    many = b'{"v":1,"id":1,"op":"display","x":[' + b"{}," * 1_000_000 + b"{}]}"
+    assert kind(host(many)) == "protocol" and loads.calls == 1
+    inside = frame({"text/plain": ",[{" * 1000})  # a string's commas and brackets are its own
+    assert answer(host(inside))["kept"] is True
+    assert (len(host.displays), host._records) == (2, 4)
+
+
+def test_the_largest_display_the_guest_sends_holds_a_third_of_the_values() -> None:
+    data: dict[str, Any] = {m: "x" for m in R.MIME_TYPES}
+    data[R.BINARY] = {"$bytes": "iVBORw=="}
+    raw = frame(data, value=True, truncated=list(R.MIME_TYPES))
+    assert 3 * values(raw) <= R.VALUES
+    host, _ = result_host()
+    assert answer(host(raw))["kept"] is True and host.value is not None
+
+
+def test_under_tools_a_frame_past_the_tool_cap_is_never_parsed(monkeypatch) -> None:
+    loads = Loads(monkeypatch)
+    tools = H._ToolHost([total])
+    host, _ = result_host(room=1 << 20, tools=tools)
+    head = b'{"v":1,"id":2,"op":"call","tool":"total","args":{"xs":['
+    call = head + b"{}," * 700_000 + b"{}]}}"
+    assert len(call) > H._TOOL_REQUEST_BYTES and host.admit(len(call)) is None
+    assert kind(host(call)) == "too_large" and loads.calls == 0
+    args = {"xs": list(range(1000))}  # more values than a display, within the tool cap
+    within = json.dumps({"v": 1, "id": 3, "op": "call", "tool": "total", "args": args}).encode()
+    assert host.admit(len(within)) is None
+    assert answer(host(within))["value"] == 499_500
+    assert (loads.calls, tools.record.frames, host._records) == (1, 2, 0)
+
+
+# -------------------------------------------------------------------------------------------------
 # The guest package, loaded on the host's Python.
 
 

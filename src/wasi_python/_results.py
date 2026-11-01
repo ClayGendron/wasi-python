@@ -36,6 +36,12 @@ BINARY = "image/png"  # the one type whose content is bytes; the rest are text
 RECORDS = 1000  # the displays a call or turn keeps, its value included: the tool record's number
 ESCAPE = 6  # a byte of text is at most six in a JSON string (\u00XX)
 ENVELOPE = 1024  # room for a frame's keys and its list of cut types, beside its content
+# The values a frame may hold outside its strings, each array, object and comma opening one. The
+# largest display the guest sends holds 19: its six keys, six MIME types, a `$bytes` object and
+# six cut types. A frame that holds more is refused before it is parsed: a parse of empty
+# objects held about fifty times the frame at once, and a parse of a few values costs about its
+# length. A tool frame holds more and goes to the tool host, which reads none past its cap.
+VALUES = 64
 # The guest's argument that turns results on, first after the program's name; the second form
 # adds matplotlib's figures. It is read and removed before the program sees its arguments.
 FLAG = "-Xhost-results"
@@ -169,7 +175,7 @@ class _ResultHost:
     def _answer(self, frame: bytes) -> bytes:
         wire = self._wire
         try:
-            request = wire._parse(frame)
+            request = wire._parse(frame, VALUES)
         except wire._Refused as e:
             if self._tools is not None:
                 return self._tools(frame)  # a tool frame's refusal stays in the tool record
