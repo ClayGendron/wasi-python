@@ -1784,3 +1784,76 @@ def test_prove_set_runs_from_the_command_line(tmp_path, monkeypatch, capsys) -> 
             gather.main(argv)
     with pytest.raises(SystemExit):
         gather.main(["--prove-set", "x" * 64, W])
+
+
+# An upstream group's pass count that rose needs no reason, as the ratchet and the acceptance
+# hold: it is listed, with the reason a claim that names it gives when one does. A fall still needs
+# its claim's `fewer`, and a lost pass is red whatever any count did.
+
+
+def _rise(case: Case, node: str, value: int) -> None:
+    for r in case.records.values():
+        c = r["checks"].get(node, {})
+        if c.get("status") == "pass":
+            c["metrics"] = {"passes": value, "fuel": 100}
+
+
+def test_a_rise_in_passes_on_a_release_pull_request_is_listed_not_red(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    _rise(case, R_SUITE, 6)
+    case.claims = [news.Claim(spec="166", passes=[R_SUITE], growth="r1 has 3.0.4's new tests")]
+    v = case.run()
+    assert v.red == [], v.red
+    row = "G5 r1: passes [6] is not accepted 5"
+    assert v.growth == [row], v.growth
+    assert f"  {row} · 166: r1 has 3.0.4's new tests" in v.lines
+    case.claims = []
+    v = case.run()
+    assert v.red == [] and v.growth == [row], v.red
+    assert f"  {row} · more, needing no claim" in v.lines
+
+
+def test_a_rise_is_shown_with_the_text_that_names_its_group() -> None:
+    """A claim's growth may be another row's: the rise takes a text that names its group, a
+    judge reason whose file names it, or the claim's number alone."""
+    other = news.Claim(spec="181", passes=[R_SUITE], growth="the reactor's fuel moves")
+    judged = news.Claim(spec="181", passes=[R_SUITE], judge={"expected/r1/k.txt": "one more"})
+    assert gather.rise([other], R_SUITE) == "181: names this count under passes"
+    assert gather.rise([other, judged], R_SUITE) == "181: one more"
+    assert gather.rise([], R_SUITE) == "more, needing no claim"
+
+
+def test_a_fall_in_passes_on_a_release_pull_request_needs_its_fewer(tmp_path) -> None:
+    """A claim that names the count and gives only a growth text does not clear a fall."""
+    case = ReleasePRCase(tmp_path)
+    _rise(case, R_SUITE, 4)
+    case.claims = [news.Claim(spec="166", passes=[R_SUITE], growth="new tests")]
+    row = "G5 r1: passes [4] is not accepted 5"
+    v = case.run()
+    assert row in v.red and v.growth == [], v.red
+    case.claims = [news.Claim(spec="166", passes=[R_SUITE], fewer="a test moved out")]
+    v = case.run()
+    assert v.red == [] and v.growth == [row], v.red
+    assert f"  {row} · 166: a test moved out" in v.lines
+
+
+def test_a_rise_in_a_groups_count_never_hides_a_lost_pass(tmp_path) -> None:
+    """A test that passed and now fails is either outside every class of its group, so the
+    group's own check fails, or in a class, whose check then fails on its new member: either way a
+    check accepted as a pass is lost, which the ratchet reds whatever the group's count did."""
+    case = ReleasePRCase(tmp_path)
+    _rise(case, SUITE, 6)
+    for r in case.records.values():
+        if r["checks"][CLASS]["status"] == "pass":
+            r["checks"][CLASS].update(status="fail", reason="+test_new_member")
+    v = case.run()
+    assert "G5 g1: passes [6] is not accepted 5" in v.growth, v.growth
+    assert [row for row in v.red if row.endswith(f"lost {CLASS}")], v.red
+    assert not [row for row in v.red if "passes" in row], v.red
+    case = ReleasePRCase(tmp_path / "suite")
+    for r in case.records.values():
+        if r["checks"][R_SUITE]["status"] == "pass":
+            r["checks"][R_SUITE].update(status="fail", reason="an unclassed failure")
+            r["checks"][R_SUITE]["metrics"] = {"passes": 6, "fuel": 100}
+    v = case.run()
+    assert f"G5 release/up-r: lost {R_SUITE}" in v.red, v.red
