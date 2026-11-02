@@ -31,6 +31,7 @@ SOURCE_PATTERNS = {
     "bzip2": re.compile(r"bzip2-[\w.]+\.tar\.gz"),
     "xz": re.compile(r"xz-[\w.]+\.tar\.gz"),
     "sqlite": re.compile(r"sqlite-autoconf-\d+\.tar\.gz"),
+    "zstd": re.compile(r"zstd-[\w.]+\.tar\.gz"),
     "regex": re.compile(r"regex-[\w.]+\.tar\.gz"),
     # matplotlib: its five C libraries and three packages
     "freetype": re.compile(r"freetype-[\w.]+\.tar\.xz"),
@@ -38,6 +39,8 @@ SOURCE_PATTERNS = {
     "sheenbidi": re.compile(r"SheenBidi-[\w.]+\.tar\.gz"),
     "libraqm": re.compile(r"libraqm-[\w.]+\.tar\.gz"),
     "qhull": re.compile(r"qhull-[\w.]+\.tar\.gz"),
+    # Pillow's JPEG codec
+    "libjpeg-turbo": re.compile(r"libjpeg-turbo-[\w.]+\.tar\.gz"),
     "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
     "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
     "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),
@@ -60,6 +63,23 @@ SOURCE_PATTERNS = {
     "seaborn": re.compile(r"seaborn-[\w.]+\.tar\.gz"),
     # statsmodels
     "statsmodels": re.compile(r"statsmodels-[\w.]+\.tar\.gz"),
+    # python-docx and python-pptx from their sdists, so each carried patch has a tree
+    "python-docx": re.compile(r"python_docx-[\w.]+\.tar\.gz"),
+    "python-pptx": re.compile(r"python_pptx-[\w.]+\.tar\.gz"),
+    # pdfminer.six from its sdist, so its carried patch has a tree; xarray from its sdist, for the
+    # notices its wheel lacks
+    "pdfminer-six": re.compile(r"pdfminer_six-[\w.]+\.tar\.gz"),
+    "xarray": re.compile(r"xarray-[\w.]+\.tar\.gz"),
+    # SVG to PNG through cairo: its three C libraries, cffi's C backend, and cairocffi and CairoSVG
+    # from their sdists (CairoSVG's carried patch has a tree)
+    "pixman": re.compile(r"pixman-[\w.]+\.tar\.xz"),
+    "libpng": re.compile(r"libpng-[\w.]+\.tar\.xz"),
+    "cairo": re.compile(r"cairo-[\w.]+\.tar\.xz"),
+    "cffi": re.compile(r"cffi-[\w.]+\.tar\.gz"),
+    "cairocffi": re.compile(r"cairocffi-[\w.]+\.tar\.gz"),
+    "cairosvg": re.compile(r"cairosvg-[\w.]+\.tar\.gz"),
+    # plotly from its sdist, so its carried patch has a tree
+    "plotly": re.compile(r"plotly-[\w.]+\.tar\.gz"),
     # The pure-Python packages' test sources: each package's sdist, or, where the sdist carries no
     # tests, its release tag's archive (named `-tag.tar.gz`, so no pattern meets an sdist), and
     # pypdf's sample files at the commit its release tag records. They are data the judge stages,
@@ -86,6 +106,17 @@ SOURCE_PATTERNS = {
     "pyparsing": re.compile(r"pyparsing-[\w.]+\.tar\.gz"),
     "pypdf": re.compile(r"pypdf-[\w.]+\.tar\.gz"),
     "pypdf-samples": re.compile(r"pypdf-[\w.]+-sample-files-tag\.tar\.gz"),
+    # pdfplumber's and pdfminer.six's release tags: their sdists hold no PDF file the tests read
+    "pdfplumber": re.compile(r"pdfplumber-[\w.]+-tag\.tar\.gz"),
+    "pdfminer-six-tests": re.compile(r"pdfminer_six-[\w.]+-tag\.tar\.gz"),
+    # The tests of the packages that draw through cairo: tinycss2's, cssselect2's and imageio's
+    # sdists, and imageio's test images at one commit
+    "tinycss2": re.compile(r"tinycss2-[\w.]+\.tar\.gz"),
+    "cssselect2": re.compile(r"cssselect2-[\w.]+\.tar\.gz"),
+    "imageio": re.compile(r"imageio-[\w.]+\.tar\.gz"),
+    "imageio-test-images": re.compile(r"imageio-test-images-[0-9a-f]+-tag\.tar\.gz"),
+    # plotly's release tag: its sdist holds no tests
+    "plotly-tests": re.compile(r"plotly-[\w.]+-tag\.tar\.gz"),
     "python-dateutil": re.compile(r"python\-dateutil-[\w.]+\.tar\.gz"),
     "reportlab": re.compile(r"reportlab-[\w.]+\.tar\.gz"),
     "six": re.compile(r"six-[\w.]+\.tar\.gz"),

@@ -4,6 +4,8 @@ The terms these pages use, in alphabetical order. Each entry links to the page t
 
 **Artifact set.** The files a release ships: `python.wasm`, `python-snapshot.wasm`, `python-stdlib.zip`, `MANIFEST` and `SHA256SUMS`. See [Artifacts](artifacts.md).
 
+**Checkpoint.** A `Snapshot` of a live session's state after its turns, made by `Session.checkpoint()`. Sessions and calls start from it as from any snapshot, and the session goes on. See [Checkpoint a session, and fork it](../how-to/snapshots.md#checkpoint-a-session-and-fork-it).
+
 **Door.** The guest's one way to call the host: a single host function, bound to the guest's `host` module, that takes request bytes and returns response bytes. You pass it to `run` as `host=`, or let the tool protocol use it through `tools=`. See [Tool protocol](tool-protocol.md).
 
 **Fuel.** A count of the guest's executed instructions. A `fuel` cap stops a run after that many instructions, and `fuel_used` reports how many ran. Because fuel counts operations and not time, a limit is the same on every machine. See [Fuel](../explanation/fuel.md).
@@ -24,7 +26,7 @@ The terms these pages use, in alphabetical order. Each entry links to the page t
 
 **Session.** One instance of the runtime kept across several calls, each a *turn*. Variables, functions and imports made in one turn are there in the next. See [Sessions](../how-to/sessions.md).
 
-**Snapshot.** Two things share the word. The set's snapshot binary, `python-snapshot.wasm`, is `python.wasm` after the interpreter has started and the stdlib's bootstrap modules are imported, saved with Wizer at build time; it pre-imports no package, and a call on it skips the interpreter's start-up. See [How it works](../explanation/how-it-works.md). A `Snapshot` you make with `make_snapshot` or `make_package_snapshot` is the guest's memory after your own code ran once in that binary; a call given it starts from a private copy of it. See [Start every call from a snapshot](../how-to/snapshots.md).
+**Snapshot.** Two things share the word. The set's snapshot binary, `python-snapshot.wasm`, is `python.wasm` after the interpreter has started and the stdlib's bootstrap modules are imported, saved with Wizer at build time; it pre-imports no package, and a call on it skips the interpreter's start-up. See [How it works](../explanation/how-it-works.md). A `Snapshot` you make with `make_snapshot` or `make_package_snapshot` is the guest's memory after your own code ran once in that binary, or, as a checkpoint, after a session's turns; a call given it starts from a private copy of it. See [Start every call from a snapshot](../how-to/snapshots.md).
 
 **Stdlib zip.** `python-stdlib.zip`: the standard library and the Python code of every package in the set, as bytecode in one zip. Every call sees it read-only at `/usr/local/lib`. See [Guest filesystem](guest-filesystem.md).
 

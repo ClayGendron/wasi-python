@@ -35,7 +35,11 @@ def test_failing():
 
 
 @pytest.fixture
-def inner(pytester: pytest.Pytester):
+def inner(pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch):
+    # The inner session judges as a local run unless a row says otherwise. On the runner after a
+    # merge into dev these are set, and the plugin would list a growth where the row expects red.
+    for name in ("GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_REF_TYPE", "GITHUB_BASE_REF"):
+        monkeypatch.delenv(name, raising=False)
     progress = pytester.path / "progress"
     progress.mkdir()
     latest = pytester.path / "latest.json"
@@ -783,3 +787,43 @@ def test_a_growth_a_news_file_claims_is_listed_and_the_run_green(inner, pytester
     result.stdout.fnmatch_lines(["*CLAIMED test_inner.py::test_ok: fuel 1000000 -> 1000101*"])
     result, _ = inner("--accept", "more", fuel=1_000_101, fail=False)
     assert result.ret == 1
+
+
+@pytest.mark.parametrize(
+    ("environ", "green"),
+    [
+        ({"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/dev"}, True),
+        ({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_BASE_REF": "dev"}, False),
+        ({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_BASE_REF": "main"}, False),
+        ({}, False),
+    ],
+    ids=["after a merge into dev", "a pull request", "the release pull request", "a local run"],
+)
+def test_an_unclaimed_growth_is_listed_after_a_merge_and_red_elsewhere(
+    inner, monkeypatch, environ, green
+) -> None:
+    """A shard of the run after a merge into dev lists a growth no news file claims, and stays
+    green: the acceptance records it unclaimed and the release asks its reason. Every other run
+    is red on it, as before."""
+    _accept_baseline(inner)
+    for name in ("GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_BASE_REF"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in environ.items():
+        monkeypatch.setenv(name, value)
+    result, _ = inner(fuel=1_000_101, fail=False)
+    assert (result.ret == 0) is green, result.stdout.str()[-2000:]
+    if green:
+        result.stdout.fnmatch_lines(
+            ["*test_inner.py::test_ok: fuel 1000000 -> 1000101 · unclaimed*"]
+        )
+    else:
+        result.stdout.fnmatch_lines(["*metric(s) grew*"])
+
+
+def test_a_lost_pass_after_a_merge_is_still_red(inner, monkeypatch) -> None:
+    _accept_baseline(inner)
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/dev")
+    result, _ = inner(gaps_text=GAP.format(match="the named failure"))
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(["*LOST test_inner.py::test_failing*"])

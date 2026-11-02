@@ -6,12 +6,12 @@ One file per review, `NNN-<spec slug>-YYYY-MM-DD.md`, where `NNN` is the specifi
 
 Every pull request into `dev` that is not documentation only gets one review, by a fresh agent or a person who did not write the change, written as `NNN-<slug>-pr-YYYY-MM-DD.md` in the template below: criteria against evidence, findings ranked, constitution checks, verdict (`../specifications/138-pull-requests-into-dev-and-the-judge-runs-where-it-is-needed.md`, Decision 9).
 
-- **No confirmation round.** The author answers in the pull request. A code fix is a new commit on the same pull request, and the reviewer reads it and signs again.
+- **One round, one signature.** The author answers in the pull request, and every fix of a round is one commit on the same pull request ("Fix commits: one per review round", in the template of the pull request). A Low answered in writing, or one that touches only `context/`, needs no second signing. A Low fixed in code goes into the round's one fix commit with any High or Medium that needs code, and the reviewer reads that commit before signing once more (constitution §5.6: a fix to code for a Low is read by the reviewer). A review is at most 800 words outside its findings.
 - **The reviewer reads the pull request's run** (`ci-status`, the gather's summary) and never dispatches one. A Low that touches only `context/` the reviewer may commit to the pull request's branch.
-- **The review file is committed last**, as the branch's last context-only commit, after the final code commit. `ci-status` runs `quick` on it and re-uses the green run of the head it follows.
-- **`ci-status` holds the review.** It fails the pull request when no such file is among its changed paths; when the newest commit that changed it is followed by a commit touching a path that is not documentation only; when its `Reviewer:` line is empty or names the author (the self-check's author, or any `Claude-Session:` trailer on the pull request's code commits); or when the first line of its `## Verdict` section does not begin with "Lands". The `Reviewer:` line names the reviewer's session (`https://claude.ai/code/session_…`) or a person. A reviewer that runs as a fresh sub-agent of the author's session, given only the specification and the diff, writes `an agent (Claude), a fresh sub-agent of <session>; not the author`; a `Reviewer:` line that is the author's session URL alone, or with other words, is refused. The review file is the newest by date among those named for one of the pull request's news files; a commit after it that touches only documentation leaves it standing. This is a process guard, not an identity guard: an agent that writes a false `Reviewer:` line defeats it.
+- **The review file is committed last**, as the branch's last context-only commit, after the final code commit. Its push runs `quick` and the `review` check, and re-uses the green run of the head it follows (a run red only in `review` and `ci-status` counts as green for that re-use).
+- **`ci-status` and `review` hold the review.** The `review` job, a check of its own on every pull request into `dev`, and `ci-status`, until the repository's ruleset requires `review`, each fail the pull request when no such file is among its changed paths; when the newest commit that changed it is followed by a commit touching a path that is not documentation only; when its `Reviewer:` line is empty or names the author (the self-check's author, or any `Claude-Session:` trailer on the pull request's code commits); or when the first line of its `## Verdict` section does not begin with "Lands". The `Reviewer:` line names the reviewer's session (`https://claude.ai/code/session_…`) or a person. A reviewer that runs as a fresh sub-agent of the author's session, given only the specification and the diff, writes `an agent (Claude), a fresh sub-agent of <session>; not the author`; a `Reviewer:` line that is the author's session URL alone, or with other words, is refused. The review file is the newest by date among those named for one of the pull request's news files; a commit after it that touches only documentation leaves it standing. This is a process guard, not an identity guard: an agent that writes a false `Reviewer:` line defeats it.
 - **The pre-build review stays** for the classes constitution §5.6 names (the guest's imports or exports, the artifact set, the build recipe) and for a structural specification, as a review of the specification before the branch has code (`-spec`). A parallel-safe runner change needs none unless its Kind line says **structural**: its pull request's review reads the code with the specification.
-- **Per release**, the security review and the structural review (below) are the release pull request's review.
+- **Per release**, the security review and the structural review (below) are the release pull request's review. Both begin when the last specification of the release opens its pull request, each in a 45-minute box, reading `dev` at that point and re-reading only the diff since. The security review carries a `## Release notes` section: the version's CHANGELOG section (`release/version.py notes <version>`) read once, as an embedder would, against the news files, by someone who wrote none of it. The judge refuses a released version whose security review has no such section (`test_a_releases_security_review_reads_its_notes`); a release up to 0.1.2 had that read in a file of its own, `<version>-release-notes-review-YYYY-MM-DD.md`, which still counts for it. The preparation pull request carries the two review files.
 
 ## The author's self-check
 
@@ -28,7 +28,7 @@ Time box: 25 minutes for a parallel-safe specification, 45 for a build-class one
 5. One to three probes by node id, locally.
 6. Rank: High (a wrong answer or an unsafe default), Medium (a guarantee not evidenced), Low (a write-in). A Low with its fix text needs no round. One Medium per review is normal; state what evidence would close it.
 7. A Low that touches only `context/` you may write in yourself, as a commit of the exact text on the pull request's branch; a code fix stays the author's (constitution §5.6).
-8. Verdict in one sentence. It begins "Lands" when nothing stands, or "Does not land yet: <the High or the Mediums>". After the author's fix commit, read it and write the verdict again: a verdict that begins "Lands" is your signature on the head.
+8. Verdict in one sentence. It begins "Lands" when nothing stands, or "Does not land yet: <the High or the Mediums>". A verdict that begins "Lands" is your signature on the head. When the round has a fix commit that changes code, read it and write the verdict once more; a Low answered in writing, or one that touches only `context/`, needs no second signing.
 
 ## Template
 
@@ -45,8 +45,7 @@ Time box: 25 minutes for a parallel-safe specification, 45 for a build-class one
 1. <criterion> — met / not met: <the evidence or the gap>
 
 ## Findings, most severe first
-1. **<title>** (`path:line`) — <the defect in one sentence>.
-   Failure: <concrete input or state → wrong output or crash>.
+1. **<title>** (`path:line`) — <the defect in one sentence>. Failure: <concrete input or state → wrong output or crash>.
 
 ## Constitution checks
 - §4 constraints: <each one touched, and whether it holds>
@@ -76,7 +75,7 @@ Score each Strong, Adequate or Weak, with a one-line reason, as the memo did.
 - **R2 Safety.** Are the defaults safe and read once? Is every channel to the host bounded? Are arguments validated before any side effect? Are check-and-use races closed by identity?
 - **R3 Layering.** Does exactly one module touch the engine's private API? Is policy apart from mechanism? Is the import graph acyclic?
 - **R4 Process state.** Is module-level mutable state owned by one object and reset in one place? Is each lifecycle an enum and a table, not flags? Is the lock order written down?
-- **R5 Portability.** Does OS-specific behaviour live in the platform modules (`_platform.py` and the two below it, no other) behind one interface, chosen once?
+- **R5 Portability.** Does OS-specific behaviour live in the platform modules (`_platform.py` and the three below it, no other) behind one interface, chosen once?
 - **R6 Testability.** Are seams constructor parameters or protocol objects? Do tests drive public behaviour? Does production code carry a branch only the judge takes?
 - **R7 Evolvability.** Can one person hold each module, and each function, in their head? Does the code say why without the archive open? Does the type checker pass? Is the engine upgrade's cost written?
 - **R8 Operability.** Do `stats()`, the records and the trap strings still say what the guest did? Can a warning deadlock an embedder?

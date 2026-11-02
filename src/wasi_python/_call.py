@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 from . import _artifacts, _engines, _home, _outputs, _places, _platform, _private_dirs, _zip
-from . import _snapshot as _snapshot  # its own line: the line above is full
+from . import _results as _results  # each on its own line: the line above is full
+from . import _snapshot as _snapshot
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
 from ._engines import _epoch_ticker
 from ._fs_memory import STAGING_CEILING, _aligned
@@ -30,6 +31,7 @@ from ._places import ZIP_GUEST, Grant, _Preopen
 from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
 from ._private_dirs import _Private
 from ._process import process
+from ._results import Display
 from ._zip import MPL_DATA_GUEST
 from .mounts import FileRecord, Mount
 
@@ -72,12 +74,17 @@ class Completed:
             are promised; wasmtime's words are not.
         fuel_used: The guest's instructions spent, when a `fuel` cap was given and no deadline
             hit; else `None`.
-        truncated: The streams ("stdout", "stderr") whose output passed the limit.
+        truncated: The streams ("stdout", "stderr") whose output passed the limit, and
+            "displays" when a display was cut or not kept for want of room.
         files: For a call with mounts, its provider calls, faults and refused writes; else
             `None`.
         tools: For a call with tools, every frame counted and the first 1,000 listed; else
             `None`.
         image_sha256: The SHA-256 of the snapshot's image a call or turn started from, or `None`.
+        value: With `results=True`, a turn's or a `-c` program's last expression, when it is
+            not `None`; else `None`.
+        displays: With `results=True`, what the guest passed to `display()`, and with
+            `figures=True` its matplotlib figures, in order.
     """
 
     exit_code: int | None
@@ -89,6 +96,8 @@ class Completed:
     files: FileRecord | None = None  # the mounts' record, for a call with mounts
     tools: ToolRecord | None = None  # the tool protocol's record, for a call with tools
     image_sha256: str | None = None  # the snapshot's, for a call that started from one
+    value: Display | None = None  # a cell's last expression, for a call with results
+    displays: tuple[Display, ...] = ()  # what the guest displayed, for a call with results
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +112,8 @@ class _CheckedCall:
     deadline_s: float | None
     memory_bytes: int | None
     output_bytes: int | None
+    output_keep: str  # "head" or "tail"
+    on_output: Callable[[_outputs.OutputChunk], object] | None
     argv: tuple[str, ...]
     env: dict[str, str] | None  # never mutated after the check
     stdin: bytes | None
@@ -120,6 +131,7 @@ class _CheckedCall:
     open_files: int | None
     binary: str  # "snapshot" or "plain"
     start: _snapshot._Start | None  # None from the binary alone; else an image, or a making
+    results: str | None  # None; "results", a value and displays; or "figures", with figures
 
 
 class _Stop(Protocol):
@@ -450,20 +462,18 @@ def _instance(
         time.sleep,
         (lambda: any(check() for check in checks)) if checks else None,
     )
-    # Under tools=, the runner is the door's host: the frame host, bound by the same deadline,
-    # cancel and Ctrl-C, and asked to admit each frame by its length before it is read (036).
+    # Under tools= or results=, the runner is the door's host: the frame host, bound by the same
+    # deadline, cancel and Ctrl-C, asked to admit each frame by its length before it is read.
     tool_host = _tool_host(c, stop_at, cancel, loop, ht)
-    admit = None
-    if tool_host is not None:
-        host, admit = tool_host, tool_host.admit
-
-    out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
+    out, err, feed = _outputs._feed_for(c.on_output, c.output_keep, output_bytes, ht, loop)
     wasi = wt.WasiConfig()
     origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here
-    wasi.argv = [ARGV0, *_import_prelude(c.import_path), *argv]
+    wasi.argv = [ARGV0, *_import_prelude(c.import_path), *_results._flag(c.results), *argv]
     wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     check = _engines._check_module(wt, engine, fuel is not None)
     capture = _outputs._capture(wasi, out, err)  # before any guest code
+    hosts = (c.results, host, tool_host, output_bytes, (out, err), capture.settle)
+    host, admit = _results._door_hosts(*hosts)
     scratch = None
     mounts = c.mounts
     mounted: list[_Preopen] = []  # each mount's preopen, on the call's empty placeholder
@@ -547,18 +557,48 @@ def _instance(
                 scratch.remove()
 
         ht.finish(release)  # never while a guest thread runs
-    truncated = tuple(s.name for s in (out, err) if s.dropped)
     record = None if tool_host is None else tool_host.record  # on every ending
+    sha = None if c.start is None else c.start.sha256
+    ended = (done.exit_code, done.trapped, fuel_used, files, record, sha, _results._host_of(host))
+    return _completed(out, err, feed, *ended)
+
+
+def _completed(
+    out: _Stream,
+    err: _Stream,
+    feed: _outputs._Feed | None,
+    exit_code: int | None,
+    trapped: str | None,
+    fuel_used: int | None,
+    files: FileRecord | None,
+    tools: ToolRecord | None,
+    image_sha256: str | None,
+    results: _results._ResultHost | None = None,
+) -> Completed:
+    """A call's or a turn's result, on its home once every byte the guest wrote is in its
+    streams: the last output delivered first, so every chunk reaches `on_output` before the
+    result is returned, then each stream as its keep reads it, and with results, the value and
+    the displays the result host kept."""
+    if feed is not None:
+        feed.close()
+    truncated = tuple(s.name for s in (out, err) if s.dropped)
+    value: Display | None = None
+    displays: tuple[Display, ...] = ()
+    if results is not None:
+        value, displays = results.value, tuple(results.displays)
+        truncated += ("displays",) if results.cut else ()
     return Completed(
-        done.exit_code,
-        bytes(out.data),
-        bytes(err.data),
-        done.trapped,
+        exit_code,
+        out.kept(),
+        err.kept(),
+        trapped,
         fuel_used,
         truncated,
         files,
-        record,
-        None if c.start is None else c.start.sha256,
+        tools,
+        image_sha256,
+        value,
+        displays,
     )
 
 
@@ -692,7 +732,8 @@ class _Call:
         # The thread that made the call, which runs the embedder's code;
         # None calls it directly (the judge's stand-ins).
         self.home = home
-        # admit: the frame host's, under tools=, whose host is the runner's own code
+        # admit: the frame host's, under tools= or results=, whose host is the runner's own code
+        self.host = host  # read back for the result host's record
         self.door = _door(host, admit, home if admit is None else None)
         self.poll = _poll_oneoff(origin_ns, waits, files=table)
         self.stopped: BaseException | None = None

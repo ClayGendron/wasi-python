@@ -1,0 +1,8 @@
+tests/test_convert.py::Test::test_cli_csv
+tests/test_convert.py::Test::test_cli_csv_exclude
+tests/test_convert.py::Test::test_cli_csv_include
+tests/test_convert.py::Test::test_cli_help
+tests/test_convert.py::Test::test_cli_json
+tests/test_convert.py::Test::test_cli_structure
+tests/test_convert.py::Test::test_cli_structure_text
+tests/test_convert.py::Test::test_cli_text

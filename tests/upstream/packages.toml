@@ -8,9 +8,15 @@
 #   build-only  used only to compile another package; `reason`
 #   later       `reason`, and `closes_with` naming the specification (written or reserved in
 #               context/roadmap.md) that runs its suite
+#   none        the project ships no tests at its pinned version, in its sdist or in its
+#               repository at the release's tag; `reason` says where that was read, and
+#               `checked_by` names the golden jobs (tests/jobs/) that import and run it. Refused
+#               when tests/upstream/<name>.toml exists, or when a named job does not import one of
+#               its names in recipes/snapshot-packages.txt. A version move reads its sdist and its
+#               repository's tag again and rewrites `reason`.
 # A specification that adds a package adds its entry (AGENTS.md).
 
-stdlib_modules = ["zlib", "bz2", "lzma", "sqlite3"]
+stdlib_modules = ["zlib", "bz2", "lzma", "sqlite3", "compression.zstd"]
 
 [package.numpy]
 kind = "suite"
@@ -47,6 +53,12 @@ via = "lzma"
 kind = "via"
 via = "sqlite3"
 
+[package.zstd]
+# libzstd, linked into _zstd: CPython's test_zstd reaches it, and the zstd cases of test_tarfile,
+# test_zipfile, test_zipfile64, test_zipimport and test_shutil.
+kind = "via"
+via = "compression.zstd"
+
 [package.freetype]
 kind = "via"
 via = "matplotlib"
@@ -66,6 +78,11 @@ via = "matplotlib"
 [package.qhull]
 kind = "via"
 via = "matplotlib"
+
+[package.libjpeg-turbo]
+# Pillow's JPEG codec: its own suite's JPEG and MPO tests run in the pillow group.
+kind = "via"
+via = "pillow"
 
 [package.libxml2]
 kind = "via"
@@ -338,5 +355,93 @@ kind = "suite"
 
 [package.wrapt]
 # its own suite from its test source, groups in tests/upstream/wrapt.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+# python-docx and python-pptx, each from its sdist with its carried patch.
+
+[package.python-docx]
+# its own suite from its test source, groups in tests/upstream/python-docx.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+[package.python-pptx]
+# its own suite from its test source, groups in tests/upstream/python-pptx.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+# pdfplumber and pdfminer.six, each tested from its release tag's archive; xarray from its sdist.
+
+[package.pdfplumber]
+# its own suite from its test source, groups in tests/upstream/pdfplumber.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+[package.pdfminer-six]
+# its own suite from its test source, groups in tests/upstream/pdfminer-six.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+[package.xarray]
+# its own suite from its test source, groups in tests/upstream/xarray.toml: a smoke
+# group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+# drawsvg, a project that ships no tests: its golden job holds the guest to native Python on
+# drawsvg's own code, which says the interpreters agree, not that drawsvg's SVG is right.
+
+[package.drawsvg]
+kind = "none"
+reason = "drawsvg 2.4.2 ships no tests: none in its sdist, none in its repository at the 2.4.2 tag or at master (read 2026-10-31)"
+checked_by = ["vector_drawings", "svg_to_png"]
+# SVG to PNG through cairo: the three C libraries and cffi's C backend are reached through
+# cairocffi's suite, which calls every part of cairo the bindings declare, through the backend;
+# cffi's own C tests make ABI-mode calls, which the guest cannot make. The packages' suites come
+# from their sdists.
+
+[package.pixman]
+kind = "via"
+via = "cairocffi"
+
+[package.libpng]
+kind = "via"
+via = "cairocffi"
+
+[package.cairo]
+kind = "via"
+via = "cairocffi"
+
+[package.cffi]
+kind = "via"
+via = "cairocffi"
+
+[package.cairocffi]
+# its own suite from its sdist, groups in tests/upstream/cairocffi.toml: test_cairo.py in the
+# normal tier, its other test modules in the release tier
+kind = "suite"
+
+[package.cairosvg]
+# its API tests from its sdist, one group in tests/upstream/cairosvg.toml; its non-regression
+# suite compares with an older CairoSVG from a git submodule, not in the sdist, and is not run (the
+# golden job svg_to_png checks its rendering against native cairo)
+kind = "suite"
+
+[package.tinycss2]
+# its own suite from its sdist, one group in tests/upstream/tinycss2.toml
+kind = "suite"
+
+[package.cssselect2]
+# its own suite from its sdist, one group in tests/upstream/cssselect2.toml
+kind = "suite"
+
+[package.imageio]
+# its own suite from its sdist with its pinned test images, groups in tests/upstream/imageio.toml:
+# a smoke group in the normal tier, the whole suite in the release tier
+kind = "suite"
+
+# plotly, tested from its release tag's archive.
+
+[package.plotly]
+# its own suite from its test source, groups in tests/upstream/plotly.toml: a smoke
 # group in the normal tier, the whole suite in the release tier
 kind = "suite"

@@ -15,10 +15,12 @@ Two ideas run through the page. A program that fails *inside* the guest still gi
 | `stderr` | `bytes` | What the guest wrote to standard error, up to the output limit. |
 | `trapped` | `str` or `None` | `None` when the program ended by itself. Otherwise why it was stopped (see below). |
 | `fuel_used` | `int` or `None` | The guest's instructions spent, when you gave a `fuel` cap and no deadline hit; else `None`. |
-| `truncated` | `tuple[str, ...]` | The streams, `"stdout"` and `"stderr"`, whose output passed the limit. Empty when nothing was cut. |
+| `truncated` | `tuple[str, ...]` | The streams, `"stdout"` and `"stderr"`, whose output passed the limit, and `"displays"` when a display was cut or not kept. Empty when nothing was cut. |
 | `files` | `FileRecord` or `None` | For a call with mounts: its provider calls, faults and refused writes. Else `None`. |
 | `tools` | `ToolRecord` or `None` | For a call with tools: every tool-protocol frame counted and the first 1,000 listed. Else `None`. |
 | `image_sha256` | `str` or `None` | For a call or turn started from a `Snapshot`: the SHA-256 of its image, so you can tell which snapshot a result came from. Else `None`. |
+| `value` | `Display` or `None` | With `results=True`: a turn's or a `-c` program's last expression, when it is not `None`. Else `None`. |
+| `displays` | `tuple[Display, ...]` | With `results=True`: what the program passed to `display()` and, with `figures=True`, its matplotlib figures, in order. Else empty. |
 
 For example, this call returns exit code 0 and the sum on standard output:
 
@@ -49,6 +51,19 @@ When `trapped` is set, `exit_code` is `None`. Output buffered inside the guest a
 ### `truncated`: cut output
 
 Each stream keeps at most `output_bytes` bytes (16 MiB by default). The bytes past the limit are dropped, and the stream's name is added to `truncated`.
+
+### `value` and `displays`: what a notebook would show
+
+A `Display` is a frozen dataclass of four fields:
+
+| field | type | what it holds |
+|---|---|---|
+| `data` | `Mapping[str, str \| bytes]` | The content by MIME type, read-only. `"text/plain"` is always there, the object's `repr`. `"text/html"`, `"text/markdown"`, `"image/svg+xml"` and `"application/json"` are `str`, and `"image/png"` is `bytes`. |
+| `truncated` | `tuple[str, ...]` | The MIME types cut or left out because the room for displays ran short. |
+| `stdout_at` | `int` | The bytes the guest had written to stdout before it, kept or not. Under the head keep, `stdout[:stdout_at]` is what printed before it. |
+| `stderr_at` | `int` | The same for stderr. |
+
+A call's displays, its value included, share one more `output_bytes` and 1,000 records. HTML and SVG are the guest's: render them in a sandboxed frame. See [Read a cell's value and displays](../how-to/results.md).
 
 ### `files`: what a mount's provider did
 
@@ -102,13 +117,15 @@ A `ToolOutcome` has `seq` (from 1), `op` (`"list"`, `"call"`, or `None` when the
 
 `SnapshotMismatch`, a subclass of `ValueError`, means a snapshot does not fit where it is used: a saved file that is not one, is damaged or is of a newer format; a call whose artifact set is not the one the snapshot was made with; or a call whose `memory_bytes` is below the image. `Snapshot.load`, `Snapshot.check`, `run`, `run_async` and `Session` raise it.
 
-`SnapshotFailed`, a subclass of `RuntimeError`, means the code given to `make_snapshot` or `make_package_snapshot` left no image a call could start from. Its `reason` is one of three fixed strings, and its `completed` is the making's own `Completed`:
+`SnapshotFailed`, a subclass of `RuntimeError`, means the code given to `make_snapshot` or `make_package_snapshot`, or the session given to `Session.checkpoint`, left no image a call could start from. Its `reason` is one of three fixed strings, and its `completed` is the making's or the checkpoint's own `Completed`, or `None` when no code ran:
 
 | `reason` | what happened |
 |---|---|
 | `"exit"` | the code exited with a status other than 0, or raised; its traceback is in `completed.stderr` |
-| `"trapped"` | the code trapped, ran out of fuel or passed its deadline, as `completed.trapped` says |
-| `"open file"` | the code left a file or folder open, which a call from the image could not reopen |
+| `"trapped"` | the code or the checkpoint trapped, ran out of fuel or passed its deadline, as `completed.trapped` says; a checkpoint's trap ends the session |
+| `"open file"` | the code, or a turn of the session, left a file or folder open, which a call from the image could not reopen; for a checkpoint, `completed` is `None` and the session goes on |
+
+`Session.checkpoint` also raises `ValueError` on a session of the plain binary, `ArtifactsMissing` for an artifact set that predates checkpoints, `SessionEnded` once the session has ended, `RuntimeError` while a turn runs or before any turn has returned, and `MemoryError` when your process has no memory for the image; after a `MemoryError` the session goes on.
 
 `Snapshot.save` and `Snapshot.load` raise `PermissionError` for a file or folder others may change, and `OSError` for the file system's own failures. See [Start every call from a snapshot](../how-to/snapshots.md).
 

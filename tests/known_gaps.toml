@@ -66,7 +66,7 @@ closes_with = "context/roadmap.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]"
-match = "40 finding(s), digest bb867a100101"
+match = "57 finding(s), digest 7ede498225b5"
 reason = "no mmap on WASI"
 closes_with = "docs/reference/limitations.md"
 
@@ -130,7 +130,7 @@ closes_with = "context/specifications/002-the-progress-harness.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-test-modules]"
-match = "140 finding(s), digest 6aa3974a625c"
+match = "143 finding(s), digest d96604159ccf"
 reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
 closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
 
@@ -252,6 +252,12 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-copy-copyfile-copy-dir]"
 match = "1 finding(s), digest 2d010d1302e2"
 reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirectoryError elsewhere (the branch dry run 39194284100)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-logging-emit-reopen-error]"
+match = "1 finding(s), digest 901c82708fcf"
+reason = "new in CPython 3.15.2, which skips it on Windows itself: a Windows host refuses to remove a folder that holds a file the guest still holds open, so the test's rmtree of the log's folder fails (EACCES; a Windows grant's rule, README: On Windows; run 41170628147)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
@@ -407,18 +413,6 @@ reason = "no threads: starting one raises RuntimeError (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-render-2b-pillow-zlib-only]"
-match = "3 finding(s), digest 9fc14039adcb"
-reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-pillow-zlib-only]"
-match = "5 finding(s), digest 0504956f6a79"
-reason = "Pillow is built with zlib only (spec 023): a test that writes or reads JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-a-no-processes]"
 match = "2 finding(s), digest f61cc4b5052a"
 reason = "no processes: subprocess is unavailable on WASI; test_movie_writer_registry needs an executable on PATH"
@@ -447,12 +441,6 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotl
 match = "1 finding(s), digest 4b96703f619d"
 reason = "no processes: subprocess is unavailable on WASI"
 closes_with = "docs/reference/limitations.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-pillow-zlib-only]"
-match = "55 finding(s), digest d2077a055dc7"
-reason = "Pillow is built with zlib only (spec 023): a test that opens JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-mmap]"
@@ -505,8 +493,8 @@ closes_with = "docs/reference/limitations.md"
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-not-pillows-wheel]"
 match = "3 finding(s), digest 90629a5df21e"
-reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib only (spec 023)"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib and JPEG only (specs 023 and 170)"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-fli-overflow-native]"
@@ -530,6 +518,18 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-threads]"
 match = "6 finding(s), digest 010a91a8c398"
 reason = "no threads"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-no-mmap]"
+match = "9 finding(s), digest 8ae56a683eb8"
+reason = "no mmap on WASI"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-slow-b-wasm32-int32]"
+match = "3 finding(s), digest 2aaf3dec51e5"
+reason = "numpy's default integer is 32 bits on wasm32"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
@@ -812,12 +812,6 @@ reason = "wasm has no floating-point exception flags, so an errstate that raises
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pillow-zlib-only-at-setup]"
-match = "4 finding(s), digest 982e18ee86a1"
-reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
-closes_with = "docs/reference/limitations.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-decomposition-1-no-mmap]"
 match = "2 finding(s), digest 17ff6e6a8b6c"
 reason = "no mmap: the stand-in raises OSError, so a test on memory-mapped data fails (README)"
@@ -1097,7 +1091,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-counted-clock]"
-match = "3 finding(s), digest 5f05fa61a255"
+match = "2 finding(s), digest 0c61ab6175e3"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1330,10 +1324,10 @@ reason = "the test is marked lxml_required and the product has no lxml; openpyxl
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-zlib-only]"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-pillow-no-jpeg2k-or-tiff]"
 match = "1 finding(s), digest 9be853179bcd"
-reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+reason = "Pillow is built with zlib and JPEG: a test that needs JPEG 2000 or TIFF's codecs without its own feature guard (README)"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[openpyxl-r-read-only-source]"
@@ -1354,16 +1348,52 @@ reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-processes]"
+match = "8 finding(s), digest 3c3613f38eb5"
+reason = "no processes: the command-line tests run pdfplumber's CLI in a subprocess, which the guest cannot start (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2]"
+match = "16 finding(s), digest b1806e430386"
+reason = "pdfplumber renders page images through pypdfium2, a compiled PDFium binding the set does not carry; page.to_image() raises ModuleNotFoundError naming it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-pypdfium2-in-a-test]"
+match = "1 finding(s), digest a02cb30d7845"
+reason = "the fuzzing regression test renders each file's page images through pypdfium2, which the set does not carry (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfplumber-r-no-ghostscript]"
+match = "6 finding(s), digest 5244a6dfa7f8"
+reason = "pdfplumber.repair runs the Ghostscript program in a subprocess; the guest has neither the program nor processes (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cryptography]"
+match = "8 finding(s), digest 1a59d339441e"
+reason = "AES decryption needs cryptography, a compiled package the set does not carry; the carried patch imports it only where AES runs, so these files raise ModuleNotFoundError naming it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pdfminer-six-r-no-cjk-cmaps]"
+match = "6 finding(s), digest db01067fc0d2"
+reason = "pdfminer's predefined CJK character maps (its cmap folder) are left out of the zip: these tests load one by name, or read a font that names one and has no ToUnicode table, whose text then reads empty (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-no-processes]"
 match = "4 finding(s), digest df03f627173f"
 reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-zlib-only]"
-match = "12 finding(s), digest 1f44e0d29aa6"
-reason = "Pillow is built with zlib only (spec 023): a test that encodes or decodes JPEG, JPEG 2000 or TIFF without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pypdf-r-pillow-no-jpeg2k-or-tiff]"
+match = "4 finding(s), digest ce53bccd9909"
+reason = "Pillow is built with zlib and JPEG: a test that needs JPEG 2000 or TIFF's codecs without its own feature guard (README)"
+closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-no-tzset]"
@@ -1375,6 +1405,24 @@ closes_with = "docs/reference/limitations.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-dateutil-r-tz-cache]"
 match = "5 finding(s), digest 7c5e57bbd929"
 reason = "dateutil's gettz cache tests expect a zone rebuilt, or collected, once its cache is cleared or its last reference dropped; in the guest the same object comes back (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-docx-r-bytesio-mocked-in-a-fixture]"
+match = "3 finding(s), digest 1b847aee51c4"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-fixture]"
+match = "1 finding(s), digest a0b7ae79ecda"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[python-pptx-r-bytesio-mocked-in-a-test]"
+match = "2 finding(s), digest e61bb03c9e1b"
+reason = "these tests patch io.BytesIO for the whole interpreter, and the driver captures sys.stdout, since the guest cannot duplicate a descriptor for pytest's fd capture; pytest's sys capture asserts its buffer is an io.BytesIO, which the patch has made a mock (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
@@ -1684,8 +1732,14 @@ reason = "no processes: the guest cannot start one (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-collector-timing]"
+match = "2 finding(s), digest 972ddf3843c5"
+reason = "no threads and no event-loop socket (README): a stray event loop the collector frees meets one of the two tests at setup, the other fails and errors at teardown for want of threads, and the set's allocations choose which"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]"
-match = "11 finding(s), digest ca9d96e202af"
+match = "10 finding(s), digest 5e4afad71ed0"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1703,13 +1757,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]"
-match = "99 finding(s), digest 10c256abd391"
+match = "98 finding(s), digest 77e1b0dfaea7"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]"
-match = "117 finding(s), digest c5948e42a741"
+match = "116 finding(s), digest 53093d631048"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
@@ -1774,6 +1828,12 @@ reason = "it does not end within 4.5 T of fuel in the guest (measured), past the
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-uniform-P]"
+match = "1 finding(s), digest 8a6adb372535"
+reason = "it takes 3.54 T of fuel in the guest (measured under CPython 3.15.2), past the bound for one test, and its release leg ran past the job's 30 minutes; upstream marks it @slow and @XFAIL"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sympy-slow-issue-15227]"
 match = "1 finding(s), digest ac73574961e5"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
@@ -1803,4 +1863,220 @@ match = "1 finding(s), digest 860f19e090fc"
 reason = "it does not end within 3.0 T of fuel in the guest (measured), past the bound for one test; upstream marks it @slow or @tooslow"
 closes_with = "docs/reference/limitations.md"
 
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-mmap]"
+match = "160 finding(s), digest b6e954f1d951"
+reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README); two tests that expect a warning from such a read see the error first, as natively with mmap disabled (EXECUTED: the same 160 fail there). open_dataset(path, mmap=False) or a file object reads the same files"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-mmap]"
+match = "1 finding(s), digest 85f4fb642b63"
+reason = "no mmap: scipy's netCDF3 reader maps a file it is given by path, and the stand-in raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-backends-no-threads]"
+match = "1 finding(s), digest bfcb0ae2f20a"
+reason = "no threads: the guest cannot start one (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-arrays-no-asyncio-loop-error]"
+match = "8 finding(s), digest 2ac6f7795527"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, so pytest-asyncio's loop fixture fails before these async tests run (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-no-asyncio-loop-error]"
+match = "2 finding(s), digest 45e70b0a182e"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, so pytest-asyncio's loop fixture fails before these async tests run (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-coding-wasm32-int32]"
+match = "2 finding(s), digest 748082df66c4"
+reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32 where they expect int64 (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-wasm32-int32]"
+match = "1 finding(s), digest 5c5c74e56d8c"
+reason = "numpy's default integer is 32 bits on wasm32: the array DataArray(range(12)) makes is int32, so its DataFrame does not equal the int64 frame pandas builds from range(12) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-wasm32-int32]"
+match = "5 finding(s), digest 5d3acae212e5"
+reason = "numpy's default integer is 32 bits on wasm32, so an integer array these tests make without a dtype is int32: its repr's dtype and byte size, or its dtype, differ from the int64 the tests expect (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-dataset-fails-natively]"
+match = "1 finding(s), digest 3ecee5286156"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15, numpy 2.5.4, pandas 3.1.0, without pyarrow): the expected repr gives a categorical variable 32 bytes where pandas reports 36"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-pandas-multiindex-sel]"
+match = "1 finding(s), digest b79efce58684"
+reason = "pandas 3.1.0's MultiIndex.get_loc raises KeyError for a key longer than the index's depth where xarray 2026.9.0's test expects its own error; the same natively"
+closes_with = "context/roadmap.md (xarray's next release after 2026.9.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[xarray-r-rest-staged-tests-folder]"
+match = "1 finding(s), digest 2b788816806d"
+reason = "find_stack_level counts a frame in xarray's own tests folder as xarray's; here the tests run from the stage, outside the package's folder in the zip, so the test's frame is not counted (README)"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-smoke-no-pikepdf]"
+match = "5 finding(s), digest c1e8012630c8"
+reason = "these tests read back the PDF files they write with pikepdf, a compiled QPDF binding with no wasm32-wasip1 build; the test-side stand-in raises when one opens a file, and the PDF itself is written (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-smoke-no-ctypes-address]"
+match = "1 finding(s), digest 4b6da22c9017"
+reason = "an ImageSurface over a bytearray takes the buffer's address through ctypes, which the guest's ctypes stand-in cannot give; an array.array works (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-smoke-no-tmpfile]"
+match = "1 finding(s), digest 45752173f00a"
+reason = "cairo's PostScript surface writes through a temporary file, which the guest cannot make (wasi-libc has no tmpfile), so a PSSurface raises OSError; PNG, PDF and SVG work (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairosvg-smoke-no-tmpfile]"
+match = "1 finding(s), digest 1f6f51146c9f"
+reason = "cairo's PostScript surface writes through a temporary file, which the guest cannot make (wasi-libc has no tmpfile), so PostScript output raises OSError; PNG, PDF and SVG work (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-smoke-fails-natively]"
+match = "1 finding(s), digest 203f3373f081"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cairocffi-r-no-ctypes-address]"
+match = "1 finding(s), digest 62dc44d0a0e3"
+reason = "an ImageSurface over a numpy array takes the array's address through ctypes, which the guest's ctypes stand-in cannot give; an array.array works (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes]"
+match = "18 finding(s), digest 2a81304780a5"
+reason = "these tests reach a plugin that loads its library through ctypes (FreeImage's, or numpy's ctypes types in the SPE and SWF readers), and the guest's ctypes stand-in loads nothing: it raises OSError (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-processes]"
+match = "2 finding(s), digest 5d46248a937d"
+reason = "no processes: these tests start a Python subprocess to time imageio's import (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-fails-natively]"
+match = "1 finding(s), digest 72484ed24dfe"
+reason = "fails natively at these pins too (EXECUTED: CPython 3.15.2, Pillow 13.0.0, numpy 2.5.4): Pillow 13 no longer takes the 16-bit array mode imageio 2.38.1 passes"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-wasi-platform]"
+match = "1 finding(s), digest ed27b2c4ad3b"
+reason = "imageio's get_platform() names Windows, Linux, macOS and FreeBSD hosts only; the guest's sys.platform is wasi, so it answers None (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-legacy-tifffile]"
+match = "1 finding(s), digest fb547dd836c6"
+reason = "imageio writes this TIFF through its bundled legacy tifffile here, which calls ndarray.tostring, removed in numpy 2; natively the same test passes, its writer chosen otherwise (README)"
+closes_with = "context/roadmap.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-importlib-module-names]"
+match = "1 finding(s), digest d99827c37806"
+reason = "the test loads a dummy plugin from the module named test_core and checks it is the test's own class; the driver collects in pytest's importlib mode, where the test module is not sys.modules['test_core'], so the plugin comes from a second copy (natively in the importlib mode it fails the same, EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[imageio-r-no-ctypes-warning]"
+match = "1 finding(s), digest c41596d669c6"
+reason = "an unknown extension hint makes imageio try its legacy FreeImage plugin, which loads its library through ctypes; the guest's ctypes stand-in raises OSError there, so the UserWarning imageio gives natively for the hint is not given (EXECUTED) (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-read-only-source]"
+match = "11 finding(s), digest 846b7e7248f2"
+reason = "the test writes temp-plot.html beside its own file in the test source, a read-only grant (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-anywidget]"
+match = "8 finding(s), digest aec3b91ca335"
+reason = "FigureWidget needs anywidget, a notebook widget the set does not carry; plotly's stand-in raises ImportError, as natively without it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-scikit-image]"
+match = "4 finding(s), digest 49847f00ad63"
+reason = "create_ternary_contour needs scikit-image, which the set does not carry; it raises ImportError, as natively without it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-ipython]"
+match = "3 finding(s), digest 74b9b8f7a124"
+reason = "iplot shows a figure in an IPython notebook, which the guest is not; it raises ImportError, as natively outside one (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-polars-pyarrow]"
+match = "2 finding(s), digest 1a48de8f2108"
+reason = "the test reads plotly's datasets into polars and pyarrow frames, compiled packages the set does not carry (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-no-requests]"
+match = "1 finding(s), digest a7bc753c15be"
+reason = "the test imports requests as an example of an installed optional module; the set does not carry it, since the guest has no network (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-wasm32-maxsize]"
+match = "6 finding(s), digest 6790aef33c5e"
+reason = "sys.maxsize is 2**31 - 1 on wasm32, so the integer validator's default bounds are 32-bit where these tests expect 64-bit ones in its message (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[plotly-r-fails-natively-in-one-session]"
+match = "1 finding(s), digest b939ae7e9431"
+reason = "test_colors.py's test_sample_colorscale converts colors.sequential.Inferno to rgb in place, and the colorscale validator's test of Inferno_r, later in the same session, reads the changed scale; natively the two files in one session fail the same way (EXECUTED), and each passes alone"
+closes_with = "context/roadmap.md"
+
 # The pure-Python packages' own tests. (end)
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[scikit-learn-datasets-pandas-categories]"
+match = "27 finding(s), digest 8c1a60010878"
+reason = "pandas 3.1.0 infers numeric categories, which scikit-learn 1.9.1's ARFF parser passes to re.search; the same natively"
+closes_with = "context/roadmap.md (scikit-learn's next release after 1.9.1)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-graphics-to-multivariate-factor_rotation-pandas-inplace-deprecated]"
+match = "1 finding(s), digest 82bac031654f"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-1-pandas-inplace-deprecated]"
+match = "12 finding(s), digest 76bd163207a3"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[statsmodels-tsa-statespace-2-pandas-inplace-deprecated]"
+match = "1 finding(s), digest f67d1c49b4ee"
+reason = "pandas 3.1.0 deprecates the inplace keyword statsmodels 0.15.0 passes; the same natively"
+closes_with = "context/roadmap.md (statsmodels' next release after 0.15.0)"

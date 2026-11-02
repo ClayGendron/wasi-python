@@ -1,0 +1,11 @@
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_config
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_config_bad_options
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_default_plot_generates_expected_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_include_mathjax_cdn_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_include_mathjax_false_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_include_mathjax_path_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_including_plotlyjs_cdn_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_including_plotlyjs_directory_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_including_plotlyjs_false_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_including_plotlyjs_path_html
+tests/test_core/test_offline/test_offline.py::PlotlyOfflineTestCase::test_including_plotlyjs_truthy_html

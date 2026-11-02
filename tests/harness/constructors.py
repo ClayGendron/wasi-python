@@ -33,7 +33,14 @@ REVIEWED_CONSTRUCTORS = (
     "init",  # wasi-libc: the preopened directories
     "__wasilibc_initialize_environ_eagerly",  # wasi-libc: environ
     "_GLOBAL__I_000100",  # libc++'s iostream.cpp: std::ios_base::Init, the standard streams
-    "_mi_process_init",  # CPython's mimalloc
+    # CPython's mimalloc (2.5 from CPython 3.15.2): mi_process_attach, constructor(101), calls
+    # _mi_auto_process_init, the steps the older _mi_process_init's mi_process_load took (the
+    # main heap, the MIMALLOC_* options read with getenv, the process init, the random reseed)
+    # but its atexit; nothing of Python. The atexit is now wasm-ld's: mi_process_detach is a
+    # destructor(101), which .Lregister_call_dtors.101 registers with atexit, so at exit
+    # mimalloc's mi_process_done runs as it did before.
+    "mi_process_attach",
+    ".Lregister_call_dtors.101",
     "register_builtin_extensions",  # scripts/gen_inittab.py: PyImport_AppendInittab only
     # kiwisolver.cpp: kiwi::strength's four doubles and a std::recursive_mutex, its destructor
     # registered with __cxa_atexit

@@ -270,14 +270,15 @@ def test_a_release_has_its_structural_review() -> None:
     assert not errors, scan.report(errors)
 
 
-def test_a_release_has_its_release_notes_review() -> None:
-    """A released version whose notes are written for the reader (above 0.1.1) has a review of
-    those notes by someone who wrote none of them, read as an embedder would, ending with its
-    verdict. A prerelease needs none from the judge: its string is what the tree carries all
-    cycle."""
+def test_a_releases_security_review_reads_its_notes() -> None:
+    """A released version whose notes are written for the reader (above 0.1.1) has those notes
+    read by someone who wrote none of them, as an embedder would, in a "Release notes" section of
+    its review against the threat model; a release up to 0.1.2 may have had that read in a review
+    file of its own, ending with its verdict. A prerelease needs none from the judge: its string
+    is what the tree carries all cycle."""
     version = _release_version_module()
     current = version.read_version(version.INIT.read_text())
-    errors = scan.release_notes_review_errors(current, paths.CONTEXT / "reviews")
+    errors = scan.release_notes_read_errors(current, paths.CONTEXT / "reviews")
     assert not errors, scan.report(errors)
 
 
@@ -302,7 +303,7 @@ def test_generated_pages_are_current() -> None:
     _, api_block = api.render()
     pages = [
         (api.PAGE, api.readme_block, api_block, api.WRITE),
-        (cli_doc.PAGE, cli_doc.page_block, cli_doc.render(cli_doc.live_parser()), cli_doc.WRITE),
+        (cli_doc.PAGE, cli_doc.page_block, cli_doc.live_block(), cli_doc.WRITE),
     ]
     errors = []
     for page, read_block, live, write in pages:
@@ -452,18 +453,76 @@ VERDICT_BEARING = (
     "tests/known_gaps.toml",
     "tests/upstream/*.toml",
     "tests/upstream/expected/**",
+    "tests/upstream/stand-ins/**",
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims/**",
 )
+
+
+def test_the_release_ledger_holds_claim_blocks_in_their_shape() -> None:
+    """Each file of the release ledger, and every block its history keeps under a version, is
+    `[[claim]]` tables in the news files' claim shape, so a broken block is red on the pull
+    request that adds it, not at the release pull request that reads it."""
+    from harness import news
+
+    errors = []
+    for name, text in news.ledger_files(paths.REPO / news.LEDGER).items():
+        try:
+            news.ledger_file_claims(name, text)
+        except news.NewsError as e:
+            errors.append(str(e))
+    history_file = paths.REPO / news.LEDGER_HISTORY
+    text = history_file.read_text(encoding="utf-8") if history_file.is_file() else ""
+    if not text:
+        errors.append(f"{news.LEDGER_HISTORY} is missing or empty")
+    for n, block in enumerate(news.FENCE.findall(text), 1):
+        try:
+            news.ledger_tables(f"{news.LEDGER_HISTORY} block {n}", block)
+        except news.NewsError as e:
+            errors.append(str(e))
+    assert not errors, scan.report(errors)
+
+
+def test_the_release_ledger_is_a_file_per_pull_request() -> None:
+    """The release ledger is a folder of one file per pull request, each named after its news
+    file, `NNN-<slug>.toml`, beside the folder's README: two open pull requests that each write
+    a reason for the release write two files, so neither conflicts with the other's merge. The
+    single file every pull request once appended to does not come back, and every table header
+    is written `[[claim]]`."""
+    from harness import news
+
+    errors = []
+    if (paths.REPO / news.OLD_LEDGER).exists():
+        errors.append(
+            f"{news.OLD_LEDGER} is back: a pull request writes its claim blocks in its own file, "
+            f"{news.LEDGER}/NNN-<slug>.toml, named after its news file"
+        )
+    folder = paths.REPO / news.LEDGER
+    if not (folder / "README.md").is_file():
+        errors.append(f"{news.LEDGER}/README.md is missing: it keeps the folder and says its rule")
+    for p in sorted(folder.iterdir()) if folder.is_dir() else ():
+        if p.name != "README.md" and not news.LEDGER_NAME.fullmatch(p.name):
+            errors.append(f"{news.LEDGER}/{p.name}: a ledger file is named NNN-<slug>.toml")
+    # Every array-of-tables header is `[[claim]]` alone at the start of its line: TOML reads
+    # `[[ claim ]]`, `[["claim"]]` and an indented header as the same table, which a reader of
+    # the text would miss.
+    for name, text in news.ledger_files(folder).items():
+        try:
+            tables = len(news.ledger_tables(name, text))
+        except news.NewsError:
+            continue  # the shape check names it
+        errors += [f"{news.LEDGER}/{name}: {e}" for e in news.header_errors(text, tables)]
+    assert not errors, scan.report(errors)
 
 
 def test_the_verdict_bearing_files_are_judge_files() -> None:
     """The list `--accept-judge` reads names the known gaps, the upstream suites' allowances, their
-    expected failures, CPython's plan, the shard plan, the public API's list and the release tier's
-    claims, and nothing else; each entry matches a file the judge's hash holds, so a change to one
-    is seen as a judge change and none of them is a name that matches nothing."""
+    expected failures, their test-side stand-ins, CPython's plan, the shard plan, the public API's
+    list and the release tier's claims, and nothing else; each entry matches a file the judge's
+    hash holds, so a change to one is seen as a judge change and none of them is a name that
+    matches nothing."""
     errors = []
     if paths.VERDICT_BEARING != VERDICT_BEARING:
         errors.append(f"paths.VERDICT_BEARING is {paths.VERDICT_BEARING}, not {VERDICT_BEARING}")
@@ -585,29 +644,44 @@ def test_every_action_is_pinned_by_commit() -> None:
 
 def test_every_job_checks_out_the_head_commit() -> None:
     """A pull request's jobs check out its head, never the merge ref: the merge ref is a merge
-    commit nobody will merge, which the history rules refuse, and the up-to-date rule makes the
-    head the tree the squash puts on dev."""
+    commit nobody will merge, which the history rules refuse; the head is judged as it is, and
+    the tree the squash puts on dev is judged by the run after the merge."""
     errors = scan.checkout_ref_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
 
+# (the needs' results, the plan's refusals, its publish output, whether ci-status is red)
 CI_STATUS_CASES = {
     "every job succeeded or was skipped": (
         {"plan": "success", "quick": "success", "build": "skipped"},
         "[]",
+        "false",
         0,
     ),
-    "a failed job": ({"plan": "success", "quick": "failure"}, "[]", 1),
-    "a cancelled job": ({"plan": "success", "gather": "cancelled"}, "[]", 1),
-    "a refusal": ({"plan": "success"}, '["a pull request may not write accepted state"]', 1),
-    "no plan": ({"plan": "failure"}, "", 1),
+    "a failed job": ({"plan": "success", "quick": "failure"}, "[]", "false", 1),
+    "a cancelled job": ({"plan": "success", "gather": "cancelled"}, "[]", "false", 1),
+    "a refusal": (
+        {"plan": "success"},
+        '["a pull request may not write accepted state"]',
+        "false",
+        1,
+    ),
+    "no plan": ({"plan": "failure"}, "", "", 1),
+    "a tag that published": ({"plan": "success", "publish": "success"}, "[]", "true", 0),
+    "a tag whose publish was skipped": (
+        {"plan": "success", "judged": "skipped", "publish": "skipped"},
+        "[]",
+        "true",
+        1,
+    ),
 }
 
 
 @pytest.mark.parametrize("case", CI_STATUS_CASES)
 def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path) -> None:
     """ci-status's own step, run in bash with this environment's python3: green only when every
-    job it needs succeeded or was skipped and the plan refused nothing."""
+    job it needs succeeded or was skipped and the plan refused nothing, and, when the plan said
+    the run publishes, publish ran: a tag that published nothing is never green."""
     import json
 
     script = scan.workflow_step_script(
@@ -615,7 +689,7 @@ def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path)
         "ci-status",
         "Every job succeeded or was skipped, and the plan refused nothing",
     )
-    results, refusals, want = CI_STATUS_CASES[case]
+    results, refusals, publish, want = CI_STATUS_CASES[case]
     (tmp_path / "status.sh").write_text(script)
     r = subprocess.run(
         ["bash", "-e", str(tmp_path / "status.sh")],
@@ -623,6 +697,7 @@ def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path)
             "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
             "NEEDS": json.dumps({job: {"result": v, "outputs": {}} for job, v in results.items()}),
             "REFUSALS": refusals,
+            "PUBLISH": publish,
         },
         capture_output=True,
         text=True,
@@ -630,12 +705,38 @@ def test_ci_status_fails_on_a_job_that_did_not_pass_or_a_refusal(case, tmp_path)
     assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
 
 
+REVIEW_CASES = {
+    "the review file holds": ("[]", 0),
+    "a refusal": ('["context/reviews/x-pr-2026-10-30.md: its Reviewer: line is empty"]', 1),
+    "no plan": ("", 1),
+}
+
+
+@pytest.mark.parametrize("case", REVIEW_CASES)
+def test_the_review_job_fails_on_a_review_refusal_or_no_plan(case, tmp_path) -> None:
+    """The review job's own step, run in bash: green only when the plan's review_refusals is the
+    empty list, so a plan that failed leaves it red rather than skipped."""
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(), scan.REVIEW_JOB, "The plan refused no review file"
+    )
+    refusals, want = REVIEW_CASES[case]
+    (tmp_path / "review.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "review.sh")],
+        env={"PATH": "/usr/bin:/bin", "REVIEW_REFUSALS": refusals},
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
+
+
 def test_one_required_check_holds_every_job() -> None:
-    """ci-status is the one required check: it always runs, needs every other job, and passes
-    only when each succeeded or was skipped by the plan and the plan refused nothing; every other
-    job gates on the decision job's outputs with if:, never a paths: filter, so a skipped job
-    reports success and the check is always reported; only a pull request's older run is
-    cancelled."""
+    """ci-status is the one required check: it always runs, needs every other job but the
+    review, and passes only when each succeeded or was skipped by the plan and the plan refused
+    nothing; every other job gates on the decision job's outputs with if:, never a paths: filter,
+    so a skipped job reports success and the check is always reported; only a pull request's
+    older run is cancelled. The review job is a check of its own on every pull request into dev:
+    it needs the plan alone and fails while the plan refuses the review file."""
     errors = scan.ci_status_errors(RELEASE_WORKFLOW.read_text())
     assert not errors, scan.report(errors)
 
@@ -683,10 +784,60 @@ def test_the_release_pull_request_checks_what_its_tag_will() -> None:
 
 
 def test_the_weekly_run_opens_an_issue_when_red_and_never_accepts() -> None:
-    """The weekly schedule and the dispatch input that selects its shape; one job with issues:
-    write that opens or updates an issue when a job of the run failed or was cancelled; the
+    """The weekly schedule and the dispatch input that selects its shape; the red-run issue job
+    (held below) opens or updates an issue when a job of the run failed or was cancelled; the
     accept jobs run on a merge into dev alone."""
     errors = scan.weekly_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
+# Every event the workflow runs on: (its name, ref, base, the files it changes, the dispatch's
+# weekly input) and what the red-run issue job does when the run is red and when it is green.
+NOTHING: tuple[set[str], set[str]] = (set(), set())
+CODE = ["src/x.py"]
+PR = "refs/pull/9/merge"
+DEV = "refs/heads/dev"
+RED_RUN_EVENTS = {
+    "a pull request into dev": (("pull_request", PR, "dev"), CODE, NOTHING),
+    "a pull request into main": (("pull_request", PR, "main"), CODE, NOTHING),
+    "a merge into dev": (("push", DEV, ""), CODE, ({"open"}, {"close"})),
+    "the acceptance's push": (("push", DEV, ""), ["context/progress/accepted.json"], NOTHING),
+    "a pushed tag": (("push", "refs/tags/v0.1.3", ""), None, NOTHING),
+    "the weekly run": (("schedule", DEV, ""), None, ({"open"}, set())),
+    "the weekly run, dispatched": (("workflow_dispatch", DEV, "", True), None, ({"open"}, set())),
+    "a dispatch": (("workflow_dispatch", DEV, ""), None, NOTHING),
+}
+
+
+def test_the_red_run_issue_opens_on_a_red_merge_or_weekly_run_and_on_nothing_else() -> None:
+    """A run after a merge into dev, or the weekly run, that ends red opens one issue titled by
+    its red legs, or comments on the one open of its kind; a green run after a merge closes the
+    open one; no other run, red or green, touches an issue. The job holds issues: write, and no
+    other job of the workflow does."""
+    ci_plan = _ci_plan_module()
+    text = RELEASE_WORKFLOW.read_text()
+    errors = scan.red_run_issue_errors(text)
+    for case, (event, changed, want) in RED_RUN_EVENTS.items():
+        name, ref, base, *weekly = event
+        e = ci_plan.Event(name, ref, base, weekly=bool(weekly))
+        d = ci_plan.decide(changed, e)
+        outputs = ci_plan.outputs(d, ci_plan.select(d, ci_plan.load_shards()), [])
+        kind = "tag" if ref.startswith("refs/tags/") else "branch"
+        context = {"event_name": name, "ref": ref, "ref_type": kind, "base_ref": base}
+        for red, wanted in zip((True, False), want, strict=True):
+            got = scan.red_run_issue_acts(text, outputs, context, red)
+            if got != wanted:
+                errors.append(f"{case}, {'red' if red else 'green'}: the issue job does {got}")
+    # A run whose plan failed has no outputs and judged nothing: on a push to dev it is a red dev
+    # (the plan cannot say whether the push was a merge or an acceptance), so it opens the issue;
+    # on any other event it touches none.
+    for case, (event, *_) in RED_RUN_EVENTS.items():
+        name, ref, base, *_ = event
+        context = {"event_name": name, "ref": ref, "ref_type": "branch", "base_ref": base}
+        got = scan.red_run_issue_acts(text, {}, context, red=True, plan_failed=True)
+        wanted = {"open"} if (name, ref) == ("push", DEV) else set()
+        if got != wanted:
+            errors.append(f"{case}, its plan failed: the issue job does {got}")
     assert not errors, scan.report(errors)
 
 
@@ -900,6 +1051,37 @@ def test_every_build_host_has_its_whole_table() -> None:
         (scripts / "00_download.sh").read_text(),
         paths.read_pin_list(),
     )
+    assert not errors, scan.report(errors)
+
+
+def test_the_builds_wasmtime_is_the_runners_line() -> None:
+    """The wasmtime command line that makes the snapshot is on the runner's major version: the
+    judge compares fuel within one major, so a snapshot made by another major's `wasmtime wizer`
+    would be judged by an engine it was not made for. Each build host's `WASMTIME_DIR` in
+    scripts/line.conf names a version whose major is the one the runner's pin admits."""
+    pin = re.search(
+        r'^PIN = "wasmtime>=(\d+),<(\d+)"$',
+        (paths.REPO / "src" / "wasi_python" / "_wasmtime_ffi.py").read_text(encoding="utf-8"),
+        re.M,
+    )
+    assert pin and int(pin[2]) == int(pin[1]) + 1, "the runner's pin is not one wasmtime major"
+    found = {
+        host: value
+        for host, name, value in scan.CONF_HOST_LINE.findall(
+            (paths.REPO / "scripts" / "line.conf").read_text()
+        )
+        if name == "WASMTIME_DIR"
+    }
+    assert found, "scripts/line.conf names no WASMTIME_DIR"
+    errors = []
+    for host, folder in sorted(found.items()):
+        version = re.fullmatch(r"wasmtime-v(\d+)\.\d+\.\d+-[a-z0-9_]+-[a-z]+", folder)
+        if version is None:
+            errors.append(f"{host}_WASMTIME_DIR={folder} names no wasmtime version")
+        elif version[1] != pin[1]:
+            errors.append(
+                f"{host}_WASMTIME_DIR={folder}: major {version[1]}, the runner's is {pin[1]}"
+            )
     assert not errors, scan.report(errors)
 
 
@@ -1117,7 +1299,8 @@ def test_every_package_names_its_own_suite() -> None:
 def test_release_judges_in_shards() -> None:
     """The release runs the shards the plan selects in their system's judge job, each leg
     uploading its record under its own name, names no shard by hand, and publishes nothing until
-    the gather, which holds no assets, has read every record."""
+    the judged job has held the bytes to the release pull request's acceptance; the gather holds
+    no assets and reads every record."""
     from harness import shards
 
     errors = scan.release_shard_errors(RELEASE_WORKFLOW.read_text(), shards.load())
@@ -1156,9 +1339,9 @@ def _ci_plan_module() -> types.ModuleType:
     return mod
 
 
-# Every event of the release shape: each judges the whole plan, both tiers, and rebuilds.
+# Every event of the release shape that judges: each judges the whole plan, both tiers, and
+# rebuilds. A pushed tag rebuilds and judges nothing (the rows below).
 RELEASE_SHAPES = {
-    "a pushed tag": ("push", "refs/tags/v0.1.1", ""),
     "a pull request into main": ("pull_request", "refs/pull/9/merge", "main"),
     "a dispatch on main": ("workflow_dispatch", "refs/heads/main", ""),
     "the weekly run": ("schedule", "refs/heads/dev", ""),
@@ -1186,6 +1369,101 @@ def test_the_judge_matrices_are_the_shard_plan_on_every_release(shape) -> None:
     if not (d.rebuild and sel["build"] and d.tier == "release"):
         errors.append(f"{shape}: rebuild {d.rebuild}, build {sel['build']}, tier {d.tier}")
     assert not errors, scan.report(errors)
+
+
+# The jobs a pushed tag's run starts, every one taken to succeed: the compile and both rebuilds,
+# the vote, the wheel installed fresh on three systems, the proof that these are the accepted
+# bytes on the judged tree, the signature and the release. PyPI waits on the owner's switch.
+TAG_RUN = {
+    "plan",
+    "quick",
+    "inputs",
+    "build",
+    "rebuild-linux-x86-64",
+    "rebuild-macos-arm64",
+    "same-bytes",
+    "verify",
+    "judged",
+    "attest",
+    "publish",
+    "ci-status",
+}
+
+
+def test_a_tag_publishes_what_the_release_pull_request_judged() -> None:
+    """A pushed tag compiles the set from its pins and requires the same bytes from three hosts;
+    the judged job, after the build and same-bytes and on a tag alone, holds those bytes and the
+    tagged tree to the release pull request's acceptance (the build job holds the tree first,
+    before its compile), and attest and publish need it. No judge leg, build shard or gather runs
+    on it: the release pull request judged that tree. On every other event judged does not run."""
+    errors = scan.tag_run_errors(RELEASE_WORKFLOW.read_text())
+    ci_plan = _ci_plan_module()
+    text = RELEASE_WORKFLOW.read_text()
+    events = {
+        "a pushed tag": (("push", "refs/tags/v0.1.3", ""), "tag"),
+        "a pull request into main": (("pull_request", "refs/pull/9/merge", "main"), "branch"),
+        "the weekly run": (("schedule", "refs/heads/dev", ""), "branch"),
+        "a dispatch on a tag": (("workflow_dispatch", "refs/tags/v0.1.3", ""), "tag"),
+    }
+    for what, ((name, ref, base), ref_type) in events.items():
+        d = ci_plan.decide(
+            None if name != "pull_request" else ["src/x.py"], ci_plan.Event(name, ref, base)
+        )
+        outputs = ci_plan.outputs(d, ci_plan.select(d, ci_plan.load_shards()), [])
+        context = {"event_name": name, "ref": ref, "ref_type": ref_type, "base_ref": base}
+        ran = scan.jobs_that_run(text, outputs, context)
+        if what == "a pushed tag" and ran != TAG_RUN:
+            errors.append(f"a pushed tag runs {sorted(ran ^ TAG_RUN)} beside or instead of these")
+        if what != "a pushed tag" and ran & {"judged", "attest", "publish"}:
+            errors.append(f"{what} runs {sorted(ran & {'judged', 'attest', 'publish'})}")
+    assert not errors, scan.report(errors)
+
+
+# PyPI's file limit for a project it has not raised, 100 MiB (https://pypi.org/help/#file-size-limit).
+PYPI_DEFAULT_LIMIT = 104_857_600
+WHEEL = "wasi_python-0.1.3-py3-none-any.whl"
+# (the pypi job's condition, the granted limit's variable, the wheels' sizes, 1 when it refuses)
+PYPI_LIMIT_CASES = {
+    "no upload, a wheel past the default": ("false", "", [PYPI_DEFAULT_LIMIT + 1], 0),
+    "the default, a wheel at it": ("true", "", [PYPI_DEFAULT_LIMIT], 0),
+    "the default, a wheel one byte past": ("true", "", [PYPI_DEFAULT_LIMIT + 1], 1),
+    "256 MiB granted, a wheel past the default": ("true", "268435456", [PYPI_DEFAULT_LIMIT + 1], 0),
+    "256 MiB granted, a wheel one byte past": ("true", "268435456", [268_435_457], 1),
+    "a grant that is not a number": ("true", "256MiB", [1000], 1),
+    "a grant of zero": ("true", "0", [1000], 1),
+    "a grant with a leading zero": ("true", "0268435456", [1000], 1),
+    "a grant too long to compare": ("true", "9" * 30, [1000], 1),
+    "a grant that is negative": ("true", "-1", [1000], 1),
+    "no wheel": ("true", "", [], 1),
+    "two wheels": ("true", "", [1000, 1000], 1),
+}
+
+
+@pytest.mark.parametrize("case", PYPI_LIMIT_CASES)
+def test_a_tag_refuses_a_wheel_past_pypis_grant(case, tmp_path) -> None:
+    """The judged job's limit step, run in bash on a sparse wheel of each size: when the tag
+    uploads to PyPI, a wheel past the limit PyPI has granted (100 MiB while the repository
+    variable is unset) stops the run before anything is signed or published, and so does a grant
+    that is not a plain whole number or a build that did not make one wheel; when it does not
+    upload, any size passes, since the GitHub release takes it."""
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(), scan.TAG_PROOF_JOB, scan.PYPI_LIMIT_STEP
+    )
+    to_pypi, granted, sizes, want = PYPI_LIMIT_CASES[case]
+    assets = tmp_path / "release-assets"
+    assets.mkdir()
+    for i, size in enumerate(sizes):
+        with (assets / (WHEEL if i == 0 else f"other-{WHEEL}")).open("wb") as f:
+            f.truncate(size)
+    (tmp_path / "limit.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "limit.sh")],
+        cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "TO_PYPI": to_pypi, "PYPI_FILE_LIMIT_GRANTED": granted},
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
 
 
 # The wasi-libc emulation layer reads alone: five modules, which ask their host nine questions
@@ -1233,14 +1511,14 @@ def test_the_filesystem_imports_only_itself_and_the_engine_seam() -> None:
     assert not hits, scan.report(hits)
 
 
-# The platform is chosen once. `src/wasi_python/_platform.py` holds the one interface, the POSIX,
-# Linux and macOS hosts and the choice, bound to `PLATFORM` at import by `_select`, the one
-# function in the package that reads `sys.platform` or `os.name`; `_platform_windows.py` holds
-# Windows, and `_platform_common.py` what both families run, below both. Every caller reads
-# `_platform.PLATFORM` through its module at the call, so a check that binds another platform
-# for its duration is seen by every caller. A reader who asks what Windows does differently
-# opens `_platform_windows.py`, and `_platform.py`'s docstring lists every difference. Only
-# `_platform.py` imports the Windows module or names the Windows class (by import, as an
+# The platform is chosen once. `src/wasi_python/_platform.py` holds the one interface and the
+# choice, bound to `PLATFORM` at import by `_select`, the one function in the package that reads
+# `sys.platform` or `os.name`; `_platform_posix.py` holds the POSIX, Linux and macOS hosts,
+# `_platform_windows.py` Windows, and `_platform_common.py` what both families run, below both.
+# Every caller reads `_platform.PLATFORM` through its module at the call, so a check that binds
+# another platform for its duration is seen by every caller. A reader who asks what Windows does
+# differently opens `_platform_windows.py`, and `_platform.py`'s docstring lists every difference.
+# Only `_platform.py` imports the Windows module or names the Windows class (by import, as an
 # attribute such as `_platform._Windows`, or bare): a caller that made a Windows platform itself
 # would choose a platform outside `_select`.
 PLATFORM_MODULE = "_platform.py"
@@ -1315,22 +1593,24 @@ def _platform_hits(package: Path) -> list[str]:
     return hits
 
 
-# The platform's door. What both platform families share lives in `_platform_common.py` and
-# what Windows does in `_platform_windows.py`; every other module reaches either through
-# `_platform`, which has a delegate for what a caller needs of the shared half, so the platform
-# module stays the one place a reader looks. Only the platform modules import the halves:
-# `_platform_common` by `_platform.py` and `_platform_windows.py`, `_platform_windows` by
-# `_platform.py`.
+# The platform's door. `_platform.py` holds the interface and the choice; the POSIX hosts live
+# in `_platform_posix.py`, Windows in `_platform_windows.py`, and what both families run in
+# `_platform_common.py`, below both. Every other module reaches them through `_platform`, which
+# has a delegate for what a caller needs of the shared half, so the platform module stays the one
+# place a reader looks. Only the platform modules import the others: `_platform_common` by
+# `_platform.py` and the two host modules, each host module by `_platform.py` alone, so neither
+# host module imports the other.
 PLATFORM_HALVES = {
-    "_platform_common": ("_platform.py", "_platform_windows.py"),
+    "_platform_common": ("_platform.py", "_platform_posix.py", "_platform_windows.py"),
+    "_platform_posix": (PLATFORM_MODULE,),
     PLATFORM_WINDOWS: (PLATFORM_MODULE,),
 }
 
 
 def test_only_the_platform_modules_import_its_halves() -> None:
-    """No module under `src/wasi_python/` imports `_platform_common` or `_platform_windows`,
-    at module level, inside a function or under `TYPE_CHECKING`, but the platform modules
-    PLATFORM_HALVES names; every other caller goes through `_platform`."""
+    """No module under `src/wasi_python/` imports `_platform_common`, `_platform_posix` or
+    `_platform_windows`, at module level, inside a function or under `TYPE_CHECKING`, but the
+    platform modules PLATFORM_HALVES names; every other caller goes through `_platform`."""
     package = paths.REPO / "src" / "wasi_python"
     hits = []
     for path in sorted(package.glob("*.py")):
@@ -1410,13 +1690,13 @@ LONG_FUNCTIONS_FIX = (
 LONG_FUNCTIONS = {
     # The two entry points and the session's opening each validate every argument before any
     # work; a shared argument object would carry the checks out of them.
-    "runner.py:run": 156,
-    "runner.py:run_async": 181,
-    "runner.py:Session.__init__": 178,
-    "runner.py:Session.run_async": 81,
-    "_sessions.py:_open_session": 142,
+    "runner.py:run": 182,
+    "runner.py:run_async": 217,
+    "runner.py:Session.__init__": 187,
+    "runner.py:Session.run_async": 102,
+    "_sessions.py:_open_session": 140,
     # The engine instance's assembly: the linker, the store and the imports, one builder each.
-    "_call.py:_instance": 157,
+    "_call.py:_instance": 146,
     # The process object's fields, one line each; a dataclass would make them declarations.
     "_process.py:_Process.__init__": 84,
 }
@@ -1531,8 +1811,9 @@ def test_the_set_key_names_every_build_input() -> None:
 
 def test_the_release_reuses_a_set_only_on_a_branch() -> None:
     """Only a dispatch on a branch other than main reuses a set; the build job's conditional
-    steps, build-shard, the cache's readers and writers, and set-cache.yml follow the reuse
-    rules: where a set may be reused, how it is checked, who writes the cache and who reads it."""
+    steps, the rebuild jobs (the build shard in the x86_64 one, on its clean tree), what the
+    gather waits for, the cache's readers and writers, and set-cache.yml follow the reuse rules:
+    where a set may be reused, how it is checked, who writes the cache and who reads it."""
     errors = scan.release_reuse_errors(
         RELEASE_WORKFLOW.read_text(),
         SET_CACHE_WORKFLOW.read_text() if SET_CACHE_WORKFLOW.is_file() else "",

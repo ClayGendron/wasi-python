@@ -6,25 +6,25 @@ package = "soupsieve"
 driver = "package"
 grant = "/upstream-soupsieve"
 test_source = true
-wheel = "soupsieve-3.0.3-py3-none-any.whl"
-budget = 83_000_000_000
+wheel = "soupsieve-3.0.4-py3-none-any.whl"
+budget = 303_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 cwd = "tree"
 markers = []
 
 [groups.soupsieve-smoke]
-paths = ["tests/test_api.py", "tests/test_level1"]
-smoke = "a few files that import the package from the zip and run its core paths"
-fuel = 35_000_000_000
-measured = 23_162_936_298
+paths = ["tests/test_level1"]
+smoke = "the level 1 selector files, which import the package from the zip and run its core paths; test_api.py runs in the release tier since soupsieve 3.0.4 added two tests that match a selector for each of about 63,000 code points (about 141 G of guest fuel)"
+fuel = 23_000_000_000
+measured = 15_105_111_246
 
 [groups.soupsieve-r]
 paths = ["tests"]
 tier = "release"
 release_by = "path"
-fuel = 48_000_000_000
-measured = 31_357_696_081
+fuel = 280_000_000_000
+measured = 185_775_554_340
 
 [[expected]]
 id = "no-alarm"

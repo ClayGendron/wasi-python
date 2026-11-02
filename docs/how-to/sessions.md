@@ -22,13 +22,13 @@ with Session(grants=[Grant("data", "/data")]) as session:
 
 A turn runs in `__main__`, as the interactive interpreter runs it and as a Jupyter kernel runs a cell:
 
-- **A final expression is echoed.** `df.head()` as the last line prints it.
+- **A final expression is echoed.** `df.head()` as the last line prints it. In a session with `results=True`, it is returned as `Completed.value` instead: see [Read a cell's value and displays](results.md).
 - **An exception is reported** with its traceback, which names `<turn N>` and shows the turn's source lines. The turn's `exit_code` is 1, and the session goes on.
 - **`sys.exit(n)` is reported** as the turn's `exit_code`, and the session goes on.
 - **`exit(n)` and `quit()` end the session.** The turn stops at that line and returns its status; then the session runs Python's shutdown and ends with `ended == "quit"`.
 - **`os._exit(n)` ends the session at once**, with no shutdown.
 
-A session has no argv and no stdin: a turn's input is its code, and `sys.stdin.read()` returns `""`. Turns of one session run one at a time. A second turn while one runs raises `RuntimeError`.
+A session has no argv. A turn's input is its code, and `sys.stdin.read()` returns `""`, unless the turn is given its own `stdin`: `session.run(code, stdin=b"...")` makes `sys.stdin` a reader over those bytes for that turn alone. It has no descriptor, so `sys.stdin.fileno()` raises, and descriptor 0 stays empty. Turns of one session run one at a time. A second turn while one runs raises `RuntimeError`.
 
 ## Know what is per session and what is per turn
 
@@ -40,7 +40,7 @@ A session has no argv and no stdin: a turn's input is its code, and `sys.stdin.r
 | `idle_s`, `lifetime_s`, `shutdown_s` | per session: they bound the session and its ending |
 | `fuel`, `deadline_s`, `output_bytes` | per turn: the session's value is each turn's default, and `session.run(code, fuel=…)` may pass its own |
 | `max_file_calls`, `max_tool_calls`, `max_tool_request_bytes` | per turn, set once on the session: each turn gets the full allowance |
-| `cancel` | per turn only |
+| `cancel`, `stdin`, `on_output`, `output_keep` | per turn only |
 
 `Session(fuel=N)` opens a *metered* session, whose turns each get `N` instructions of fuel. `Session()` is unmetered, and its turns report `fuel_used=None`.
 
@@ -91,7 +91,7 @@ with Session(grants=[Grant(keep, "/keep")]) as later:
 
 ## Keep trust levels apart
 
-A session is one trust domain. An earlier turn can hook `builtins`, `print` or the runtime's own module, and so read every later turn's source, rewrite what it prints, or make it report exit 0. A secret any turn put in the guest stays readable for the rest of the session. Never send a more trusted turn, such as a check whose exit code you believe, after less trusted code in the same session: open a new session for it.
+A session is one trust domain. An earlier turn can hook `builtins`, `print` or the runtime's own module, and so read every later turn's source, rewrite what it prints, or make it report exit 0. A secret any turn put in the guest stays readable for the rest of the session. Never send a more trusted turn, such as a check whose exit code you believe, after less trusted code in the same session: open a new session for it. The same holds for a [checkpoint](snapshots.md#checkpoint-a-session-and-fork-it): every start from it runs the session's hooks and can read every byte the session read.
 
 While it is open, a session holds on the host its store, every file its guest opened, up to `memory_bytes` of memory and up to `memory_bytes` of mount staging. For untrusted code, give a short `idle_s` and call `close()` promptly.
 

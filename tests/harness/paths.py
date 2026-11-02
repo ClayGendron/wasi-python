@@ -107,6 +107,7 @@ LICENCE_COMPONENTS = (
     "bzip2",
     "xz",
     "sqlite",  # public domain: its tarball has no licence file, so its blessing is checked
+    "zstd",  # BSD-3-Clause, the side of its dual licence the set takes (TOP_LICENCE)
     "python-dateutil",
     "tzdata",
     "six",
@@ -131,6 +132,8 @@ LICENCE_COMPONENTS = (
     # LICENSE_YORICK for its GIST-derived code, and qhull, now linked
     "contourpy",
     "qhull",
+    # Pillow's JPEG codec: libjpeg-turbo's LICENSE.md and the IJG terms of its README.ijg
+    "libjpeg-turbo",
     # lxml
     "libxml2",
     "libxslt",
@@ -180,6 +183,31 @@ LICENCE_COMPONENTS = (
     "formulaic",
     "interface-meta",
     "wrapt",
+    # python-docx and python-pptx, each its sdist's MIT licence
+    "python-docx",
+    "python-pptx",
+    # pdfplumber, its wheel's MIT licence; pdfminer.six, its MIT licence and the notices in its
+    # code; xarray, its Apache-2.0 licence and its sdist's licenses folder
+    "pdfplumber",
+    "pdfminer-six",
+    "xarray",
+    # drawsvg, its wheel's MIT licence
+    "drawsvg",
+    # SVG to PNG through cairo: cairo under MPL-1.1 with the MIT-style notices of eight files,
+    # pixman with each compiled file's notice, libpng, cffi, cairocffi, CairoSVG's LGPL-3.0 with
+    # GPL-3.0's text, and the three wheels' licences
+    "cairo",
+    "pixman",
+    "libpng",
+    "cffi",
+    "cairocffi",
+    "cairosvg",
+    "tinycss2",
+    "cssselect2",
+    "imageio",
+    # plotly, its MIT licence, the notices of its colour scales, pypng and plotly.js's bundled
+    # libraries, and its datasets' sources
+    "plotly",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -189,6 +217,7 @@ PACKAGES = (
     "bzip2",
     "xz",
     "sqlite-autoconf",
+    "zstd",
     "python-dateutil",
     "tzdata",
     "six",
@@ -208,6 +237,7 @@ PACKAGES = (
     "fonttools",
     "contourpy",
     "qhull",
+    "libjpeg-turbo",
     "libxml2",
     "libxslt",
     "lxml",
@@ -250,6 +280,22 @@ PACKAGES = (
     "formulaic",
     "interface-meta",
     "wrapt",
+    "python-docx",
+    "python-pptx",
+    "pdfplumber",
+    "pdfminer-six",
+    "xarray",
+    "drawsvg",
+    "pixman",
+    "libpng",
+    "cairo",
+    "cffi",
+    "cairocffi",
+    "cairosvg",
+    "tinycss2",
+    "cssselect2",
+    "imageio",
+    "plotly",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
@@ -257,9 +303,11 @@ PACKAGES = (
 PREIMPORT = ("encodings", "io", "os", "sys", "json", "csv", "re", "_colorize")
 # The reactor's own top-level modules: the frozen recipe modules, the door, and the program.
 REACTOR_MODULES = ("__main__", "_reactor", "_zip_directory", "_zip_resources", "_host")
-# CPython's own modules outside sys.stdlib_module_names: two names (its frozen test modules) and
-# one prefix (its generated build data, _sysconfigdata_<abi>_<platform>). Counted as stdlib.
-CPYTHON_UNLISTED_NAMES = ("__hello__", "__phello__")
+# CPython's own modules outside sys.stdlib_module_names: three names (its frozen test modules,
+# and traceback's reasons for the modules a platform lacks, which CPython's build generates beside
+# _sysconfigdata) and one prefix (its generated build data, _sysconfigdata_<abi>_<platform>).
+# Counted as stdlib.
+CPYTHON_UNLISTED_NAMES = ("__hello__", "__phello__", "_missing_stdlib_info")
 CPYTHON_UNLISTED_PREFIXES = ("_sysconfigdata_",)
 
 
@@ -278,7 +326,7 @@ def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
 JUDGE_PATHS = (
     "tests",
     "context/embedders.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims",
     "pyproject.toml",
     "uv.lock",
     "pytest.ini",
@@ -289,7 +337,7 @@ JUDGE_PATHS = (
 )
 # The judge's files whose change moves a verdict by itself: the known gaps, the upstream suites'
 # allowances, their expected failures and CPython's plan, the shard plan, the public API's list
-# and the release tier's claims. An acceptance needs `--accept-judge` with a reason when one of
+# and the release's claims. An acceptance needs `--accept-judge` with a reason when one of
 # them changed since the last acceptance, and refuses it as unnecessary when none did: every
 # other judge change is recorded by the judge's hash in the history, unflagged. `*` stays within
 # one folder; a trailing `/**` takes everything below its folder.
@@ -297,10 +345,11 @@ VERDICT_BEARING = (
     "tests/known_gaps.toml",
     "tests/upstream/*.toml",
     "tests/upstream/expected/**",
+    "tests/upstream/stand-ins/**",
     "tests/upstream/python/**",
     "tests/release_shards.toml",
     "tests/public_api.txt",
-    "context/release-tier-claims.toml",
+    "context/release-claims/**",
 )
 
 
@@ -359,10 +408,29 @@ def artifact_dir() -> Path | None:
     return d if (d / "MANIFEST").is_file() else None
 
 
-def wasmtime_cli() -> Path | None:
-    """The pinned wasmtime CLI step 10 unpacked under build/tools."""
-    found = sorted((BUILD / "tools").glob("wasmtime-v*/wasmtime"))
-    return found[0] if found else None
+def wasmtime_cli(name: str | None = None, tools: Path | None = None) -> Path | None:
+    """The pinned wasmtime CLI step 10 unpacked under build/tools: the folder this build host's
+    `WASMTIME_DIR` names in scripts/line.conf, by its exact name. A tree may still hold an older
+    pin's folder beside it, which sorts first, so no other folder is ever taken. None when that
+    folder holds no `wasmtime`, or when this machine is not a build host."""
+    if name is None:
+        name = build_line().get("WASMTIME_DIR")
+        if name is None:
+            return None
+    exe = (BUILD / "tools" if tools is None else tools) / name / "wasmtime"
+    return exe if exe.is_file() else None
+
+
+def build_line() -> dict[str, str]:
+    """scripts/line.conf as the build reads it, through its own parser (scripts/line.py): on a
+    build host, its own inputs are under the plain names."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("wasi_python_line", REPO / "scripts" / "line.py")
+    assert spec is not None and spec.loader is not None
+    line = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(line)
+    return line.read(REPO / "scripts" / "line.conf")
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -653,9 +721,20 @@ def manifest_recipe_errors(m: Manifest, tree: dict[str, str]) -> list[str]:
 # Licences
 
 
-def _top_level_licence(archive: Path) -> bytes | None:
-    """The top-level LICENSE / LICENSE.txt / COPYING of a source tarball or wheel."""
+# A component whose tarball holds more than one top-level licence file, each a licence the user
+# may choose, names the one the set takes; the first match in the tarball's order is read
+# otherwise. zstd is BSD-3-Clause or GPLv2 at the user's choice, and its tarball lists COPYING
+# (GPLv2) before LICENSE (BSD-3-Clause). The set takes BSD-3-Clause and does not ship GPLv2's
+# text, which would suggest the set is under GPLv2.
+TOP_LICENCE = {"zstd": "LICENSE"}
+
+
+def _top_level_licence(archive: Path, component: str | None = None) -> bytes | None:
+    """The top-level LICENSE / LICENSE.txt / COPYING of a source tarball or wheel, or the file
+    TOP_LICENCE names for the component."""
     names = re.compile(r"(LICEN[CS]E(\.txt|\.rst|\.md)?|COPYING)", re.I)
+    if component in TOP_LICENCE:
+        names = re.compile(re.escape(TOP_LICENCE[component]))
     if archive.suffix == ".whl" or archive.suffix == ".zip":
         with zipfile.ZipFile(archive) as z:
             for n in sorted(z.namelist()):
@@ -676,7 +755,8 @@ def _top_level_licence(archive: Path) -> bytes | None:
 # xz's library is under 0BSD, and SQLite's notice is the
 # blessing at the head of sqlite3.h. libxml2's and libxslt's terms are in a top-level file named
 # `Copyright`, which the top-level search does not match; qhull's in
-# `COPYING.txt`.
+# `COPYING.txt`. libjpeg-turbo's top-level LICENSE.md sends the library itself to the IJG License,
+# which is its README.ijg.
 BLESSING = b"The author disclaims copyright to this source code."
 MORE_LICENCE = {
     "xz": "COPYING.0BSD",
@@ -684,6 +764,7 @@ MORE_LICENCE = {
     "libxml2": "Copyright",
     "libxslt": "Copyright",
     "qhull": "COPYING.txt",
+    "libjpeg-turbo": "README.ijg",
 }
 # A notice a component's file must hold that ships in another component's pinned archive, named
 # here so it stays if that component's own list changes: contourpy's
@@ -774,7 +855,7 @@ def licence_errors(directory: Path, m: Manifest | None) -> tuple[list[str], list
         except ValueError as e:
             errors.append(f"LICENSES/{c}.txt: {e}")
             continue
-        text = _top_level_licence(src) if src else None
+        text = _top_level_licence(src, c) if src else None
         wanted = ([text] if text is not None else []) + (_more_licence(c, src) if src else [])
         try:
             borrowed = _borrowed_licence(c, m) if src else []

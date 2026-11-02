@@ -1,0 +1,32 @@
+# CairoSVG's own tests in the guest, from its test source, the pinned sdist with its carried
+# patch: cairosvg/test_api.py, its API tests, which its README calls its deployment tests. The
+# zip leaves the module out, so it is staged and found through the package's path. Its
+# non-regression suite lives in its repository with a git submodule of an older CairoSVG, not in
+# the sdist, and is not run. A judge file: every edit is a judge change.
+
+package = "cairosvg"
+driver = "package"
+grant = "/upstream-cairosvg"
+test_source = true
+budget = 25_000_000_000
+stage_folders = []
+support_files = ["cairosvg/test_api.py"]
+cwd = "tree"
+markers = []
+
+[package_paths]
+"cairosvg" = "cairosvg"
+
+[groups.cairosvg-smoke]
+paths = ["cairosvg/test_api.py"]
+smoke = "the whole suite: its API tests, which convert to every format, the package from the zip"
+fuel = 25_000_000_000
+measured = 16_263_136_268
+
+[[expected]]
+id = "no-tmpfile"
+group = "cairosvg-smoke"
+outcome = "failed"
+match = "CAIRO_STATUS_TEMP_FILE_ERROR"
+reason = "cairo's PostScript surface writes through a temporary file, which the guest cannot make (wasi-libc has no tmpfile), so PostScript output raises OSError; PNG, PDF and SVG work (README)"
+closes_with = "docs/reference/limitations.md"

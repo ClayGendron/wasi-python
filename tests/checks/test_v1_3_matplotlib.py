@@ -286,3 +286,74 @@ def test_matplotlib_finds_its_data_through_the_runner() -> None:
     assert done.exit_code == 0, done
     data = "/usr/local/lib/python315.zip/matplotlib/mpl-data"
     assert done.stdout.decode() == f"{data}\n40\nAgg {data}/matplotlibrc\n", done.stdout
+
+
+@pytest.mark.slow
+def test_jpeg_images_job_matches_native(guest) -> None:
+    """Pillow writes JPEG through libjpeg-turbo, with the defaults, at quality 95, without chroma
+    subsampling, progressive with optimized tables, and as L and CMYK; each file's bytes and the
+    pixels it decodes to equal native Pillow's. The golden is the oracle's wheel, whose SIMD code
+    gives the same output as its plain C code for the integer DCT, the guest's only code."""
+    job = "jpeg_images"
+    why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.run_in_guest(guest, job))
+    assert why is None, f"{job}: {why}"
+
+
+# The byte of the first DHT segment that counts its one-bit codes: the segment's marker (2 bytes),
+# its length (2) and its class and table id (1) come before it. 255 one-bit codes are more than a
+# table may hold, so libjpeg's error handler runs, and Pillow's longjmps back out of the codec.
+DHT_ONE_BIT_COUNT = 5
+BROKEN_JPEG = f"""
+import importlib.util, io
+spec = importlib.util.spec_from_file_location("jpeg_images", "/jobs/jpeg_images.py")
+job = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(job)
+from PIL import Image, features
+good = job.encode(job.image())
+bad = bytearray(good)
+bad[good.index(b"\\xff\\xc4") + {DHT_ONE_BIT_COUNT}] = 0xFF
+errors = {{}}
+for _ in range(300):
+    try:
+        with Image.open(io.BytesIO(bytes(bad))) as im:
+            im.load()
+        errors["none"] = errors.get("none", 0) + 1
+    except OSError as e:
+        errors[str(e)] = errors.get(str(e), 0) + 1
+print("broken", errors)
+print("default decodes to", job.decoded(good))
+print("jpg", features.check("jpg"))
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(figsize=(4, 3), dpi=50)
+ax.plot([1, 3, 2])
+buf = io.BytesIO()
+fig.savefig(buf, format="jpg")
+with Image.open(io.BytesIO(buf.getvalue())) as im:
+    im.load()
+    print("savefig", im.format, im.mode, im.size)
+"""
+
+
+@pytest.mark.slow
+@BINARY
+def test_a_broken_jpeg_raises_and_the_next_decodes(guest, which) -> None:
+    """A JPEG whose first Huffman table counts 255 one-bit codes raises Pillow's `OSError: broken
+    data stream when reading image file` 300 times in a row: libjpeg's error handler longjmps out
+    of the codec through the guest's setjmp support, each time. The next good decode in the same
+    guest gives the jpeg_images job's pixels; `features.check("jpg")` is true; and matplotlib's
+    `savefig(format="jpg")` writes a file that opens as a JPEG."""
+    job = "jpeg_images"
+    files = {f"/jobs/{job}.py": jobs.script(job).read_bytes()}
+    r = _plot(guest, which, BROKEN_JPEG, files=files)
+    assert r.exit_code == 0, r.describe()
+    golden = re.search(rb"^default decodes to .*$", jobs.expected_path(job).read_bytes(), re.M)
+    assert golden, f"{job}.expected has no 'default decodes to' line"
+    expected = (
+        "broken {'broken data stream when reading image file': 300}\n"
+        f"{golden[0].decode()}\n"
+        "jpg True\n"
+        "savefig JPEG RGB (200, 150)\n"
+    )
+    assert r.text == expected, r.text

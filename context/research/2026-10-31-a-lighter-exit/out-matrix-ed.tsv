@@ -1,0 +1,50 @@
+P36 audit hook sees teardown	native			0		
+P36 audit hook sees teardown	plain:today	367013122		0		
+P36 audit hook sees teardown	snapshot:today	94119117		0		
+P36 audit hook sees teardown	nofree:today	73926491		0		
+P36 audit hook sees teardown	nointerp:today	82866485		0		
+P37 gc.callbacks	native		gc stop	0		
+P37 gc.callbacks	plain:today	367340338	gc stop	0		
+P37 gc.callbacks	snapshot:today	94226948	gc stop	0		
+P37 gc.callbacks	nofree:today	73967869	gc stop	0		
+P37 gc.callbacks	nointerp:today	83016723	gc stop	0		
+P38 profiler set	native		calls so far True	0		
+P38 profiler set	plain:today	367958687	calls so far True	0		
+P38 profiler set	snapshot:today	94969892	calls so far True	0		
+P38 profiler set	nofree:today	74609345	calls so far True	0		
+P38 profiler set	nointerp:today	83701645	calls so far True	0		
+P39 __stdout__ written, stdout replaced	native		dunder no newline	0		
+P39 __stdout__ written, stdout replaced	plain:today	367102080	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	snapshot:today	93932039	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	nofree:today	73719496	dunder no newline	0		
+P39 __stdout__ written, stdout replaced	nointerp:today	82672520	dunder no newline	0		
+P40 __del__ on an untracked instance	native		del slots	0		
+P40 __del__ on an untracked instance	plain:today	367717784	del slots	0		
+P40 __del__ on an untracked instance	snapshot:today	94998945	del slots	0		
+P40 __del__ on an untracked instance	nofree:today	74581130	del slots	0		
+P40 __del__ on an untracked instance	nointerp:today	83735968	del slots	0		
+P41 hook prints at teardown (profile)	native			0		
+P41 hook prints at teardown (profile)	plain:today	368001487		0		
+P41 hook prints at teardown (profile)	snapshot:today	95120459		0		
+P41 hook prints at teardown (profile)	nofree:today	74835148		0		
+P41 hook prints at teardown (profile)	nointerp:today	83843734		0		
+P42 StringIO and a closed file left	native		ok	0		a.txt:1
+P42 StringIO and a closed file left	plain:today	369013991	ok	0		a.txt:1
+P42 StringIO and a closed file left	snapshot:today	94444802	ok	0		a.txt:1
+P42 StringIO and a closed file left	nofree:today	74121987	ok	0		a.txt:1
+P42 StringIO and a closed file left	nointerp:today	83187668	ok	0		a.txt:1
+P43 sys.monitoring tool	native			0		
+P43 sys.monitoring tool	plain:today	367579661		0		
+P43 sys.monitoring tool	snapshot:today	94855151		0		
+P43 sys.monitoring tool	nofree:today	74577455		0		
+P43 sys.monitoring tool	nointerp:today	83551979		0		
+P44 scandir left open, warnings on	native		ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	plain:today	377833740	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	snapshot:today	105089622	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	nofree:today	84495131	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	nointerp:today	93767653	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	native		ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	plain:today	489168037	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	snapshot:today	105099257	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	nofree:today	84370705	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	nointerp:today	93756704	ok	0	ResourceWarning	x.txt:0 y.txt:0

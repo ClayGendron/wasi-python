@@ -44,8 +44,13 @@ ROWS = [
     ("release/build-constraints.txt", {"set", "workflow"}),
     ("tests/harness/constructors.py", {"set", "harness"}),
     ("src/wasi_python/runner.py", {"runner"}),
+    # The platform module and the engine's pin: the host-specific code, which keeps its macOS legs.
+    ("src/wasi_python/_platform.py", {"runner", "platform"}),
+    ("src/wasi_python/_platform_windows.py", {"runner", "platform"}),
+    ("src/wasi_python/_platform_common.py", {"runner", "platform"}),
+    ("src/x/_platform.py", {"runner"}),
     ("pyproject.toml", {"runner"}),
-    ("uv.lock", {"runner"}),
+    ("uv.lock", {"runner", "platform"}),
     ("tests/harness/gather.py", {"harness"}),
     ("tests/conftest.py", {"harness"}),
     ("tests/judge_options/wasi_python_judge_options.py", {"harness"}),
@@ -53,7 +58,7 @@ ROWS = [
     ("tests/release_shards.toml", {"harness"}),
     ("tests/known_gaps.toml", {"harness"}),
     ("context/embedders.txt", {"harness"}),
-    ("context/release-tier-claims.toml", {"harness"}),
+    ("context/release-claims/166-the-pins-move.toml", {"harness"}),
     ("context/upstream/patches/x.md", {"harness"}),
     (".gitattributes", {"harness"}),
     ("tests/upstream/numpy.toml", {"upstream"}),
@@ -153,11 +158,13 @@ def _own_on(system: str) -> list[str]:
     return [n for n in OWN if system in PLAN[n].systems]
 
 
-def test_a_src_only_pull_request_runs_own_on_three_systems_and_verify_on_linux() -> None:
+def test_a_src_only_pull_request_runs_own_on_linux_and_windows_and_verify_on_linux() -> None:
+    """A change to the runner alone takes no macOS leg on a pull request: the post-merge run
+    judges it on macOS within the hour."""
     d = ci_plan.decide(["src/wasi_python/runner.py"], PR_DEV)
-    assert d.runner and not d.full and d.tier == "normal" and not d.rebuild
+    assert d.runner and not d.platform and not d.full and d.tier == "normal" and not d.rebuild
     sel = ci_plan.select(d, PLAN)
-    assert sel["macos"] == _own_on("macos")
+    assert sel["macos"] == []
     assert sel["linux"] == _own_on("linux")
     assert sel["windows"] == _own_on("windows")
     assert sel["release"] == [] and sel["build"] is False
@@ -183,9 +190,9 @@ def test_an_upstream_only_pull_request_runs_the_groups_on_linux_and_no_macos_leg
 @pytest.mark.parametrize(
     "path", ["scripts/build.sh", "tests/harness/plugin.py", "downloads/SHA256SUMS"]
 )
-def test_set_or_harness_runs_macos_and_the_upstream_groups(path) -> None:
+def test_set_or_harness_runs_the_upstream_groups_and_no_macos_leg(path) -> None:
     sel = ci_plan.select(ci_plan.decide([path], PR_DEV), PLAN)
-    assert sel["macos"] == _own_on("macos")
+    assert sel["macos"] == []
     assert set(UPSTREAM_LINUX) <= set(sel["linux"])
     assert sel["build"] is False and sel["release"] == []
 
@@ -196,7 +203,40 @@ def test_a_moved_key_sets_set_with_no_path_of_its_own() -> None:
     assert not ci_plan.decide(["tests/unit/test_x.py"], PR_DEV).set
     d = ci_plan.decide(["tests/unit/test_x.py"], PR_DEV, key_moved=True)
     assert d.set
-    assert ci_plan.select(d, PLAN)["macos"] == _own_on("macos")
+    assert set(UPSTREAM_LINUX) <= set(ci_plan.select(d, PLAN)["linux"])
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/wasi_python/_platform.py",
+        "src/wasi_python/_platform_windows.py",
+        "src/wasi_python/_platform_common.py",
+        "uv.lock",
+    ],
+)
+def test_the_platform_module_or_the_engine_pin_keeps_its_macos_legs(path) -> None:
+    """The host-specific code and the engine's pin: a pull request that changes either runs every
+    own shard on macOS, and the macOS upstream shard, beside Linux and Windows."""
+    d = ci_plan.decide([path], PR_DEV)
+    assert d.platform and not d.full
+    sel = ci_plan.select(d, PLAN)
+    assert sel["macos"] == [n for n in shards.on(shards.load(), "macos")]
+    assert sel["linux"] == _own_on("linux")
+    assert sel["build"] is False
+
+
+def test_the_macos_upstream_shard_runs_on_full_or_the_platform_alone() -> None:
+    macos_upstream = [n for n, s in PLAN.items() if s.kind == "upstream" and "macos" in s.systems]
+    assert macos_upstream
+    for path in ("src/wasi_python/runner.py", "tests/harness/plugin.py", "scripts/build.sh"):
+        sel = ci_plan.select(ci_plan.decide([path], PR_DEV), PLAN)
+        assert not set(macos_upstream) & set(sel["macos"]), path
+    for d in (
+        ci_plan.decide(["uv.lock"], PR_DEV),
+        ci_plan.decide(["src/x.py"], PUSH_DEV),
+    ):
+        assert set(macos_upstream) <= set(ci_plan.select(d, PLAN)["macos"])
 
 
 def _whole(tier: str) -> dict:
@@ -223,8 +263,96 @@ def test_full_runs_the_merge_grade_set(changed, event, labels, messages) -> None
     assert d.full and d.judge and not d.docs_only and d.tier == "normal" and not d.rebuild
     sel = ci_plan.select(d, PLAN)
     assert {s: sel[s] for s in (*shards.OWN_SYSTEMS, "release")} == _whole("normal")
-    assert sel["build"] is True
+    assert sel["build"] is False  # the build shard runs where the pins are compiled alone
+    assert "build/build" not in sel["selected"]
     assert sel["verify"] == list(ci_plan.VERIFY_RUNNERS)
+
+
+@pytest.mark.parametrize(
+    ("event", "build"),
+    [
+        (PR_DEV, False),
+        (PUSH_DEV, False),
+        (PR_MAIN, True),
+        (SCHEDULE, True),
+        (DISPATCH, True),
+        (ci_plan.Event("workflow_dispatch", DISPATCH.ref, weekly=True), True),
+    ],
+    ids=[
+        "pull-request",
+        "push-to-dev",
+        "release-pull-request",
+        "weekly",
+        "dispatch",
+        "weekly-dispatch",
+    ],  # fmt: skip
+)
+def test_the_build_shard_runs_exactly_where_the_rebuilds_compile(event, build) -> None:
+    """The build shard reads a build tree, which the x86-64 rebuild compiles from the pins
+    exactly when the plan rebuilds and judges: the release pull request, the weekly run and a
+    dispatch; never a push to dev or a pull request into dev. A tag rebuilds and judges nothing
+    (the row below)."""
+    changed = None if event in (SCHEDULE, DISPATCH) or event.weekly else ["src/x.py"]
+    d = ci_plan.decide(changed, event)
+    sel = ci_plan.select(d, PLAN)
+    assert sel["build"] is build and d.rebuild is build
+    assert ("build/build" in sel["selected"]) is build
+    assert ci_plan.outputs(d, sel, [])["build"] == ("true" if build else "false")
+
+
+def test_a_tag_publishes_what_the_release_pull_request_judged() -> None:
+    """A pushed tag compiles the set from the pins on three hosts, installs the wheel fresh on
+    three systems and publishes; it judges nothing again, since its tree is the one the release
+    pull request judged plus the commit that recorded it: no judge leg, no build shard, no
+    gather, and no tier."""
+    d = ci_plan.decide(None, TAG)
+    assert d.rebuild and d.publish and not d.judge and d.tier == ""
+    sel = ci_plan.select(d, PLAN)
+    assert all(sel[s] == [] for s in (*shards.OWN_SYSTEMS, "release"))
+    assert sel["build"] is False and sel["selected"] == [] and sel["coverage"] == []
+    assert sel["verify"] == list(ci_plan.VERIFY_RUNNERS)
+    out = ci_plan.outputs(d, sel, [])
+    assert (out["judge"], out["build"], out["rebuild"], out["publish"]) == (
+        "false",
+        "false",
+        "true",
+        "true",
+    )
+    assert out["tier"] == ""
+    assert all(out[s] == "[]" for s in (*shards.OWN_SYSTEMS, "release"))
+    assert json.loads(out["verify"]) == list(ci_plan.VERIFY_RUNNERS)
+
+
+@pytest.mark.parametrize(
+    ("changed", "event"),
+    [
+        (["src/x.py"], PR_DEV),
+        (["docs/x.md"], PR_DEV),
+        (["src/x.py"], PR_MAIN),
+        (["src/x.py"], PUSH_DEV),
+        (["context/progress/accepted.json"], PUSH_DEV),
+        (None, SCHEDULE),
+        (None, DISPATCH),
+        (None, ci_plan.Event("workflow_dispatch", "refs/heads/main")),
+        (None, ci_plan.Event("workflow_dispatch", "refs/tags/v0.1.1")),
+    ],
+    ids=[
+        "pull-request",
+        "docs-pull-request",
+        "release-pull-request",
+        "push-to-dev",
+        "acceptance",
+        "weekly",
+        "dispatch",
+        "dispatch-on-main",
+        "dispatch-on-a-tag",
+    ],  # fmt: skip
+)
+def test_only_a_pushed_tag_publishes(changed, event) -> None:
+    """Every other event's publish output is false: a dispatch, even on a tag, never publishes."""
+    d = ci_plan.decide(changed, event)
+    assert not d.publish
+    assert ci_plan.outputs(d, ci_plan.select(d, PLAN), [])["publish"] == "false"
 
 
 @pytest.mark.parametrize("message", ["citest:fullness", "say citest:full here", "ci:full"])
@@ -240,8 +368,8 @@ def test_another_label_is_not_full() -> None:
 
 @pytest.mark.parametrize(
     "event",
-    [TAG, PR_MAIN, SCHEDULE, ci_plan.Event("workflow_dispatch", "refs/heads/main")],
-    ids=["tag", "release-pull-request", "schedule", "dispatch-on-main"],
+    [PR_MAIN, SCHEDULE, ci_plan.Event("workflow_dispatch", "refs/heads/main")],
+    ids=["release-pull-request", "schedule", "dispatch-on-main"],
 )
 def test_a_release_shape_judges_both_tiers_and_rebuilds(event) -> None:
     d = ci_plan.decide(None if event is not PR_MAIN else ["src/x.py"], event)
@@ -438,7 +566,7 @@ def test_a_release_pull_request_carries_devs_acceptances_and_is_not_refused() ->
 def test_the_whole_selection_is_the_shard_plan_on_every_system() -> None:
     """The matrix each judge job runs is generated from tests/release_shards.toml: run whole,
     each system's list is the plan's, in its order, and the build shard rides with it."""
-    sel = ci_plan.select(ci_plan.decide(None, TAG), PLAN)
+    sel = ci_plan.select(ci_plan.decide(None, SCHEDULE), PLAN)
     for system in (*shards.OWN_SYSTEMS, "release"):
         assert sel[system] == shards.on(shards.load(), system), system
     pairs = {tuple(p.split("/", 1)) for p in sel["selected"]}
@@ -464,7 +592,7 @@ def test_coverage_runs_on_every_linux_own_leg_of_a_merge_grade_run_alone() -> No
     labelled = ci_plan.Event(
         "pull_request", ref="refs/pull/7/merge", base_ref="dev", labels=("ci:full",)
     )
-    for changed, event in ((["src/x.py"], PUSH_DEV), (None, TAG), (["src/x.py"], labelled)):
+    for changed, event in ((["src/x.py"], PUSH_DEV), (None, SCHEDULE), (["src/x.py"], labelled)):
         d = ci_plan.decide(changed, event)
         sel = ci_plan.select(d, PLAN)
         assert sel["coverage"] == LINUX_OWN, event
@@ -522,7 +650,8 @@ def test_the_command_line_reads_paths_and_writes_github_output(tmp_path) -> None
     assert r.returncode == 0, r.stderr
     got = dict(line.split("=", 1) for line in out.read_text().splitlines())
     assert got["full"] == "true" and got["runner"] == "true" and got["docs_only"] == "false"
-    assert json.loads(got["selected"]) and got["build"] == "true"
+    assert json.loads(got["selected"]) and got["build"] == "false"
+    assert json.loads(got["review_refusals"]) == []
 
 
 def test_the_top_level_env_is_read_as_the_workflow_writes_it() -> None:
@@ -599,7 +728,7 @@ def test_a_pull_request_whose_base_cannot_be_read_is_judged_whole() -> None:
     assert d.full and d.judge and not d.docs_only
     assert "the pull request's base could not be read: the run is whole" in d.why
     sel = ci_plan.select(d, PLAN)
-    assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is True
+    assert sel["macos"] == shards.on(shards.load(), "macos") and sel["build"] is False
 
 
 # ---------------------------------------------------------------------------------------------
@@ -804,6 +933,63 @@ def test_the_review_is_not_asked_of_documentation_or_of_main() -> None:
     assert ci_plan.refusals(ci_plan.decide(code, PR_MAIN), PR_MAIN, code, _pr()) == []
 
 
+def _plan_outputs(changed: list[str], event, pr) -> dict[str, str]:
+    """The outputs the decision job writes for a pull request read whole, as `main` makes them."""
+    d = ci_plan.decide(changed, event)
+    refused = ci_plan.refusals(d, event, changed, pr)
+    return ci_plan.outputs(
+        d, ci_plan.select(d, PLAN), refused, ci_plan.review_check(d, event, changed, pr)
+    )
+
+
+def test_the_review_check_is_an_output_of_its_own_and_ci_status_still_reads_it() -> None:
+    """The review job reads review_refusals alone: the review file's refusals, never a missing
+    news file or a skip word. ci-status keeps them among its own refusals until the ruleset
+    requires the review job."""
+    changed = ["src/x.py", NEWS, REVIEW]
+    pr = _pr(review=_review(verdict="Does not land."))
+    out = _plan_outputs(changed, PR_DEV, pr)
+    review = json.loads(out["review_refusals"])
+    assert review and all("Lands" in r for r in review)
+    assert set(review) <= set(json.loads(out["refusals"]))
+    no_news = _plan_outputs(["src/x.py", REVIEW], PR_DEV, _pr())
+    assert not any(
+        "news file" in r and "CHANGELOG" in r for r in json.loads(no_news["review_refusals"])
+    )
+    assert any("CHANGELOG" in r for r in json.loads(no_news["refusals"]))
+    skip = _pr()
+    skip.title = "x [skip ci]"
+    assert json.loads(_plan_outputs(changed, PR_DEV, skip)["review_refusals"]) == []
+
+
+def test_the_review_check_asks_nothing_of_documentation_or_of_main() -> None:
+    assert json.loads(_plan_outputs(["docs/index.md"], PR_DEV, _pr())["review_refusals"]) == []
+    out = _plan_outputs(["src/x.py"], PR_MAIN, _pr(review=_review(verdict="No.")))
+    assert json.loads(out["review_refusals"]) == []
+    missing = _plan_outputs(["src/x.py", NEWS], PR_DEV, _pr())
+    assert json.loads(missing["review_refusals"])  # code with no review file
+
+
+def test_a_pull_request_whose_base_cannot_be_read_is_refused_its_review() -> None:
+    """With no change read, no review file was read either: the review check fails closed
+    rather than saying a review it never read holds."""
+    d = ci_plan.decide(None, PR_DEV)
+    refused = ci_plan.review_check(d, PR_DEV, None, None)
+    assert refused and "could not be read" in refused[0]
+    assert refused[0] in ci_plan.refusals(d, PR_DEV, None, None)
+    assert ci_plan.review_check(ci_plan.decide(None, PR_MAIN), PR_MAIN, None, None) == []
+
+
+def test_a_reused_run_still_reads_the_review() -> None:
+    """The review file's push re-uses the code head's run, every output false, and the review
+    job reads that push's review file."""
+    changed = ["src/x.py", NEWS, REVIEW]
+    d = ci_plan.decide(changed, PR_DEV, reused=(7, "run 7, green on 111111111111"))
+    bad = _pr(review=_review(verdict="Does not land."))
+    assert ci_plan.review_check(d, PR_DEV, changed, bad)
+    assert ci_plan.review_check(d, PR_DEV, changed, _pr()) == []
+
+
 def test_the_pull_requests_commits_trailers_and_review_are_read_with_git(
     tmp_path, monkeypatch
 ) -> None:
@@ -897,6 +1083,19 @@ def test_a_docs_only_push_onto_a_green_head_reuses_its_run() -> None:
     judge and gather passed, so the review's push re-uses them."""
     run, why = _reuse([{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}], {7: GREEN})
     assert run == 7 and CODE_HEAD[:12] in why
+
+
+def test_a_run_red_only_on_its_review_and_ci_status_is_reused() -> None:
+    """The review job's verdict is not the code's: a run whose only red jobs are review and
+    ci-status, which waited for the review file, is re-used by the review file's push and by an
+    edit."""
+    waiting = {**GREEN, "review": "failure"}
+    runs = [{"databaseId": 7, "headSha": CODE_HEAD, "status": "completed"}]
+    assert _reuse(runs, {7: waiting})[0] == 7
+    assert _edit([_run(THIS_RUN, status="in_progress"), _run(7)], {7: waiting})[0] == 7
+    judge_red = {**waiting, "judge (windows-2025, own-a)": "failure"}
+    assert _reuse(runs, {7: judge_red})[0] is None
+    assert _edit([_run(7)], {7: judge_red}) == (None, "")
 
 
 def test_a_run_whose_gather_did_not_pass_is_not_reused() -> None:
@@ -1130,8 +1329,9 @@ PREPARATION = [
     ("M", "CHANGELOG.md"),
     ("D", "context/changes/140-a-change.md"),
     ("M", "docs/reference/packages.md"),
-    ("M", "context/release-tier-claims.toml"),
-    ("M", "context/release-tier-claims-history.md"),
+    ("D", "context/release-claims/140-a-change.toml"),
+    ("A", "context/release-claims/141-a-late-reason.toml"),
+    ("M", "context/release-claims-history.md"),
     ("A", "context/reviews/0.1.1-structural-review-2026-10-26.md"),
 ]
 
@@ -1168,44 +1368,203 @@ def test_only_the_version_line_may_move_in_the_version_file() -> None:
     assert not ci_plan.version_line_only("")
 
 
-# The ledger in a preparation: date's move exactly, or the preparation is refused, named.
+# The ledger in a preparation: date's move, with any claim block the preparation adds, or the
+# preparation is refused, named. The ledger is a folder of one file per pull request.
 
-LEDGER_HEADER = "# The release-tier claims ledger.\n# Appended by its pull request.\n"
+LEDGER_NAME = "140-a-change.toml"
 LEDGER_BLOCK = (
     '[[claim]]\nspec = "140"\ngrows = ["tests/checks/test_v1_3_x.py::test_slow"]\n'
     'growth = "a pin moved"\n'
 )
-LEDGER_HISTORY = "# The release-tier claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n"
+LEDGER_HISTORY = "# The release claims, by release\n\nIntro.\n\n## 0.1.0\n\nMoved.\n"
+BASE = ({LEDGER_NAME: LEDGER_BLOCK}, LEDGER_HISTORY)
 
 
-def _moved(ledger: str = LEDGER_HEADER + "\n" + LEDGER_BLOCK) -> tuple[str, str]:
-    return news.move_ledger(ledger, LEDGER_HISTORY, "0.1.1", "2026-10-26")
+def _moved(files=None, left=None) -> tuple[dict[str, str], str]:
+    """date's move of `files` (the base's file by default), with `left` in the folder after it."""
+    files = {LEDGER_NAME: LEDGER_BLOCK} if files is None else files
+    return dict(left or {}), news.move_ledger(files, LEDGER_HISTORY, "0.1.1", "2026-10-26")
 
 
 def test_a_preparation_whose_ledger_is_dates_exact_move_is_a_preparation() -> None:
-    head_ledger, head_history = _moved()
-    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
-    assert ci_plan.ledger_move_refusal(base, (head_ledger, head_history), "0.1.1") is None
-    assert ci_plan.ledger_move_refusal(base, base, "0.1.1") is None  # the ledger not touched
+    assert ci_plan.ledger_move_refusal(BASE, _moved(), "0.1.1") is None
+    assert ci_plan.ledger_move_refusal(BASE, BASE, "0.1.1") is None  # the ledger not touched
 
 
-def test_a_preparation_that_adds_a_ledger_block_is_refused_named() -> None:
-    """The ledger is a source of reasons the release pull request's acceptance consumes, so in a
-    preparation, which asks no review file, its change must be date's move and nothing else."""
-    base = (LEDGER_HEADER + "\n" + LEDGER_BLOCK, LEDGER_HISTORY)
-    head_ledger, head_history = _moved()
-    extra = (
-        '[[claim]]\nspec = "999"\ngrows = ["tests/checks/test_v1_3_x.py::test_new"]\ngrowth = "x"\n'
-    )
-    added = head_history.replace("```\n", extra + "```\n", 1)
-    why = ci_plan.ledger_move_refusal(base, (head_ledger, added), "0.1.1")
-    assert why and "date's move" in why, why
-    kept = ci_plan.ledger_move_refusal(base, (head_ledger + "\n" + extra, head_history), "0.1.1")
-    assert kept and "header" in kept, kept
-    changed = [VERSION_FILE, "CHANGELOG.md", *ci_plan.LEDGER_FILES]
+EXTRA_NAME = "999-a-late-reason.toml"
+EXTRA = (
+    '[[claim]]\nspec = "999"\npasses = ["tests/checks/test_v1_3_x.py::test_new"]\n'
+    'fewer = "two tests moved to the release tier"\n'
+)
+
+
+def test_a_preparation_may_add_a_claim_block_to_the_ledger() -> None:
+    """The preparation is where a reason missing at a merge is written, by the author who knows
+    it: a block added before date's move (in a file of its own, or after a base file's blocks, so
+    moved under the version) or after it (so left in the folder) is admitted, of any kind."""
+    before = _moved({LEDGER_NAME: LEDGER_BLOCK, EXTRA_NAME: EXTRA})
+    assert ci_plan.ledger_move_refusal(BASE, before, "0.1.1") is None
+    grown = LEDGER_BLOCK + '\n[[claim]]\nspec = "140"\npasses = ["y"]\nfewer = "z"\n'
+    assert ci_plan.ledger_move_refusal(BASE, _moved({LEDGER_NAME: grown}), "0.1.1") is None
+    after = _moved(left={EXTRA_NAME: EXTRA})
+    assert ci_plan.ledger_move_refusal(BASE, after, "0.1.1") is None
+    empty = ({}, LEDGER_HISTORY)
+    assert ci_plan.ledger_move_refusal(empty, _moved({EXTRA_NAME: EXTRA}), "0.1.1") is None
+
+
+def test_a_preparation_that_edits_or_drops_a_ledger_block_is_refused_named() -> None:
+    """The base's files are reasons already given: date moves each whole, and a preparation that
+    edits or drops one, leaves one in the folder too, or breaks an added block's shape is
+    refused."""
+    files, history = _moved()
+    edited = history.replace("a pin moved", "a pin moved twice")
+    why = ci_plan.ledger_move_refusal(BASE, (files, edited), "0.1.1")
+    assert why and "dropped or edited" in why and LEDGER_NAME in why, why
+    dropped = _moved({EXTRA_NAME: EXTRA})
+    assert "dropped or edited" in ci_plan.ledger_move_refusal(BASE, dropped, "0.1.1")
+    # A key or sub-table appended after the file's last block continues that block, under its
+    # spec: an edit of it, not an added block.
+    tail = '[claim.judge]\n"tests/known_gaps.toml" = "a new allowance"\n'
+    continued = _moved({LEDGER_NAME: LEDGER_BLOCK + tail})
+    why_tail = ci_plan.ledger_move_refusal(BASE, continued, "0.1.1")
+    assert why_tail and "[[claim]]" in why_tail, why_tail
+    broken = '[[claim]]\nspec = "999"\ngrows = ["x"]\n'  # grows without its growth
+    kept = ci_plan.ledger_move_refusal(BASE, _moved(left={EXTRA_NAME: broken}), "0.1.1")
+    assert kept and "growth" in kept, kept
+    twice = ci_plan.ledger_move_refusal(BASE, _moved(left={LEDGER_NAME: LEDGER_BLOCK}), "0.1.1")
+    assert twice and "left in the folder" in twice, twice
+    moved_by_hand = history.replace("Moved by `release/version.py date`", "Moved", 1)
+    assert "no section" in ci_plan.ledger_move_refusal(BASE, (files, moved_by_hand), "0.1.1")
+    changed = [VERSION_FILE, "CHANGELOG.md", "context/release-claims/" + LEDGER_NAME,
+               ci_plan.LEDGER_HISTORY]  # fmt: skip
     d = ci_plan.decide(changed, PR_DEV, preparation_refusal=why)
     assert not d.docs_only and d.judge
     assert any(why in r for r in ci_plan.refusals(d, PR_DEV, changed, _pr(commits=[])))
+
+
+# A pull request into dev writes the release ledger in its own files alone: the file named
+# after its news file. Two open pull requests then never write one file, so neither conflicts
+# with the other's merge.
+
+OWN_FILE = "context/release-claims/999-a-change.toml"  # NEWS's
+OTHERS_FILE = "context/release-claims/140-a-change.toml"
+OTHER_BLOCK = '[[claim]]\nspec = "999"\ngrows = ["x"]\ngrowth = "y"\n'
+
+
+def _ledger_refused(base: dict[str, str], head: dict[str, str]) -> list[str]:
+    changed = ["src/x.py", NEWS, REVIEW, *sorted(set(base) | set(head))]
+    pr = _pr()
+    pr.ledger = (base, head)
+    d = ci_plan.decide(changed, PR_DEV)
+    return [r for r in ci_plan.refusals(d, PR_DEV, changed, pr) if "release-claims" in r]
+
+
+def test_a_pull_request_writes_its_claim_blocks_in_its_own_ledger_file() -> None:
+    """A new file named after the pull request's news file, or a block added to it, is its own;
+    the same block in another change's file, a block of another's edited, or the single file
+    every pull request once appended to brought back, is refused, named."""
+    base = {OTHERS_FILE: LEDGER_BLOCK}
+    assert _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK}) == []
+    assert (
+        _ledger_refused({OWN_FILE: OTHER_BLOCK}, {OWN_FILE: OTHER_BLOCK + "\n" + OTHER_BLOCK}) == []
+    )
+    added = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK + "\n" + OTHER_BLOCK})
+    assert len(added) == 1 and OTHERS_FILE in added[0] and "own file" in added[0], added
+    edited = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK.replace("a pin moved", "it grew")})
+    assert any("gains" in r for r in edited) and any("loses" in r for r in edited), edited
+    back = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK, "context/release-claims.toml": ""})
+    assert len(back) == 1 and "is back" in back[0], back
+    appended = {OTHERS_FILE: LEDGER_BLOCK, "context/release-claims.toml": OTHER_BLOCK}
+    assert len(_ledger_refused(base, appended)) == 2
+
+
+# The other spellings TOML reads as the header of one more [[claim]] table.
+SPELLINGS = ("[[ claim ]]", '[["claim"]]', "  [[claim]]")
+
+
+@pytest.mark.parametrize("header", SPELLINGS)
+def test_a_block_in_another_header_spelling_is_still_a_block_added(header) -> None:
+    """The ledger's blocks are compared as TOML reads them, not as text: a claim prepended to
+    another change's file under another spelling of its header is a block that file gains."""
+    injected = f'{header}\nspec = "140"\ngrows = ["x"]\ngrowth = "injected"\n\n'
+    added = _ledger_refused({OTHERS_FILE: LEDGER_BLOCK}, {OTHERS_FILE: injected + LEDGER_BLOCK})
+    assert len(added) == 1 and "gains" in added[0] and OTHERS_FILE in added[0], added
+    own = _ledger_refused({}, {OWN_FILE: injected.replace('"140"', '"999"')})
+    assert own == []
+
+
+def test_another_changes_ledger_file_is_not_renamed_or_removed() -> None:
+    """Its name says whose it is and orders the release's reading; only date's move, in the
+    release's preparation, removes it. The pull request's own file it may rename or remove."""
+    renamed = "context/release-claims/140-renamed.toml"
+    why = _ledger_refused({OTHERS_FILE: LEDGER_BLOCK}, {renamed: LEDGER_BLOCK})
+    assert len(why) == 1 and OTHERS_FILE in why[0] and "renamed or removed" in why[0], why
+    assert _ledger_refused({OWN_FILE: OTHER_BLOCK}, {}) == []
+
+
+def test_a_pull_request_may_not_drop_another_changes_claim_block() -> None:
+    second = '[[claim]]\nspec = "140"\npasses = ["y"]\nfewer = "z"\n'
+    base = {OTHERS_FILE: LEDGER_BLOCK + "\n" + second, OWN_FILE: OTHER_BLOCK}
+    dropped = _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK})
+    assert len(dropped) == 1 and "loses" in dropped[0] and OTHERS_FILE in dropped[0], dropped
+    base = {OTHERS_FILE: LEDGER_BLOCK, OWN_FILE: OTHER_BLOCK}
+    assert (
+        _ledger_refused(base, {OTHERS_FILE: LEDGER_BLOCK}) == []
+    )  # its own block it may take back
+
+
+def test_the_single_ledgers_blocks_move_whole_into_their_files() -> None:
+    """The pull request that made the ledger a folder moved each block of the single file, byte
+    for byte, into the file of the change that wrote it: no block is added or dropped, so it is
+    not refused, though no file it writes is named after its own news file."""
+    single = "# The release claims ledger.\n\n" + LEDGER_BLOCK + "\n" + EXTRA
+    head = {OTHERS_FILE: LEDGER_BLOCK, "context/release-claims/" + EXTRA_NAME: EXTRA}
+    assert _ledger_refused({"context/release-claims.toml": single}, head) == []
+    copied = {**head, "context/release-claims.toml": single}
+    assert _ledger_refused({"context/release-claims.toml": single}, copied)
+
+
+def test_the_preparation_is_not_held_to_its_own_ledger_file() -> None:
+    """date moves every file, and the preparation writes a late reason into the file of the
+    change it explains; its own check is that the move is date's (above)."""
+    changed = [p for _, p in PREPARATION]
+    pr = _pr(commits=[])
+    pr.ledger = (
+        {OTHERS_FILE: LEDGER_BLOCK},
+        {"context/release-claims/141-a-late-reason.toml": EXTRA},
+    )
+    d = ci_plan.decide(changed, PR_DEV, release_preparation=True)
+    assert ci_plan.refusals(d, PR_DEV, changed, pr) == []
+
+
+def test_the_pull_request_reads_the_ledger_when_it_changes_it(tmp_path) -> None:
+    """The ledger's .toml files at the merge base and the head, the single file among them where
+    a commit has it; nothing is read when no ledger path changed."""
+    if shutil.which("git") is None:
+        pytest.skip("git is not installed")
+    run = lambda *a: subprocess.run(["git", "-C", str(tmp_path), *a], check=True,  # noqa: E731
+                                    capture_output=True, text=True).stdout.strip()  # fmt: skip
+    run("init", "-q")
+    run("config", "user.email", "a@b.c")
+    run("config", "user.name", "a")
+    (tmp_path / "context").mkdir()
+    (tmp_path / "context" / "release-claims.toml").write_text(LEDGER_BLOCK)
+    run("add", "-A")
+    run("commit", "-qm", "base")
+    base = run("rev-parse", "HEAD")
+    (tmp_path / "context" / "release-claims.toml").unlink()
+    (tmp_path / "context" / "release-claims").mkdir()
+    (tmp_path / "context" / "release-claims" / "README.md").write_text("# The ledger\n")
+    (tmp_path / "context" / "release-claims" / LEDGER_NAME).write_text(LEDGER_BLOCK)
+    run("add", "-A")
+    run("commit", "-qm", "head")
+    changed = ci_plan._diff(base, "HEAD", tmp_path)
+    pr = ci_plan.read_pull_request(tmp_path, base, "HEAD", "", changed)
+    assert pr.ledger == (
+        {"context/release-claims.toml": LEDGER_BLOCK},
+        {"context/release-claims/" + LEDGER_NAME: LEDGER_BLOCK},
+    )
+    assert ci_plan.read_pull_request(tmp_path, base, "HEAD", "", ["src/x.py"]).ledger is None
 
 
 # ---------------------------------------------------------------------------------------------

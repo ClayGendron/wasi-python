@@ -130,8 +130,7 @@ def _made_in(session: runner.Session, code: str, data: bytes) -> Snapshot:
     finally:
         session.close()
     image = _made_or_failed(done, captured, c.deadline_s, c.fuel)
-    paths = ["/"] if c.root is not False else []
-    paths += [g.guest for g in c.grants] + [m.guest for m in c.mounts]
+    paths = _snapshot._guest_paths(c)
     origin = _snapshot._origin_of(
         code, image, done.fuel_used, paths, (c.env or {}), (digests.binary, digests.zip)
     )

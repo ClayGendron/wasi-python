@@ -1,0 +1,1 @@
+tests/test_core.py::test_util_get_platform

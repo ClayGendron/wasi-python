@@ -15,6 +15,8 @@ dataclass Completed: frozen
   field files: FileRecord | None = None
   field tools: ToolRecord | None = None
   field image_sha256: str | None = None
+  field value: Display | None = None
+  field displays: tuple[Display, ...] = ()
 dataclass Defaults: frozen
   field memory_bytes: int | None = required
   field deadline_s: float | None = required
@@ -27,6 +29,11 @@ dataclass Defaults: frozen
   field session_idle_s: float | None = 900.0
   field session_lifetime_s: float | None = 3600.0
   field session_shutdown_s: float = 5.0
+dataclass Display: frozen
+  field data: Mapping[str, str | bytes] = required
+  field truncated: tuple[str, ...] = ()
+  field stdout_at: int = 0
+  field stderr_at: int = 0
 enum Errno(IntEnum)
   member EACCES = 2
   member EBUSY = 10
@@ -73,6 +80,20 @@ dataclass Mount: frozen
   field provider: FileProvider = required
   field guest: str = required
   field writable: bool = False  kw_only
+dataclass OutputChunk: frozen
+  field stream: str = required
+  field data: bytes = required
+  field cut: bool = False
+class OutputFeed
+  def __init__ -> None
+  def __call__ -> None
+    param chunk: OutputChunk  positional
+  def follow -> AsyncIterator[OutputChunk]
+    param task: asyncio.Future[Any]  positional
+dataclass Package: frozen
+  field name: str = required
+  field version: str = required
+  field imports: tuple[str, ...] = required
 dataclass RefusedWrite: frozen
   field mount: str = required
   field method: str = required
@@ -104,23 +125,32 @@ class Session
     param idle_s: float | None = <default>  keyword-only
     param lifetime_s: float | None = <default>  keyword-only
     param shutdown_s: float = <default>  keyword-only
+    param results: bool = False  keyword-only
+    param figures: bool = False  keyword-only
   def __enter__ -> Session
   def __exit__ -> None
     param *exc: object  var-positional
   property ended -> str | None
   property shutdown_outcome -> str | None
+  def checkpoint -> Snapshot
   def run -> Completed
     param code: str  positional
     param fuel: int | None = <default>  keyword-only
     param deadline_s: float | None = <default>  keyword-only
     param output_bytes: int | None = <default>  keyword-only
     param cancel: threading.Event | None = None  keyword-only
+    param stdin: bytes | bytearray | memoryview | None = None  keyword-only
+    param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+    param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
   async def run_async -> Completed
     param code: str  positional
     param fuel: int | None = <default>  keyword-only
     param deadline_s: float | None = <default>  keyword-only
     param output_bytes: int | None = <default>  keyword-only
     param executor: concurrent.futures.Executor | None = None  keyword-only
+    param stdin: bytes | bytearray | memoryview | None = None  keyword-only
+    param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+    param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
   def close -> None
 exception SessionEnded(RuntimeError)
 class Snapshot
@@ -146,6 +176,8 @@ dataclass SnapshotOrigin: frozen
   field stdlib_zip_sha256: str = required
   field wasi_python: str = required
   field made_at: str = required
+  field kind: str = 'prelude'
+  field parent_sha256: str | None = None
 dataclass Stat: frozen
   field kind: str = required
   field size: int = 0
@@ -198,6 +230,8 @@ def make_snapshot -> Snapshot
   param artifacts: Artifacts | None = None  keyword-only
   param max_file_calls: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
+def packages -> tuple[Package, ...]
+  param artifacts: Artifacts | None = None  positional
 def run -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
@@ -221,6 +255,10 @@ def run -> Completed
   param max_tool_calls: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
+  param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+  param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
+  param results: bool = False  keyword-only
+  param figures: bool = False  keyword-only
 async def run_async -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
@@ -244,6 +282,10 @@ async def run_async -> Completed
   param max_tool_calls: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
+  param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
+  param output_keep: Literal['head', 'tail'] = 'head'  keyword-only
+  param results: bool = False  keyword-only
+  param figures: bool = False  keyword-only
 def set_defaults -> Defaults
   param new: Defaults  positional
 def stats -> dict[str, int]
@@ -343,6 +385,8 @@ command wasi-python = wasi_python.cli:main
   option --deadline-s SECONDS  store
   option --memory-bytes BYTES  store
   option --output-bytes BYTES  store
+  option --output-keep  store
+  option --stream  store_true
   option --fuel N  store
   option --max-open-files N  store
   option --no-snapshot  store_true

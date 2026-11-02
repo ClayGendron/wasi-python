@@ -1,0 +1,44 @@
+# pdfminer.six's own tests in the guest, from its test source: its release tag's archive, since its
+# sdist holds the tests but not the sample files they read (`samples/`), nor the command-line tools
+# two of them call (`tools/`). A judge file: every edit is a judge change. The whole suite runs in
+# the release tier, a smoke group in the normal tier: each test in exactly one tier.
+
+package = "pdfminer-six"
+component = "pdfminer-six-tests"
+driver = "package"
+grant = "/upstream-pdfminer-six"
+test_source = true
+budget = 147_000_000_000
+stage_folders = ["tests", "samples", "tools"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.pdfminer-six-smoke]
+paths = ["tests/test_pdfdocument.py", "tests/test_utils.py"]
+smoke = "the document object and the utilities, the package from the zip"
+fuel = 17_000_000_000
+measured = 11_496_461_848
+
+[groups.pdfminer-six-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 130_000_000_000
+measured = 86_928_980_735
+
+[[expected]]
+id = "no-cryptography"
+group = "pdfminer-six-r"
+outcome = "failed"
+match = "No module named 'cryptography'"
+reason = "AES decryption needs cryptography, a compiled package the set does not carry; the carried patch imports it only where AES runs, so these files raise ModuleNotFoundError naming it (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-cjk-cmaps"
+group = "pdfminer-six-r"
+outcome = "failed"
+match = 'CMapNotFound: (H|to-unicode-Adobe-Japan1)$|^AssertionError: .Hello\\n\\nHello\\n\\nWorld\\n\\nWorld\\n\\n\\x0c. != .Hello\\n\\nHello\\nあ|^AssertionError: assert None == .UniGB-UCS2-H.$'
+reason = "pdfminer's predefined CJK character maps (its cmap folder) are left out of the zip: these tests load one by name, or read a font that names one and has no ToUnicode table, whose text then reads empty (README)"
+closes_with = "docs/reference/limitations.md"

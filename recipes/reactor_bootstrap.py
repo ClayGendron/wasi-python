@@ -1,11 +1,11 @@
 """The reactor's argument handling: the module `_reactor` (spec 003, Decision 6).
 
-recipes/reactor_main.c calls `run(argv, environ)` once per instance, or `turn(source, environ)`
-once per turn of a session (spec 055, Decision 3), and `prepare(source, environ)` once in an
-instance whose memory the host makes a starting image of. Step 60 compiles this file with the
-pinned host Python (the guest's own version) and links the marshalled code into the reactor, so
-no start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which
-`_report` strips from tracebacks.
+recipes/reactor_main.c calls `run(argv, environ)` once per instance, or
+`turn(source, environ, stdin)` once per turn of a session (spec 055, Decision 3), and
+`prepare(source, environ)` once in an instance whose memory the host makes a starting image of.
+Step 60 compiles this file with the pinned host Python (the guest's own version) and links the
+marshalled code into the reactor, so no start compiles it (scripts/freeze_bootstrap.py). Its
+frames are named `<reactor>`, which `_report` strips from tracebacks.
 
 Every program runs in a fresh `__main__` made at run time (spec 073): the snapshot's own was made
 before `gc.freeze()`, and a file left open beside a function defined in it was never finalized.
@@ -16,6 +16,18 @@ A call from a starting image runs in the image's own `__main__`, the module the 
 in, so a call means what one program of the code and the call's means. It ends through `_end`,
 without Python's teardown of every module the image holds: the call's own names are dropped and
 collected, so what they held is finalized, and a writer it hung elsewhere is flushed.
+
+A start from a checkpoint, a live session's memory after its turns, is a starting image's call
+too: its first run or turn calls `_resume`, which takes the session's `__main__` as the image's
+and puts the import path back, and its first turn sets up as a session's first turn does.
+
+Results (spec 163). A host that asks for a cell's value and displays puts `-Xhost-results`, or
+`-Xhost-results=figures`, first after the program's name. `run` and a session's setup read it
+and take it out before the program sees its arguments, and set the mode both ways, so a start
+from a checkpoint has its own: `display` bound into builtins or unbound, matplotlib's backend
+set to `host.figures` or put back. In the mode, a turn's or a `-c` program's last expression goes
+to the host as its value, not printed, and in figures mode the figures a cell leaves open are
+sent at its end.
 """
 
 import os
@@ -23,7 +35,7 @@ import sys
 
 VERSION = (
     f"Python {sys.version.split()[0]} (wasm32-wasip1: numpy's default integer is "
-    "32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; "
+    "32-bit; no threads; no ctypes, mmap, sockets, ssl or scipy.odr; "
     "compute about 1.3 to 2.3 times slower than native)"
 )
 IGNORED = {"-I", "-E", "-s", "-B"}
@@ -31,10 +43,15 @@ IGNORED = {"-I", "-E", "-s", "-B"}
 # module type): captured once, before any program, so a nested run (spec 054's prelude) cannot
 # carry a program's names into the next __main__ (spec 073, Decision 1).
 _MAIN_NAMES = dict(sys.modules["__main__"].__dict__)
+_BASE_PATH = tuple(sys.path)  # the stdlib zip alone: a start from a checkpoint imports from it
 _prepared = False  # the host's code ran here through prepare: this instance is a starting image
 _NOTHING = object()
 _image_underscore = _NOTHING  # builtins._ as the image holds it
 _image_main = None  # the __main__ the host's code ran in
+_MODES = {"-Xhost-results": "results", "-Xhost-results=figures": "figures"}
+_FIGURES = "module://host.figures"  # matplotlib's backend in figures mode
+_mode = None  # this start's results mode: None, "results" or "figures"
+_shown = None  # host.display, once results mode imported it
 
 
 def _fresh_main():
@@ -164,7 +181,76 @@ def _only_runpy(tb):
     return True
 
 
+def _take_mode(argv):
+    """(the results mode the host put first after the program's name, argv without it)."""
+    if len(argv) > 1 and argv[1] in _MODES:
+        return _MODES[argv[1]], [argv[0], *argv[2:]]
+    return None, argv
+
+
+def _set_mode(mode):
+    """This start's results mode, set both ways over whatever the instance held before:
+    `display` bound into builtins or unbound, and matplotlib's backend set to `host.figures`,
+    unless the environment names one, or put back to Agg."""
+    global _mode, _shown
+    import builtins
+
+    _mode = mode
+    if mode is not None and _shown is None:
+        import host.display
+
+        _shown = host.display
+    if _shown is not None:
+        _shown._on = mode is not None
+        if mode is not None:
+            builtins.display = _shown.display
+        elif builtins.__dict__.get("display") is _shown.display:
+            del builtins.display
+    if mode == "figures" and "MPLBACKEND" not in os.environ:
+        os.environ["MPLBACKEND"] = _FIGURES
+    mpl = sys.modules.get("matplotlib")
+    if mpl is not None:  # imported before this start: its backend is already chosen
+        want = os.environ.get("MPLBACKEND") or "agg"
+        if (mpl.rcParams._get_backend_or_none() == _FIGURES) != (want == _FIGURES):
+            mpl.use(want)
+
+
+def _cell_begin():
+    if _mode is not None:
+        _shown._begin()
+
+
+def _show(value):
+    """A cell's last expression: printed by `sys.displayhook`, or in results mode sent to the
+    host as the cell's value and `builtins._` bound, as the hook binds it. A program that
+    replaced the hook has it called, as the interactive interpreter does."""
+    if _mode is None or sys.displayhook is not sys.__displayhook__:
+        sys.displayhook(value)
+        return
+    if value is None:
+        return
+    import builtins
+
+    builtins._ = None
+    _shown._value(value, repr(value))  # taken here, as the hook takes it: no helper's frame
+    builtins._ = value
+
+
+def _cell_end():
+    """In figures mode, the figures a cell left open, sent at its end, after an exception too,
+    only if it imported pyplot; an exception sending them is reported."""
+    if _mode != "figures" or "matplotlib.pyplot" not in sys.modules:
+        return
+    try:
+        import host.figures
+
+        host.figures._send_open()
+    except Exception as exc:
+        _report(exc, False)
+
+
 def run(argv, environ):
+    results, argv = _take_mode(argv)
     sys.orig_argv = list(argv)
     os.environ.clear()
     os.environ.update(environ)
@@ -202,8 +288,13 @@ def run(argv, environ):
         break
     _refresh(unbuffered)
     try:
+        _set_mode(results)
+        _cell_begin()
         main = _image_main if _prepared else _fresh_main()
-        if mode == "-c":
+        if mode == "-c" and results is not None:
+            sys.argv = ["-c", *rest]
+            _run_turn(target, "<string>")  # its last expression is the value
+        elif mode == "-c":
             sys.argv = ["-c", *rest]
             code = compile(target, "<string>", "exec")
             import linecache  # as CPython's -c: tracebacks show the source line
@@ -246,6 +337,7 @@ def run(argv, environ):
         _report(exc, mode == "script")
         return 1
     finally:
+        _cell_end()
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.flush()
@@ -256,16 +348,15 @@ def run(argv, environ):
 # Sessions (spec 055, Decision 3): one interpreter across turns.
 _turns = 0  # the turns run in this instance: each one's code is named <turn N>
 _quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
-
-
 def _setup(environ):
     """The first turn's setup, once and unnumbered: the environment, the import path from argv,
-    argv as the interactive interpreter has it, exit() and quit() rebound, and the reseed."""
+    argv as the interactive interpreter has it, exit() and quit() rebound, the reseed, and the
+    results mode."""
     argv, env = environ
     if env is not None:
         os.environ.clear()
         os.environ.update(env)
-    argv = list(argv or [])
+    mode, argv = _take_mode(list(argv or []))
     for entry in argv[1:]:
         if entry.startswith("/"):  # absolute, read-only folders only; anything else is skipped
             sys.path.append(entry)
@@ -286,48 +377,90 @@ def _setup(environ):
         eof = getattr(old, "eof", "Ctrl-D (i.e. EOF)")
         setattr(builtins, name, _SessionQuitter(name, eof))
     _refresh(False)
+    _set_mode(mode)
 
 
 def _run_turn(text, name):
     """Run a turn's source in __main__, echoing a final expression as the interactive
-    interpreter does."""
-    import ast
+    interpreter does, or in results mode sending it as the value."""
     import linecache
 
-    tree = ast.parse(text, name, "exec")
-    last = None
-    if tree.body and isinstance(tree.body[-1], ast.Expr):
-        last = ast.Expression(tree.body.pop().value)
-    code = compile(tree, name, "exec")
+    try:
+        code, last = _compiled(text, name)
+    except MemoryError:
+        # The heap is full: let the session's reserve go (the reactor keeps it back, and takes
+        # it again at the next turn) and try once more.
+        if not _let_go():
+            raise
+        code, last = _compiled(text, name)
     linecache._register_code(code, text, name)
     main = sys.modules["__main__"].__dict__
     exec(code, main)
     if last is not None:
         expr = compile(last, name, "eval")
         linecache._register_code(expr, text, name)
-        sys.displayhook(eval(expr, main))
+        _show(eval(expr, main))
 
 
-def turn(source, environ):
+def _compiled(text, name):
+    """A turn's code object, and its final expression's, if any, to echo."""
+    import ast
+
+    tree = ast.parse(text, name, "exec")
+    last = None
+    if tree.body and isinstance(tree.body[-1], ast.Expr):
+        last = ast.Expression(tree.body.pop().value)
+    return compile(tree, name, "exec"), last
+
+
+def _turn_reader(data, old):
+    """A text reader over a turn's stdin bytes, with the replaced reader's encoding and errors,
+    split at "\\n" as the interpreter's own stdin is on this platform."""
+    import io
+
+    return io.TextIOWrapper(
+        io.BytesIO(data),
+        encoding=getattr(old, "encoding", None) or "utf-8",
+        errors=getattr(old, "errors", None) or "strict",
+        newline="\n",
+    )
+
+
+def turn(source, environ, stdin=None):
     """One turn: (status, quit). `source` is the code's bytes, or None when the host had no
-    memory for them; `environ` is (argv, env) on the first turn, None after."""
+    memory for them; `environ` is (argv, env) on the first turn, None after. `stdin` is the
+    turn's stdin bytes, None when the host gave none (`sys.stdin` is left as it is), or False
+    when it had no memory for them. A given stdin is `sys.stdin` for the turn, and the old reader
+    comes back at its end unless the turn replaced it."""
     global _turns
     status = 0
+    old = given = None
     try:
         if environ is not None:
             _setup(environ)
         _turns += 1
         if source is None:
             raise MemoryError("no memory for this turn's code")
+        if stdin is False:
+            raise MemoryError("no memory for this turn's stdin")
+        if stdin is not None:
+            old = sys.stdin
+            given = sys.stdin = _turn_reader(stdin, old)
+        _cell_begin()
         _run_turn(source.decode("utf-8"), f"<turn {_turns}>")
     except SystemExit as exc:
         status = _exit_code(exc)
     except BaseException as exc:
+        if isinstance(exc, MemoryError):
+            _let_go()  # room to report it
         _report(exc, False)  # strips the <reactor> frames from exc.__traceback__
         sys.last_exc = exc
         sys.last_type, sys.last_value, sys.last_traceback = type(exc), exc, exc.__traceback__
         status = 1
     finally:
+        if given is not None and sys.stdin is given:
+            sys.stdin = old
+        _cell_end()
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.flush()
@@ -387,6 +520,26 @@ def prepare(source, environ):
         _image_underscore = builtins.__dict__.get("_", _NOTHING)
         _prepared = True
     return status
+
+
+def _resume():
+    """The start of an instance a checkpoint's image was copied into, before its first run or
+    turn: the import path the bootstrap began with, and the importer cache without the session's
+    other entries, so the start imports only from its own path; the session's `__main__` taken
+    as the image's, with every name it holds, so a call's end drops only what the call bound; and
+    the session's heap frozen out of the collector's way, as a starting image's is."""
+    global _MAIN_NAMES, _prepared, _image_underscore, _image_main
+    import builtins
+    import gc
+
+    sys.path = list(_BASE_PATH)
+    for key in [k for k in sys.path_importer_cache if k not in _BASE_PATH]:
+        del sys.path_importer_cache[key]
+    _image_main = sys.modules["__main__"]
+    _MAIN_NAMES = dict(_image_main.__dict__)
+    _image_underscore = builtins.__dict__.get("_", _NOTHING)
+    _prepared = True
+    gc.freeze()
 
 
 def _end():

@@ -1,0 +1,14 @@
+# libpng 1.6.59 as step 39 compiles it, file by file, so no .pc is installed by libpng's own build:
+# cairo's meson asks pkg-config for libpng. Step 39 copies this file to
+# build/cairo-libs/lib/pkgconfig/ as libpng16.pc and libpng.pc; every path is relative to that
+# folder, so the file names no build host.
+prefix=${pcfiledir}/../..
+libdir=${prefix}/lib
+includedir=${prefix}/include/libpng16
+
+Name: libpng
+Description: libpng 1.6.59, built by step 39
+Version: 1.6.59
+Requires.private: zlib
+Libs: -L${libdir} -lpng16
+Cflags: -I${includedir}

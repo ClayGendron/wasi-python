@@ -1,25 +1,30 @@
 # The release workflow, and every change's check.
 #
-# One decision job (plan, release/ci_plan.py) reads what a run changes and picks the jobs it
-# needs; every later job gates on its outputs with if:, never with a workflow-level paths: filter,
-# so a skipped job reports success and the one required check, ci-status, is always reported.
-# A pull request into dev runs quick (ruff, mypy, the pure-Python unit tests and the rules), then
-# the judge's shards its paths need on Linux and Windows (macOS too when the runner, the set or the
-# harness changed; the upstream groups on Linux when the set, the suites or the harness changed)
-# from the cached set, and the gather narrowed to what ran. A merge into dev (a push) runs the
-# merge-grade set: every normal-tier shard on its three systems, the build shard and verify on
-# three; when all of it is green, accept-record accepts the gather's record with no secret and
-# accept-push, alone in the accept environment, pushes that acceptance onto dev with the deploy
-# key, whose own run is the plan alone (after the release pull request, accept-release.yml pushes
-# instead). A pushed tag v<version> builds the artifact set from its pins on arm64 macOS, judges both
-# tiers, rebuilds it on arm64 Linux and x86_64 Linux and requires the same bytes, attests and
-# publishes. A pull request into main, a dispatch and the weekly schedule run the same release
-# shape, never signing or publishing. Third-party actions are pinned by commit, their release
-# named beside each. Every job that reads the build's files does so through the local action
-# verify-artifact (the id guarded, the download by it, the check against the SHA-256 of
-# SHA256SUMS the build job handed on) before it uses them. Values reach scripts through env:,
-# never as expressions. A pull request's jobs check out its head commit, never the merge ref: the
-# up-to-date rule makes the head the tree the squash puts on dev.
+# One decision job (plan, release/ci_plan.py) reads what a run changes and picks the jobs it needs;
+# every later job gates on its outputs with if:, never with a workflow-level paths: filter, so a
+# skipped job reports success and the one required check, ci-status, is always reported. A pull
+# request into dev runs quick (ruff, mypy, the pure-Python unit tests and the rules) beside the
+# build and the judge's shards its paths need on Linux and Windows (macOS too when the platform
+# module or the engine's pin changed; the upstream groups on Linux when the set, the suites or the
+# harness changed) from the cached set, and the gather narrowed to what ran; the review job reads
+# its review file, a check of its own. A merge into dev (a push) runs the merge-grade set: every
+# normal-tier shard on its three systems and verify on three; when all of it is green,
+# accept-record accepts the gather's record with no secret and accept-push, alone in the accept
+# environment, pushes that acceptance onto dev with the deploy key, whose own run is the plan alone
+# (after the release pull request, accept-release.yml pushes instead). A pull request into main, a
+# dispatch and the weekly schedule run the release shape: the set built from its pins on arm64
+# Linux and rebuilt on x86_64 Linux (which judges the build shard on its own tree) and on arm64
+# macOS, the same bytes required, both tiers judged, never signing or publishing. A pushed tag
+# v<version> judges nothing again, since its tree is the one the release pull request judged plus
+# the commit that recorded that judgement: it builds and rebuilds the set from its pins and
+# requires the same bytes, holds those bytes and the tagged tree to the release pull request's
+# acceptance (judged), installs the wheel fresh on three systems, attests and publishes.
+# Third-party actions are pinned by commit, their release named beside each. Every job that reads
+# the build's files does so through the local action verify-artifact (the id guarded, the download
+# by it, the check against the SHA-256 of SHA256SUMS the build job handed on) before it uses them.
+# Values reach scripts through env:, never as expressions. A pull request's jobs check out its head
+# commit, never the merge ref: the head is judged as it is, and the tree the squash puts on dev is
+# judged by the run after the merge, whose red result red-run-issue opens an issue for.
 name: release
 
 on:
@@ -42,7 +47,7 @@ on:
         type: boolean
         default: false
       release-tier:
-        description: judge the release tier too (a tag and a run on main always do)
+        description: judge the release tier too (a run on main always does)
         type: boolean
         default: false
       weekly:
@@ -83,6 +88,7 @@ jobs:
     outputs:
       set: ${{ steps.plan.outputs.set }}
       runner: ${{ steps.plan.outputs.runner }}
+      platform: ${{ steps.plan.outputs.platform }}
       harness: ${{ steps.plan.outputs.harness }}
       upstream: ${{ steps.plan.outputs.upstream }}
       workflow: ${{ steps.plan.outputs.workflow }}
@@ -92,6 +98,7 @@ jobs:
       docs_only: ${{ steps.plan.outputs.docs_only }}
       full: ${{ steps.plan.outputs.full }}
       rebuild: ${{ steps.plan.outputs.rebuild }}
+      publish: ${{ steps.plan.outputs.publish }}
       judge: ${{ steps.plan.outputs.judge }}
       accept: ${{ steps.plan.outputs.accept }}
       acceptance: ${{ steps.plan.outputs.acceptance }}
@@ -102,6 +109,7 @@ jobs:
       coverage: ${{ steps.plan.outputs.coverage }}
       selected: ${{ steps.plan.outputs.selected }}
       refusals: ${{ steps.plan.outputs.refusals }}
+      review_refusals: ${{ steps.plan.outputs.review_refusals }}
       macos: ${{ steps.plan.outputs.macos }}
       linux: ${{ steps.plan.outputs.linux }}
       windows: ${{ steps.plan.outputs.windows }}
@@ -138,8 +146,9 @@ jobs:
 
   quick:
     name: quick (ruff, mypy, the unit tests, lint)
-    # Everything that needs no artifact set, on every run: the gate the judge's stage waits on.
-    # lint is the writing conventions: it gates ci-status and is no goal check.
+    # Everything that needs no artifact set, on every run, beside the build and the judges: a
+    # tree that fails it costs a few job-minutes more and still cannot merge, since ci-status
+    # waits on it. lint is the writing conventions: it gates ci-status and is no goal check.
     # The push of an acceptance (the accepted state alone) needs nothing judged: the plan says so.
     needs: plan
     if: needs.plan.outputs.acceptance != 'true'
@@ -180,14 +189,39 @@ jobs:
         # The writing conventions, and the accepted fuel against the budget's caps.
         run: uv run pytest -p no:cacheprovider -q tests/lint
 
+  review:
+    name: review
+    # The review file's own check, apart from the code's: on every pull request into dev, the push
+    # that carries the review file among them, whatever the plan judges, so a run re-used for that
+    # push still reads it. Red while the plan refuses the review file (none after the last code,
+    # signed by the author, or a verdict that does not begin "Lands"); a documentation-only pull
+    # request asks none. It runs whatever happened before it, so a plan that failed leaves it red,
+    # never skipped. ci-status reads the same refusals and does not wait for this job.
+    needs: plan
+    if: ${{ always() && github.event_name == 'pull_request' && github.base_ref == 'dev' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: The plan refused no review file
+        env:
+          REVIEW_REFUSALS: ${{ needs.plan.outputs.review_refusals }}
+        run: |
+          if [ "$REVIEW_REFUSALS" != "[]" ]; then
+            echo "the review check refused this pull request: ${REVIEW_REFUSALS:-(no plan)}"
+            exit 1
+          fi
+          echo "the review file holds"
+
   inputs:
     name: the set's key, and whether this run may reuse a set
     # A set the cache holds under this commit's key is reused where a cached set is trusted: a pull
     # request into dev, a push to dev, the weekly run on dev, and a dispatch on a branch other than
     # main, not from-source. A pull request into main, a run on main and a tag build their own.
     # Every consumer compares reuse with == 'true', so an empty or broken output builds from source.
+    # It runs when the plan judges or rebuilds: a tag judges nothing and still compiles.
     needs: plan
-    if: needs.plan.outputs.judge == 'true'
+    if: needs.plan.outputs.judge == 'true' || needs.plan.outputs.rebuild == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -244,14 +278,17 @@ jobs:
           fi
 
   build:
-    name: build on arm64 macOS, or reuse a set
-    # The published set is built on arm64 macOS, on every run of the release shape (a tag, a
-    # pull request into main, a dispatch, the weekly run) that does not reuse one. A run that
-    # reuses a cached set restores it on Linux; a pull request or a push to dev whose key no cache
-    # holds compiles it once on arm64 Linux, and save-set keeps it. The judge waits on quick.
-    needs: [plan, inputs, quick]
-    if: needs.plan.outputs.judge == 'true'
-    runs-on: ${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || needs.plan.outputs.rebuild == 'true' && 'macos-15' || 'ubuntu-24.04-arm' }}
+    name: build on arm64 Linux, or reuse a set
+    # The published set is built on arm64 Linux, the host set-cache.yml compiles the cached set
+    # on, on every run that does not reuse one: the release shape (a tag, a pull request into
+    # main, a dispatch, the weekly run where no set is cached) and a pull request or a push to dev
+    # whose key no cache holds, whose set save-set keeps. A run that reuses a cached set restores
+    # it on x86_64 Linux. It starts beside quick, not after it: ci-status waits on both. On a tag
+    # it first holds the tagged tree to the release pull request's acceptance, which needs no
+    # compile, so a tag on the wrong commit fails in a minute.
+    needs: [plan, inputs]
+    if: needs.plan.outputs.judge == 'true' || needs.plan.outputs.rebuild == 'true'
+    runs-on: ${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 120
     permissions:
       contents: read
@@ -274,6 +311,9 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
+      - name: The tagged tree is the judged tree plus its acceptance
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        run: uv run python tests/harness/gather.py --prove-set --tree-only
       - name: The version, and the tag it is released under, agree
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
@@ -331,16 +371,19 @@ jobs:
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
           uv run --no-project python -I release/licences.py check dist/wasi_python-*.whl build/artifacts
       - name: The source trees are their tarballs plus the recorded patches
-        # On a source run only: a reuse run has no tree here. build-shard runs the same step on
-        # every run that judges the build shard, with no if:.
+        # On a source run only: a reuse run has no tree here. Each rebuild job runs the same step
+        # on its own tree, with no if:.
         if: steps.compile.outcome == 'success'
-        # All twenty-eight trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
-        # twenty-eighth): a skipped check (a tree not unpacked) would exit 0 too.
+        # All forty-one trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # twenty-eighth, python-docx's and python-pptx's sdists the twenty-ninth and thirtieth,
+        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the thirty-third, zstd's the
+        # thirty-fourth, then pixman, libpng, cairo, cffi, cairocffi and CairoSVG, and plotly's the
+        # last): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -Eq "^28 passed, [0-9]+ deselected in" zero-patch.txt
+          grep -Eq "^41 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The SHA-256 of python.wasm, handed to the gather
         id: wasm
         run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> "$GITHUB_OUTPUT"
@@ -379,21 +422,25 @@ jobs:
           path: build/logs/
           if-no-files-found: ignore
 
-  build-shard:
-    name: the build shard on a fresh build (ubuntu-24.04-arm)
-    # One compile from the pins on arm64 Linux serves two ends. The build shard reads the build
-    # tree (the source trees, the compile records, the toolchain), which a reused set does not
-    # have, so it runs here on every run that judges it, tags included; its record's artifact and
-    # set_sums are this tree's own, and the gather's G2 holds them to the build job's. And the
-    # same set's SHA256SUMS and wheel are arm64 Linux's rebuild, which same-bytes compares with the
-    # build's, beside x86_64 Linux's. Each rebuild host compiles with its own pinned wasi-sdk
-    # clang, and every compile carries -ffp-contract=off, set in the toolchain's own configuration
-    # files by step 10: that makes wasi-sdk's x86_64 and aarch64 builds of clang emit the same
-    # bytes, so each vote rests on its own host's toolchain. The wheel is built after the shard,
-    # whose record must be of a clean tree. A hung job frees the gate after two hours.
+  rebuild-linux-x86-64:
+    name: rebuild from the pins (ubuntu-24.04), and the build shard
+    # x86_64 Linux rebuilds the whole set from an empty downloads/ and build/, beside the build,
+    # checks every source tree against its tarball and the recorded patches, then judges the build
+    # shard on that clean tree: every component's tree, the compile records, the zlib tarball, and
+    # the checks that need the build host's unpacked tools and sdists, which a reused set does not
+    # have. It uploads that record and hands on its id and SHA-256 for the gather, whose G2 holds
+    # the record's set to the build's bytes, and uploads its SHA256SUMS and wheel, which same-bytes
+    # compares with the set's, as it does the macOS rebuild's. Only the release shape rebuilds, and
+    # the build shard runs where the plan's build output says: every rebuild but a tag's, whose
+    # tree the release pull request judged and whose run has no gather. Each rebuild host compiles
+    # with its own pinned wasi-sdk clang, and every compile carries -ffp-contract=off, set in the
+    # toolchain's own configuration files by step 10: that makes wasi-sdk's builds of clang for
+    # each host emit the same bytes, so each vote rests on its own host's toolchain. The wheel is
+    # built after the shard, whose record must be of a clean tree. A hung job frees the gate after
+    # two hours.
     needs: plan
-    if: needs.plan.outputs.build == 'true'
-    runs-on: ubuntu-24.04-arm
+    if: needs.plan.outputs.rebuild == 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     permissions:
       contents: read
@@ -406,19 +453,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0 # as the build job's: the judge reads the checkout's history
+          fetch-depth: 0 # the build shard's rules read the checkout's history
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: The runner's own tools (unpinned host inputs, recorded here)
-        # nproc: the core count beside every time figure. binfmt_misc: a runner that could run an
-        # aarch64 program through its own, unpinned qemu would hide a gap in the emulated
-        # compiler's closure.
+        # The core count beside every time figure, read the same way on Linux and macOS.
+        # binfmt_misc: a Linux runner that could run another architecture's program through its
+        # own, unpinned qemu would hide a gap in the emulated compiler's closure (macOS has none).
         run: |
           uname -srm
-          nproc
+          getconf _NPROCESSORS_ONLN
           echo "binfmt_misc: $(ls /proc/sys/fs/binfmt_misc/ 2> /dev/null | tr '\n' ' ')"
           cc --version | head -n 1
           make --version | head -n 1
@@ -436,95 +483,32 @@ jobs:
       - name: Build from the pins
         run: scripts/build.sh
       - name: The source trees are their tarballs plus the recorded patches
-        # All twenty-eight trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
-        # twenty-eighth): a skipped check (a tree not unpacked) would exit 0 too.
+        # All forty-one trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # twenty-eighth, python-docx's and python-pptx's sdists the twenty-ninth and thirtieth,
+        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the thirty-third, zstd's the
+        # thirty-fourth, then pixman, libpng, cairo, cffi, cairocffi and CairoSVG, and plotly's the
+        # last): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -Eq "^28 passed, [0-9]+ deselected in" zero-patch.txt
+          grep -Eq "^41 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The build shard
         # Only the checks that need the build tree: every component's tree, the compile records and
         # the zlib tarball, on this job's own build. The rest of the judge runs in the judge jobs.
+        if: needs.plan.outputs.build == 'true'
         run: uv run pytest -p no:cacheprovider --shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"
       - name: The record's SHA-256
         id: record-sha
+        if: needs.plan.outputs.build == 'true'
         run: uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
       - id: record
+        if: needs.plan.outputs.build == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: record-build-build
           path: ${{ runner.temp }}/record/latest.json
           if-no-files-found: error
-      - id: sums
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: rebuild-ubuntu-24.04-arm
-          path: build/artifacts/SHA256SUMS
-          if-no-files-found: error
-      - name: The wheel, as the build job makes it
-        run: |
-          cp -R build/artifacts src/wasi_python/artifacts
-          uv run --no-project python -I release/licences.py append build/artifacts
-          uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
-      - id: wheel
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: rebuild-wheel-ubuntu-24.04-arm
-          path: dist/wasi_python-*.whl
-          if-no-files-found: error
-      - name: Keep the build logs when something fails
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: build-shard-logs
-          path: |
-            build/logs/
-            ${{ runner.temp }}/record/
-          if-no-files-found: ignore
-
-  rebuild-linux-x86-64:
-    name: rebuild from the pins (ubuntu-24.04)
-    # x86_64 Linux rebuilds the whole set from an empty downloads/ and build/, beside the build,
-    # and uploads its SHA256SUMS and wheel; same-bytes compares each with the set's, as it does
-    # build-shard's from arm64 Linux. Only the release shape rebuilds.
-    needs: plan
-    if: needs.plan.outputs.rebuild == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    permissions:
-      contents: read
-    outputs:
-      sums-id: ${{ steps.sums.outputs.artifact-id }}
-      wheel-id: ${{ steps.wheel.outputs.artifact-id }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: false
-      - name: The runner's own tools (unpinned host inputs, recorded here)
-        # As build-shard's: the core count, binfmt_misc, and what stood on PATH.
-        run: |
-          uname -srm
-          nproc
-          echo "binfmt_misc: $(ls /proc/sys/fs/binfmt_misc/ 2> /dev/null | tr '\n' ' ')"
-          cc --version | head -n 1
-          make --version | head -n 1
-          curl --version | head -n 1
-          tar --version | head -n 1
-          xz --version | head -n 1
-          shasum --version
-          git --version
-          uv --version
-          python3 --version
-      - name: Download the pinned inputs
-        run: scripts/00_download.sh
-      - name: Build from the pins
-        run: scripts/build.sh
       - id: sums
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -547,18 +531,106 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rebuild-logs-ubuntu-24.04
+          path: |
+            build/logs/
+            ${{ runner.temp }}/record/
+          if-no-files-found: ignore
+
+  rebuild-macos-arm64:
+    name: rebuild from the pins (macos-15)
+    # arm64 macOS rebuilds the whole set from an empty downloads/ and build/, beside the build,
+    # checks every source tree against its tarball and the recorded patches, and uploads its
+    # SHA256SUMS and wheel, which same-bytes compares with the set's: the vote's third host, on
+    # another system than the build's arm64 Linux and another architecture than x86_64 Linux.
+    # Only the release shape rebuilds. A hung job frees the gate after two hours.
+    needs: plan
+    if: needs.plan.outputs.rebuild == 'true'
+    runs-on: macos-15
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      sums-id: ${{ steps.sums.outputs.artifact-id }}
+      wheel-id: ${{ steps.wheel.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The runner's own tools (unpinned host inputs, recorded here)
+        # The core count beside every time figure, read the same way on Linux and macOS.
+        # binfmt_misc: a Linux runner that could run another architecture's program through its
+        # own, unpinned qemu would hide a gap in the emulated compiler's closure (macOS has none).
+        run: |
+          uname -srm
+          getconf _NPROCESSORS_ONLN
+          echo "binfmt_misc: $(ls /proc/sys/fs/binfmt_misc/ 2> /dev/null | tr '\n' ' ')"
+          cc --version | head -n 1
+          make --version | head -n 1
+          curl --version | head -n 1
+          tar --version | head -n 1
+          xz --version | head -n 1
+          shasum --version
+          git --version
+          uv --version
+          # The runner's own python3, which step 10's shim keeps out of the build,
+          # named so the log records what stood on PATH.
+          python3 --version
+      - name: Download the pinned inputs
+        run: scripts/00_download.sh
+      - name: Build from the pins
+        run: scripts/build.sh
+      - name: The source trees are their tarballs plus the recorded patches
+        # All forty-one trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
+        # twenty-eighth, python-docx's and python-pptx's sdists the twenty-ninth and thirtieth,
+        # pdfminer.six's and xarray's the next two, libjpeg-turbo's the thirty-third, zstd's the
+        # thirty-fourth, then pixman, libpng, cairo, cffi, cairocffi and CairoSVG, and plotly's the
+        # last): a skipped check (a tree not unpacked) would exit 0 too.
+        run: |
+          set -o pipefail
+          uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
+            -k test_source_tree_matches_its_tarball | tee zero-patch.txt
+          grep -Eq "^41 passed, [0-9]+ deselected in" zero-patch.txt
+      - id: sums
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-macos-15
+          path: build/artifacts/SHA256SUMS
+          if-no-files-found: error
+      - name: The wheel, as the build job makes it
+        run: |
+          cp -R build/artifacts src/wasi_python/artifacts
+          uv run --no-project python -I release/licences.py append build/artifacts
+          uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
+      - id: wheel
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-wheel-macos-15
+          path: dist/wasi_python-*.whl
+          if-no-files-found: error
+      - name: Keep the build logs when something fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-logs-macos-15
           path: build/logs/
           if-no-files-found: ignore
 
   same-bytes:
     name: the same bytes from every host
-    # Each rebuild's SHA256SUMS lists the whole set (the three artifacts, MANIFEST and the licences)
-    # and must equal the set's, byte for byte, from arm64 Linux and from x86_64 Linux, each with its
-    # own pinned clang. The .tar.xz asset is made from the set deterministically but is
-    # outside this claim. attest and publish need this job, so a tag never signs or publishes bytes
-    # that both hosts did not rebuild. Only the release shape rebuilds; it checks out this
-    # repository for the local action alone.
-    needs: [plan, build, build-shard, rebuild-linux-x86-64]
+    # Each rebuild's SHA256SUMS lists the whole set (the three artifacts, MANIFEST and the
+    # licences) and must equal the set's, byte for byte, from arm64 macOS and from x86_64 Linux,
+    # each with its own pinned clang, so three hosts agree on the bytes the build made on arm64
+    # Linux. The .tar.xz asset is made from the set deterministically but is outside this claim.
+    # save-set, judged, attest, publish and ci-status need this job, so nothing is cached, signed
+    # or published that both hosts did not rebuild; the gather does not, since the records it reads
+    # are complete before it. Only the release shape rebuilds; it checks out this repository for
+    # the local action alone.
+    needs: [plan, build, rebuild-linux-x86-64, rebuild-macos-arm64]
     if: needs.plan.outputs.rebuild == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -577,8 +649,8 @@ jobs:
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
       - name: The rebuild jobs handed on artifact ids
         env:
-          ARM64_SUMS_ID: ${{ needs.build-shard.outputs.sums-id }}
-          ARM64_WHEEL_ID: ${{ needs.build-shard.outputs.wheel-id }}
+          ARM64_SUMS_ID: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}
+          ARM64_WHEEL_ID: ${{ needs.rebuild-macos-arm64.outputs.wheel-id }}
           X86_64_SUMS_ID: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
           X86_64_WHEEL_ID: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
         run: |
@@ -589,13 +661,13 @@ jobs:
           done
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build-shard.outputs.sums-id }}
-          path: rebuilds/ubuntu-24.04-arm
+          artifact-ids: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}
+          path: rebuilds/macos-15
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build-shard.outputs.wheel-id }}
-          path: rebuilt-wheels/ubuntu-24.04-arm
+          artifact-ids: ${{ needs.rebuild-macos-arm64.outputs.wheel-id }}
+          path: rebuilt-wheels/macos-15
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -617,7 +689,7 @@ jobs:
           tar -xJf release-assets/*.tar.xz -C set
           sums=$(echo set/wasi-python-*/SHA256SUMS)
           echo "the set: $SET_SOURCE"
-          for runner in ubuntu-24.04-arm ubuntu-24.04; do
+          for runner in macos-15 ubuntu-24.04; do
             cmp "$sums" "rebuilds/$runner/SHA256SUMS"
             echo "$runner: the same SHA256SUMS as the set"
           done
@@ -669,7 +741,7 @@ jobs:
             echo "the wheel's artifacts are not exactly the set's"
             exit 1
           fi
-          for runner in ubuntu-24.04-arm ubuntu-24.04; do
+          for runner in macos-15 ubuntu-24.04; do
             rebuilt="rebuilt-wheels/$runner/$(basename "$wheel")"
             if ! cmp -s "$wheel" "$rebuilt"; then
               echo "$runner rebuilt a different wheel; entries only in one (name, mode, size, CRC, date):"
@@ -729,6 +801,88 @@ jobs:
           path: wasi-python-set
           key: ${{ steps.key.outputs.key }}
 
+  judged:
+    name: the bytes and the tree the release pull request judged
+    # A tag's run judges nothing again, so before anything is signed this job holds what it would
+    # publish to the release pull request's acceptance, the newest line of the progress history:
+    # that line is a release pull request's (from CI, the release tier), whole and clean, made on
+    # the tagged commit's parent; the tagged commit adds that acceptance and nothing else, since
+    # the wheel carries the tree's own code, which no set hash covers; and the set's own
+    # SHA256SUMS and python.wasm, hashed here from the build's files after same-bytes, are the
+    # ones it accepted. When the tag uploads to PyPI, the wheel is within the file limit PyPI has
+    # granted. Only a pushed tag gets here (the plan's publish).
+    needs: [plan, build, same-bytes]
+    if: needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2 # the tagged commit and its parent, the commit the release judged
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build's files
+        uses: ./.github/actions/verify-artifact
+        with:
+          assets-id: ${{ needs.build.outputs.assets-id }}
+          sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
+      - name: The wheel is within the file limit PyPI has granted, when it goes to PyPI
+        # PyPI refuses a file past the project's limit, 100 MiB until PyPI raises it, and refuses
+        # it only at the upload, after the signature and the GitHub release. So when this tag
+        # uploads (the pypi job's own condition) the wheel is held here to the limit PyPI has
+        # granted, the repository variable PYPI_FILE_LIMIT_GRANTED in bytes, or PyPI's default
+        # while it is unset; nothing is signed or published past it. With no upload, any size
+        # passes.
+        env:
+          TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}
+          PYPI_FILE_LIMIT_GRANTED: ${{ vars.PYPI_FILE_LIMIT_GRANTED }}
+        run: |
+          if [ "$TO_PYPI" != "true" ]; then
+            echo "this tag does not upload to PyPI: the GitHub release takes a wheel of any size"
+            exit 0
+          fi
+          limit="${PYPI_FILE_LIMIT_GRANTED:-104857600}"
+          case "$limit" in
+            "" | *[!0-9]* | 0*)
+              echo "PYPI_FILE_LIMIT_GRANTED is '$limit', not a whole number of bytes"
+              exit 1
+              ;;
+          esac
+          if [ "${#limit}" -gt 15 ]; then
+            echo "PYPI_FILE_LIMIT_GRANTED is '$limit', too long to be a number of bytes"
+            exit 1
+          fi
+          set -- release-assets/*.whl
+          if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+            echo "the build's files do not hold exactly one wheel"
+            exit 1
+          fi
+          bytes=$(($(wc -c < "$1")))
+          if [ "$bytes" -gt "$limit" ]; then
+            echo "$1 is $bytes bytes, past the $limit PyPI has granted: nothing is signed or published"
+            echo "once PyPI grants more, set PYPI_FILE_LIMIT_GRANTED to it and re-run the failed jobs; this line prints the limit read"
+            exit 1
+          fi
+          echo "$1 is $bytes bytes, within the $limit PyPI has granted"
+      - name: These are the bytes the release pull request accepted, on the tree it judged
+        run: |
+          mkdir set
+          tar -xJf release-assets/*.tar.xz -C set
+          set -- set/wasi-python-*
+          if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+            echo "the set's tarball does not hold exactly one folder"
+            exit 1
+          fi
+          sums=$(sha256sum "$1/SHA256SUMS" | cut -c1-64)
+          wasm=$(sha256sum "$1/python.wasm" | cut -c1-64)
+          uv run python tests/harness/gather.py --prove-set "$sums" "$wasm"
+
   judge-macos:
     name: judge (macos-15, ${{ matrix.shard }})
     # One leg per shard the plan selected on this system (generated from tests/release_shards.toml).
@@ -739,8 +893,6 @@ jobs:
     if: needs.plan.outputs.macos != '[]'
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once.
-      max-parallel: 18
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.macos) }}
     runs-on: macos-15
@@ -831,8 +983,6 @@ jobs:
     if: needs.plan.outputs.linux != '[]'
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once.
-      max-parallel: 18
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.linux) }}
     runs-on: ubuntu-24.04
@@ -923,8 +1073,6 @@ jobs:
     if: needs.plan.outputs.windows != '[]'
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once.
-      max-parallel: 18
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.windows) }}
     runs-on: windows-2025
@@ -1007,19 +1155,17 @@ jobs:
 
   judge-release:
     name: judge the release tier (ubuntu-24.04, ${{ matrix.shard }})
-    # One leg per shard the plan selected on this system (generated from tests/release_shards.toml).
-    # Each leg runs its shard serially against accepted.json and uploads its record under its own
-    # name, record-<system>-<shard>; an artifact's name is unique within a run, so the name binds
-    # the record to its leg, and the gather finds each record by it.
-    # Only on a run that judges the release tier: a pushed tag, a run on main, a pull request into
-    # main, the weekly run, or a dispatch that asks. Its legs are judge-linux's, over the plan's
-    # release shards, which hold the release-tier groups alone.
+    # One leg per shard the plan selected on this system (generated from
+    # tests/release_shards.toml). Each leg runs its shard serially against accepted.json and
+    # uploads its record under its own name, record-<system>-<shard>; an artifact's name is unique
+    # within a run, so the name binds the record to its leg, and the gather finds each record by
+    # it. Only on a run that judges the release tier: a run on main, a pull request into main, the
+    # weekly run, or a dispatch that asks; a pushed tag judges no tier. Its legs are judge-linux's,
+    # over the plan's release shards, which hold the release-tier groups alone.
     needs: [plan, build]
     if: needs.plan.outputs.release != '[]'
     strategy:
       fail-fast: false
-      # One run stays within the plan's 40 jobs at once.
-      max-parallel: 18
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.release) }}
     runs-on: ubuntu-24.04
@@ -1103,15 +1249,17 @@ jobs:
   gather:
     name: gather the shards' records
     # One verdict from every record the plan selected, each found by its leg's artifact name (the
-    # build shard's by the id build-shard handed on); tied to this commit, its judge, the build's
-    # python.wasm, the newest acceptance and the systems that ran. It never holds the assets:
-    # python.wasm's hash comes from the build job. It writes no history. On the release shape it
-    # waits for same-bytes, so no release record exists without the proof that the set judged is
-    # the set the pins make. A judge job the plan skipped is skipped here too; after any failed or
+    # build shard's by the id the x86_64 rebuild handed on, where the run rebuilds); tied to this
+    # commit, its judge, the build's python.wasm, the newest acceptance and the systems that ran.
+    # It never holds the assets: python.wasm's hash comes from the build job. It writes no history.
+    # It does not wait for same-bytes, which gates what is cached, signed and published, and the
+    # release pull request's ci-status and acceptance, not the reading of records already complete.
+    # A judge job or the rebuild the plan skipped is skipped here too; after any failed or
     # cancelled need the gather does not run at all. On a pull request into dev it reads the plan's
     # selected pairs (PLAN) and is narrowed to them; on every other event, the release pull request
-    # into main among them, it is whole.
-    needs: [plan, build, build-shard, same-bytes, judge-macos, judge-linux, judge-windows, judge-release]
+    # into main among them, it is whole but for the build shard where the run did not rebuild
+    # (BUILD).
+    needs: [plan, build, rebuild-linux-x86-64, judge-macos, judge-linux, judge-windows, judge-release]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.judge == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1151,16 +1299,16 @@ jobs:
       - name: The build shard handed on its record's id
         if: needs.plan.outputs.build == 'true'
         env:
-          BUILD_RECORD_ID: ${{ needs.build-shard.outputs.record-id }}
+          BUILD_RECORD_ID: ${{ needs.rebuild-linux-x86-64.outputs.record-id }}
         run: |
           case "$BUILD_RECORD_ID" in
-            "" | *[!0-9]*) echo "build-shard handed on no record id"; exit 1 ;;
+            "" | *[!0-9]*) echo "the x86_64 rebuild handed on no record id"; exit 1 ;;
           esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.plan.outputs.build == 'true'
         with:
-          artifact-ids: ${{ needs.build-shard.outputs.record-id }}
-          path: records/build-shard
+          artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.record-id }}
+          path: records/rebuild-linux-x86-64
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.plan.outputs.macos != '[]'
@@ -1188,14 +1336,16 @@ jobs:
           digest-mismatch: error
       - name: The gather
         # It reads GITHUB_EVENT_NAME, GITHUB_REF_TYPE, GITHUB_REF and GITHUB_BASE_REF as the runner
-        # sets them: on a pushed tag the judge must also be the accepted one, and the set built in
-        # this run (G7). PLAN only on a pull request into dev, which is judged on what its plan
-        # selected; the release pull request into main is judged whole, as a tag is.
+        # sets them (G7's form; a pushed tag's run has no gather, its judged job holds the tag to
+        # the accepted bytes instead). PLAN only on a pull request into dev, which is judged on
+        # what its plan selected; the release pull request into main is judged whole. BUILD says
+        # whether the build shard ran, which only a run that rebuilds does.
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
           SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
           SET_SOURCE: ${{ needs.build.outputs.set-source }}
-          RECORD_BUILD_BUILD: ${{ needs.build-shard.outputs.record-sha256 }}
+          RECORD_BUILD_BUILD: ${{ needs.rebuild-linux-x86-64.outputs.record-sha256 }}
+          BUILD: ${{ needs.plan.outputs.build }}
           TIER: ${{ needs.plan.outputs.tier }}
           PLAN: ${{ github.event_name == 'pull_request' && github.base_ref != 'main' && needs.plan.outputs.selected || '' }}
         run: |
@@ -1216,10 +1366,10 @@ jobs:
     # files merged since the last acceptance. It runs the judge's code, so it holds no secret and
     # names no environment; it hands the two progress files and the commit's message on as one
     # artifact, which accept-push commits. After the release pull request it accepts that run's
-    # record of both tiers the same way, its reasons the news files' and the release-tier ledger's,
+    # record of both tiers the same way, its reasons the news files' and the release ledger's,
     # and accept-release.yml, which the run's completion starts on dev's own context, commits it.
     # A red or a cancelled run never gets here, so the accepted state never records a red one.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
+    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && needs.gather.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1331,32 +1481,69 @@ jobs:
           fi
           exit 1
 
-  weekly-issue:
-    name: the weekly run's issue, when it is red
-    # The weekly run never accepts. When a job it judges with failed or was cancelled, this opens
-    # one issue, or comments on the one already open, naming the run.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
-    if: ${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+  red-run-issue:
+    name: the issue when a run on dev is red
+    # A run after a merge into dev, or the weekly run, never accepts a red result. When a job it
+    # judges with failed or was cancelled, this opens one issue titled by the red legs, or comments
+    # on the one open of its kind: dev is broken on those lines, and the merged change's author
+    # fixes it forward the same day or reverts it, while other pull requests keep merging. A green
+    # run after a merge closes the open one. A merge's run whose plan itself failed is red too, with
+    # no outputs to read. No other run touches an issue.
+    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
+    if: ${{ always() && ((needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) || (needs.plan.outputs.accept == 'true' && github.event_name == 'push') || (github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.plan.result == 'failure')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       issues: write
+      # The run's own jobs, to name the red legs in the title.
+      actions: read
     steps:
       - name: Open the issue, or comment on the open one
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          WEEKLY: ${{ needs.plan.outputs.weekly }}
+          RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          title="The weekly run on dev is red"
-          body="The weekly run $RUN_URL on $GITHUB_SHA is red: the release tier, a rebuild, same-bytes or a judge leg failed or was cancelled. Nothing was accepted; read its jobs."
+          if [ "$WEEKLY" = true ]; then
+            prefix="The weekly run on dev is red"
+            next="Nothing was accepted; read its jobs."
+          else
+            prefix="dev is red after a merge"
+            next="Nothing was accepted. The merged change's author fixes it forward today or reverts it; other pull requests keep merging, and the next run after a merge judges everything since the last acceptance."
+          fi
+          red=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" --paginate \
+            --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name' \
+            | paste -sd ',' - | sed 's/,/, /g') || red=""
+          if [ -z "$red" ]; then
+            red=$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key] | join(", ")')
+          fi
+          title=$(printf '%s: %s' "$prefix" "$red" | cut -c1-200)
+          body="The run $RUN_URL on $GITHUB_SHA is red: $red. $next"
           number=$(gh issue list --state open --limit 100 --json number,title \
-            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+            --jq "map(select(.title | startswith(\"$prefix\"))) | .[0].number // empty")
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"
           else
             gh issue create --title "$title" --body "$body"
           fi
+      - name: Close the open issue, once a run after a merge is green
+        if: ${{ github.event_name == 'push' && needs.gather.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          prefix="dev is red after a merge"
+          numbers=$(gh issue list --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title | startswith(\"$prefix\")) | .number") || numbers=""
+          for number in $numbers; do
+            gh issue close "$number" --comment "The run $RUN_URL after a merge, on $GITHUB_SHA, is green." \
+              || echo "could not close issue $number; close it by hand"
+          done
 
   verify:
     name: verify (${{ matrix.os }})
@@ -1426,12 +1613,13 @@ jobs:
   attest:
     name: attest the release assets
     # Build provenance for every asset, signed through Sigstore's public-good instance and then
-    # verified strictly, before anything is published, and only once arm64 Linux and
-    # x86_64 Linux rebuilt the same bytes (same-bytes). Only a pushed tag gets here: a signature is
-    # permanent in the public transparency log, so dry runs never sign. It checks out this
-    # repository for the local action alone.
+    # verified strictly, before anything is published, and only once arm64 macOS and
+    # x86_64 Linux rebuilt the same bytes (same-bytes) and judged held them to the release pull
+    # request's acceptance. Only a pushed tag gets here: a signature is permanent in the public
+    # transparency log, so dry runs never sign. It checks out this repository for the local
+    # action alone.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, gather]
+    needs: [build, verify, same-bytes, judged]
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
@@ -1465,7 +1653,7 @@ jobs:
     name: publish the GitHub release
     # Only a pushed tag publishes; a manual run, even started on a tag, never does.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, attest, gather]
+    needs: [build, verify, same-bytes, attest, judged]
     runs-on: ubuntu-24.04
     environment: release
     permissions:
@@ -1503,7 +1691,8 @@ jobs:
   pypi:
     name: publish the wheel on PyPI
     # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
-    # repository variable PYPI_PUBLISH to true. It checks out this repository for the local
+    # repository variable PYPI_PUBLISH to true; judged has already held the wheel to the limit
+    # PyPI has granted (PYPI_FILE_LIMIT_GRANTED, or 100 MiB). It checks out this repository for the local
     # action alone, and uploads with the workflow's pinned uv through trusted publishing alone:
     # the job's OIDC token, exchanged for a PyPI token bound to this repository, release.yml and
     # the pypi environment. It sets no env, so no variable steers uv past --no-config.
@@ -1539,9 +1728,12 @@ jobs:
     # The one required check. It runs whatever happened before it, so it is always reported, and
     # passes when every other job succeeded or was skipped by the plan, and the decision job
     # refused nothing: a pull request may not write accepted state, and one into dev that is not
-    # documentation only carries its news file and a review file that holds. A failed or
-    # cancelled job is red here.
-    needs: [plan, quick, inputs, build, build-shard, rebuild-linux-x86-64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, weekly-issue, attest, publish, pypi]
+    # documentation only carries its news file and a review file that holds. A failed or cancelled
+    # job is red here, and so is a run whose plan said it publishes (a pushed tag) when publish did
+    # not run, so a tag that published nothing is never green. It does not need the review job,
+    # whose verdict is the review file's and not the code's; it reads the same refusals, so no pull
+    # request merges unreviewed until the repository's ruleset requires the review job too.
+    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, judged, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, red-run-issue, attest, publish, pypi]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -1551,6 +1743,7 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           REFUSALS: ${{ needs.plan.outputs.refusals }}
+          PUBLISH: ${{ needs.plan.outputs.publish }}
         run: |
           python3 -I - <<'PY'
           import json, os, sys
@@ -1562,4 +1755,6 @@ jobs:
               sys.exit("a job this check needs neither succeeded nor was skipped: " + " ".join(bad))
           if os.environ.get("REFUSALS") != "[]":
               sys.exit("the plan refused this run: " + os.environ.get("REFUSALS", "(no plan)"))
+          if os.environ.get("PUBLISH") == "true" and needs.get("publish", {}).get("result") != "success":
+              sys.exit("the plan said this run publishes, and publish did not run")
           PY

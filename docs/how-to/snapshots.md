@@ -123,7 +123,45 @@ What is fresh in every call:
 - **A visitor's code, or inputs a guest can write.** The snapshot is as trustworthy as its code and everything the code read. Make it from your own code and from files no guest can change.
 - **Names a program does not expect.** Every name your code leaves is in every program's namespace: `from os import *` binds `os.open` over `open`. Import modules by name, keep setup in functions, and `del` what the code used only once.
 
-A snapshot holds your own code's state, made before any program runs. A snapshot of a guest's run, taken while or after it ran, is not offered.
+A snapshot made this way holds your own code's state, made before any program runs. To keep a session's state after its turns, checkpoint it, as the next section shows. A snapshot of a `run`, taken while or after it ran, is not offered.
+
+## Checkpoint a session, and fork it
+
+`session.checkpoint()` keeps a live session's state as a snapshot, after at least one turn has returned. The session goes on unchanged. Pass the checkpoint as `snapshot=` to start any number of sessions or calls from that state, each with its own copy.
+
+```python
+from wasi_python import Session, run
+
+with Session() as s:
+    s.run("import pandas as pd; df = pd.DataFrame({'x': [1, 2, 3]})")
+    cp = s.checkpoint()
+with Session(snapshot=cp) as a, Session(snapshot=cp) as b:
+    a.run("df['y'] = df.x * 2")     # b never sees it
+done = run(["-c", "print(df)"], snapshot=cp)
+```
+
+A checkpoint is a `Snapshot`: save it, load it and check it as any other. Its origin's `kind` is `"checkpoint"`, and its `parent_sha256` names the snapshot the session started from, if any.
+
+What a start from a checkpoint carries:
+
+- every name, import and object the session's turns made, a hook a turn put on `builtins` or an `atexit` handler included;
+- the working folder a turn chose with `os.chdir`;
+- the session's `HOME` path, with an empty folder of its own there;
+- a generator held in a name, such as `np.random.default_rng()` or a `random.Random()`, and every value drawn before the checkpoint: these are the same in every start;
+- bytes left unflushed in a writer on descriptor 1 or 2 other than `sys.stdout` and `sys.stderr`, which every start flushes at its end;
+- the session's uncollected cyclic garbage, frozen at the start and never collected there.
+
+What is fresh in every start:
+
+- the grants, mounts, root, environment, import path and tools, its own;
+- the clocks; the monotonic clock never reads below the session's last reading;
+- the generators of `random`, numpy, sympy and `tempfile`'s names, reseeded even after the session's own `random.seed`. To fork reproducibly, seed again in the start's first turn.
+
+A turn that left a file or folder open refuses the checkpoint with `SnapshotFailed` and the reason `"open file"`, and the session goes on. Close the file, or use `with`, and checkpoint again.
+
+A checkpoint holds every byte the session's memory holds, freed or not. That includes what its turns read from grants, mounts and tools, and its environment's values. Every start from it, and whoever holds its saved file, can read them, whatever the start's own grants say. Start a checkpoint only where its code may read everything the session read.
+
+A checkpoint is not reproducible: two checkpoints of the same turns differ, since the heap holds real times and entropy. Its `image_sha256` names it.
 
 ## Know the costs
 

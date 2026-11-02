@@ -1,0 +1,90 @@
+pass	snapshot	today	93422093	0		
+pass	plain	today	366377715	0		
+pass	snapshot	X flush+exit	33482278	0		
+pass	plain	X flush+exit	320408164	0		
+pass	snapshot	A young	33937955	0		
+pass	plain	A young	325466131	0		
+pass	snapshot	B young modules	34365207	0		
+pass	plain	B young modules	334367413	0		
+pass	snapshot	F skip if nothing to finalize	43737164	0	None	
+pass	plain	F skip if nothing to finalize	428942316	0	a class with __del__	
+print	snapshot	today	93521822	0		hello
+print	plain	today	366358143	0		hello
+print	snapshot	X flush+exit	33586468	0		hello
+print	plain	X flush+exit	320744330	0		hello
+print	snapshot	A young	34042733	0		hello
+print	plain	A young	325395274	0		hello
+print	snapshot	B young modules	34469559	0		hello
+print	plain	B young modules	335003363	0		hello
+print	snapshot	F skip if nothing to finalize	43844870	0	None	hello
+print	plain	F skip if nothing to finalize	428742591	0	a class with __del__	hello
+json and csv	snapshot	today	98334454	0		2180 685
+json and csv	plain	today	490138147	0		2180 685
+json and csv	snapshot	X flush+exit	38233368	0		2180 685
+json and csv	plain	X flush+exit	435951287	0		2180 685
+json and csv	snapshot	A young	38812132	0		2180 685
+json and csv	plain	A young	442940487	0		2180 685
+json and csv	snapshot	B young modules	39283935	0		2180 685
+json and csv	plain	B young modules	458211385	0		2180 685
+json and csv	snapshot	F skip if nothing to finalize	50610139	0	None	2180 685
+json and csv	plain	F skip if nothing to finalize	585965416	0	a class with __del__	2180 685
+1,000 instances	snapshot	today	100840688	0		499500
+1,000 instances	plain	today	373792800	0		499500
+1,000 instances	snapshot	X flush+exit	38205756	0		499500
+1,000 instances	plain	X flush+exit	325166097	0		499500
+1,000 instances	snapshot	A young	39409818	0		499500
+1,000 instances	plain	A young	331055803	0		499500
+1,000 instances	snapshot	B young modules	41815200	0		499500
+1,000 instances	plain	B young modules	341690940	0		499500
+1,000 instances	snapshot	F skip if nothing to finalize	72429925	0	None	499500
+1,000 instances	plain	F skip if nothing to finalize	461040397	0	a class with __del__	499500
+a file closed by with	snapshot	today	94136685	0		xxx
+a file closed by with	plain	today	367066872	0		xxx
+a file closed by with	snapshot	X flush+exit	34278381	0		xxx
+a file closed by with	plain	X flush+exit	321399600	0		xxx
+a file closed by with	snapshot	A young	34746910	0		xxx
+a file closed by with	plain	A young	326057996	0		xxx
+a file closed by with	snapshot	B young modules	35173735	0		xxx
+a file closed by with	plain	B young modules	334991529	0		xxx
+a file closed by with	snapshot	F skip if nothing to finalize	44838967	0	None	xxx
+a file closed by with	plain	F skip if nothing to finalize	431047044	0	a class with __del__	xxx
+a file left open	snapshot	today	93713075	0		
+a file left open	plain	today	366482319	0		
+a file left open	snapshot	X flush+exit	33798363	0		
+a file left open	plain	X flush+exit	320620715	0		
+a file left open	snapshot	A young	34311098	0		
+a file left open	plain	A young	325497186	0		
+a file left open	snapshot	B young modules	34744002	0		
+a file left open	plain	B young modules	334866925	0		
+a file left open	snapshot	F skip if nothing to finalize	104311845	0	finalizer FileIO	
+a file left open	plain	F skip if nothing to finalize	373793839	0	finalizer FileIO	
+import fractions, decimal, datetime	snapshot	today	194010812	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	today	560495366	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	snapshot	X flush+exit	126253702	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	X flush+exit	500093320	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	snapshot	A young	127422302	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	A young	507353741	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	snapshot	B young modules	130947974	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	B young modules	524663653	0		4/3 3.3 2026-01-01
+import fractions, decimal, datetime	snapshot	F skip if nothing to finalize	206373739	0	extension type _contextvars.Context	4/3 3.3 2026-01-01
+import fractions, decimal, datetime	plain	F skip if nothing to finalize	589125525	0	extension type _contextvars.Context	4/3 3.3 2026-01-01
+import numpy	snapshot	today	868411386	0		45
+import numpy	plain	today	1263415296	0		45
+import numpy	snapshot	X flush+exit	766345947	0		45
+import numpy	plain	X flush+exit	1168380900	0		45
+import numpy	snapshot	A young	774103215	0		45
+import numpy	plain	A young	1182567050	0		45
+import numpy	snapshot	B young modules	807924596	0		45
+import numpy	plain	B young modules	1237132137	0		45
+import numpy	snapshot	F skip if nothing to finalize	897949755	0	extension type _contextvars.ContextVar	45
+import numpy	plain	F skip if nothing to finalize	1418242774	0	a class with __del__	45
+pandas groupby	snapshot	today	4783420002	0		{1: 4.0, 2: 6.0}
+pandas groupby	plain	today	5211631582	0		{1: 4.0, 2: 6.0}
+pandas groupby	snapshot	X flush+exit	4459217806	0		{1: 4.0, 2: 6.0}
+pandas groupby	plain	X flush+exit	4893111414	0		{1: 4.0, 2: 6.0}
+pandas groupby	snapshot	A young	4502351259	0		{1: 4.0, 2: 6.0}
+pandas groupby	plain	A young	4944359755	0		{1: 4.0, 2: 6.0}
+pandas groupby	snapshot	B young modules	4662937232	0		{1: 4.0, 2: 6.0}
+pandas groupby	plain	B young modules	5130407704	0		{1: 4.0, 2: 6.0}
+pandas groupby	snapshot	F skip if nothing to finalize	4815329723	0	extension type pandas._libs.properties.CachedProperty	{1: 4.0, 2: 6.0}
+pandas groupby	plain	F skip if nothing to finalize	5244829193	0	extension type _cython_3_3_0.fused_cython_function	{1: 4.0, 2: 6.0}

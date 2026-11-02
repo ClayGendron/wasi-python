@@ -28,7 +28,7 @@ The snapshot is the same bytes on every build, from any supported build host. Wh
 
 `MANIFEST` is a text file of lines. Among them:
 
-- a `python` line naming the guest's CPython version, such as `python 3.15.0`;
+- a `python` line naming the guest's CPython version, such as `python 3.15.2`;
 - a `pin` line for each pinned input. It names every supported build host's inputs, not only the ones one build used, and the line `x-pins every-supported-build-host` says so. So `MANIFEST` is the same file from every host;
 - a hash for each recipe file the build used;
 - an `x-preimport` line that records what the snapshot pre-imports;
@@ -36,7 +36,7 @@ The snapshot is the same bytes on every build, from any supported build host. Wh
 
 ## The same bytes from any build host
 
-The set builds on arm64 macOS, arm64 Linux and x86_64 Linux. All three give the same artifact set, byte for byte: the same `SHA256SUMS` over the three artifacts, `MANIFEST` and the licences. Each release rebuilds the set on two Linux machines and requires their `SHA256SUMS` and wheel to equal the build's before anything is published.
+The set builds on arm64 Linux, x86_64 Linux and arm64 macOS. All three give the same artifact set, byte for byte: the same `SHA256SUMS` over the three artifacts, `MANIFEST` and the licences. The published set is built on arm64 Linux. Each release rebuilds it on x86_64 Linux and on arm64 macOS and requires their `SHA256SUMS` and wheel to equal the build's before anything is published.
 
 ## The wheel
 

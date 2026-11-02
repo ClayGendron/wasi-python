@@ -6,7 +6,10 @@ its SHA-256). Every later volume is named after its first line, `history-<n:05d>
 at most `BUDGET` bytes. A line of format 2 (`"schema": 2`) records the change in the passed set
 since the line before (`passed_added`, `passed_removed`) and a digest of the whole set
 (`passed_digest`); an old-format line carries the whole `passed` list. A line's passed set is found
-by replay from line 1.
+by replay from line 1. A line of format 3, which the acceptance from CI's record writes, is format
+2 with one more key, `unclaimed`: each row it accepted with no claim to give its reason (a growth,
+a fall in a pass count, a tier move or a verdict-bearing judge file), which the release's
+acceptance asks a reason for. The local acceptance writes format 2, so the two interleave.
 
 Only `errors` (the intact check) verifies every digest. `last_passed` (for `accept`) checks the
 newest line's alone, and `systems_that_passed` none. Every size is in
@@ -33,6 +36,9 @@ _QUOTED = f"{ACCEPT_PATHSPEC[0]} '{ACCEPT_PATHSPEC[1]}'"
 ACCEPT_COMMANDS = (f"git add -- {_QUOTED}", f'git commit -m "Accept …" -- {_QUOTED}')
 
 _NAME = re.compile(r"history-(\d{5,})\.jsonl")
+SCHEMAS = (2, 3)  # the formats of a line that records a change
+# The kinds of row a format-3 line names unclaimed, each with what names its subject.
+UNCLAIMED_KINDS = {"grows": "check", "passes": "check", "moved": "check", "judge": "file"}
 # Counts for the self-tests (criterion 11): digests of a passed set, the bytes hashed for them,
 # and the JSON bytes parsed by the replay.
 OPS: Counter = Counter()
@@ -121,8 +127,8 @@ def _step(i: int, entry: dict, before: frozenset, verify: bool) -> frozenset:
     if "schema" not in entry:
         return frozenset(_ids(i, entry, "passed"))
     schema = entry["schema"]
-    if type(schema) is not int or schema != 2:
-        raise ValueError(f"history line {i}: schema is {schema!r}; only 2 is known")
+    if type(schema) is not int or schema not in SCHEMAS:
+        raise ValueError(f"history line {i}: schema is {schema!r}; only 2 and 3 are known")
     added, removed = _ids(i, entry, "passed_added"), _ids(i, entry, "passed_removed")
     again = [x for x in added if x in before]
     if again:
@@ -244,6 +250,25 @@ def _volume_errors(name: str, data: bytes, sealed: dict | None) -> tuple[list[st
     return errors, kept
 
 
+def unclaimed_errors(i: int, entry: dict) -> list[str]:
+    """What is wrong with line `i`'s `unclaimed` key: a format-3 line carries a list of rows, each
+    a known kind naming its check or file; a format-2 line carries none."""
+    if entry.get("schema") != 3:
+        carried = "unclaimed" in entry
+        return [f"history line {i} is in format 2 but carries unclaimed"] if carried else []
+    rows = entry.get("unclaimed")
+    if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+        return [f"history line {i}: unclaimed is not a list of rows"]
+    out = []
+    for k, row in enumerate(rows, 1):
+        subject = UNCLAIMED_KINDS.get(row.get("kind"))
+        if subject is None or not isinstance(row.get(subject), str) or not row[subject]:
+            out.append(
+                f"history line {i}: unclaimed row {k} is not a known kind naming its subject"
+            )
+    return out
+
+
 def errors(
     found: dict[str, bytes],
     accepted_text: str | None,
@@ -309,6 +334,7 @@ def errors(
             seen_change = True
             if "passed" in entry:
                 errs.append(f"history line {i} is in format 2 but carries passed")
+            errs += unclaimed_errors(i, entry)
         elif seen_change:
             errs.append(f"history line {i} is in the old format after a format-2 line")
         prev = line

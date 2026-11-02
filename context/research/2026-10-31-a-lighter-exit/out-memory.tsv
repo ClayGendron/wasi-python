@@ -1,0 +1,33 @@
+call	binary	ending	exit	fuel	memory_bytes
+pass	stock	teardown	0	58545351	41943040
+pass	stock	os._exit	0	1330109	41943040
+pass	nofree	teardown	0	40053074	41943040
+pass	nofree	os._exit	0	1300882	41943040
+import numpy	stock	teardown	0	830868563	41943040
+import numpy	stock	os._exit	0	729778646	41943040
+import numpy	nofree	teardown	0	798203837	95813632
+import numpy	nofree	os._exit	0	722066339	95813632
+pandas groupby	stock	teardown	0	4711324706	66846720
+pandas groupby	stock	os._exit	0	4387843368	66846720
+pandas groupby	nofree	teardown	0	4568615517	383975424
+pandas groupby	nofree	os._exit	0	4312607144	383909888
+pandas 1e6 rows	stock	teardown	0	10543870896	173408256
+pandas 1e6 rows	stock	os._exit	0	9827704895	173408256
+pandas 1e6 rows	nofree	teardown	0	10128995744	695140352
+pandas 1e6 rows	nofree	os._exit	0	9735451197	695140352
+200k __del__	stock	teardown	0	1378301691	45154304
+200k __del__	stock	os._exit	0	553777241	45154304
+200k __del__	nofree	teardown	0	1305732070	45285376
+200k __del__	nofree	os._exit	0	553568596	45285376
+200k cycles	stock	teardown	0	3158915643	54788096
+200k cycles	stock	os._exit	0	2041641011	54788096
+200k cycles	nofree	teardown	0	3031974863	54853632
+200k cycles	nofree	os._exit	0	2041416025	54853632
+a 2M-key dict	stock	teardown	0	7709776908	213057536
+a 2M-key dict	stock	os._exit	0	6154479321	213057536
+a 2M-key dict	nofree	teardown	0	6732981254	327352320
+a 2M-key dict	nofree	os._exit	0	5954340306	327286784
+1M strings, 50k modules-ish attrs	stock	teardown	0	3969250894	87818240
+1M strings, 50k modules-ish attrs	stock	os._exit	0	3385562643	87818240
+1M strings, 50k modules-ish attrs	nofree	teardown	0	3538245677	151060480
+1M strings, 50k modules-ish attrs	nofree	os._exit	0	3197497085	151060480

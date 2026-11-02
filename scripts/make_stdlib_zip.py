@@ -1,11 +1,11 @@
 """Build the stdlib zip: bytecode-only, deflated and deterministic.
 
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
-        [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
+        [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>=<name>[,<name>...]]...
         [--entry-points <an sdist's PKG-INFO> <its entry_points.txt>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
         [--drop <folder or file in zip>]... [--keep <folder in zip>=<file>,<file>...]...
-        [--inner <folder in zip>]...
+        [--inner <folder in zip>]... [--source <folder in zip>]...
         [--replace <old>=<new>]... [--code-prefix </guest/path/to/the.zip/>] out.zip
 
 Every .py becomes a .pyc compiled in process (the running interpreter's bytecode magic must be the
@@ -43,6 +43,11 @@ whole directory at every plain start, so 204 files of matplotlib's `mpl-data` co
 the runner extracts the inner archive and grants it read-only at the path
 matplotlib computes (Decision 5). An inner folder with no member stops the build.
 
+`--source` keeps a folder's Python source too: each of its `.py` files is packed, bytes unchanged,
+beside the `.pyc` compiled from it. zipimport takes the `.pyc` first, so an import costs no more;
+the source is there for a licence that asks for it (CairoSVG's LGPL-3.0). A source folder with no
+`.py` member stops the build.
+
 Package metadata: a wheel keeps two files of its .dist-info, METADATA and
 entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
 <name>-<version>.dist-info/METADATA (--metadata). A tree never brings metadata of its own: walk
@@ -50,6 +55,27 @@ skips every .dist-info and .egg-info folder, and a tree with one at its top stop
 `--entry-points <PKG-INFO> <file>` packs an sdist's entry_points.txt,
 bytes unchanged, beside that PKG-INFO's METADATA, in the folder sdist_metadata names; once every
 input is gathered, an entry-points file whose folder has no METADATA member stops the build.
+
+The folder table: once written, the zip's archive comment becomes a table of its top-level
+folders (write_folder_table), so the guest reads each folder's part of the directory only when a
+program first uses that folder. Members are written sorted, so each folder is one contiguous run
+of the directory; a line gives a folder's run (offset, size, entry count) and the run of its
+`__init__.*` entries, which a start reads so zipimport can tell a package from a namespace
+package. Every top-level folder is listed but `.dist-info` folders and names outside
+`[A-Za-z0-9_.-]`, which every start reads whole. The table is checked against the directory
+before it is written; a folder split in two runs, or a table past a comment's 65,535 bytes,
+stops the build. zipimport and zipfile ignore the comment.
+
+Import names: every distribution's .dist-info gets a top_level.txt, its top-level names sorted,
+one per line, setuptools' format, so the guest's importlib.metadata.packages_distributions()
+answers and the host can list each package with the names to import. A name is a packed
+member's first folder, or a root module's stem; a wheel's .dist-info and .data folders are never
+names, and a root data file is none. A wheel owns the names of the members it packs (its own
+top_level.txt stays dropped, as RECORD does). A tree has no owner of its own (one tree holds
+several sdists' packages), so each --metadata names its distribution's: `<PKG-INFO>=<name>,...`,
+split at the last `=`. --lib and --file own nothing. The build stops on a name two inputs own
+(a wheel and a tree, two wheels, two trees, two claims), on a tree's name no --metadata claims,
+on a claim of a name no tree packed, and on a distribution left with no name.
 """
 
 from __future__ import annotations
@@ -60,6 +86,7 @@ import importlib.util
 import io
 import os
 import re
+import struct
 import sys
 import zipfile
 from importlib._bootstrap_external import _code_to_hash_pyc
@@ -325,6 +352,205 @@ def _under(name: str, folder: str) -> str | None:
     return name[len(prefix) :] if name.startswith(prefix) else None
 
 
+def import_name(name: str) -> str | None:
+    """The top-level import name a member puts on the path: its first folder, or a root module's
+    stem; None for a root data file and for a wheel's .dist-info and .data folders."""
+    top, sep, _ = name.partition("/")
+    if sep:
+        return None if top.endswith((*METADATA_DIRS, ".data")) else top
+    stem, dot, suffix = name.rpartition(".")
+    return stem if dot and suffix in ("py", "pyc") else None
+
+
+FOLDER_TABLE = b"wasi-python folders 1"
+FOLDER_NAME = re.compile(r"[A-Za-z0-9_.-]+")
+END_RECORD = struct.Struct("<4s4xHHIIH")  # signature, entries here, entries, size, offset, comment
+CENTRAL = struct.Struct("<4s24xHHH")  # signature, then the name's, extra's and comment's sizes
+
+
+def tabled_folder(name: str) -> str | None:
+    """The folder of the table a member's name lies in: its top-level folder, unless that is a
+    .dist-info folder or a name outside the table's alphabet, both read at every start."""
+    top, sep, _ = name.partition("/")
+    if not sep or top.endswith(".dist-info") or not FOLDER_NAME.fullmatch(top):
+        return None
+    return top
+
+
+def folder_runs(entries: list[tuple[str, int, int]]) -> list[list]:
+    """[folder, offset, size, count, init offset, init count] for each tabled folder, in the
+    directory's order, from its entries (name, offset from the directory's first entry, length).
+    A folder whose entries are not one contiguous run, or whose `__init__.*` entries are not,
+    stops the build."""
+    runs: list[list] = []
+    seen: set[str] = set()
+    init_end = -1
+    previous = None
+    for name, offset, length in entries:
+        folder = tabled_folder(name)
+        if folder is not None and folder != previous:
+            if folder in seen:
+                raise SystemExit(f"the folder table: {folder}/ is not one run of the directory")
+            seen.add(folder)
+            runs.append([folder, offset, 0, 0, 0, 0])
+        previous = folder
+        if folder is None:
+            continue
+        run = runs[-1]
+        run[2] += length
+        run[3] += 1
+        rest = name[len(folder) + 1 :]
+        if rest.startswith("__init__.") and "/" not in rest:
+            if run[5] == 0:
+                run[4] = offset
+            elif init_end != offset:
+                raise SystemExit(f"the folder table: {folder}/__init__.* is not one run")
+            run[5] += 1
+            init_end = offset + length
+    return runs
+
+
+def check_folder_table(entries: list[tuple[str, int, int]], table: bytes) -> None:
+    """The table read back against the directory: the runs tile it in order, each run's entries
+    name its folder, its `__init__` entries are where it says, and the counts add up."""
+    lines = table.split(b"\n")
+    if lines[0] != FOLDER_TABLE or lines[-1] != b"":
+        raise SystemExit("the folder table: no version line, or a line not ended by LF")
+    at = {offset: i for i, (_, offset, _) in enumerate(entries)}
+    inside = 0
+    previous_end = 0
+    for row in lines[1:-1]:
+        folder, *fields = row.decode("ascii").split(" ")
+        offset, size, count, init_offset, init_count = map(int, fields)
+        if offset < previous_end or offset not in at:
+            raise SystemExit(f"the folder table: {folder}'s run is out of order or misplaced")
+        first = at[offset]
+        run = entries[first : first + count]
+        if len(run) != count or sum(length for _, _, length in run) != size:
+            raise SystemExit(f"the folder table: {folder}'s run does not end where it says")
+        if any(name.partition("/")[0] != folder for name, _, _ in run):
+            raise SystemExit(f"the folder table: {folder}'s run holds another folder's entry")
+        if init_count:
+            i = at.get(init_offset, -1)
+            inits = entries[i : i + init_count] if first <= i < first + count else []
+            if len(inits) != init_count or not all(
+                n.startswith(folder + "/__init__.") and n.count("/") == 1 for n, _, _ in inits
+            ):
+                raise SystemExit(f"the folder table: {folder}'s __init__ entries are misplaced")
+        inside += count
+        previous_end = offset + size
+    outside = sum(tabled_folder(name) is None for name, _, _ in entries)
+    if inside + outside != len(entries):
+        raise SystemExit("the folder table: its counts and the directory's do not add up")
+
+
+def write_folder_table(path: Path) -> int:
+    """Write the folder table into the zip's archive comment, replacing any comment there:
+    `wasi-python folders 1`, then one line per tabled folder, `<folder> <offset> <size> <count>
+    <init offset> <init count>`, each ended by LF. Offsets are bytes from the directory's first
+    entry. No member, offset or directory byte changes. Returns the table's length."""
+    data = path.read_bytes()
+    with zipfile.ZipFile(path) as z:
+        old = len(z.comment)
+    end = len(data) - END_RECORD.size - old
+    sig, count, total, cd_size, cd_offset, comment_size = END_RECORD.unpack_from(data, end)
+    if sig != b"PK\x05\x06" or comment_size != old or count != total:
+        raise SystemExit(f"{path}: no plain end record where zipfile found it")
+    if b"PK\x06\x06" in data[max(0, end - 76) : end] or end - cd_size != cd_offset:
+        raise SystemExit(f"{path}: a Zip64 zip, or bytes before it, has no folder table")
+    entries = []
+    p = cd_offset
+    for _ in range(count):
+        sig, name_size, extra_size, comment_len = CENTRAL.unpack_from(data, p)
+        if sig != b"PK\x01\x02":
+            raise SystemExit(f"{path}: a directory entry without its signature")
+        length = 46 + name_size + extra_size + comment_len
+        entries.append((data[p + 46 : p + 46 + name_size].decode("utf-8"), p - cd_offset, length))
+        p += length
+    if p != end:
+        raise SystemExit(f"{path}: the directory does not end at the end record")
+    rows = [FOLDER_TABLE.decode()]
+    rows += [" ".join(map(str, run)) for run in folder_runs(entries)]
+    table = "".join(f"{row}\n" for row in rows).encode("ascii")
+    if len(table) > 0xFFFF:
+        raise SystemExit(f"the folder table is {len(table):,} bytes, past a comment's 65,535")
+    check_folder_table(entries, table)
+    path.write_bytes(data[: end + 20] + struct.pack("<H", len(table)) + table)
+    return len(table)
+
+
+def parse_claim(spec: str) -> tuple[Path, list[str]]:
+    """`--metadata <PKG-INFO>=<name>[,<name>...]`, split at the last `=`: a distribution left
+    with no name could not say what to import, so the names are required."""
+    path, sep, names = spec.rpartition("=")
+    found = [n.strip() for n in names.split(",") if n.strip()] if sep else []
+    if not path or not found or not all(n.isidentifier() for n in found):
+        raise SystemExit(f"--metadata {spec!r}: write <PKG-INFO>=<name>[,<name>...]")
+    return Path(path), found
+
+
+class Owners:
+    """Which distribution owns each top-level name: a wheel the names of what it packs, an sdist
+    the names its --metadata claims among what the trees packed. Kept so that every name has one
+    owner and every distribution a name, and the build stops, naming both, when one does not."""
+
+    def __init__(self) -> None:
+        self.owner: dict[str, str] = {}  # a packed name: the wheel or tree that packed it
+        self.by_wheel: dict[str, set[str]] = {}  # a wheel: the names it packed
+        self.folder: dict[str, str] = {}  # a wheel: its .dist-info folder
+        self.trees: set[str] = set()  # the names the trees packed
+        self.claims: dict[str, str] = {}  # a claimed name: the --metadata that claims it
+        self.claimed: dict[str, set[str]] = {}  # an sdist's .dist-info folder: its names
+
+    def packed(self, name: str, origin: str, wheel: bool) -> None:
+        """A member `add` took from a wheel or a tree."""
+        if wheel and name.partition("/")[0].endswith(".dist-info"):
+            self.folder[origin] = name.partition("/")[0]
+        top = import_name(name)
+        if top is None:
+            return
+        if self.owner.setdefault(top, origin) != origin:
+            raise SystemExit(f"{top} is owned by two inputs: {self.owner[top]} and {origin}")
+        if wheel:
+            self.by_wheel.setdefault(origin, set()).add(top)
+        else:
+            self.trees.add(top)
+
+    def claim(self, folder: str, names: list[str], spec: str) -> None:
+        for name in names:
+            if self.claims.setdefault(name, spec) != spec:
+                raise SystemExit(
+                    f"{name} is claimed twice: --metadata {self.claims[name]} and --metadata {spec}"
+                )
+        self.claimed.setdefault(folder, set()).update(names)
+
+    def top_level(self) -> dict[str, bytes]:
+        """Each distribution's `<dist-info>/top_level.txt`, after the checks."""
+        for name, spec in sorted(self.claims.items()):
+            if name in self.by_wheel.get(self.owner.get(name, ""), set()):
+                raise SystemExit(
+                    f"{name} is owned by two inputs: {self.owner[name]} and --metadata {spec}"
+                )
+            if name not in self.trees:
+                raise SystemExit(f"--metadata {spec}: no tree packed {name}")
+        unclaimed = sorted(self.trees - set(self.claims))
+        if unclaimed:
+            where = ", ".join(f"{n} ({self.owner[n]})" for n in unclaimed)
+            raise SystemExit(f"no --metadata claims the names a tree packed: {where}")
+        names = dict(self.claimed)
+        for wheel, packed in self.by_wheel.items():
+            if wheel not in self.folder:
+                raise SystemExit(f"{wheel}: no .dist-info folder for the names it packs")
+            names[self.folder[wheel]] = packed
+        for wheel, folder in self.folder.items():
+            if not self.by_wheel.get(wheel):
+                raise SystemExit(f"{wheel}: {folder} is left with no name to import")
+        return {
+            f"{folder}/top_level.txt": "".join(f"{n}\n" for n in sorted(found)).encode()
+            for folder, found in names.items()
+        }
+
+
 class Selection:
     """The --drop, --keep and --inner rules, and what each matched, so a rule that matches nothing
     stops the build instead of passing silently."""
@@ -378,7 +604,7 @@ def main() -> None:
     ap.add_argument("--lib", required=True, type=Path)
     ap.add_argument("--tree", action="append", default=[], type=Path)
     ap.add_argument("--wheel", action="append", default=[], type=Path)
-    ap.add_argument("--metadata", action="append", default=[], type=Path)
+    ap.add_argument("--metadata", action="append", default=[], type=parse_claim)
     ap.add_argument("--entry-points", action="append", default=[], nargs=2, type=Path)
     ap.add_argument("--file", action="append", default=[])
     ap.add_argument("--skip", action="append", default=[])
@@ -386,6 +612,7 @@ def main() -> None:
     ap.add_argument("--drop", action="append", default=[])
     ap.add_argument("--keep", action="append", default=[])
     ap.add_argument("--inner", action="append", default=[])
+    ap.add_argument("--source", action="append", default=[])
     ap.add_argument("--code-prefix", default="")
     ap.add_argument("out", type=Path)
     a = ap.parse_args()
@@ -405,11 +632,19 @@ def main() -> None:
 
     entries: dict[str, bytes] = {}
     chosen = Selection(a.drop, a.keep, a.inner)
+    owners = Owners()
+    sources = {folder.rstrip("/"): 0 for folder in a.source}
 
-    def add(data: bytes, name: str, origin: str) -> None:
+    def add(data: bytes, name: str, origin: str) -> bool:
         if not chosen.take(data, name):
-            return
+            return False
         if name.endswith(".py"):
+            for folder in sources:
+                if _under(name, folder) is not None:
+                    if name in entries:
+                        raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
+                    entries[name] = data
+                    sources[folder] += 1
             kind = next((key for key in REWRITE if key in name), None)
             if kind is not None:
                 text = host_neutral(data.decode(), name)
@@ -422,18 +657,22 @@ def main() -> None:
         if name in entries:
             raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
         entries[name] = data
+        return True
 
     for data, name in walk(a.lib, frozenset(a.skip)):
         add(data, name, str(a.lib))
     for tree in a.tree:
         for data, name in tree_members(tree):
-            add(data, name, str(tree))
+            if add(data, name, str(tree)):
+                owners.packed(name, str(tree), wheel=False)
     for wheel in a.wheel:
         for data, name in wheel_members(wheel):
-            add(data, name, wheel.name)
-    for path in a.metadata:
+            if add(data, name, wheel.name):
+                owners.packed(name, wheel.name, wheel=True)
+    for path, names in a.metadata:
         data, name = sdist_metadata(path)
         add(data, name, str(path))
+        owners.claim(name.rpartition("/")[0], names, f"{path}={','.join(names)}")
     placed: list[tuple[Path, Path, str]] = []
     for pkg_info, path in a.entry_points:
         data, name = sdist_entry_points(pkg_info, path)
@@ -443,8 +682,13 @@ def main() -> None:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
     check_entry_points(entries, placed)
+    for name, data in owners.top_level().items():
+        add(data, name, "the import names")
 
     chosen.check()
+    empty = [folder for folder, n in sources.items() if not n]
+    if empty:
+        raise SystemExit(f"--source matched no .py member: {', '.join(empty)}")
     for folder, files in chosen.packed.items():
         add_inner = folder + ".zip"
         if add_inner in entries:
@@ -466,10 +710,11 @@ def main() -> None:
             z.writestr(
                 member(name), entries[name], compress_type=zipfile.ZIP_DEFLATED, compresslevel=9
             )
+    table = write_folder_table(a.out)
     n_pyc = sum(name.endswith(".pyc") for name in entries)
     print(
         f"{a.out.name}: {n_pyc} pyc, {len(entries) - n_pyc} data files, "
-        f"{a.out.stat().st_size} bytes"
+        f"{a.out.stat().st_size} bytes, a folder table of {table} bytes"
     )
 
 

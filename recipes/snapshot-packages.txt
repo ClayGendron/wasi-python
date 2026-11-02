@@ -11,6 +11,7 @@ zlib: zlib
 bzip2: bz2
 xz: lzma
 sqlite-autoconf: sqlite3
+zstd: compression.zstd
 python-dateutil: dateutil dateutil.parser
 tzdata: tzdata
 six: six
@@ -30,6 +31,7 @@ packaging: packaging packaging.version
 fonttools: fontTools fontTools.ttLib
 contourpy: contourpy
 qhull:
+libjpeg-turbo:
 libxml2:
 libxslt:
 lxml: lxml lxml.etree lxml.html
@@ -72,3 +74,19 @@ statsmodels: statsmodels statsmodels.api statsmodels.formula.api
 formulaic: formulaic
 interface-meta: interface_meta
 wrapt: wrapt
+python-docx: docx
+python-pptx: pptx
+pdfminer-six: pdfminer pdfminer.high_level
+pdfplumber: pdfplumber
+xarray: xarray
+drawsvg: drawsvg
+pixman:
+libpng:
+cairo:
+cffi: _cffi_backend
+cairocffi: cairocffi
+cairosvg: cairosvg
+tinycss2: tinycss2
+cssselect2: cssselect2
+imageio: imageio imageio.v2 imageio.v3
+plotly: plotly plotly.graph_objects plotly.express

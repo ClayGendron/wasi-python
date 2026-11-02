@@ -1,4 +1,4 @@
-versions python=3.15 matplotlib=3.11.2 contourpy=1.4.0 numpy=2.5.2
+versions python=3.15 matplotlib=3.11.2 contourpy=1.4.0 numpy=2.5.4
 delaunay 48x3 triangles 89432076058c35fd067d617503555fac4f69bf51e3b7f26951f0203051d6d369 neighbors 9339a93a6b6b6bffc38b67e9800e8b3531d87a68435f051f15be29b0a0438709
 collinear RuntimeError Error in qhull Delaunay triangulation calculation: singular input data (exitcode=2); use python verbose option (-v) to see original qhull error.
 contourpy serial 1 57 -6.51274838 -7.0351887

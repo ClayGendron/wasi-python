@@ -74,6 +74,20 @@ def test_a_cap_for_a_new_check_file_waits_for_its_first_acceptance() -> None:
     ]
 
 
+def test_a_cap_for_a_new_package_suite_waits_for_its_first_acceptance() -> None:
+    """A package whose suite no accepted check comes from is new: its family's cap is not stale
+    before its first acceptance, and a package with an accepted check has no such allowance."""
+    new = f"{budget.UPSTREAM_FILE}::test_upstream_suite[newpkg-smoke]"
+    families = {**FAMILIES, new: "newpkg"}
+    accepted = {"checks": {A: entry(1), U: entry(1)}}
+    assert budget.new_upstream_families(accepted, families) == {"newpkg"}
+    assert budget.new_upstream_families({"checks": {new: entry(1), U: entry(1)}}, families) == set()
+    with_new = caps(newpkg=10, oldpkg=10)
+    assert budget.stale_caps(accepted, with_new, family, {"newpkg"}) == [
+        "the cap for oldpkg names no family with fuel"
+    ]
+
+
 def _junit(*cases: tuple[str, str, float]) -> str:
     rows = "".join(f'<testcase classname="{c}" name="{n}" time="{t}"/>' for c, n, t in cases)
     return f'<testsuites><testsuite name="pytest">{rows}</testsuite></testsuites>'
@@ -150,6 +164,23 @@ def test_a_time_past_the_seconds_is_a_warning_and_never_a_failure(tmp_path: Path
     ]
 
 
+def test_a_release_shard_past_its_minutes_is_a_warning_and_never_a_failure() -> None:
+    """The release legs are packed to twelve measured minutes; a shard past that, a group too
+    long to share a leg, is named as a warning annotation, never a failure: a duration depends on
+    the host that measured it."""
+    from harness import shards
+
+    plan = {
+        "a": shards.Shard("a", ("release",), groups=("g1",), minutes=18.0),
+        "b": shards.Shard("b", ("release",), groups=("g2",), minutes=12.0),
+        "c": shards.Shard("c", ("linux",), groups=("g3",)),
+    }
+    lines = budget.release_minutes_warnings(plan)
+    assert lines == [
+        budget.RELEASE_WARNING + "a: 18.0 measured minutes, past the release legs' 12.0"
+    ]
+
+
 def test_an_entry_needs_its_reason_and_a_specification_still_to_land(tmp_path: Path) -> None:
     line = f"{A}: fuel 101 is past its family test_v1_2_hostile_guest's cap 100"
     number = "150"
@@ -167,3 +198,55 @@ def test_an_entry_needs_its_reason_and_a_specification_still_to_land(tmp_path: P
     (folder / f"{number}-x.md").write_text("# x\n\n- **Status:** **landed 2026-10-30**, then\n")
     (folder / "README.md").write_text("no number\n")
     assert budget.spec_status(folder) == {number: "landed 2026-10-30, then"}
+
+
+def _spec(folder: Path, name: str, words: int, notes: int = 0, date: str = "") -> Path:
+    """A scratch specification of exactly `words` words, with `notes` lines of landing notes,
+    dated when `date` is given."""
+    dated = f"- **Date:** {date}\n\n" if date else ""
+    head = f"# 900: A scratch\n\n{dated}## Landing notes\n\n"
+    body = "".join(f"- line {i}\n" for i in range(notes))
+    filler = " ".join(["word"] * (words - len((head + body).split())))
+    p = folder / name
+    p.write_text(head.replace("## Landing", filler + "\n\n## Landing") + body)
+    assert len(p.read_text().split()) == words
+    return p
+
+
+def test_a_specification_past_2000_words_is_named_and_one_under_is_not(tmp_path: Path) -> None:
+    long = _spec(tmp_path, "900-long.md", 2001)
+    short = _spec(tmp_path, "901-short.md", 1999)
+    assert budget.length_over([long, short]) == ["900-long.md: 2,001 words, past 2,000"]
+    assert budget.length_over([short]) == []
+
+
+def test_landing_notes_past_15_lines_are_named_and_15_are_not(tmp_path: Path) -> None:
+    long = _spec(tmp_path, "900-long.md", 200, notes=16)
+    short = _spec(tmp_path, "901-short.md", 200, notes=15)
+    assert budget.length_over([long, short]) == [
+        "900-long.md: its landing notes run 16 lines, past 15"
+    ]
+
+
+def test_a_long_specification_is_a_warning_and_never_a_failure(tmp_path: Path) -> None:
+    long = _spec(tmp_path, "900-long.md", 2001)
+    summary = tmp_path / "summary.md"
+    assert budget.length_warnings([long], summary) == [
+        "::warning title=document length::900-long.md: 2,001 words, past 2,000"
+    ]
+    assert "- 900-long.md: 2,001 words, past 2,000" in summary.read_text()
+    assert budget.length_warnings([long], None) == [
+        "::warning title=document length::900-long.md: 2,001 words, past 2,000"
+    ]
+    assert budget.length_warnings([_spec(tmp_path, "901-short.md", 1999)], summary) == []
+
+
+def test_a_specification_dated_before_the_caps_is_not_named(tmp_path: Path) -> None:
+    assert budget.length_over([_spec(tmp_path, "900-old.md", 2001, date="2026-10-29")]) == []
+    status = _spec(tmp_path, "901-old.md", 2001)
+    status.write_text(
+        status.read_text().replace("A scratch", "A scratch\n\n- **Status:** drafted 2026-10-20", 1)
+    )
+    assert budget.length_over([status]) == []  # no Date line: the header's first date
+    new = _spec(tmp_path, "902-new.md", 2001, date="2026-10-30")
+    assert budget.length_over([new]) == ["902-new.md: 2,001 words, past 2,000"]

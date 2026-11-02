@@ -5,9 +5,12 @@
 # to fixed values, and the text rewrites below, computed from what the build knows and applied in
 # this order (the triple appears only inside the build-Python's path, which goes first), replace
 # the rest. Each Python distribution's METADATA rides along: a wheel's from the wheel,
-# numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
+# numpy's and pandas' from their pinned sdists' PKG-INFO, and beside it the top_level.txt of the
+# names to import: a wheel's are what it packs, and each --metadata names its own after its `=`,
+# since a tree may hold several sdists' packages. CPython's own ctypes stays out (no libffi
 # in wasi-sdk); the recipe's stand-in package takes its place. The tool protocol's guest package,
-# `host`, rides along as the project's own code; the snapshot does not pre-import it.
+# `host`, rides along as the project's own code, with `host.display` and the figures backend
+# `host.figures` for a call that asks for results; the snapshot does not pre-import it.
 # Each module's code is compiled under the name zipimport gives a source in the same zip, the
 # archive's guest path plus the member: that path is recipes/reactor_main.c's
 # STDLIB_ZIP, written there once more, and step 80's ZIP. The plot packages:
@@ -45,7 +48,34 @@
 # terms the owner has not approved (each folder kept to its two modules, which
 # statsmodels.datasets imports), every datasets/*/src/ folder (original sources no loader reads),
 # and sandbox/rlsdata.txt, a table with no stated terms that nothing reads (`--drop` of one member
-# by its exact name).
+# by its exact name). python-docx and python-pptx: each package from its sdist with its carried
+# patch, which reads each template through the package's loader, so it is found in the zip; their
+# METADATA their PKG-INFO; and docx/templates/default-docx-template left out, the unpacked source
+# of default.docx, which no module reads.
+# pdfplumber: its pure wheel; pdfminer.six, which it reads PDF files with, from
+# its sdist with its carried patch, which imports cryptography only where AES runs, without its
+# cmap folder (the predefined CJK character maps, read by path; a font that names one and has no
+# ToUnicode table reads as `(cid:N)`); xarray from its sdist, whose licences folder holds the
+# notices of the code it adapts, with its entry_points.txt, as networkx's. Both sdists' METADATA
+# their PKG-INFO.
+# drawsvg: its pure wheel, whole: its raster, video and colour helpers and its widgets folder stay,
+# so each names the package it lacks (CairoSVG, imageio, pwkit, ipywidgets) as it does natively.
+# cairocffi and CairoSVG, from their sdists (cairocffi's as step 56 unpacked it), staged as
+# python-docx is: cairocffi's package without
+# its ffi.py and its four test modules, and with recipes/cairocffi_ffi_stand_in.py as its ffi.py,
+# which binds the linked _cairocffi_api (step 56) in place of loading cairo at run time; CairoSVG's
+# package, with its carried patch, which reads its VERSION file through the package's loader, so it
+# imports from the zip, and without its test module. Each staged folder differs from its sdist's by
+# exactly those files and the stand-in, or the step stops. CairoSVG's Python source rides beside its
+# bytecode (`--source`), as its licence, LGPL-3.0, asks. tinycss2, cssselect2 and imageio: their
+# pure wheels.
+# plotly: its two packages from its sdist with its carried patch, which reads the
+# validators' table and the datasets through the package's loader, so they are found in the zip;
+# its METADATA its PKG-INFO; and left out, its JupyterLab extension and the widget's script, which
+# only FigureWidget in a notebook loads.
+# Last, make_stdlib_zip.py writes the folder table into the zip's archive comment: each top-level
+# folder's run of the directory, which a plain start reads only when a program first uses that
+# folder. The snapshot reads the whole directory at build time, as before.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -64,6 +94,7 @@ done
 [ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"
 [ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"
 [ -d "$B/statsmodels-install/statsmodels" ] || die "build/statsmodels-install/statsmodels is missing: run step 59"
+[ -d "$B/cairocffi-1.7.1/cairocffi" ] || die "build/cairocffi-1.7.1 is missing: run step 56"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -77,8 +108,12 @@ for dir in "$CP"/cross-build/*; do
 done
 [ -n "$BUILD_PYTHON" ] || die "no build-Python under $CP/cross-build"
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
-remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" "$B/pure-install"
-for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2; do
+remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" \
+  "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pdfminer_six-20260107" "$B/xarray-2026.9.0" \
+  "$B/cairosvg-2.9.1" "$B/plotly-7.1.0" "$B/pure-install"
+for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2 python_docx-1.2.0 \
+  python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0 cairosvg-2.9.1 \
+  plotly-7.1.0; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -88,6 +123,55 @@ cp -R "$B/pyyaml-6.0.3/lib/yaml" "$B/pure-install/yaml"
 cp -R "$B/markupsafe-3.0.4/src/markupsafe" "$B/pure-install/markupsafe"
 cp -R "$B/networkx-3.7/networkx" "$B/pure-install/networkx"
 cp -R "$B/seaborn-0.13.2/seaborn" "$B/pure-install/seaborn"
+cp -R "$B/python_docx-1.2.0/src/docx" "$B/pure-install/docx"
+cp -R "$B/python_pptx-1.0.2/src/pptx" "$B/pure-install/pptx"
+cp -R "$B/pdfminer_six-20260107/pdfminer" "$B/pure-install/pdfminer"
+cp -R "$B/xarray-2026.9.0/xarray" "$B/pure-install/xarray"
+# A package staged with files left out and stand-ins put in: each left-out file must exist in the
+# sdist, and the staged folder must differ from the sdist's folder by exactly those files and the
+# stand-ins (each `<name>=<recipe>`), so an upstream file renamed or added is seen here.
+stage() { # sdist package folder, staged folder, "left-out files", then stand-ins
+  src=$1 dst=$2 out=$3
+  shift 3
+  for f in $out; do
+    [ -f "$src/$f" ] || die "$src has no $f to leave out"
+  done
+  cp -R "$src" "$dst"
+  for f in $out; do rm "$dst/$f"; done
+  for pair in "$@"; do
+    cp "${pair#*=}" "$dst/${pair%%=*}"
+  done
+  # The expected difference: "- <file>" for each file left out and not put back, and the name of
+  # each stand-in, whose bytes differ from the sdist's file or which the sdist lacks.
+  ins=" "
+  want=""
+  for pair in "$@"; do
+    ins="$ins${pair%%=*} "
+    want="$want${pair%%=*}
+"
+  done
+  for f in $out; do
+    case "$ins" in
+      *" $f "*) ;;
+      *) want="$want- $f
+";;
+    esac
+  done
+  got=$(cd "$src" && find . -type f | sed 's#^\./##' | sort > "$B/.stage-src"
+    cd "$dst" && find . -type f | sed 's#^\./##' | sort > "$B/.stage-dst"
+    { comm -23 "$B/.stage-src" "$B/.stage-dst" | sed 's/^/- /'
+      comm -13 "$B/.stage-src" "$B/.stage-dst"
+      comm -12 "$B/.stage-src" "$B/.stage-dst" | while read -r f; do cmp -s "$src/$f" "$dst/$f" || echo "$f"; done; })
+  rm -f "$B/.stage-src" "$B/.stage-dst"
+  [ "$(printf '%s\n' "$got" | sort)" = "$(printf '%s' "$want" | sort)" ] \
+    || die "build/pure-install/$(basename "$dst") differs from its sdist by: $(printf '%s ' $got), not exactly the files left out and the stand-ins"
+}
+stage "$B/cairocffi-1.7.1/cairocffi" "$B/pure-install/cairocffi" \
+  "ffi.py test_cairo.py test_numpy.py test_pixbuf.py test_xcb.py" \
+  "ffi.py=$HERE/recipes/cairocffi_ffi_stand_in.py"
+stage "$B/cairosvg-2.9.1/cairosvg" "$B/pure-install/cairosvg" "test_api.py"
+cp -R "$B/plotly-7.1.0/plotly" "$B/pure-install/plotly"
+cp -R "$B/plotly-7.1.0/_plotly_utils" "$B/pure-install/_plotly_utils"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -106,7 +190,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/sklearn-install" \
   --tree "$B/statsmodels-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
-  --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
+  --wheel "$(pinned tzdata-2026.6-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
   --wheel "$(pinned cycler-0.12.1-py3-none-any.whl)" \
   --wheel "$(pinned pyparsing-3.3.3-py3-none-any.whl)" \
@@ -116,10 +200,10 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned et_xmlfile-2.0.0-py3-none-any.whl)" \
   --wheel "$(pinned xlsxwriter-3.2.9-py3-none-any.whl)" \
   --wheel "$(pinned xlrd-2.0.2-py2.py3-none-any.whl)" \
-  --wheel "$(pinned pypdf-6.21.1-py3-none-any.whl)" \
+  --wheel "$(pinned pypdf-6.21.4-py3-none-any.whl)" \
   --wheel "$(pinned defusedxml-0.7.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned beautifulsoup4-4.15.0-py3-none-any.whl)" \
-  --wheel "$(pinned soupsieve-3.0.3-py3-none-any.whl)" \
+  --wheel "$(pinned soupsieve-3.0.4-py3-none-any.whl)" \
   --wheel "$(pinned html5lib-1.1-py2.py3-none-any.whl)" \
   --wheel "$(pinned webencodings-0.6.1-py3-none-any.whl)" \
   --wheel "$(pinned tomli_w-1.2.0-py3-none-any.whl)" \
@@ -142,23 +226,37 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned reportlab-5.0.1-py3-none-any.whl)" \
   --wheel "$(pinned formulaic-1.2.2-py3-none-any.whl)" \
   --wheel "$(pinned interface_meta-2.0.1-py3-none-any.whl)" \
-  --wheel "$(pinned wrapt-2.5.1-py3-none-any.whl)" \
-  --metadata "$B/numpy-2.5.2/PKG-INFO" \
-  --metadata "$B/pandas-3.0.6/PKG-INFO" \
-  --metadata "$B/pillow-13.0.0/PKG-INFO" \
-  --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \
-  --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
-  --metadata "$B/contourpy-1.4.0/PKG-INFO" \
-  --metadata "$B/lxml-6.1.3/PKG-INFO" \
-  --metadata "$B/regex-2026.9.29/PKG-INFO" \
-  --metadata "$B/pyyaml-6.0.3/PKG-INFO" \
-  --metadata "$B/markupsafe-3.0.4/PKG-INFO" \
-  --metadata "$B/networkx-3.7/PKG-INFO" \
+  --wheel "$(pinned wrapt-2.5.2-py3-none-any.whl)" \
+  --wheel "$(pinned pdfplumber-0.11.10-py3-none-any.whl)" \
+  --wheel "$(pinned drawsvg-2.4.2-py3-none-any.whl)" \
+  --wheel "$(pinned tinycss2-1.5.1-py3-none-any.whl)" \
+  --wheel "$(pinned cssselect2-0.10.1-py3-none-any.whl)" \
+  --wheel "$(pinned imageio-2.38.1-py3-none-any.whl)" \
+  --metadata "$B/numpy-2.5.4/PKG-INFO=numpy" \
+  --metadata "$B/pandas-3.1.0/PKG-INFO=pandas" \
+  --metadata "$B/pillow-13.0.0/PKG-INFO=PIL" \
+  --metadata "$B/kiwisolver-1.5.1/PKG-INFO=kiwisolver" \
+  --metadata "$B/matplotlib-3.11.2/PKG-INFO=matplotlib,mpl_toolkits,pylab" \
+  --metadata "$B/contourpy-1.4.0/PKG-INFO=contourpy" \
+  --metadata "$B/lxml-6.1.3/PKG-INFO=lxml" \
+  --metadata "$B/regex-2026.9.29/PKG-INFO=regex" \
+  --metadata "$B/pyyaml-6.0.3/PKG-INFO=yaml" \
+  --metadata "$B/markupsafe-3.0.4/PKG-INFO=markupsafe" \
+  --metadata "$B/networkx-3.7/PKG-INFO=networkx" \
   --entry-points "$B/networkx-3.7/PKG-INFO" "$B/networkx-3.7/networkx.egg-info/entry_points.txt" \
-  --metadata "$B/scipy-1.18.1/PKG-INFO" \
-  --metadata "$B/scikit_learn-1.9.1/PKG-INFO" \
-  --metadata "$B/seaborn-0.13.2/PKG-INFO" \
-  --metadata "$B/statsmodels-0.15.0/PKG-INFO" \
+  --metadata "$B/scipy-1.18.1/PKG-INFO=scipy" \
+  --metadata "$B/scikit_learn-1.9.1/PKG-INFO=sklearn" \
+  --metadata "$B/seaborn-0.13.2/PKG-INFO=seaborn" \
+  --metadata "$B/statsmodels-0.15.0/PKG-INFO=statsmodels" \
+  --metadata "$B/python_docx-1.2.0/PKG-INFO=docx" \
+  --metadata "$B/python_pptx-1.0.2/PKG-INFO=pptx" \
+  --metadata "$B/pdfminer_six-20260107/PKG-INFO=pdfminer" \
+  --metadata "$B/xarray-2026.9.0/PKG-INFO=xarray" \
+  --entry-points "$B/xarray-2026.9.0/PKG-INFO" "$B/xarray-2026.9.0/xarray.egg-info/entry_points.txt" \
+  --metadata "$B/cairocffi-1.7.1/PKG-INFO=cairocffi" \
+  --metadata "$B/cairosvg-2.9.1/PKG-INFO=cairosvg" \
+  --source cairosvg \
+  --metadata "$B/plotly-7.1.0/PKG-INFO=plotly,_plotly_utils" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -187,6 +285,10 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --drop statsmodels/datasets/randhie/src \
   --drop statsmodels/datasets/sunspots/src \
   --drop statsmodels/sandbox/rlsdata.txt \
+  --drop docx/templates/default-docx-template \
+  --drop pdfminer/cmap \
+  --drop plotly/labextension \
+  --drop plotly/package_data/widgetbundle.js \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \
@@ -200,6 +302,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --file "$HERE/recipes/reportlab_start_up_stand_in.py=reportlab_settings.py" \
   --file "$HERE/recipes/guest/host/__init__.py=host/__init__.py" \
   --file "$HERE/recipes/guest/host/tools.py=host/tools.py" \
+  --file "$HERE/recipes/guest/host/display.py=host/display.py" \
+  --file "$HERE/recipes/guest/host/figures.py=host/figures.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \
   --replace "$WASI_SDK_DIR=wasi-sdk" \
   --replace "$WASMTIME_DIR=wasmtime" \

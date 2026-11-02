@@ -1,0 +1,1 @@
+tests/test_plotly_utils/validators/test_colorscale_validator.py::test_acceptance_named[Inferno_r]

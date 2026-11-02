@@ -346,12 +346,12 @@ def test_a_missing_stdlib_module_says_why(guest) -> None:
 
 @BINARY
 def test_stdlib_c_modules_are_builtin(guest, which) -> None:
-    """zlib, _bz2, _lzma and _sqlite3 are linked in as builtins. A Setup.local line
+    """zlib, _bz2, _lzma, _sqlite3 and _zstd are linked in as builtins. A Setup.local line
     holding `=` is read by makesetup as a Make variable and its module is dropped without an
     error, so only the guest can say the module is there."""
     code = (
         "import sys\n"
-        "want = ('zlib', '_bz2', '_lzma', '_sqlite3')\n"
+        "want = ('zlib', '_bz2', '_lzma', '_sqlite3', '_zstd')\n"
         "print([m for m in want if m not in sys.builtin_module_names])\n"
     )
     r = guest(which, ["-c", code])

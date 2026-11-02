@@ -26,14 +26,18 @@ import queue
 import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, cast
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Protocol, cast
 
-from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions, _snapshot
-from ._artifacts import Artifacts
+from . import _call, _engines, _limits, _outputs, _places, _platform, _private_dirs, _sessions
+from . import _results as _results  # each on its own line: the line above is full
+from . import _snapshot as _snapshot
+from ._artifacts import Artifacts, ArtifactsMissing
 from ._call import Completed as Completed  # re-exported: the public API names them here
 from ._call import _CheckedCall
 from ._limits import _UNSET
+from ._outputs import OutputChunk as OutputChunk  # re-exported: the public API names them here
+from ._outputs import OutputFeed as OutputFeed
 from ._places import Grant as Grant
 from ._process import process
 from ._sessions import _CLOSER, MAX_TURN_BYTES, _Event, _Phase, _State
@@ -145,6 +149,10 @@ def run(
     max_tool_calls: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
     max_open_files: int | None = _UNSET,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal["head", "tail"] = "head",
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -225,6 +233,24 @@ def run(
             0 refuses every open, the stdlib's included. It protects your process only within
             the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024.
             `None` means no limit.
+        on_output: Called with each `OutputChunk` of the guest's stdout and stderr while it
+            runs: under `run`, on the thread that made the call, in turn with your `host` and
+            providers, which wait while it runs; under `run_async`, on the event loop's thread.
+            Keep it short. At most `output_bytes` of each stream are delivered, every chunk
+            before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and
+            ends delivery for the call, which goes on; any other `BaseException` stops the call
+            and is raised. It must be synchronous: an async one raises `TypeError`. An
+            `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run`
+            refuses one, and a feed serves one call.
+        output_keep: What a stream past `output_bytes` keeps: "head" (the default) its first
+            bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
+            past `output_bytes` and the line takes the place of the tail's first bytes. Anything
+            else raises `ValueError`.
+        results: `True` returns a `-c` program's last expression as `Completed.value`, not
+            printed, and what it passes to `display()` as `Completed.displays`; they share one
+            more `output_bytes`. Excludes `host`.
+        figures: `True` adds each matplotlib figure the program shows or leaves open, as a PNG
+            display. Needs `results`.
 
     Returns:
         How the program ended.
@@ -274,6 +300,10 @@ def run(
         import_path=import_path,
         max_open_files=max_open_files,
         snapshot=snapshot,
+        on_output=on_output,
+        output_keep=output_keep,
+        results=results,
+        figures=figures,
     )
     cache = _engines._cache_given(cache_dir)
     return _run_checked_flushed(wt, checked, host, cache, artifacts, None)
@@ -318,6 +348,10 @@ async def run_async(
     max_tool_calls: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
     max_open_files: int | None = _UNSET,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal["head", "tail"] = "head",
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -398,6 +432,24 @@ async def run_async(
             0 refuses every open, the stdlib's included. It protects your process only within
             the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024.
             `None` means no limit.
+        on_output: Called with each `OutputChunk` of the guest's stdout and stderr while it
+            runs: under `run`, on the thread that made the call, in turn with your `host` and
+            providers, which wait while it runs; under `run_async`, on the event loop's thread.
+            Keep it short. At most `output_bytes` of each stream are delivered, every chunk
+            before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and
+            ends delivery for the call, which goes on; any other `BaseException` stops the call
+            and is raised. It must be synchronous: an async one raises `TypeError`. An
+            `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run`
+            refuses one, and a feed serves one call.
+        output_keep: What a stream past `output_bytes` keeps: "head" (the default) its first
+            bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes
+            past `output_bytes` and the line takes the place of the tail's first bytes. Anything
+            else raises `ValueError`.
+        results: `True` returns a `-c` program's last expression as `Completed.value`, not
+            printed, and what it passes to `display()` as `Completed.displays`; they share one
+            more `output_bytes`. Excludes `host`.
+        figures: `True` adds each matplotlib figure the program shows or leaves open, as a PNG
+            display. Needs `results`.
 
     Returns:
         How the program ended.
@@ -422,59 +474,73 @@ async def run_async(
     """
     import asyncio
 
-    _platform._refuse_forked()
-    event = threading.Event()  # the call's cancel, set when the awaiting task is cancelled
-    checked = _checked(
-        argv,
-        env,
-        stdin,
-        fuel,
-        deadline_s,
-        memory_bytes,
-        output_bytes,
-        event,
-        host=host,
-        tools=tools,
-        gate=gate,
-        max_tool_calls=max_tool_calls,
-        max_tool_request_bytes=max_tool_request_bytes,
-        root=root,
-        grants=grants,
-        mounts=mounts,
-        max_file_calls=max_file_calls,
-        import_path=import_path,
-        max_open_files=max_open_files,
-        snapshot=snapshot,
-    )
-    cache = _engines._cache_given(cache_dir)
-    _check_executor(executor)
-    loop = asyncio.get_running_loop()  # async tools await here
-    wt = _engines._wasmtime()
-    _register_exit_hook()
-    p = process()
-    with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
-        if p.exiting:
-            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        p.live[event] = None
+    feed = _outputs._claimed(on_output)  # a feed serves one call
     try:
-        work = contextvars.copy_context().run  # a door host sees the request's context
-        args = (_run_checked_flushed, wt, checked, host, cache, artifacts, loop)
-        future = _submit(executor, work, *args)
+        _platform._refuse_forked()
+        event = threading.Event()  # the call's cancel, set when the awaiting task is cancelled
+        checked = _checked(
+            argv,
+            env,
+            stdin,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+            event,
+            host=host,
+            tools=tools,
+            gate=gate,
+            max_tool_calls=max_tool_calls,
+            max_tool_request_bytes=max_tool_request_bytes,
+            root=root,
+            grants=grants,
+            mounts=mounts,
+            max_file_calls=max_file_calls,
+            import_path=import_path,
+            max_open_files=max_open_files,
+            snapshot=snapshot,
+            on_output=on_output,
+            output_keep=output_keep,
+            results=results,
+            figures=figures,
+            asynchronous=True,
+        )
+        late = _outputs._Late.around(checked.on_output)  # the coroutine's: raised after the await
+        checked = replace(checked, on_output=late)
+        cache = _engines._cache_given(cache_dir)
+        _check_executor(executor)
+        loop = asyncio.get_running_loop()  # async tools await here
+        wt = _engines._wasmtime()
+        _register_exit_hook()
+        p = process()
+        with p.live_lock:  # the exit hook sets `exiting` before it reads `live`
+            if p.exiting:
+                raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+            p.live[event] = None
         try:
-            return await asyncio.wrap_future(future)
-        except asyncio.CancelledError:
-            if future.cancel():  # still queued: it never starts
+            work = contextvars.copy_context().run  # a door host sees the request's context
+            args = (_run_checked_flushed, wt, checked, host, cache, artifacts, loop)
+            future = _submit(executor, work, *args)
+            try:
+                done: Completed = await asyncio.wrap_future(future)
+                _outputs._Late.check(late)
+                return done
+            except asyncio.CancelledError:
+                if future.cancel():  # still queued: it never starts
+                    raise
+                event.set()
+                while not future.done():  # wait for the worker, whatever the call's outcome
+                    try:
+                        await asyncio.wrap_future(future)
+                    except BaseException:
+                        pass
                 raise
-            event.set()
-            while not future.done():  # wait for the worker, whatever the call's outcome
-                try:
-                    await asyncio.wrap_future(future)
-                except BaseException:
-                    pass
-            raise
+        finally:
+            with p.live_lock:
+                p.live.pop(event, None)
     finally:
-        with p.live_lock:
-            p.live.pop(event, None)
+        if feed is not None:
+            feed._end()  # whatever the outcome, its follower ends
 
 
 def _check_executor(executor: Any) -> None:
@@ -644,24 +710,25 @@ def _checked(
     max_open_files: Any = _UNSET,
     limits: Defaults | None = None,
     snapshot: Any = True,
+    on_output: Any = None,
+    output_keep: Any = "head",
+    results: Any = False,
+    figures: Any = False,
+    asynchronous: bool = False,
 ) -> _CheckedCall:
     """Every argument a call's guest depends on, checked before any work, as one frozen record
-    built from its typed parts, each field named. The defaults are read once, here, and every
-    check that takes one takes it from this read, so a `set_defaults` on another thread never
-    gives a call a mix of the old and new limits. `async_workers` is not a call's limit:
-    `_submit` reads it under the pool's lock. A session passes the `limits` it read."""
+    built from its typed parts. The defaults are read once, here, so a `set_defaults` on another
+    thread never gives a call a mix of the old and new limits (`async_workers` is `_submit`'s,
+    read under the pool's lock). A session passes the `limits` it read; `asynchronous` says an
+    event loop awaits the call, as an `OutputFeed` needs; `results` and `figures` set its mode."""
     limits = limits if limits is not None else _current_defaults()
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
     )
-    if memory_bytes is _UNSET:
-        memory_bytes = limits.memory_bytes
-    if deadline_s is _UNSET:
-        deadline_s = limits.deadline_s
-    if output_bytes is _UNSET:
-        output_bytes = limits.output_bytes
-    if cancel is not None and not isinstance(cancel, threading.Event):
-        raise TypeError(f"cancel must be a threading.Event, or None; got {type(cancel).__name__}")
+    memory_bytes = limits.memory_bytes if memory_bytes is _UNSET else memory_bytes
+    deadline_s = limits.deadline_s if deadline_s is _UNSET else deadline_s
+    output_bytes = limits.output_bytes if output_bytes is _UNSET else output_bytes
+    cancel = _limits._check_cancel(cancel)
     bounds = _limits._check_limits(fuel, deadline_s, memory_bytes, output_bytes)
     binary, start = _snapshot._start(snapshot, bounds.memory_bytes)
     inputs = _limits._check_inputs(argv, env, stdin)
@@ -679,6 +746,8 @@ def _checked(
         deadline_s=bounds.deadline_s,
         memory_bytes=bounds.memory_bytes,
         output_bytes=bounds.output_bytes,
+        output_keep=_limits._check_output_keep(output_keep),
+        on_output=_outputs._check_on_output(on_output, asynchronous=asynchronous),
         argv=inputs.argv,
         env=inputs.env,
         stdin=inputs.stdin,
@@ -696,27 +765,8 @@ def _checked(
         open_files=places.open_files,
         binary=binary,
         start=start,
+        results=_results._check_results(results, figures, host, inputs.argv),
     )
-
-
-def _is_async_callable(fn: Any) -> bool:
-    """Whether calling `fn` makes a coroutine or an async generator, read through `partial`s and
-    at an object's `__call__`, as `tool()` reads a tool. It does not
-    import `wasi_python.tools`."""
-    import functools
-    import inspect
-
-    while isinstance(fn, functools.partial):
-        fn = fn.func
-    tests = (inspect.iscoroutinefunction, inspect.isasyncgenfunction)
-    if any(test(fn) for test in tests):
-        return True
-    if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
-        if not callable(fn):
-            return False
-        call = type(fn).__call__
-        return any(test(call) for test in tests)
-    return False
 
 
 class _ToolArgs(NamedTuple):
@@ -743,7 +793,7 @@ def _check_tools(
     plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
     given, so `import wasi_python` still does not import it. An async `host=` is
     refused."""
-    if host is not None and _is_async_callable(host):
+    if host is not None and _limits._is_async_callable(host):
         raise TypeError(
             "host= must answer synchronously; serve an async host function as a tool (tools=)"
         )
@@ -873,6 +923,8 @@ class Session:
         idle_s: float | None = _UNSET,
         lifetime_s: float | None = _UNSET,
         shutdown_s: float = _UNSET,
+        results: bool = False,
+        figures: bool = False,
     ) -> None:
         """Open a session: check every argument, find the artifact set, make the folders and
         the store, and instantiate the guest. No guest code runs until the first turn.
@@ -953,6 +1005,11 @@ class Session:
                 so it ends by the opening plus the lifetime plus this; past it the session is
                 stopped. Default: `defaults().session_shutdown_s`, 5. 0 skips the shutdown;
                 `None` is refused.
+            results: `True` returns each turn's last expression as `Completed.value`, not
+                printed, and what it passes to `display()` as `Completed.displays`; they share
+                one more `output_bytes`. Fixed for the session. Excludes `host`.
+            figures: `True` adds each matplotlib figure a turn shows or leaves open, as a PNG
+                display. Needs `results`.
 
         Raises:
             TypeError: An argument has the wrong type; raised before any work.
@@ -993,6 +1050,8 @@ class Session:
             max_open_files=max_open_files,
             limits=limits,
             snapshot=snapshot,
+            results=results,
+            figures=figures,
         )
         cache = _engines._cache_given(cache_dir)
         state = _State(c, wt)
@@ -1083,11 +1142,25 @@ class Session:
             if output_bytes is _UNSET
             else _limits._integer_limit("output_bytes", output_bytes)
         )
-        if cancel is not None and not isinstance(cancel, threading.Event):
-            raise TypeError(
-                f"cancel must be a threading.Event, or None; got {type(cancel).__name__}"
-            )
+        _limits._check_cancel(cancel)
         return data, fuel, deadline, output
+
+    def _turn_io(
+        self, stdin: Any, on_output: Any, output_keep: Any, *, asynchronous: bool
+    ) -> _sessions._TurnIO:
+        """A turn's stdin, delivery and keep, checked before the claim: a turn's stdin as
+        `run`'s, at most `MAX_TURN_BYTES`, and only on a set whose binary takes one."""
+        data = _limits._check_inputs((), None, stdin).stdin
+        if data is not None and len(data) > MAX_TURN_BYTES:
+            raise ValueError(f"stdin must be at most {MAX_TURN_BYTES} bytes")
+        keep = _limits._check_output_keep(output_keep)
+        callback = _outputs._check_on_output(on_output, asynchronous=asynchronous)
+        if data is not None and not self._state.takes_stdin:
+            raise ArtifactsMissing(
+                "this artifact set's binary does not export turn_input, so a turn cannot be "
+                "given stdin; it needs a set built with it"
+            )
+        return _sessions._TurnIO(data, callback, keep)
 
     def _claim(self, *, here: bool) -> None:
         """Claim the session for one turn, or raise SessionEnded (a bound that has passed ends it
@@ -1131,6 +1204,55 @@ class Session:
         done = _sessions._session_turn(*args)
         return done, state.captured, state.set_digests
 
+    def checkpoint(self) -> Snapshot:
+        """Keep the session's state as a snapshot, and go on.
+
+        Once a turn has returned, the guest's memory is read whole, between two calls into the
+        guest, and kept as a `Snapshot`: every name, import and object the turns made. Pass it
+        as `snapshot=` to `Session`, `run` or `run_async`; each starts from a private copy with
+        its own grants, mounts, environment, import path, tools, clocks and randomness, and this
+        session goes on unchanged. A start reseeds `random`'s, numpy's and the other module
+        generators, even after the session's own seed; a generator held in a name draws the
+        same in every start. The checkpoint holds every byte the session's memory holds, what
+        its turns read from grants, mounts and tools included: start it only where its code may
+        read everything the session read. It binds to this session's artifact set.
+
+        Returns:
+            The snapshot. Its origin's `kind` is "checkpoint", and its `parent_sha256` is the
+            image this session started from, if any.
+
+        Raises:
+            RuntimeError: This process was forked after it ran a guest; a turn is running; no
+                turn has returned yet; or the runner lost track of the call, which ends the
+                session.
+            ValueError: The session runs the plain binary (`snapshot=False`).
+            ArtifactsMissing: The artifact set predates checkpoints.
+            SessionEnded: The session has ended, or its idle bound or lifetime has passed.
+            SnapshotFailed: A turn left a file or folder open (reason "open file", with
+                `completed` `None`; the session goes on), or the guest trapped (reason
+                "trapped"), which ends the session.
+            MemoryError: This process had no memory for the image; the session goes on.
+        """
+        _platform._refuse_forked()
+        state = self._state
+        if state.checked.binary != "snapshot":
+            raise ValueError(
+                "a checkpoint needs the snapshot binary: this session runs the plain one "
+                "(snapshot=False)"
+            )
+        if not state.checkpointable:
+            raise ArtifactsMissing(
+                "this artifact set's snapshot binary does not export checkpoint: it predates "
+                "checkpoints; use a set built with them"
+            )
+        self._claim(here=True)
+        refusal = _sessions._checkpoint_refusal(state)
+        if refusal is not None:
+            self._release_claim()
+            raise refusal
+        done = _sessions._session_turn(state, b"", None, None, None, None, None, "checkpoint")
+        return _sessions._checkpointed(state, done)
+
     def _release_claim(self) -> None:
         """A claimed turn that never started gives its claim back. When a `close()` came between
         the claim and the release, the session is marked and nobody holds it: its ending goes to
@@ -1151,13 +1273,17 @@ class Session:
         deadline_s: float | None = _UNSET,
         output_bytes: int | None = _UNSET,
         cancel: threading.Event | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal["head", "tail"] = "head",
     ) -> Completed:
         """Run one turn of code in the session and return how it ended.
 
         The code runs in `__main__`, as the interactive interpreter runs it: a final expression's
-        value is printed, `sys.exit()` is reported as the turn's exit status and the session
-        goes on, and `exit()` or `quit()` make the turn return their status and then end the
-        session. Nothing a guest does makes `run` raise.
+        value is printed (in a session with `results=True`, returned as `Completed.value`
+        instead), `sys.exit()` is reported as the turn's exit status and the session goes on,
+        and `exit()` or `quit()` make the turn return their status and then end the session.
+        Nothing a guest does makes `run` raise.
 
         Args:
             code: The turn's source, a str.
@@ -1170,6 +1296,13 @@ class Session:
                 within 5 ticks of 10 ms while it computes and ends "cancelled", which ends the
                 session; set before the guest runs, the turn runs nothing and the session goes
                 on.
+            stdin: This turn's standard input: `sys.stdin` reads these bytes, as text, during
+                the turn, and `input()` reads its lines; the session's own stdin comes back
+                after it. `None` (the default) leaves the session's, which reads end of file.
+            on_output: Called with each `OutputChunk` of the turn's output while it runs, on
+                the thread that made the call, as `run` calls it. Default: none.
+            output_keep: What a stream past this turn's `output_bytes` keeps, "head" or
+                "tail", as for `run`. Default: "head".
 
         Returns:
             How the turn ended.
@@ -1177,6 +1310,8 @@ class Session:
         Raises:
             TypeError: An argument has the wrong type; the session stays open.
             ValueError: An argument is out of range; the session stays open.
+            ArtifactsMissing: `stdin` was given and the artifact set predates a turn's stdin;
+                the session stays open.
             SessionEnded: The session has ended, or its idle bound or lifetime has passed;
                 in that case the session's ending runs here first, so `run` may block for up
                 to `shutdown_s` (plus any call of your own code it makes) before it raises.
@@ -1191,8 +1326,10 @@ class Session:
         """
         _platform._refuse_forked()
         data, fuel, deadline, output = self._turn_args(code, fuel, deadline_s, output_bytes, cancel)
+        io = self._turn_io(stdin, on_output, output_keep, asynchronous=False)
         self._claim(here=True)
-        return _sessions._session_turn(self._state, data, fuel, deadline, output, cancel, None)
+        args = (self._state, data, fuel, deadline, output, cancel, None, "turn", io)
+        return _sessions._session_turn(*args)
 
     async def run_async(
         self,
@@ -1202,6 +1339,9 @@ class Session:
         deadline_s: float | None = _UNSET,
         output_bytes: int | None = _UNSET,
         executor: concurrent.futures.Executor | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal["head", "tail"] = "head",
     ) -> Completed:
         """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -1219,6 +1359,10 @@ class Session:
             output_bytes: The most bytes kept per stream in this turn. Default: the session's.
             executor: Where the turn runs: a `concurrent.futures.Executor` that runs callables
                 on threads of this process. `None` uses the runner's own pool.
+            stdin: This turn's standard input, as for `run`.
+            on_output: Called with each `OutputChunk` of the turn's output while it runs, on
+                the event loop's thread, as `run_async` calls it; an `OutputFeed` too.
+            output_keep: What a stream past this turn's `output_bytes` keeps, as for `run`.
 
         Returns:
             How the turn ended.
@@ -1226,6 +1370,7 @@ class Session:
         Raises:
             TypeError: An argument has the wrong type; the session stays open.
             ValueError: An argument is out of range; the session stays open.
+            ArtifactsMissing: `stdin` was given and the artifact set predates a turn's stdin.
             SessionEnded: The session has ended, or its idle bound or lifetime has passed.
             RuntimeError: A turn is already running in this session; this process was forked
                 after it ran a guest; the interpreter is shutting down; the runner lost track
@@ -1237,44 +1382,57 @@ class Session:
         import asyncio
         import contextvars
 
-        _platform._refuse_forked()
-        data, fuel, deadline, output = self._turn_args(code, fuel, deadline_s, output_bytes, None)
-        _check_executor(executor)
-        loop = asyncio.get_running_loop()
-        _register_exit_hook()
-        self._claim(here=False)
-        event = threading.Event()
-        state = self._state
-        p = process()
+        feed = _outputs._claimed(on_output)  # a feed serves one turn
         try:
-            with p.live_lock:
-                if p.exiting:
-                    raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-                p.live[event] = None
-            work = contextvars.copy_context().run
-            args = (_sessions._session_turn, state, data, fuel, deadline, output, event, loop)
-            future = _submit(executor, work, *args)
-        except BaseException:
-            _take_live(event)
-            self._release_claim()
-            raise
-        _keep_release(event, future, self._release_claim)
-        try:
+            _platform._refuse_forked()
+            data, fuel, deadline, output = self._turn_args(
+                code, fuel, deadline_s, output_bytes, None
+            )
+            io = self._turn_io(stdin, on_output, output_keep, asynchronous=True)
+            late = _outputs._Late.around(io.on_output)  # the coroutine's: raised after the await
+            io = io._replace(on_output=late)
+            _check_executor(executor)
+            loop = asyncio.get_running_loop()
+            _register_exit_hook()
+            self._claim(here=False)
+            event = threading.Event()
+            state = self._state
+            p = process()
             try:
-                return await asyncio.wrap_future(future)
-            except asyncio.CancelledError:
-                if future.cancel():  # still queued: it never starts, the session is untouched
-                    _take_live(event)()  # its claim released, unless the exit hook did it
-                    raise
-                event.set()
-                while not future.done():
-                    try:
-                        await asyncio.wrap_future(future)
-                    except BaseException:
-                        pass
+                with p.live_lock:
+                    if p.exiting:
+                        raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+                    p.live[event] = None
+                work = contextvars.copy_context().run
+                turn = (state, data, fuel, deadline, output, event, loop, "turn", io)
+                args = (_sessions._session_turn, *turn)
+                future = _submit(executor, work, *args)
+            except BaseException:
+                _take_live(event)
+                self._release_claim()
                 raise
+            _keep_release(event, future, self._release_claim)
+            try:
+                try:
+                    done: Completed = await asyncio.wrap_future(future)
+                    _outputs._Late.check(late)
+                    return done
+                except asyncio.CancelledError:
+                    if future.cancel():  # still queued: it never starts, the session is untouched
+                        _take_live(event)()  # its claim released, unless the exit hook did it
+                        raise
+                    event.set()
+                    while not future.done():
+                        try:
+                            await asyncio.wrap_future(future)
+                        except BaseException:
+                            pass
+                    raise
+            finally:
+                _take_live(event)
         finally:
-            _take_live(event)
+            if feed is not None:
+                feed._end()  # whatever the outcome, its follower ends
 
     def close(self) -> None:
         """End the session, run its ending, and return once its store is closed.

@@ -57,6 +57,8 @@ class Completed:
     files: FileRecord | None = None
     tools: ToolRecord | None = None
     image_sha256: str | None = None
+    value: Display | None = None
+    displays: tuple[Display, ...] = ()
 ```
 
 How one program ended: what `run` returns.
@@ -68,10 +70,12 @@ How one program ended: what `run` returns.
 - `stderr`: What the guest wrote to standard error, up to the output limit.
 - `trapped`: `None` when the program ended by itself. Otherwise one of four fixed strings, "out of fuel", "deadline", "cancelled" or "out of file calls", or wasmtime's words: a trap's plain name ("stack overflow"), or an error's first line. The four strings are promised; wasmtime's words are not.
 - `fuel_used`: The guest's instructions spent, when a `fuel` cap was given and no deadline hit; else `None`.
-- `truncated`: The streams ("stdout", "stderr") whose output passed the limit.
+- `truncated`: The streams ("stdout", "stderr") whose output passed the limit, and "displays" when a display was cut or not kept for want of room.
 - `files`: For a call with mounts, its provider calls, faults and refused writes; else `None`.
 - `tools`: For a call with tools, every frame counted and the first 1,000 listed; else `None`.
 - `image_sha256`: The SHA-256 of the snapshot's image a call or turn started from, or `None`.
+- `value`: With `results=True`, a turn's or a `-c` program's last expression, when it is not `None`; else `None`.
+- `displays`: With `results=True`, what the guest passed to `display()`, and with `figures=True` its matplotlib figures, in order.
 
 #### `wasi_python.Defaults`
 
@@ -106,6 +110,26 @@ The limits a call has when it names none: `defaults()` returns the ones in force
 - `session_idle_s`: The longest a `Session` may rest between turns before it ends "idle".
 - `session_lifetime_s`: How long after its opening a `Session`'s turns may run; then it ends "lifetime".
 - `session_shutdown_s`: The seconds a `Session`'s ending has to run Python's shutdown (`atexit` handlers, then finalization); past them the session is simply stopped. 0 skips the shutdown; it cannot be `None`.
+
+#### `wasi_python.Display`
+
+```python
+@dataclass(frozen=True)
+class Display:
+    data: Mapping[str, str | bytes]
+    truncated: tuple[str, ...] = ()
+    stdout_at: int = 0
+    stderr_at: int = 0
+```
+
+One value or display a guest handed the host, as a notebook keeps it.
+
+**Attributes:**
+
+- `data`: The content by MIME type, read-only: "text/plain" always (the object's `repr`), and any of "text/html", "text/markdown", "image/svg+xml" and "application/json" as `str`, and "image/png" as `bytes`. HTML and SVG are the guest's: render them in a sandboxed frame.
+- `truncated`: The MIME types cut or left out because the call's room for displays ran short.
+- `stdout_at`: The bytes the guest had written to stdout before it, kept or not: under the "head" keep, `stdout[:stdout_at]` is what printed before it.
+- `stderr_at`: The same for stderr.
 
 #### `wasi_python.Errno`
 
@@ -230,6 +254,61 @@ A provider whose files the guest sees at a guest path, read-only unless `writabl
 - `guest`: Where the guest sees it: an absolute guest path, or / for the guest's whole filesystem (not with `root=`).
 - `writable`: Whether the guest may write there; it needs the provider's write half. Keyword-only.
 
+#### `wasi_python.OutputChunk`
+
+```python
+@dataclass(frozen=True)
+class OutputChunk:
+    stream: str
+    data: bytes
+    cut: bool = False
+```
+
+A piece of a guest's output, handed to `on_output` while the guest runs.
+
+**Attributes:**
+
+- `stream`: "stdout" or "stderr".
+- `data`: The bytes. At most `output_bytes` of a stream are delivered in all.
+- `cut`: True on the chunk that carries the stream past `output_bytes`; nothing more of that stream follows. Its `data` may be empty.
+
+#### `wasi_python.OutputFeed`
+
+```python
+class OutputFeed:
+    def __init__(self) -> None
+    def __call__(self, chunk: OutputChunk) -> None
+    def follow(self, task: asyncio.Future[Any]) -> AsyncIterator[OutputChunk]
+```
+
+A `run_async` call's output as an async iterator: pass the feed as `on_output`, and read it with `follow` beside the call's task.
+
+**Methods:**
+
+- `OutputFeed.__init__`: An empty feed, for one call.
+- `OutputFeed.__call__`: Queue a chunk for `follow`; the call delivers each one here, on the event loop.
+  - `chunk`: The next piece of the call's output.
+- `OutputFeed.follow`: Each chunk in order, ending once `task` is done, whatever its outcome, after the chunks already delivered.
+  - `task`: The task or future of the call this feed was given to.
+
+#### `wasi_python.Package`
+
+```python
+@dataclass(frozen=True)
+class Package:
+    name: str
+    version: str
+    imports: tuple[str, ...]
+```
+
+One Python package in the artifact set, as `packages()` lists it.
+
+**Attributes:**
+
+- `name`: The distribution's name, as its metadata writes it (`scikit-learn`).
+- `version`: The distribution's version (`1.9.1`).
+- `imports`: The top-level names it puts on the import path, sorted (`("sklearn",)`).
+
 #### `wasi_python.RefusedWrite`
 
 ```python
@@ -283,6 +362,8 @@ class Session:
         idle_s: float | None = <default>,
         lifetime_s: float | None = <default>,
         shutdown_s: float = <default>,
+        results: bool = False,
+        figures: bool = False,
     ) -> None
     def __enter__(self) -> Session
     def __exit__(self, *exc: object) -> None
@@ -290,6 +371,7 @@ class Session:
     def ended(self) -> str | None
     @property
     def shutdown_outcome(self) -> str | None
+    def checkpoint(self) -> Snapshot
     def run(
         self,
         code: str,
@@ -298,6 +380,9 @@ class Session:
         deadline_s: float | None = <default>,
         output_bytes: int | None = <default>,
         cancel: threading.Event | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal['head', 'tail'] = 'head',
     ) -> Completed
     async def run_async(
         self,
@@ -307,6 +392,9 @@ class Session:
         deadline_s: float | None = <default>,
         output_bytes: int | None = <default>,
         executor: concurrent.futures.Executor | None = None,
+        stdin: bytes | bytearray | memoryview | None = None,
+        on_output: Callable[[OutputChunk], object] | None = None,
+        output_keep: Literal['head', 'tail'] = 'head',
     ) -> Completed
     def close(self) -> None
 ```
@@ -338,23 +426,32 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `idle_s`: The longest the session may rest between turns; then it ends "idle". Default: `defaults().session_idle_s`, 900. `None` means no bound.
   - `lifetime_s`: How long after the opening the session's turns may run: no turn starts at or after it, and each turn's deadline is capped at what is left; then it ends "lifetime". Default: `defaults().session_lifetime_s`, 3,600. `None` means no bound.
   - `shutdown_s`: The seconds the session's ending has to run Python's shutdown, capped so it ends by the opening plus the lifetime plus this; past it the session is stopped. Default: `defaults().session_shutdown_s`, 5. 0 skips the shutdown; `None` is refused.
+  - `results`: `True` returns each turn's last expression as `Completed.value`, not printed, and what it passes to `display()` as `Completed.displays`; they share one more `output_bytes`. Fixed for the session. Excludes `host`.
+  - `figures`: `True` adds each matplotlib figure a turn shows or leaves open, as a PNG display. Needs `results`.
 - `Session.__enter__`: Enter a `with` block; the session is closed when the block is left.
 - `Session.__exit__`: Close the session as the `with` block is left, however it is left.
   - `exc`: The exception leaving the block, if any; it is never suppressed.
 - `Session.ended`: `None` while the session can run turns; once it cannot, why: "closed", "idle", "lifetime", "quit" (a turn called `exit()` or `quit()`), "exit" (a turn called `os._exit`), "error" (a turn raised in your process), or the stopped turn's `trapped`. Set once, and never changed.
 - `Session.shutdown_outcome`: `None` until the session's ending has finished; then "finished" (Python's shutdown ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no shutdown ran: the session was stopped mid-turn, no turn ever ran, `shutdown_s` was 0, or, on Linux, wasmtime's trap handlers were replaced after the first run). `close()` waits for the ending.
+- `Session.checkpoint`: Keep the session's state as a snapshot, and go on.
 - `Session.run`: Run one turn of code in the session and return how it ended.
   - `code`: The turn's source, a str.
   - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
   - `deadline_s`: This turn's wall-clock seconds; `None` means no limit but the lifetime's. Default: the session's.
   - `output_bytes`: The most bytes kept per stream in this turn. Default: the session's.
   - `cancel`: A `threading.Event`. Once it is set and the guest runs, the turn stops within 5 ticks of 10 ms while it computes and ends "cancelled", which ends the session; set before the guest runs, the turn runs nothing and the session goes on.
+  - `stdin`: This turn's standard input: `sys.stdin` reads these bytes, as text, during the turn, and `input()` reads its lines; the session's own stdin comes back after it. `None` (the default) leaves the session's, which reads end of file.
+  - `on_output`: Called with each `OutputChunk` of the turn's output while it runs, on the thread that made the call, as `run` calls it. Default: none.
+  - `output_keep`: What a stream past this turn's `output_bytes` keeps, "head" or "tail", as for `run`. Default: "head".
 - `Session.run_async`: `run` from async code, on a worker thread, so the event loop is never blocked.
   - `code`: The turn's source, a str.
   - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
   - `deadline_s`: This turn's wall-clock seconds; `None` means no limit but the lifetime's. Default: the session's.
   - `output_bytes`: The most bytes kept per stream in this turn. Default: the session's.
   - `executor`: Where the turn runs: a `concurrent.futures.Executor` that runs callables on threads of this process. `None` uses the runner's own pool.
+  - `stdin`: This turn's standard input, as for `run`.
+  - `on_output`: Called with each `OutputChunk` of the turn's output while it runs, on the event loop's thread, as `run_async` calls it; an `OutputFeed` too.
+  - `output_keep`: What a stream past this turn's `output_bytes` keeps, as for `run`.
 - `Session.close`: End the session, run its ending, and return once its store is closed.
 
 #### `wasi_python.SessionEnded`
@@ -397,7 +494,7 @@ class SnapshotFailed(RuntimeError):
     ...
 ```
 
-The code given to `make_snapshot` or `make_package_snapshot` did not leave an image a call could start from. The message is one line that says what to do.
+The code given to `make_snapshot` or `make_package_snapshot`, or the session given to `Session.checkpoint`, did not leave an image a call could start from. The message is one line that says what to do.
 
 #### `wasi_python.SnapshotMismatch`
 
@@ -425,24 +522,28 @@ class SnapshotOrigin:
     stdlib_zip_sha256: str
     wasi_python: str
     made_at: str
+    kind: str = 'prelude'
+    parent_sha256: str | None = None
 ```
 
 Where a snapshot came from, kept with its image and in its saved file.
 
 **Attributes:**
 
-- `prelude`: The code that made the image, as given: the image already holds its code objects, so the origin reveals nothing the image does not.
+- `prelude`: The code that made the image, as given: the image already holds its code objects, so the origin reveals nothing the image does not. A checkpoint's is "".
 - `prelude_sha256`: The SHA-256 of the code as UTF-8.
-- `prelude_fuel`: The instructions the code ran, when the making was given `fuel`; else `None`.
+- `prelude_fuel`: The instructions the code ran, when the making was given `fuel`; else `None`, and always for a checkpoint, whose turns each reported their own.
 - `image_bytes`: The image's size: a whole number of 64 KiB pages.
-- `image_sha256`: The SHA-256 of the image, which `Completed.image_sha256` repeats.
+- `image_sha256`: The SHA-256 of the image, which `Completed.image_sha256` repeats. A checkpoint's names its image; it does not predict it, since the heap holds real times and entropy.
 - `home`: The guest's HOME while the code ran, which every call from the image sees.
-- `guest_paths`: The guest paths of the making's root, grants and mounts.
-- `env_names`: The sorted names of the making's `env`, never their values.
+- `guest_paths`: The guest paths of the making's root, grants and mounts, or the session's.
+- `env_names`: The sorted names of the making's `env`, or the session's, never their values.
 - `snapshot_sha256`: The SHA-256 of the set's `python-snapshot.wasm` it was made with.
 - `stdlib_zip_sha256`: The SHA-256 of the set's `python-stdlib.zip` it was made with.
 - `wasi_python`: The version of wasi-python that made it.
 - `made_at`: When it was made, in UTC, ISO 8601, to the second.
+- `kind`: "prelude", made by `make_snapshot` or `make_package_snapshot`, or "checkpoint", made by `Session.checkpoint`.
+- `parent_sha256`: For a checkpoint, the `image_sha256` of the snapshot its session started from; `None` when it started from none, and for a prelude.
 
 #### `wasi_python.Stat`
 
@@ -634,6 +735,23 @@ Run your code once in a fresh guest and keep its memory, as a starting image.
 - `OSError`: A host filesystem call failed while the folders were prepared.
 - `RuntimeError`: As for `Session`.
 
+#### `wasi_python.packages`
+
+```python
+def packages(artifacts: Artifacts | None = None) -> tuple[Package, ...]
+```
+
+The Python packages in the artifact set, each with its version and import names.
+
+**Args:**
+
+- `artifacts`: The set to read; `None` finds it with `artifacts()`.
+
+**Raises:**
+
+- `TypeError`: `artifacts` is neither `None` nor an `Artifacts`.
+- `ArtifactsMissing`: There is no set, its zip cannot be read, or a distribution in it has no name or version, a member over 1 MiB, or a control character in a name.
+
 #### `wasi_python.run`
 
 ```python
@@ -661,6 +779,10 @@ def run(
     max_tool_calls: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
     max_open_files: int | None = <default>,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal['head', 'tail'] = 'head',
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed
 ```
 
@@ -690,6 +812,10 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
 - `max_tool_request_bytes`: The most bytes of tool-protocol requests a call reads, counted from each frame's length before it is read, whatever its answer; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
 - `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
+- `on_output`: Called with each `OutputChunk` of the guest's stdout and stderr while it runs: under `run`, on the thread that made the call, in turn with your `host` and providers, which wait while it runs; under `run_async`, on the event loop's thread. Keep it short. At most `output_bytes` of each stream are delivered, every chunk before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and ends delivery for the call, which goes on; any other `BaseException` stops the call and is raised. It must be synchronous: an async one raises `TypeError`. An `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run` refuses one, and a feed serves one call.
+- `output_keep`: What a stream past `output_bytes` keeps: "head" (the default) its first bytes, "tail" its last, after a first line `[N bytes cut]`, where N counts the bytes past `output_bytes` and the line takes the place of the tail's first bytes. Anything else raises `ValueError`.
+- `results`: `True` returns a `-c` program's last expression as `Completed.value`, not printed, and what it passes to `display()` as `Completed.displays`; they share one more `output_bytes`. Excludes `host`.
+- `figures`: `True` adds each matplotlib figure the program shows or leaves open, as a PNG display. Needs `results`.
 
 **Raises:**
 
@@ -730,6 +856,10 @@ async def run_async(
     max_tool_calls: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
     max_open_files: int | None = <default>,
+    on_output: Callable[[OutputChunk], object] | None = None,
+    output_keep: Literal['head', 'tail'] = 'head',
+    results: bool = False,
+    figures: bool = False,
 ) -> Completed
 ```
 
@@ -1016,6 +1146,8 @@ Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn
 | `--deadline-s` | `SECONDS` | store |
 | `--memory-bytes` | `BYTES` | store |
 | `--output-bytes` | `BYTES` | store |
+| `--output-keep` |  | store |
+| `--stream` |  | store_true |
 | `--fuel` | `N` | store |
 | `--max-open-files` | `N` | store |
 | `--no-snapshot` |  | store_true |

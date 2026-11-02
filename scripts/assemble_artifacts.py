@@ -25,14 +25,15 @@ from litter import has_litter, is_litter
 LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
 PACKAGES = {
-    "numpy": "2.5.2",
-    "pandas": "3.0.6",
-    "zlib": "1.3.1",
+    "numpy": "2.5.4",
+    "pandas": "3.1.0",
+    "zlib": "1.3.2",
     "bzip2": "1.0.8",
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it
+    "zstd": "1.5.7",  # libzstd, linked into _zstd
     "python-dateutil": "2.9.0.post0",
-    "tzdata": "2026.5",
+    "tzdata": "2026.6",
     "six": "1.17.0",
     "regex": "2026.9.29",
     # matplotlib: the package, its compiled dependencies, the C libraries linked in, the
@@ -53,6 +54,8 @@ PACKAGES = {
     "fonttools": "4.67.0",
     "contourpy": "1.4.0",
     "qhull": "8.0.2",
+    # Pillow's JPEG codec, linked with Pillow's _imaging.
+    "libjpeg-turbo": "3.2.0",
     # lxml: the package and its two C libraries, linked in.
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
@@ -62,9 +65,9 @@ PACKAGES = {
     "et-xmlfile": "2.0.0",
     "xlsxwriter": "3.2.9",
     "xlrd": "2.0.2",
-    "pypdf": "6.21.1",
+    "pypdf": "6.21.4",
     "beautifulsoup4": "4.15.0",
-    "soupsieve": "3.0.3",
+    "soupsieve": "3.0.4",
     "html5lib": "1.1",
     "webencodings": "0.6.1",
     "defusedxml": "0.7.1",
@@ -102,11 +105,36 @@ PACKAGES = {
     "statsmodels": "0.15.0",
     "formulaic": "1.2.2",
     "interface-meta": "2.0.1",
-    "wrapt": "2.5.1",
+    "wrapt": "2.5.2",
+    # python-docx and python-pptx: pure Python, each from its sdist, so that its carried patch has
+    # a tree to apply to
+    "python-docx": "1.2.0",
+    "python-pptx": "1.0.2",
+    # pdfplumber, its pure wheel, and pdfminer.six, which it pins exactly, from its sdist with its
+    # carried patch; xarray from its sdist, with the notices of the code it adapts
+    "pdfplumber": "0.11.10",
+    "pdfminer-six": "20260107",
+    "xarray": "2026.9.0",
+    # drawsvg, its pure wheel
+    "drawsvg": "2.4.2",
+    # SVG to PNG through cairo: its three C libraries, linked in; cffi's C backend, built in;
+    # cairocffi and CairoSVG from their sdists; tinycss2, cssselect2 and imageio, pure wheels
+    "pixman": "0.46.4",
+    "libpng": "1.6.59",
+    "cairo": "1.18.6",
+    "cffi": "2.1.1",
+    "cairocffi": "1.7.1",
+    "cairosvg": "2.9.1",
+    "tinycss2": "1.5.1",
+    "cssselect2": "0.10.1",
+    "imageio": "2.38.1",
+    # plotly from its sdist with its carried patch; plotly.js and the code it bundles under its
+    # notice
+    "plotly": "7.1.0",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
-    "tzdata": "tzdata-2026.5-py2.py3-none-any.whl",
+    "tzdata": "tzdata-2026.6-py2.py3-none-any.whl",
     "six": "six-1.17.0-py2.py3-none-any.whl",
     "pybind11": "pybind11-3.1.0-py3-none-any.whl",
     "cppy": "cppy-1.3.1-py3-none-any.whl",
@@ -120,9 +148,9 @@ WHEELS = {
     "et-xmlfile": "et_xmlfile-2.0.0-py3-none-any.whl",
     "xlsxwriter": "xlsxwriter-3.2.9-py3-none-any.whl",
     "xlrd": "xlrd-2.0.2-py2.py3-none-any.whl",
-    "pypdf": "pypdf-6.21.1-py3-none-any.whl",
+    "pypdf": "pypdf-6.21.4-py3-none-any.whl",
     "beautifulsoup4": "beautifulsoup4-4.15.0-py3-none-any.whl",
-    "soupsieve": "soupsieve-3.0.3-py3-none-any.whl",
+    "soupsieve": "soupsieve-3.0.4-py3-none-any.whl",
     "html5lib": "html5lib-1.1-py2.py3-none-any.whl",
     "webencodings": "webencodings-0.6.1-py3-none-any.whl",
     "defusedxml": "defusedxml-0.7.1-py2.py3-none-any.whl",
@@ -147,7 +175,12 @@ WHEELS = {
     # statsmodels' formula engine
     "formulaic": "formulaic-1.2.2-py3-none-any.whl",
     "interface-meta": "interface_meta-2.0.1-py3-none-any.whl",
-    "wrapt": "wrapt-2.5.1-py3-none-any.whl",
+    "wrapt": "wrapt-2.5.2-py3-none-any.whl",
+    "pdfplumber": "pdfplumber-0.11.10-py3-none-any.whl",
+    "drawsvg": "drawsvg-2.4.2-py3-none-any.whl",
+    "tinycss2": "tinycss2-1.5.1-py3-none-any.whl",
+    "cssselect2": "cssselect2-0.10.1-py3-none-any.whl",
+    "imageio": "imageio-2.38.1-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -409,6 +442,50 @@ SEABORN_NOTICES = (
     "licences/PACKAGING_LICENSE",
     "licences/SCIPY_LICENSE",
 )
+# pdfminer.six's notices beside its MIT licence, comments in its code that compilation drops: each
+# (file, first line, last line, words the lines must hold). _saslprep.py is MongoDB's, under
+# Apache-2.0 (whose text follows), with Matthias Valvekens' changes under pyHanko's MIT licence;
+# glyphlist.py holds Adobe's Glyph List under its notice, fontmetrics.py the Adobe Core 35 AFM
+# files' terms; arcfour.py and runlength.py are in the public domain.
+PDFMINER_TOP = "pdfminer_six-20260107"
+PDFMINER_NOTICES = (
+    ("pdfminer/_saslprep.py", 1, 16, ("MongoDB", "Apache License, Version 2.0", "pyHanko")),
+    ("pdfminer/glyphlist.py", 16, 46, ("Adobe Systems Incorporated", "Permission is hereby")),
+    ("pdfminer/fontmetrics.py", 12, 27, ("Adobe Core 35 AFM", "paragraph is not modified")),
+    ("pdfminer/arcfour.py", 1, 3, ("public domain",)),
+    ("pdfminer/runlength.py", 1, 5, ("public domain",)),
+)
+# xarray's notice: its Apache-2.0 licence, then every file of its sdist's licenses folder, the
+# notices of the code it adapts (from dask, pandas, NumPy, seaborn, scikit-learn, anytree and
+# Python) and of its HTML view's icons (IcoMoon's, CC BY 4.0).
+XARRAY_TOP = "xarray-2026.9.0"
+# plotly's notice: its MIT licence; the notices in its colour modules' docstrings (CARTOColors
+# under CC BY 3.0 US, cmocean under MIT, whose text is pinned, colorbrewer under the Apache licence,
+# whose text follows) and vendored pypng's (MIT); plotly.js's head comment and the bundled
+# libraries' notices its build keeps (each a /*! comment), with maplibre-gl-js's licence, which
+# plotly.js names only by URL, pinned; and the sources its datasets' loaders state.
+PLOTLY_TOP = "plotly-7.1.0"
+PLOTLY_NOTICES = (
+    ("_plotly_utils/colors/carto.py", 1, 7, ("CARTOColors", "creativecommons.org/licenses/by/3.0")),
+    ("_plotly_utils/colors/cmocean.py", 1, 7, ("cmocean", "MIT license")),
+    ("_plotly_utils/colors/colorbrewer.py", 1, 7, ("colorbrewer", "Apache license")),
+    ("_plotly_utils/png.py", 3, 32, ("pypng", "LICENCE (MIT)", "Permission is hereby granted")),
+)
+PLOTLY_JS = "plotly/package_data/plotly.min.js"
+PLOTLY_PINNED = (
+    (
+        "cmocean-501d10ef-LICENSE.txt",
+        "cmocean's licence, which _plotly_utils/colors/cmocean.py names",
+    ),
+    ("maplibre-gl-js-v6.9.0-LICENSE.txt", "maplibre-gl-js's licence, which plotly.min.js names"),
+)
+PLOTLY_DATA = """plotly's datasets (plotly/package_data/datasets), each with the source its loader in
+plotly/data/__init__.py states; the others state none:
+- gapminder: https://www.gapminder.org/data/
+- tips: https://vincentarelbundock.github.io/Rdatasets/doc/reshape2/tips.html
+- iris: https://en.wikipedia.org/wiki/Iris_flower_data_set
+- wind, election and election.geojson, carshare, stocks, experiment, medals: no source stated
+"""
 # reportlab's third-party notices, comments in its code that
 # compilation drops: each file's leading comment block, byte for byte from the pinned wheel, after
 # its wheel's LICENSE. (file, words the block must hold, what the heading says.) Sarna's notice
@@ -435,6 +512,68 @@ REPORTLAB_NOTICES = (
         "Open End AB's and Kazuhiko Arase's notice; the MIT licence it names follows",
     ),
 )
+# cairo is used under the Mozilla Public License 1.1, one of the two licences its COPYING offers
+# for every file of the library; MPL-1.1 section 3.6 asks the executable's notice to say where the
+# source is. Its sweep found eight compiled files under more liberal, MIT-style terms of their own,
+# each of whose leading notices ships too (a ninth, cairo-font-face-twin-data.c, points to
+# cairo-font-face-twin.c, which is MPL-1.1 or LGPL-2.1).
+CAIRO_TOP = "cairo-1.18.6"
+CAIRO_TARBALL = "cairo-1.18.6.tar.xz"
+CAIRO_URL = "https://www.cairographics.org/releases/cairo-1.18.6.tar.xz"
+CAIRO_MIT_FILES = (
+    "src/cairo-clip-tor-scan-converter.c",
+    "src/cairo-freelist.c",
+    "src/cairo-mono-scan-converter.c",
+    "src/cairo-pattern.c",
+    "src/cairo-spans.c",
+    "src/cairo-time.c",
+    "src/cairo-tor-scan-converter.c",
+    "src/cairo-tor22-scan-converter.c",
+)
+# pixman: its COPYING, then the X11-style notice that heads each compiled file the sweep found
+# with one of its own.
+PIXMAN_TOP = "pixman-0.46.4"
+PIXMAN_NOTICE_FILES = tuple(
+    f"pixman/{n}.c"
+    for n in (
+        "pixman-access", "pixman-arm", "pixman-bits-image", "pixman-combine32",
+        "pixman-conical-gradient", "pixman-edge", "pixman-fast-path", "pixman-general",
+        "pixman-gradient-walker", "pixman-image", "pixman-implementation",
+        "pixman-linear-gradient", "pixman-matrix", "pixman-mips", "pixman-ppc",
+        "pixman-radial-gradient", "pixman-region16", "pixman-region32", "pixman-region64f",
+        "pixman-riscv", "pixman-solid-fill", "pixman-timer", "pixman-trap", "pixman-utils",
+        "pixman-x86", "pixman",
+    )
+)  # fmt: skip
+# CairoSVG is LGPL-3.0-or-later, whose text builds on GPL-3.0's, pinned from SPDX's list.
+CAIROSVG_TOP = "cairosvg-2.9.1"
+# cffi's closure allocator is CPython's, which its LICENSE's "except when otherwise stated" covers.
+CFFI_CLOSURE_NOTICE = """\
+src/c/malloc_closure.h, compiled into cffi's C backend, is from CPython's Modules/_ctypes
+(malloc_closure.c), with edits, as its head comment says. It is under the Python Software
+Foundation License, whose text is in LICENSES/cpython.txt.
+"""
+GPL_TEXT = "spdx-31ba1a50-GPL-3.0-only.txt"
+CAIROSVG_FACTS = """\
+CairoSVG 2.9.1 is in this release as Python source and as bytecode compiled from it: both are in
+python-stdlib.zip under cairosvg/, the source beside each .pyc. The source is the pinned sdist,
+https://files.pythonhosted.org/packages/c6/80/db62c0a96d2e55282c83524f6b1d02f09c7fd7f612e93bf83e30de1dc75c/cairosvg-2.9.1.tar.gz,
+with one recorded change, made 2026-10-31, recipes/patches/cairosvg-2.9.1/0001-read-version-through-the-package-loader.patch,
+which reads its VERSION file through the package's loader, and without its test module; the
+release's recipe rebuilds the zip from them.
+
+CairoSVG is imported by name (drawsvg imports it when it rasterizes), never linked: the guest
+links cairo, which cairocffi binds, and CairoSVG calls cairocffi. A program can use a modified
+CairoSVG of its own: it grants a folder holding it (import_path), and moves that folder ahead of
+the zip on sys.path before CairoSVG's first import. A starting image made with
+make_package_snapshot() imports CairoSVG while it is made; such an image leaves CairoSVG out with
+packages=, or its code moves the path first.
+
+These facts concern GPL-3.0 section 6(d) and LGPL-3.0 section 4(d)(1); this notice makes no claim
+that they are met.
+"""
+
+
 # The snapshot's pre-import list has one source, the recipe's #define.
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
@@ -604,6 +743,14 @@ def sqlite_notice(b: Path) -> bytes:
     return (text[: end + 2] + "\n").encode()
 
 
+# The words divsufsort.c's notice must hold: its author, and MIT's grant and warranty lines.
+ZSTD_MIT = (
+    "Yuta Mori",
+    "Permission is hereby granted, free of charge",
+    'THE SOFTWARE IS PROVIDED "AS IS"',
+)
+
+
 def head_notice(path: Path, words: tuple[str, ...]) -> bytes:
     """The first of a C file's two leading comments that holds every one of `words`."""
     if not path.is_file():
@@ -709,6 +856,57 @@ def sklearn_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
     return parts
 
 
+def pdfminer_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/pdfminer-six.txt's parts: its licence, the notices in its code, and the plain
+    Apache-2.0 text _saslprep.py's notice names."""
+    parts = [("pdfminer.six LICENSE", (tree / "LICENSE").read_bytes())]
+    parts += [
+        (f"pdfminer.six {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
+        for n, a, b, words in PDFMINER_NOTICES
+    ]
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    parts.append(
+        (
+            f"Apache License 2.0, the full text, for pdfminer/_saslprep.py ({apache})",
+            pinned_bytes(d, apache),
+        )
+    )
+    return parts
+
+
+def plotly_js_notices(path: Path) -> bytes:
+    """plotly.min.js's head comment and every /*! comment its build keeps, the bundled libraries'
+    notices, in order and byte for byte."""
+    text = path.read_text(encoding="utf-8")
+    head = text[: text.index("*/") + 2]
+    kept = re.findall(r"/\*!.*?\*/", text, flags=re.S)
+    if "plotly.js" not in head or "MIT" not in head or not any("maplibre" in k for k in kept):
+        raise SystemExit(f"{path.name} no longer opens with its notice and keeps maplibre's")
+    return ("\n\n".join([head, *kept]) + "\n").encode()
+
+
+def plotly_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/plotly.txt's parts: its licence, the notices in its colour modules and pypng,
+    plotly.js's notices, the pinned texts two of them name, the Apache-2.0 text, and its datasets'
+    sources."""
+    parts = [("plotly LICENSE.txt", (tree / "LICENSE.txt").read_bytes())]
+    parts += [
+        (f"plotly {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
+        for n, a, b, words in PLOTLY_NOTICES
+    ]
+    parts.append((f"plotly {PLOTLY_JS}, its notices", plotly_js_notices(tree / PLOTLY_JS)))
+    parts += [(f"{what} ({name})", pinned_bytes(d, name)) for name, what in PLOTLY_PINNED]
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    parts.append(
+        (
+            f"Apache License 2.0, the full text, for colorbrewer's colour schemes ({apache})",
+            pinned_bytes(d, apache),
+        )
+    )
+    parts.append(("plotly's datasets: their stated sources", PLOTLY_DATA.encode()))
+    return parts
+
+
 def dataset_copyright(tree: Path, name: str) -> str:
     """A statsmodels dataset module's COPYRIGHT string, read without running it, on one line."""
     path = tree / "statsmodels" / "datasets" / name / "data.py"
@@ -752,6 +950,50 @@ def statsmodels_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
     )
     parts.append(("statsmodels' bundled datasets: their terms", data.encode()))
     return parts
+
+
+def cairo_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/cairo.txt's parts: the MPL-1.1 election and where the source is, cairo's COPYING
+    and the MPL-1.1 text, then the MIT-style notices of the files the sweep found."""
+    tree = b / CAIRO_TOP
+    election = (
+        "cairo 1.18.6 is linked into python.wasm under the Mozilla Public License, version 1.1,\n"
+        "one of the two licences cairo's COPYING offers for every file of the library. Its Source\n"
+        "Code is the release tarball, unmodified, built by this release's recipe:\n"
+        f"  {CAIRO_URL}\n"
+        f"  SHA-256 {hashlib.sha256(pinned_bytes(d, CAIRO_TARBALL)).hexdigest()}\n"
+    ).encode()
+    parts = [
+        ("cairo: the licence it is used under, and its source", election),
+        ("cairo COPYING", (tree / "COPYING").read_bytes()),
+        ("cairo COPYING-MPL-1.1", (tree / "COPYING-MPL-1.1").read_bytes()),
+    ]
+    parts += [
+        (f"cairo {n}, its head comment", head_notice(tree / n, ("Copyright", "Permission")))
+        for n in CAIRO_MIT_FILES
+    ]
+    return parts
+
+
+def pixman_parts(b: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/pixman.txt's parts: its COPYING, then each compiled file's own notice."""
+    tree = b / PIXMAN_TOP
+    parts = [("pixman COPYING", (tree / "COPYING").read_bytes())]
+    parts += [
+        (f"pixman {n}, its head comment", head_notice(tree / n, ("Copyright", "Permission")))
+        for n in PIXMAN_NOTICE_FILES
+    ]
+    return parts
+
+
+def cairosvg_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/cairosvg.txt's parts: its LGPL-3.0 licence, the GPL-3.0 text it builds on, and the
+    facts about its source and replacing it."""
+    return [
+        ("CairoSVG LICENSE (LGPL-3.0)", (b / CAIROSVG_TOP / "LICENSE").read_bytes()),
+        (f"GNU General Public License 3.0, the full text ({GPL_TEXT})", pinned_bytes(d, GPL_TEXT)),
+        ("CairoSVG in this release: its source, and using a modified one", CAIROSVG_FACTS.encode()),
+    ]
 
 
 def modified_notice(root: Path, top: str) -> bytes:
@@ -801,7 +1043,7 @@ def main() -> None:
     for name in ("python.wasm", "python-snapshot.wasm", "python-stdlib.zip"):
         shutil.copyfile(b / "out" / name, new / name)
 
-    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.2", b / "pandas-3.0.6"
+    cp, np_src, pd_src = b / f"Python-{PYTHON}", b / "numpy-2.5.4", b / "pandas-3.1.0"
     numpy_files = tomllib.loads((np_src / "pyproject.toml").read_text())["project"]["license-files"]
     licences = {
         "cpython": [
@@ -816,12 +1058,31 @@ def main() -> None:
         + [
             (f"pandas LICENSES/{p.name}", p.read_bytes())
             for p in licence_files(pd_src / "LICENSES")
+        ]
+        # fast_float, which pandas' CSV tokenizer compiles in, ships its licences in its vendored
+        # folder, and pandas' own license-files names them there.
+        + [
+            (f"pandas {p.relative_to(pd_src).as_posix()}", p.read_bytes())
+            for p in sorted(pd_src.glob("subprojects/fast_float-*/LICENSE-*"))
         ],
-        "zlib": [("zlib LICENSE", (b / "zlib-1.3.1" / "LICENSE").read_bytes())],
+        "zlib": [("zlib LICENSE", (b / "zlib-1.3.2" / "LICENSE").read_bytes())],
         "bzip2": [("bzip2 LICENSE", (b / "bzip2-1.0.8" / "LICENSE").read_bytes())],
         # Only liblzma is linked, and its files are 0BSD (COPYING says which parts are which).
         "xz": [(f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")],
         "sqlite": [("SQLite sqlite3.h, its header comment", sqlite_notice(b))],
+        # zstd is BSD-3-Clause or GPLv2 at the user's choice, and the set takes BSD-3-Clause, so
+        # its LICENSE ships and its COPYING (GPLv2) does not. The dictionary builder's suffix
+        # sorter is Yuta Mori's libdivsufsort-lite, under MIT, whose notice heads its file.
+        "zstd": [
+            (
+                "zstd LICENSE (BSD-3-Clause, the side of its dual licence this set takes)",
+                (b / "zstd-1.5.7" / "LICENSE").read_bytes(),
+            ),
+            (
+                "zstd lib/dictBuilder/divsufsort.c (libdivsufsort-lite), its head comment",
+                head_notice(b / "zstd-1.5.7" / "lib" / "dictBuilder" / "divsufsort.c", ZSTD_MIT),
+            ),
+        ],
         # FreeType's BDF and PCF drivers are built, so their notices ship.
         "freetype": [
             (f"FreeType {n}", (b / "freetype-2.14.3" / n).read_bytes())
@@ -851,6 +1112,12 @@ def main() -> None:
             ),
         ],
         "qhull": [("Qhull COPYING.txt", (b / "qhull-8.0.2" / "COPYING.txt").read_bytes())],
+        # libjpeg-turbo's BSD-3-Clause terms and the IJG License, which covers the libjpeg API
+        # library linked here; its SIMD code, under zlib's terms, is not compiled.
+        "libjpeg-turbo": [
+            (f"libjpeg-turbo {n}", (b / "libjpeg-turbo-3.2.0" / n).read_bytes())
+            for n in ("LICENSE.md", "README.ijg")
+        ],
         "libxml2": [("libxml2 Copyright", (b / "libxml2-2.15.4" / "Copyright").read_bytes())]
         + [
             (f"libxml2 {n}, its head comment", head_notice(b / "libxml2-2.15.4" / n, words))
@@ -885,6 +1152,32 @@ def main() -> None:
         "seaborn": [
             (f"seaborn {n}", (b / "seaborn-0.13.2" / n).read_bytes()) for n in SEABORN_NOTICES
         ],
+        # python-docx and python-pptx from their sdists, each its notice from its tree
+        "python-docx": [
+            ("python-docx LICENSE", (b / "python_docx-1.2.0" / "LICENSE").read_bytes())
+        ],
+        "python-pptx": [
+            ("python-pptx LICENSE", (b / "python_pptx-1.0.2" / "LICENSE").read_bytes())
+        ],
+        "pdfminer-six": pdfminer_parts(b / PDFMINER_TOP, d),
+        "plotly": plotly_parts(b / PLOTLY_TOP, d),
+        "xarray": [("xarray LICENSE", (b / XARRAY_TOP / "LICENSE").read_bytes())]
+        + [
+            (f"xarray licenses/{p.name}", p.read_bytes())
+            for p in licence_files(b / XARRAY_TOP / "licenses")
+        ],
+        # SVG to PNG through cairo
+        "cairo": cairo_parts(b, d),
+        "pixman": pixman_parts(b),
+        "libpng": [("libpng LICENSE", (b / "libpng-1.6.59" / "LICENSE").read_bytes())],
+        # MIT No Attribution; its closure allocator (src/c/malloc_closure.h) is CPython's, under
+        # the PSF licence LICENSES/cpython.txt holds
+        "cffi": [
+            ("cffi LICENSE", (b / "cffi-2.1.1" / "LICENSE").read_bytes()),
+            ("cffi src/c/malloc_closure.h", CFFI_CLOSURE_NOTICE.encode()),
+        ],
+        "cairocffi": [("cairocffi LICENSE", (b / "cairocffi-1.7.1" / "LICENSE").read_bytes())],
+        "cairosvg": cairosvg_parts(b, d),
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
         "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],
     }

@@ -1,0 +1,13 @@
+versions plotly=7.1.0
+rows 36 ['month', 'region', 'sales']
+figure 2 ['bar', 'scatter'] Sales
+figure json 7635 2d06ff8dd5a29a4b
+iris (150, 6) ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species', 'species_id']
+scatter 3 ['setosa', 'versicolor', 'virginica']
+scatter json 11118 adffaa1a39eff4eb
+tips (244, 7) gapminder (1704, 8)
+election geojson FeatureCollection 58 ['geometry', 'id', 'properties', 'type']
+fragment 11624 d2997031e8bcf856
+offline page 4827680 fc866c317af6bbbc True
+cdn page 8536 f7c29063d3205e2a True
+to_image RuntimeError True

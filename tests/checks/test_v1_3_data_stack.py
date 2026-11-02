@@ -61,6 +61,76 @@ def test_compress_job_matches_native(guest) -> None:
 
 
 @pytest.mark.slow
+def test_zstd_files_job_matches_native(guest) -> None:
+    """compression.zstd at three levels, with a trained dictionary and as a stream, and tarfile's
+    and zipfile's zstd formats write the same bytes as native, over the same libzstd."""
+    why = jobs.compare(
+        jobs.expected_path("zstd_files").read_bytes(), jobs.run_in_guest(guest, "zstd_files")
+    )
+    assert why is None, why
+
+
+PANDAS_ZSTD = """
+import io, os
+import pandas as pd
+from compression import zstd
+os.makedirs("/work")  # the judge's root has no /tmp
+os.chdir("/work")
+df = pd.DataFrame({"city": ["Oslo", "Lima", "Pune"] * 40, "sales": range(120),
+                   "price": [1.5, 2.25, 3.125] * 40})
+text = df.to_csv()
+def back(*args, **kw):
+    return pd.read_csv(*args, index_col=0, **kw).equals(df)
+def refused(call, word):
+    try:
+        call()
+    except TypeError as e:
+        return word in str(e)
+    return False
+df.to_csv("frame.csv.bin", compression="zstd")
+with zstd.open("frame.csv.bin", "rt") as f:
+    print("named", f.read() == text, back("frame.csv.bin", compression="zstd"))
+df.to_csv("frame.csv.zst")
+with zstd.open("frame.csv.zst", "rt") as f:
+    print("inferred", f.read() == text, back("frame.csv.zst"))
+buf = io.BytesIO()
+df.to_csv(buf, compression="zstd")
+print("buffer", zstd.decompress(buf.getvalue()).decode() == text,
+      back(io.BytesIO(buf.getvalue()), compression="zstd"))
+df.to_pickle("frame.pkl", compression="zstd")
+print("pickle", pd.read_pickle("frame.pkl", compression="zstd").equals(df))
+df.to_csv("level.zst", compression={"method": "zstd", "level": 19})
+with open("level.zst", "rb") as f:
+    print("level", zstd.decompress(f.read()).decode() == text)
+print("threads", refused(
+    lambda: df.to_csv("t.zst", compression={"method": "zstd", "threads": 2}), "threads"))
+print("level on read", refused(
+    lambda: pd.read_csv("frame.csv.zst", compression={"method": "zstd", "level": 3}), "level"))
+"""
+
+
+def test_pandas_zstd_reads_and_writes_through_the_standard_library(guest) -> None:
+    """pandas' `compression="zstd"` asks for python-zstandard, which the set does not carry; a
+    carried patch makes it use the standard library's compression.zstd when python-zstandard is
+    missing. Written files are zstd frames compression.zstd reads, by name, by suffix and in a
+    buffer, pickles round-trip, `level` is passed on when writing, and an option
+    compression.zstd does not take raises TypeError naming it, as python-zstandard would. pandas'
+    own zstd tests skip without python-zstandard, so this is the path's one check."""
+    r = guest("snapshot", ["-c", PANDAS_ZSTD])
+    assert r.exit_code == 0, r.describe()
+    want = (
+        "named True True\n"
+        "inferred True True\n"
+        "buffer True True\n"
+        "pickle True\n"
+        "level True\n"
+        "threads True\n"
+        "level on read True\n"
+    )
+    assert r.text == want, r.text
+
+
+@pytest.mark.slow
 def test_sqlite_job_matches_native(guest) -> None:
     """sqlite3 on a file, with a forced spill to temporary files, and pandas' to_sql and read_sql
     give native's results."""
@@ -152,6 +222,40 @@ def test_gzip_round_trips(guest) -> None:
     )
     r = guest("plain", ["-c", code])
     assert (r.exit_code, r.text) == (0, "ok\n"), r.describe()
+
+
+# A CSV of 5.5 MB, made in the guest so nothing large is staged. pandas reads a local file of
+# 5 MB or more on several threads over a memory map when it counts more than one CPU; the guest
+# counts one, so the default read is serial, and asking for threads meets the missing mmap.
+BIG_CSV = """\
+import os
+import pandas as pd
+path = "/big.csv"
+with open(path, "w") as f:
+    f.write("a,b,c\\n")
+    f.write("1234567,0.25,abcdefgh\\n" * 250_000)
+print(os.path.getsize(path) >= 5 * 1024 * 1024, len(pd.read_csv(path)))
+pd.set_option("mode.max_threads", 2)
+try:
+    pd.read_csv(path)
+except OSError as e:
+    print("OSError", e)
+else:
+    print("read")
+"""
+
+
+def test_a_large_csv_is_read_serially(guest) -> None:
+    """The default read_csv of a file past pandas' parallel threshold returns every row; with
+    mode.max_threads above 1 pandas maps the file and raises, as limitations.md says."""
+    r = guest("snapshot", ["-c", BIG_CSV])
+    assert r.exit_code == 0, r.describe()
+    assert r.text.splitlines() == [
+        "True 250000",
+        "OSError mmap is unavailable on wasm32-wasi",
+    ], r.describe()
+    page = (paths.REPO / "docs" / "reference" / "limitations.md").read_text("utf-8")
+    assert "`mode.max_threads`" in page, "limitations.md does not name pandas' mode.max_threads"
 
 
 def test_default_integer_width_is_documented(guest) -> None:
@@ -367,15 +471,20 @@ def test_npy_files_round_trip(guest, which) -> None:
 DISTRIBUTIONS = (
     "attrs",
     "beautifulsoup4",
+    "cairocffi",
+    "cairosvg",
     "charset-normalizer",
     "cloudpickle",
     "contourpy",
+    "cssselect2",
     "cycler",
     "defusedxml",
+    "drawsvg",
     "et-xmlfile",
     "fonttools",
     "formulaic",
     "html5lib",
+    "imageio",
     "interface-meta",
     "jinja2",
     "joblib",
@@ -392,10 +501,15 @@ DISTRIBUTIONS = (
     "packaging",
     "pandas",
     "patsy",
+    "pdfminer-six",
+    "pdfplumber",
     "pillow",
+    "plotly",
     "pyparsing",
     "pypdf",
     "python-dateutil",
+    "python-docx",
+    "python-pptx",
     "pyyaml",
     "regex",
     "reportlab",
@@ -408,6 +522,7 @@ DISTRIBUTIONS = (
     "sympy",
     "tabulate",
     "threadpoolctl",
+    "tinycss2",
     "tomli-w",
     "toolz",
     "tqdm",
@@ -415,6 +530,7 @@ DISTRIBUTIONS = (
     "tzdata",
     "webencodings",
     "wrapt",
+    "xarray",
     "xlrd",
     "xlsxwriter",
     "xmltodict",
@@ -453,6 +569,73 @@ def test_packages_carry_their_metadata(guest, which) -> None:
     dists = [[name, m.packages.get(name)] for name in DISTRIBUTIONS]
     assert got["distributions"] == dists, f"distributions {got['distributions']}, want {dists}"
     assert got["files"] is None, f"files('numpy') is {got['files']!r}: RECORD is not kept"
+
+
+# What the guest's own importlib.metadata says of each distribution: its Name, its version and the
+# import names packages_distributions() maps to it, each found without being imported.
+PACKAGES = """
+import importlib.metadata as md, importlib.util, json, re
+owners = md.packages_distributions()
+rows, unfound = [], []
+for d in md.distributions():
+    name = d.metadata["Name"]
+    names = sorted(n for n, dists in owners.items() if name in dists)
+    unfound += [n for n in names if importlib.util.find_spec(n) is None]
+    rows.append([name, d.version, names])
+rows.sort(key=lambda r: (re.sub(r"[-_.]+", "-", r[0]).lower(), r[0], r[1]))
+print(json.dumps({"packages": rows, "unfound": unfound}))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_the_host_lists_the_packages_the_guest_finds(guest, which) -> None:
+    """`packages()`, read on the host, equals the guest's own `importlib.metadata`: each
+    distribution's Name, version and the import names `packages_distributions()` gives it. Every
+    package has a name to import, and the guest finds each one without importing it."""
+    needs.need("artifact dir", "stdlib zip")
+    from wasi_python import Artifacts, packages
+
+    r = guest(which, ["-c", PACKAGES])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    d = paths.artifact_dir()
+    found = Artifacts(
+        snapshot=d / "python-snapshot.wasm",
+        plain=d / "python.wasm",
+        stdlib_zip=d / "python-stdlib.zip",
+        manifest=d / "MANIFEST",
+    )
+    host = [[p.name, p.version, list(p.imports)] for p in packages(found)]
+    assert host == got["packages"], f"the host lists {host}, the guest finds {got['packages']}"
+    nameless = [p[0] for p in host if not p[2]]
+    assert not nameless, f"packages with no name to import: {nameless}"
+    assert not got["unfound"], f"names the guest cannot find: {got['unfound']}"
+
+
+# The zip's top-level names no package claims: the tool protocol's guest package and reportlab's
+# two start-up stand-ins, each the project's own module.
+UNOWNED_NAMES = {"host", "reportlab_mods", "reportlab_settings"}
+
+
+def test_every_name_in_the_zip_belongs_to_a_package(guest, artifacts) -> None:
+    """The zip's top-level names that are neither the stdlib's nor the reactor's, less every
+    package's import names, are exactly the project's own modules: no package of the set is
+    missing a name an agent would import."""
+    from wasi_python import Artifacts, packages
+
+    stdlib_names = "import json, sys; print(json.dumps(sorted(sys.stdlib_module_names)))"
+    r = guest("plain", ["-c", stdlib_names], record=False)  # its fuel measures nothing here
+    assert r.exit_code == 0, r.describe()
+    stdlib = set(json.loads(r.text))
+    zip_path = artifacts.path("python-stdlib.zip")
+    d = zip_path.parent
+    found = Artifacts(d / "python-snapshot.wasm", d / "python.wasm", zip_path, d / "MANIFEST")
+    claimed = {n for p in packages(found) for n in p.imports}
+    left = zip_non_stdlib_names(zip_path, stdlib) - claimed
+    assert left == UNOWNED_NAMES, (
+        f"names no package claims: {sorted(left - UNOWNED_NAMES)}; "
+        f"expected but claimed or absent: {sorted(UNOWNED_NAMES - left)}"
+    )
 
 
 # The stand-in names and sizes wasm32's C types, gives numpy the dtype it
@@ -977,7 +1160,8 @@ RANK_DEFICIENT_GUEST = (
     "FEFEEFEFFFFFEFFFEFFEEEEFFEFFFEEEFFEEEFFEFFEFEEFEEFEEEEFEEEEEEEEFFEEFEEFEFFE"
     "FEEEEEFEEEEEEFEFEFEFFEEFEFEEEEEEFEFEEFEFFFFEEEEFEEEFFFFEEFEFEEEFEFFEEEEFEFF"
 )
-# Native numpy 2.5.2 on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program.
+# Native numpy on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program: 2.5.2's
+# string, and 2.5.4's the same.
 RANK_DEFICIENT_NATIVE = (
     "FEFFEFFFFEFFFEEEFFFEEFFFFEFFFFEFEFEEFFFFFFFEFFFFEFFEFFEFFFEFFFFEFEFFEFFFEFF"
     "FFEFEEFFFEFFFFFFFEEFFEFFEFFFEEEFFFFFFFFEFFFEFFEFFFEFFEEFEFEEFFFFEFFFEFFFFFE"
@@ -1035,8 +1219,11 @@ case("dorgqr lda 0", lambda: lapack_lite.dorgqr(1, 1, 1, one, 0, one, one, 0, 0)
 
 _SVD = "raises LinAlgError: SVD did not converge"
 _EIG = "raises LinAlgError: Eigenvalues did not converge"
-# Native numpy 2.5.2 on OpenBLAS 0.3.34 (check3_errors-native-openblas.out): Python's lines, then
-# OpenBLAS's own xerbla lines, which C's stdout writes when it flushes.
+# Native numpy 2.5.4 on OpenBLAS 0.3.34 (the macosx_11_0_arm64 wheel), the same program: Python's
+# lines, then OpenBLAS's own xerbla lines, which C's stdout writes when it flushes. numpy 2.5.4
+# checks the svd and lstsq drivers' input for inf and nan before it calls LAPACK, so `cond` of a
+# nan matrix returns nan instead of raising, and DLASCL is no longer reached; 2.5.2 raised there
+# and OpenBLAS printed two DLASCL lines.
 LINALG_ERRORS_NATIVE = "".join(
     f"{name:22s} {out}\n"
     for name, out in (
@@ -1045,7 +1232,7 @@ LINALG_ERRORS_NATIVE = "".join(
         ("pinv", _SVD),
         ("matrix_rank", _SVD),
         ("norm 2", _SVD),
-        ("cond", _SVD),
+        ("cond", "returns all-nan"),
         ("lstsq", _SVD + " in Linear Least Squares"),
         ("eigh", _EIG),
         ("eigvalsh", _EIG),
@@ -1059,13 +1246,7 @@ LINALG_ERRORS_NATIVE = "".join(
         ("dorgqr lda 0", "returns {'dorgqr_': 0, 'info': -5}"),
     )
 )
-LINALG_XERBLA_NATIVE = sorted(
-    [
-        " ** On entry to DLASCL parameter number  4 had an illegal value",
-        " ** On entry to DLASCL parameter number  4 had an illegal value",
-        " ** On entry to DORGQR parameter number  5 had an illegal value",
-    ]
-)
+LINALG_XERBLA_NATIVE = [" ** On entry to DORGQR parameter number  5 had an illegal value"]
 
 
 def _quiet(guest, which: str, code: str) -> str:
@@ -1107,7 +1288,8 @@ def test_a_rank_deficient_matrix_meets_the_sets_openblas(guest, which) -> None:
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_numpy_linalg_errors_are_native_numpy_on_openblas(guest, which) -> None:
     """A matrix of nan, and LAPACK's argument errors, behave as in native numpy on OpenBLAS: the svd
-    family, lstsq and eigh raise LinAlgError (lapack_lite's DLASCL ValueError, and lstsq's
+    family but `cond` (which returns nan, as native numpy 2.5.4 does), lstsq and eigh raise
+    LinAlgError (lapack_lite's DLASCL ValueError, and lstsq's
     SystemError, are gone), inv, solve, cholesky, qr and det return nans as natively,
     lapack_lite.xerbla() raises numpy's ValueError, and an illegal argument makes OpenBLAS's own
     xerbla print to stdout and return. OpenBLAS's lines come through C's stdout, whose order against

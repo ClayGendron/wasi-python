@@ -1,0 +1,3 @@
+tests/test_optional/test_offline/test_offline.py::PlotlyOfflineTestCase::test_iplot_mpl_works
+tests/test_optional/test_offline/test_offline.py::PlotlyOfflineTestCase::test_iplot_works_after_you_call_init_notebook_mode
+tests/test_optional/test_offline/test_offline.py::PlotlyOfflineTestCase::test_iplot_works_without_init_notebook_mode

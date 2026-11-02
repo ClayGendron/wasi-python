@@ -372,7 +372,7 @@ REUSE_MUTANTS = {
         ),
         "R3: build's step \"The set is this commit's\" has if:",
     ),
-    "build-shard downloads the build's assets": (
+    "the x86_64 rebuild downloads the build's assets": (
         lambda: _reuse(
             _r(
                 "      - name: The build shard\n        # Only the checks that need the build tree",
@@ -380,21 +380,26 @@ REUSE_MUTANTS = {
                 "        # Only the checks that need the build tree",
             )
         ),
-        "R4: build-shard downloads an artifact",
+        "R4: rebuild-linux-x86-64 downloads an artifact",
     ),
-    "the gather without same-bytes": (
-        lambda: _reuse(_r("build-shard, same-bytes, judge-macos", "build-shard, judge-macos")),
-        "R6:",
+    "the gather waiting on same-bytes": (
+        lambda: _reuse(
+            _r(
+                "rebuild-linux-x86-64, judge-macos",
+                "rebuild-linux-x86-64, same-bytes, judge-macos",
+            )
+        ),
+        "R6: gather does not need rebuild-linux-x86-64, or needs same-bytes",
     ),
     "a save on a tag": (
         lambda: _reuse(_r("!startsWith(github.ref, 'refs/tags/') && ", "")),
         "R5: save-set's if: is not",
     ),
-    "the build not waiting on quick": (
-        lambda: _reuse(_r("    needs: [plan, inputs, quick]\n", "    needs: [plan, inputs]\n")),
-        "R3: build does not need the plan, inputs and quick alone",
+    "the build waiting on quick": (
+        lambda: _reuse(_r("    needs: [plan, inputs]\n", "    needs: [plan, inputs, quick]\n")),
+        "R3: build does not need the plan and inputs alone",
     ),
-    "a reused set built on macOS for a pull request": (
+    "a build on macOS": (
         lambda: _reuse(_r("|| 'ubuntu-24.04-arm' }}", "|| 'macos-15' }}")),
         "R3: build's runs-on",
     ),

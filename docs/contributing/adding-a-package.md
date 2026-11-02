@@ -38,6 +38,8 @@ scripts/build.sh --from 57
 
 Each step prints `ok <step>: <what it made> [<time>]`, or `FAILED <step>` and an `ERROR` line with the reason.
 
+The zip step records the names each package puts on the import path, in its `.dist-info/top_level.txt`. A wheel's names are what it packs. A package staged as a folder names its own in step 70: `--metadata <its PKG-INFO>=<name>,<name>`, such as `scipy-1.18.1/PKG-INFO=scipy`. The step stops on a name no package claims and on a name two packages claim.
+
 Then check what differs from native. Write each difference down for users on the limitations page, with one sentence of reason. For scipy, `scipy.odr` is not in the build (it needs ODRPACK, which is Fortran), and `workers=` other than 1 does not start threads or processes.
 
 ## 4. Run its own tests in the release
@@ -48,6 +50,7 @@ Every package runs its own test suite in the release. Add the package to `tests/
 - `via`: its own suite cannot run here, and the entry names what reaches it instead.
 - `build-only`: it only compiles another package, with a reason.
 - `later`: its suite does not run yet, with a reason and the planned work that runs it.
+- `none`: the project ships no tests at its pinned version, in its sdist or in its repository at the release's tag. The entry says where that was read, in `reason`, and names in `checked_by` the golden jobs that import and run the package. It is refused when `tests/upstream/<name>.toml` exists, or when a named job does not import the package. A new version is read again.
 
 For example, a header-only build dependency looks like this:
 

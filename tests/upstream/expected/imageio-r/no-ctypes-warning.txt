@@ -1,0 +1,1 @@
+tests/test_core.py::test_imopen_extension_malformatted[.jpg]

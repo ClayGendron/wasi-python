@@ -17,15 +17,29 @@ PLAIN_EXPORTS = {
     "run",
     "host_alloc",
     "turn",
+    "turn_input",
     "shutdown",
     "prepare",
+    "checkpoint",
 }
-SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "shutdown", "prepare"}
-# The function types of the exports that take the host's code or end a call.
+SNAPSHOT_EXPORTS = {
+    "memory",
+    "run",
+    "host_alloc",
+    "turn",
+    "turn_input",
+    "shutdown",
+    "prepare",
+    "checkpoint",
+}
+# The function types of the exports that take the host's code, end a call, or bracket the host's
+# read of a session's memory.
 EXPORT_TYPES = {
     "turn": "(i32, i32) -> (i32)",
+    "turn_input": "(i32, i32) -> (i32)",
     "shutdown": "() -> (i32)",
     "prepare": "(i32, i32) -> (i32)",
+    "checkpoint": "(i32) -> (i32)",
 }
 SNAPSHOT_FORBIDDEN = {"_initialize", "wizer.initialize"}
 
@@ -194,14 +208,23 @@ def exception_errors(binary: Path) -> list[str]:
     return errors
 
 
+# The packages whose Python source the zip carries beside their bytecode, as their licence asks:
+# CairoSVG's LGPL-3.0. Every source there has its .pyc.
+SOURCE_PACKAGES = ("cairosvg/",)
+
+
 def stdlib_zip_errors(z: Path) -> list[str]:
     errors = []
     with zipfile.ZipFile(z) as archive:
+        names = set(archive.namelist())
         for info in archive.infolist():
             if info.is_dir():
                 continue
             if info.filename.endswith(".py"):
-                errors.append(f"{info.filename}: source, not bytecode")
+                if not info.filename.startswith(SOURCE_PACKAGES):
+                    errors.append(f"{info.filename}: source, not bytecode")
+                elif info.filename + "c" not in names:
+                    errors.append(f"{info.filename}: source with no bytecode beside it")
             if info.compress_type != zipfile.ZIP_DEFLATED:
                 errors.append(f"{info.filename}: stored, not deflated")
     return errors[:20]
@@ -219,6 +242,10 @@ TYPED = "wasi_python/py.typed"
 
 
 WHEEL_SET = "wasi_python/artifacts/"
+# The largest wheel the project ships: 256 MiB, the file limit the owner has asked PyPI for.
+# PyPI's default is 100 MiB (https://pypi.org/help/#file-size-limit); a wheel past it is built and
+# judged, but not uploaded to PyPI until PyPI grants the request.
+PYPI_FILE_LIMIT = 268_435_456
 
 
 def _licences():  # type: ignore[no-untyped-def]
@@ -237,13 +264,18 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
     """The wheel carries every file of the set's folder (litter aside), byte for byte, and under
     `wasi_python/artifacts/` nothing the set's SHA256SUMS does not list, litter or not: the wheel
     is built from the folder. Its .dist-info/licenses/LICENSE is the project's licence followed by
-    every licence in the set's LICENSES folder."""
+    every licence in the set's LICENSES folder. It is no larger than the limit asked of PyPI."""
     lic = _licences()
     errors = lic.check(wheel, d, (paths.REPO / "LICENSE").read_text(encoding="utf-8"))
     try:
         listed = set(paths.read_pin_list(d / "SHA256SUMS")) | {"SHA256SUMS"}
     except (OSError, ValueError):
         listed = None  # sums_errors names it
+    size = wheel.stat().st_size
+    if size > PYPI_FILE_LIMIT:  # on a tag the GitHub release is made before PyPI's upload
+        errors.append(
+            f"{wheel.name} is {size:,} bytes, over the limit asked of PyPI, {PYPI_FILE_LIMIT:,}"
+        )
     with zipfile.ZipFile(wheel) as w:
         names = set(w.namelist())
         if TYPED not in names:  # PEP 561: a type checker reads the package's hints

@@ -344,23 +344,27 @@ def test_main_puts_entry_points_beside_metadata_or_stops(tmp_path, monkeypatch) 
     monkeypatch.setattr(make_stdlib_zip, "REWRITE", ())
     monkeypatch.setenv("PYTHONHASHSEED", "0")
     (tmp_path / "lib").mkdir()
+    (tmp_path / "tree" / "some_pkg").mkdir(parents=True)
+    (tmp_path / "tree" / "some_pkg" / "__init__.py").write_text("")
     (tmp_path / "x").mkdir()
     (tmp_path / "x" / "PKG-INFO").write_text("Name: Some.Pkg\nVersion: 1.0\n\n")
     entry = b"[some.group]\nname = some_pkg.mod:thing\n"
     (tmp_path / "x" / "entry_points.txt").write_bytes(entry)
-    base = ["make_stdlib_zip.py", "--lib", "lib"]
+    base = ["make_stdlib_zip.py", "--lib", "lib", "--tree", "tree"]
     tail = ["--entry-points", "x/PKG-INFO", "x/entry_points.txt", "out.zip"]
     monkeypatch.setattr(sys, "argv", base + tail)
     with pytest.raises(SystemExit) as stop:
         make_stdlib_zip.main()
     line = str(stop.value)
     assert "x/PKG-INFO" in line and "x/entry_points.txt" in line and "METADATA" in line, line
-    monkeypatch.setattr(sys, "argv", base + ["--metadata", "x/../x/PKG-INFO"] + tail)
+    monkeypatch.setattr(sys, "argv", base + ["--metadata", "x/../x/PKG-INFO=some_pkg"] + tail)
     make_stdlib_zip.main()
     with zipfile.ZipFile(tmp_path / "out.zip") as z:
         assert sorted(z.namelist()) == [
             "some_pkg-1.0.dist-info/METADATA",
             "some_pkg-1.0.dist-info/entry_points.txt",
+            "some_pkg-1.0.dist-info/top_level.txt",
+            "some_pkg/__init__.pyc",
         ]
         assert z.read("some_pkg-1.0.dist-info/entry_points.txt") == entry
 
@@ -418,6 +422,7 @@ def test_a_left_out_folder_is_not_packed(tmp_path, monkeypatch) -> None:
     with zipfile.ZipFile(tmp_path / "out.zip") as z:
         assert sorted(z.namelist()) == [
             "pkg-1.0.dist-info/METADATA",
+            "pkg-1.0.dist-info/top_level.txt",
             "pkg/__init__.pyc",
             "pkg/subway.pyc",
         ]
@@ -427,6 +432,130 @@ def test_a_left_out_folder_is_not_packed(tmp_path, monkeypatch) -> None:
             make_stdlib_zip.main()
         line = str(stop.value)
         assert line == f"--drop, --keep or --inner matched no member: {wrong}", line
+
+
+def _zip_main(tmp_path: Path, monkeypatch, args: list[str]) -> dict[str, bytes]:
+    """main() over the inputs under tmp_path, with no stdlib (so its version check and the
+    host-neutral rewrite are set aside): the zip's members, or the stop it raised."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(make_stdlib_zip, "TARGET", sys.version_info[:2])
+    monkeypatch.setattr(make_stdlib_zip, "REWRITE", ())
+    monkeypatch.setenv("PYTHONHASHSEED", "0")
+    (tmp_path / "lib").mkdir(exist_ok=True)
+    monkeypatch.setattr(sys, "argv", ["make_stdlib_zip.py", "--lib", "lib", *args, "out.zip"])
+    make_stdlib_zip.main()
+    with zipfile.ZipFile(tmp_path / "out.zip") as z:
+        return {name: z.read(name) for name in z.namelist()}
+
+
+def _wheel(path: Path, members: dict[str, bytes]) -> str:
+    with zipfile.ZipFile(path, "w") as z:
+        for name, data in members.items():
+            z.writestr(name, data)
+    return path.name
+
+
+def _pkg_info(path: Path, name: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"Name: {name}\nVersion: 1.0\n\n")
+
+
+def _files(root: Path, names: list[str]) -> None:
+    for name in names:
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text("")
+
+
+def test_each_distribution_gets_its_import_names(tmp_path, monkeypatch) -> None:
+    """A wheel's top_level.txt is the names of what it packed: a folder's first part or a root
+    module's stem, never its .dist-info or .data, nor a folder `--drop` left out, nor a root data
+    file, and its own top_level.txt stays dropped. A tree's names are what its `--metadata`
+    claims after the last `=`. Each file lists the names sorted, one per line."""
+    wheel = _wheel(
+        tmp_path / "w-1.0-py3-none-any.whl",
+        {
+            "w/__init__.py": b"",
+            "w_extra.py": b"",
+            "w_gone/mod.py": b"",
+            "w.pth": b"",
+            "w-1.0.data/purelib/elsewhere.py": b"",
+            "w-1.0.dist-info/METADATA": b"Name: w\nVersion: 1.0\n\n",
+            "w-1.0.dist-info/top_level.txt": b"not_this\n",
+        },
+    )
+    _files(tmp_path / "tree", ["alpha/__init__.py", "beta.py"])
+    _pkg_info(tmp_path / "a=b" / "PKG-INFO", "a")
+    got = _zip_main(
+        tmp_path,
+        monkeypatch,
+        ["--tree", "tree", "--wheel", wheel, "--drop", "w_gone"]
+        + ["--metadata", "a=b/PKG-INFO=beta,alpha"],
+    )
+    assert got["w-1.0.dist-info/top_level.txt"] == b"w\nw_extra\n"
+    assert got["a-1.0.dist-info/top_level.txt"] == b"alpha\nbeta\n"
+    assert sorted(n for n in got if n.endswith("top_level.txt")) == [
+        "a-1.0.dist-info/top_level.txt",
+        "w-1.0.dist-info/top_level.txt",
+    ]
+
+
+# Each way a name could have no single owner, or a distribution no name, and its one-line stop.
+OWNER_STOPS = {
+    "unclaimed": "no --metadata claims the names a tree packed: gamma (tree)",
+    "claimed twice": (
+        "alpha is claimed twice: --metadata a/PKG-INFO=alpha and --metadata b/PKG-INFO=alpha,gamma"
+    ),
+    "claim of nothing": "--metadata a/PKG-INFO=alpha,gamma,nothing: no tree packed nothing",
+    "a wheel and a tree": "w is owned by two inputs: tree and w-1.0-py3-none-any.whl",
+    "a wheel and a claim": (
+        "w is owned by two inputs: w-1.0-py3-none-any.whl and --metadata a/PKG-INFO=alpha,gamma,w"
+    ),
+    "two wheels": "w is owned by two inputs: v-1.0-py3-none-any.whl and w-1.0-py3-none-any.whl",
+    "no name": "w-1.0-py3-none-any.whl: w-1.0.dist-info is left with no name to import",
+    "no names given": "--metadata 'a/PKG-INFO': write <PKG-INFO>=<name>[,<name>...]",
+    "no names after =": "--metadata 'a/PKG-INFO=': write <PKG-INFO>=<name>[,<name>...]",
+}
+
+
+@pytest.mark.parametrize(("case", "stop"), OWNER_STOPS.items(), ids=list(OWNER_STOPS))
+def test_a_name_without_one_owner_stops_the_zip(tmp_path, monkeypatch, case, stop) -> None:
+    """Every top-level name has one owner and every distribution a name, or the build stops in
+    one line naming both sides: a tree's name no `--metadata` claims, a name claimed twice, a
+    claim of a name no tree packed, a name a wheel owns and a tree or a claim owns too, a name
+    two wheels own, a wheel left with no name, and `--metadata` without `=<names>`."""
+    _files(tmp_path / "tree", ["alpha/__init__.py", "gamma.py"])
+    _pkg_info(tmp_path / "a" / "PKG-INFO", "a")
+    _pkg_info(tmp_path / "b" / "PKG-INFO", "b")
+    w = {"w/__init__.py": b"", "w-1.0.dist-info/METADATA": b"Name: w\nVersion: 1.0\n\n"}
+    claim = ["--metadata", "a/PKG-INFO=alpha,gamma"]
+    args = {
+        "unclaimed": ["--metadata", "a/PKG-INFO=alpha"],
+        "claimed twice": ["--metadata", "a/PKG-INFO=alpha", "--metadata", "b/PKG-INFO=alpha,gamma"],
+        "claim of nothing": ["--metadata", "a/PKG-INFO=alpha,gamma,nothing"],
+        "a wheel and a tree": [*claim, "--wheel", _wheel(tmp_path / "w-1.0-py3-none-any.whl", w)],
+        "a wheel and a claim": [
+            "--metadata", "a/PKG-INFO=alpha,gamma,w",
+            "--wheel", _wheel(tmp_path / "w-1.0-py3-none-any.whl", w),
+        ],
+        "two wheels": [
+            *claim,
+            "--wheel", _wheel(tmp_path / "v-1.0-py3-none-any.whl", {
+                "w/other.py": b"", "v-1.0.dist-info/METADATA": b"Name: v\nVersion: 1.0\n\n"
+            }),
+            "--wheel", _wheel(tmp_path / "w-1.0-py3-none-any.whl", w),
+        ],
+        "no name": [
+            *claim,
+            "--wheel", _wheel(tmp_path / "w-1.0-py3-none-any.whl", w), "--drop", "w",
+        ],
+        "no names given": ["--metadata", "a/PKG-INFO"],
+        "no names after =": ["--metadata", "a/PKG-INFO="],
+    }[case]  # fmt: skip
+    if case == "a wheel and a tree":
+        _files(tmp_path / "tree", ["w/tree_side.py"])
+    with pytest.raises(SystemExit) as stopped:
+        _zip_main(tmp_path, monkeypatch, ["--tree", "tree", *args])
+    assert str(stopped.value) == stop
 
 
 def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:
@@ -1215,3 +1344,123 @@ def test_the_two_fetchers_choose_the_same_url(tmp_path, monkeypatch, case) -> No
     if not py_kept:
         for text in (sh_out, py_error):
             assert MIRROR in text and ORIGIN in text, text
+
+
+def test_the_wasmtime_cli_is_the_lines_by_its_exact_name(tmp_path) -> None:
+    """A build tree may still hold an older wasmtime beside the line's own (a step 10 that ran on
+    the older pin left it there): the judge's CLI is the folder the line names, never the first
+    one sorted, which would be the older."""
+    for folder in ("wasmtime-v49.0.3-aarch64-macos", "wasmtime-v50.0.1-aarch64-macos"):
+        (tmp_path / folder).mkdir()
+        (tmp_path / folder / "wasmtime").write_bytes(b"")
+    found = paths.wasmtime_cli("wasmtime-v50.0.1-aarch64-macos", tools=tmp_path)
+    assert found == tmp_path / "wasmtime-v50.0.1-aarch64-macos" / "wasmtime"
+    assert paths.wasmtime_cli("wasmtime-v51.0.0-aarch64-macos", tools=tmp_path) is None
+
+
+# The folder table in the stdlib zip's archive comment.
+
+
+def _sorted_zip(path: Path, names: list[str], comment: bytes = b"") -> None:
+    """A zip of `names`, written in the order given, each holding its own name, as step 70
+    writes its members: deflated, with the fixed time and mode."""
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for name in names:
+            z.writestr(make_stdlib_zip.member(name), name.encode())
+        z.comment = comment
+
+
+def _directory(data: bytes) -> list[tuple[str, int, int]]:
+    """Each directory entry's name, offset from the directory's first entry, and length."""
+    end = data.rfind(b"PK\x05\x06")
+    count = int.from_bytes(data[end + 10 : end + 12], "little")
+    offset = int.from_bytes(data[end + 16 : end + 20], "little")
+    out, p = [], offset
+    for _ in range(count):
+        n, e, c = (int.from_bytes(data[p + i : p + i + 2], "little") for i in (28, 30, 32))
+        out.append((data[p + 46 : p + 46 + n].decode(), p - offset, 46 + n + e + c))
+        p += 46 + n + e + c
+    return out
+
+
+FOLDER_NAMES = [
+    "a.pyc",
+    "pkg-1.0.dist-info/METADATA",
+    "pkg/Upper.pyc",
+    "pkg/__init__.py",
+    "pkg/__init__.pyc",
+    "pkg/sub/m.pyc",
+    "plain/data.txt",
+    "top.pyc",
+    "zeta/__init__.pyc",
+]
+
+
+def test_the_folder_table_lists_each_folders_run(tmp_path) -> None:
+    """A made zip's table, line for line: every top-level folder but a .dist-info, with its run
+    and the run of its `__init__.*` entries (`0 0` without one), offsets from the directory's
+    first entry."""
+    path = tmp_path / "z.zip"
+    _sorted_zip(path, FOLDER_NAMES)
+    size = make_stdlib_zip.write_folder_table(path)
+    entries = {name: (offset, length) for name, offset, length in _directory(path.read_bytes())}
+
+    def run(*names: str) -> str:
+        first = entries[names[0]][0]
+        return f"{first} {sum(entries[n][1] for n in names)} {len(names)}"
+
+    want = (
+        "wasi-python folders 1\n"
+        f"pkg {run('pkg/Upper.pyc', 'pkg/__init__.py', 'pkg/__init__.pyc', 'pkg/sub/m.pyc')} "
+        f"{entries['pkg/__init__.py'][0]} 2\n"
+        f"plain {run('plain/data.txt')} 0 0\n"
+        f"zeta {run('zeta/__init__.pyc')} {entries['zeta/__init__.pyc'][0]} 1\n"
+    )
+    with zipfile.ZipFile(path) as z:
+        assert z.comment.decode("ascii") == want
+        assert z.testzip() is None and z.namelist() == FOLDER_NAMES
+    assert size == len(want)
+
+
+def test_the_folder_table_changes_only_the_comment_and_repeats(tmp_path) -> None:
+    """The same members give the same bytes twice; only the end record's comment length and the
+    comment change, and a comment already there is replaced."""
+    first, second, commented = tmp_path / "1.zip", tmp_path / "2.zip", tmp_path / "3.zip"
+    _sorted_zip(first, FOLDER_NAMES)
+    _sorted_zip(second, FOLDER_NAMES)
+    _sorted_zip(commented, FOLDER_NAMES, comment=b"wasi-python folders 1\nold 0 1 1 0 0\n")
+    before = first.read_bytes()
+    for path in (first, second, commented):
+        make_stdlib_zip.write_folder_table(path)
+    assert first.read_bytes() == second.read_bytes() == commented.read_bytes()
+    after = first.read_bytes()
+    end = before.rfind(b"PK\x05\x06")
+    assert after[: end + 20] == before[: end + 20] and len(before) == end + 22
+    assert after[end + 22 :].startswith(b"wasi-python folders 1\n")
+
+
+def test_the_folder_table_stops_on_a_split_folder_or_its_size(tmp_path) -> None:
+    """A folder in two runs of the directory, and a table past a comment's 65,535 bytes, stop the
+    build; a folder named outside the table's alphabet is read at start, so it is not listed."""
+    split = tmp_path / "split.zip"
+    _sorted_zip(split, ["pkg/a.pyc", "top.pyc", "pkg/b.pyc"])
+    with pytest.raises(SystemExit, match="pkg/ is not one run"):
+        make_stdlib_zip.write_folder_table(split)
+    inits = tmp_path / "inits.zip"
+    _sorted_zip(inits, ["pkg/__init__.py", "pkg/a.pyc", "pkg/__init__.pyc"])
+    with pytest.raises(SystemExit, match="__init__"):
+        make_stdlib_zip.write_folder_table(inits)
+    big = tmp_path / "big.zip"
+    _sorted_zip(big, [f"folder_{i:05d}_{'x' * 40}/m.pyc" for i in range(1200)])
+    with pytest.raises(SystemExit, match="65,535"):
+        make_stdlib_zip.write_folder_table(big)
+    odd = tmp_path / "odd.zip"
+    _sorted_zip(odd, ["café/m.pyc", "my pkg/m.pyc", "ok/m.pyc"])
+    make_stdlib_zip.write_folder_table(odd)
+    with zipfile.ZipFile(odd) as z:
+        assert [line.split(" ")[0] for line in z.comment.decode().splitlines()[1:]] == ["ok"]
+    assert [make_stdlib_zip.tabled_folder(n) for n in ("x/y", "x", "x.dist-info/M")] == [
+        "x",
+        None,
+        None,
+    ]

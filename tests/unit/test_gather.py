@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import importlib.metadata
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -39,7 +40,7 @@ PLAN = {
     "up-l": shards.Shard("up-l", ("linux",), groups=("g1",)),
     "up-w": shards.Shard("up-w", ("windows",), groups=("g1",)),
 }
-PLATFORM = {"build": "linux-aarch64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
+PLATFORM = {"build": "linux-x86_64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
 PLATFORM["windows"] = "win32-amd64"
 PLATFORM["release"] = "linux-x86_64"
 MAY_BLOCK = {ART: frozenset({"prior-art clones"}), DESC: frozenset({"descriptor limit"})}
@@ -670,8 +671,8 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     assert merged["checks"][PROBE]["source"]["status"] == "pass"
     assert "metrics" not in merged["checks"][PROBE]["source"]
     assert merged["checks"][SUITE]["source"]["platform"] == "linux-x86_64"  # no darwin run
-    # The build's, from build-shard's arm64 Linux build.
-    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "linux-aarch64"
+    # The build shard's, from the x86-64 rebuild's own tree.
+    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "linux-x86_64"
 
 
 def test_a_ci_need_block_is_no_source(case) -> None:
@@ -712,11 +713,11 @@ def test_only_a_pushed_tag_is_a_tag(environ, tag) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The build record comes from build-shard on arm64 Linux; where the set came from
+# The build record comes from the x86-64 rebuild; where the set came from
 
 
-def test_the_build_record_is_build_shards_on_linux(case) -> None:
-    assert gather.JOB["build"] == "build-shard"
+def test_the_build_record_is_the_x86_64_rebuilds_on_linux(case) -> None:
+    assert gather.JOB["build"] == "rebuild-linux-x86-64"
     assert case.records[("build", "build")]["meta"]["platform"].startswith("linux-")
     assert case.run().red == []
 
@@ -728,7 +729,7 @@ def test_a_build_record_from_darwin_is_red_at_g2(case) -> None:
 
 def test_a_build_record_under_the_build_jobs_folder_is_red_at_g1(case) -> None:
     def move(d: Path, h: dict) -> None:
-        old = d / "build-shard" / "latest.json"
+        old = d / "rebuild-linux-x86-64" / "latest.json"
         (d / "build").mkdir()
         old.rename(d / "build" / "latest.json")
 
@@ -1068,7 +1069,80 @@ def test_the_same_records_without_plan_are_red(tmp_path) -> None:
     )
     want = "G1 macos/own-a: no SHA-256 handed on (no judge-macos/record-macos-own-a/latest.json)"
     assert want in red, red
-    assert "G1 build/build: no SHA-256 handed on (no build-shard/latest.json)" in red
+    assert "G1 build/build: no SHA-256 handed on (no rebuild-linux-x86-64/latest.json)" in red
+
+
+class PostMergeCase(Case):
+    """A merge into dev's records: every own shard on its systems and no build shard, which runs
+    only where the pins are compiled (BUILD false)."""
+
+    def __init__(self, tmp: Path) -> None:
+        super().__init__(tmp)
+        self.build = False
+        self.records = {k: _record(*k) for k in gather.expected_keys(PLAN, build=False)}
+
+    def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
+        i = super().inputs(records_dir, handed)
+        i.event, i.g7, i.ref, i.build = "push", "post-merge", "refs/heads/dev", self.build
+        return i
+
+
+def test_a_run_without_the_build_shard_expects_no_build_record() -> None:
+    assert ("build", "build") in gather.expected_keys(PLAN)
+    assert ("build", "build") not in gather.expected_keys(PLAN, build=False)
+    assert gather.expected_keys(PLAN, build=False) == gather.expected_keys(PLAN)[1:]
+
+
+def test_a_post_merge_gather_without_the_build_shard_is_green(tmp_path) -> None:
+    """The build shard's checks were not selected: G3 leaves them unrun and G5 leaves their
+    accepted passes alone, as a normal run leaves the release tier's."""
+    case = PostMergeCase(tmp_path)
+    assert ("build", "build") not in case.records
+    assert case.accepted["checks"][BUILD_NODE]["status"] == "pass"
+    v = case.run()
+    assert v.red == [], v.red
+    assert v.merged["checks"][BUILD_NODE]["status"] == "deselected"
+    assert BUILD_NODE in v.merged["deselected"]
+
+
+def test_a_check_in_no_share_is_red_on_a_run_without_the_build_shard(tmp_path) -> None:
+    """After a merge the gather's scope is the judge less the build shard's share: a collected
+    check no shard takes is still red, never quietly unselected."""
+    case = PostMergeCase(tmp_path)
+    case.plan = {k: s for k, s in PLAN.items() if k != "own-rest"}
+    case.records = {
+        k: _record(*k, plan=case.plan) for k in gather.expected_keys(case.plan, build=False)
+    }
+    red = case.run().red
+    assert f"G3 {RULE_NODE}: collected, run in no record" in red, red
+
+
+def test_a_build_record_on_a_run_without_the_build_shard_is_red(tmp_path) -> None:
+    case = PostMergeCase(tmp_path)
+    case.records[("build", "build")] = _record("build", "build")
+    red = case.run().red
+    assert any(e.startswith("G1 rebuild-linux-x86-64/latest.json: a file no job") for e in red), red
+
+
+def test_a_run_with_the_build_shard_still_expects_its_record(tmp_path) -> None:
+    case = PostMergeCase(tmp_path)
+    case.build = True
+    red = case.run().red
+    assert any(e.startswith("G1 build/build: no SHA-256 handed on") for e in red), red
+    assert f"G3 {BUILD_NODE}: collected, run in no record" in red
+
+
+@pytest.mark.parametrize(
+    ("value", "build"), [("true", True), ("false", False), ("", True), (None, True)]
+)
+def test_build_is_read_from_the_plans_output(value, build) -> None:
+    environ = {} if value is None else {"BUILD": value}
+    assert gather.read_build(environ) is build
+
+
+def test_a_malformed_build_stops_the_gather() -> None:
+    with pytest.raises(SystemExit):
+        gather.read_build({"BUILD": "yes"})
 
 
 def test_plan_on_a_run_judged_whole_is_red(tmp_path) -> None:
@@ -1202,7 +1276,7 @@ def test_a_release_pull_request_builds_its_own_set(tmp_path) -> None:
 def test_a_growth_on_a_release_pull_request_is_listed_with_the_ledgers_reason(tmp_path) -> None:
     """The release pull request is the one run that judges the release tier between releases:
     a row that moved since the last release is listed with the reason the news files or the
-    release-tier ledger give, which the acceptance consumes; one no claim gives a reason for is
+    release ledger give, which the acceptance consumes; one no claim gives a reason for is
     red, as after a merge, since the acceptance would have nothing to consume."""
     case = ReleasePRCase(tmp_path)
     case.records[("release", "up-r")]["checks"][R_SUITE]["metrics"] = {"passes": 5, "fuel": 900}
@@ -1355,7 +1429,7 @@ def test_each_record_is_found_under_its_jobs_folder_by_its_artifact_name(tmp_pat
     lin = tmp_path / "judge-linux" / "record-linux-own-a" / "latest.json"
     lin.parent.mkdir(parents=True)
     lin.write_text("{}")
-    build = tmp_path / "build-shard" / "latest.json"
+    build = tmp_path / "rebuild-linux-x86-64" / "latest.json"
     build.parent.mkdir(parents=True)
     build.write_text("[]")
     keys = [("linux", "own-a"), ("build", "build"), ("macos", "own-a")]
@@ -1400,7 +1474,8 @@ def _claiming(case: Case, claims: list) -> Case:
 def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) -> None:
     """The run after a merge is the one the accept job accepts from: a growth a news file claims
     is the acceptance's to consume, so the gather lists it with the claim's reason and stays
-    green, as on the pull request; an unclaimed one is red there, named."""
+    green, as on the pull request; an unclaimed one is listed `unclaimed` and stays green too,
+    since the acceptance records it for the release to reconcile; a lost pass stays red."""
     case = _post_merge(tmp_path)
     case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
     claim = news.Claim(spec="999", grows=[PROBE], growth="the probe does more")
@@ -1411,7 +1486,8 @@ def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) 
     case = _post_merge(tmp_path / "unclaimed")
     case.records[("macos", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 70}
     v = case.run()
-    assert f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70" in v.red and v.growth == []
+    assert v.red == [], v.red
+    assert f"  G5 macos/own-a: grew {PROBE}: fuel 7 -> 70 · unclaimed" in v.lines
     case = _post_merge(tmp_path / "lost")
     case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
     case.gaps = {DESC}
@@ -1421,7 +1497,8 @@ def test_a_growth_after_a_merge_into_dev_is_listed_for_the_acceptance(tmp_path) 
 def test_a_dropped_metric_a_news_file_claims_is_listed_not_red(tmp_path) -> None:
     """A check that stops recording its fuel on every system, with a news file's claim naming
     it, is listed for the acceptance with the claim's reason, as the ratchet reads the same
-    claim; with no claim, every system's record that drops it stays red."""
+    claim; with no claim it is listed `unclaimed` after a merge, and on a pull request every
+    system's record that drops it stays red."""
     own = [("macos", "own-a"), ("linux", "own-a"), ("windows", "own-a")]
     claim = news.Claim(spec="999", grows=[PROBE], growth="the probe's fuel is a fact now")
     case = _post_merge(tmp_path)
@@ -1435,9 +1512,44 @@ def test_a_dropped_metric_a_news_file_claims_is_listed_not_red(tmp_path) -> None
     case = _post_merge(tmp_path / "unclaimed")
     for key in own:
         case.records[key]["checks"][PROBE]["metrics"] = {}
+    v = case.run()
+    assert v.red == [] and f"  {row} · unclaimed" in v.lines, v.red
+    case = PRCase(tmp_path / "pull request")
+    own = [k for k in own if k in case.records]
+    for key in own:
+        case.records[key]["checks"][PROBE]["metrics"] = {}
     red = case.run().red
+    assert own, "the pull request selects an own shard"
     for system, shard in own:
         assert f"G5 {system}/{shard}: {PROBE} records no fuel (accepted.json has it)" in red, red
+
+
+def test_an_unclaimed_tier_move_after_a_merge_is_listed_not_red(tmp_path) -> None:
+    case = _post_merge(tmp_path)
+    case.accepted["checks"][DESC]["tier"] = "release"
+    v = case.run()
+    row = f"G5 {DESC}: accepted in the release tier, normal-tier now"
+    assert v.red == [] and f"  {row} · unclaimed" in v.lines, v.red
+
+
+def test_an_unclaimed_growth_on_a_release_pull_request_is_still_red(tmp_path) -> None:
+    """Only the run after a merge into dev lists an unclaimed row: the release pull request's
+    own rows still need their claim."""
+    case = ReleasePRCase(tmp_path)
+    case.records[("release", "up-r")]["checks"][R_SUITE]["metrics"] = {"passes": 5, "fuel": 900}
+    case.accepted["checks"][R_SUITE]["metrics"]["linux-x86_64"] = {"fuel": 100, "wasmtime": WT}
+    assert f"G5 release/up-r: grew {R_SUITE}: fuel 100 -> 900" in case.run().red
+
+
+def test_a_lost_pass_or_an_absent_check_after_a_merge_is_still_red(tmp_path) -> None:
+    case = _post_merge(tmp_path)
+    case.records[("linux", "own-a")]["checks"][DESC].update(status="gap", reason="a gap")
+    case.gaps = {DESC}
+    assert f"G5 linux/own-a: lost {DESC}" in case.run().red
+    case = _post_merge(tmp_path / "absent")
+    for r in case.records.values():
+        r["checks"].pop(DESC, None)
+    assert any(DESC in line and "absent" in line for line in case.run().red)
 
 
 def test_a_claimed_growth_is_listed_with_its_news_files_reason(tmp_path) -> None:
@@ -1511,7 +1623,8 @@ def test_an_absent_check_no_news_file_retires_is_red(tmp_path, shape) -> None:
 
 def test_a_fall_in_passes_after_a_merge_is_listed_only_with_its_claim(tmp_path) -> None:
     """The same for an upstream group's pass count: claimed by `passes` with its `fewer`, listed
-    with that reason; with no claim, red after the merge (on the pull request it is listed)."""
+    with that reason; with no claim, listed `unclaimed` after the merge too, for the acceptance
+    to record and the release to reconcile."""
     case = _post_merge(tmp_path)
     for r in case.records.values():
         if SUITE in r["checks"] and r["checks"][SUITE]["status"] == "pass":
@@ -1526,7 +1639,8 @@ def test_a_fall_in_passes_after_a_merge_is_listed_only_with_its_claim(tmp_path) 
         if SUITE in r["checks"] and r["checks"][SUITE]["status"] == "pass":
             r["checks"][SUITE]["metrics"] = {"passes": 4, "fuel": 100}
     v = case.run()
-    assert any("fewer" in r or "is not accepted" in r for r in v.red), v.red
+    assert v.red == [] and v.growth, v.red
+    assert all("· unclaimed" in line for line in v.lines if SUITE in line and "·" in line)
 
 
 def _budgeted(case: Case, over: tuple = ()) -> None:
@@ -1575,3 +1689,171 @@ def test_a_claimed_growth_past_its_cap_is_still_red_after_a_merge(tmp_path) -> N
     assert v.growth == [f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70"], v.growth
     want = f"G5 budget macos/own-a: {PROBE}: fuel 70 is past its family"
     assert any(r.startswith(want) for r in v.red), v.red
+
+
+# ---------------------------------------------------------------------------------------------
+# A tag's proof that it publishes the bytes the release pull request accepted, on the tree it
+# judged: a scratch repository whose head is the release's acceptance commit.
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _acceptance(commit: str, **change) -> str:
+    """The history line a release pull request's acceptance writes, on `commit`."""
+    line = {"n": 61, "commit": commit, "source": "ci", "tier": "release", "dirty": False}
+    line.update(partial_reason=None, set_sums=S, artifact=W, event="pull_request")
+    line.update(change)
+    return json.dumps(line, sort_keys=True)
+
+
+def _tagged(tmp_path: Path, monkeypatch, line: dict | None = None, extra: str = "") -> Path:
+    """The judged commit (code and the history so far), then the acceptance commit a tag sits
+    on: accepted.json and one history volume, and `extra` beside them when it is given. `line`
+    changes the acceptance's history line; `judged` in it names another commit than the parent."""
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "no-config"))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    repo = tmp_path / "repo"
+    progress = repo / "context" / "progress"
+    progress.mkdir(parents=True)
+    _git(repo, "init", "-q", "-b", "dev")
+    (repo / "src.py").write_text("x = 1\n")
+    (progress / "history-00060.jsonl").write_text(_acceptance("0" * 40, tier="normal") + "\n")
+    (progress / "accepted.json").write_text("{}\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "the head the release pull request judged")
+    change = dict(line or {})
+    judged = change.pop("judged", None) or _git(repo, "rev-parse", "HEAD")
+    volume = progress / "history-00060.jsonl"
+    volume.write_text(volume.read_text() + _acceptance(judged, **change) + "\n")
+    (progress / "accepted.json").write_text(json.dumps({"commit": judged}) + "\n")
+    if extra:
+        (repo / extra).write_text("y = 2\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "Accepted: the release pull request")
+    return repo
+
+
+PROVE_CASES = {
+    "holds": ({}, "", (S, W), None),
+    "the tree alone holds": ({}, "", None, None),
+    "a different set": ({}, "", ("6" * 64, W), "set"),
+    "a different python.wasm": ({}, "", (S, "b" * 64), "python.wasm"),
+    "the newest line a merge's (tier normal)": ({"tier": "normal"}, "", None, "release"),
+    "the newest line a local acceptance's": ({"source": "local"}, "", None, "release"),
+    "the newest line a push's": ({"event": "push"}, "", None, "release"),
+    "the line's commit not the parent": ({"judged": "d" * 40}, "", None, "parent"),
+    "a second file in the acceptance commit": ({}, "src.py", None, "accepted.json"),
+    "a partial line": ({"partial_reason": "a shard was absent"}, "", None, "partial"),
+    "a dirty line": ({"dirty": True}, "", None, "clean"),
+}
+
+
+@pytest.mark.parametrize("case", PROVE_CASES)
+def test_the_tag_proves_it_publishes_what_the_release_judged(case, tmp_path, monkeypatch) -> None:
+    """`--prove-set` holds only when the newest acceptance is a release pull request's (from CI,
+    the release tier), whole and clean, made on the tagged commit's parent, on these bytes (when
+    the hashes are given), and the tagged commit adds that acceptance and nothing else."""
+    line, extra, sums, word = PROVE_CASES[case]
+    repo = _tagged(tmp_path, monkeypatch, line, extra)
+    found = gather.prove_set(repo, sums)
+    if word is None:
+        assert found is None, found
+    else:
+        assert found is not None and word in found, found
+
+
+def test_prove_set_runs_from_the_command_line(tmp_path, monkeypatch, capsys) -> None:
+    """The workflow's two calls: the tree alone before the compile, then the whole check against
+    the bytes; one line names the first mismatch, and the exit code is not zero."""
+    repo = _tagged(tmp_path, monkeypatch)
+    monkeypatch.setattr(paths, "REPO", repo)
+    assert gather.main(["--prove-set", "--tree-only"]) == 0
+    assert gather.main(["--prove-set", S, W]) == 0
+    capsys.readouterr()
+    assert gather.main(["--prove-set", "6" * 64, W]) == 1
+    assert "set" in capsys.readouterr().out
+    for argv in (["--prove-set"], ["--prove-set", S], ["--prove-set", "--tree-only", S, W]):
+        with pytest.raises(SystemExit):
+            gather.main(argv)
+    with pytest.raises(SystemExit):
+        gather.main(["--prove-set", "x" * 64, W])
+
+
+# An upstream group's pass count that rose needs no reason, as the ratchet and the acceptance
+# hold: it is listed, with the reason a claim that names it gives when one does. A fall still needs
+# its claim's `fewer`, and a lost pass is red whatever any count did.
+
+
+def _rise(case: Case, node: str, value: int) -> None:
+    for r in case.records.values():
+        c = r["checks"].get(node, {})
+        if c.get("status") == "pass":
+            c["metrics"] = {"passes": value, "fuel": 100}
+
+
+def test_a_rise_in_passes_on_a_release_pull_request_is_listed_not_red(tmp_path) -> None:
+    case = ReleasePRCase(tmp_path)
+    _rise(case, R_SUITE, 6)
+    case.claims = [news.Claim(spec="166", passes=[R_SUITE], growth="r1 has 3.0.4's new tests")]
+    v = case.run()
+    assert v.red == [], v.red
+    row = "G5 r1: passes [6] is not accepted 5"
+    assert v.growth == [row], v.growth
+    assert f"  {row} · 166: r1 has 3.0.4's new tests" in v.lines
+    case.claims = []
+    v = case.run()
+    assert v.red == [] and v.growth == [row], v.red
+    assert f"  {row} · more, needing no claim" in v.lines
+
+
+def test_a_rise_is_shown_with_the_text_that_names_its_group() -> None:
+    """A claim's growth may be another row's: the rise takes a text that names its group, a
+    judge reason whose file names it, or the claim's number alone."""
+    other = news.Claim(spec="181", passes=[R_SUITE], growth="the reactor's fuel moves")
+    judged = news.Claim(spec="181", passes=[R_SUITE], judge={"expected/r1/k.txt": "one more"})
+    assert gather.rise([other], R_SUITE) == "181: names this count under passes"
+    assert gather.rise([other, judged], R_SUITE) == "181: one more"
+    assert gather.rise([], R_SUITE) == "more, needing no claim"
+
+
+def test_a_fall_in_passes_on_a_release_pull_request_needs_its_fewer(tmp_path) -> None:
+    """A claim that names the count and gives only a growth text does not clear a fall."""
+    case = ReleasePRCase(tmp_path)
+    _rise(case, R_SUITE, 4)
+    case.claims = [news.Claim(spec="166", passes=[R_SUITE], growth="new tests")]
+    row = "G5 r1: passes [4] is not accepted 5"
+    v = case.run()
+    assert row in v.red and v.growth == [], v.red
+    case.claims = [news.Claim(spec="166", passes=[R_SUITE], fewer="a test moved out")]
+    v = case.run()
+    assert v.red == [] and v.growth == [row], v.red
+    assert f"  {row} · 166: a test moved out" in v.lines
+
+
+def test_a_rise_in_a_groups_count_never_hides_a_lost_pass(tmp_path) -> None:
+    """A test that passed and now fails is either outside every class of its group, so the
+    group's own check fails, or in a class, whose check then fails on its new member: either way a
+    check accepted as a pass is lost, which the ratchet reds whatever the group's count did."""
+    case = ReleasePRCase(tmp_path)
+    _rise(case, SUITE, 6)
+    for r in case.records.values():
+        if r["checks"][CLASS]["status"] == "pass":
+            r["checks"][CLASS].update(status="fail", reason="+test_new_member")
+    v = case.run()
+    assert "G5 g1: passes [6] is not accepted 5" in v.growth, v.growth
+    assert [row for row in v.red if row.endswith(f"lost {CLASS}")], v.red
+    assert not [row for row in v.red if "passes" in row], v.red
+    case = ReleasePRCase(tmp_path / "suite")
+    for r in case.records.values():
+        if r["checks"][R_SUITE]["status"] == "pass":
+            r["checks"][R_SUITE].update(status="fail", reason="an unclassed failure")
+            r["checks"][R_SUITE]["metrics"] = {"passes": 6, "fuel": 100}
+    v = case.run()
+    assert f"G5 release/up-r: lost {R_SUITE}" in v.red, v.red

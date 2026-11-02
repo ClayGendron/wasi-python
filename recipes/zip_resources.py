@@ -35,8 +35,20 @@ _LOCAL = b"PK\x03\x04"
 # by `use_zip_children` when it puts ours in its place.
 stock_zip_children = None
 
-# The children map of each archive, kept with the dict it was built from: archive -> (dict, map).
+# The children map of each archive, kept with the dict it was built from and that dict's length,
+# since loading a folder grows the same dict: archive -> (dict, length, map).
 _maps = {}
+
+
+def touch(loader, at):
+    """Load the folder of the loader's archive that `at` lies in, when the archive is read by
+    folder: `_zip_directory.touch`, which `_zip_directory` puts here when it loads this module."""
+
+
+def _files(loader, at):
+    """zipimport's dict for the loader's archive, with the folder `at` names loaded."""
+    touch(loader, at)
+    return loader._get_files()
 
 
 def _read_member(archive, at, toc):
@@ -80,13 +92,13 @@ def _text_args(encoding=None, *args, **kwargs):
 def _children(loader, files):
     """Each folder's children, in the dict's order, built in one pass and kept with the dict."""
     kept = _maps.get(loader.archive)
-    if kept is not None and kept[0] is files:
-        return kept[1]
+    if kept is not None and kept[0] is files and kept[1] == len(files):
+        return kept[2]
     children = {}
     for name in files:
         if name:
             children.setdefault(posixpath.dirname(name.rstrip("/")), []).append(name)
-    _maps[loader.archive] = (files, children)
+    _maps[loader.archive] = (files, len(files), children)
     return children
 
 
@@ -144,14 +156,14 @@ class ZipDirectoryPath:
         return not self._at or self._at.endswith("/")
 
     def exists(self):
-        return self._at in self._loader._get_files()
+        return self._at in _files(self._loader, self._at)
 
     def is_file(self):
         return self.exists() and not self.is_dir()
 
     def joinpath(self, *other):
         name = posixpath.join(self._at, *map(os.fspath, other))
-        files = self._loader._get_files()
+        files = _files(self._loader, name)
         if name not in files and name + "/" in files:
             name += "/"
         return self._next(name)
@@ -161,7 +173,7 @@ class ZipDirectoryPath:
     def iterdir(self):
         if not self.is_dir():
             raise ValueError("Can't listdir a file")
-        files = self._loader._get_files()
+        files = _files(self._loader, self._at)
         names = _children(self._loader, files).get(self._at.rstrip("/"), ())
         return iter([self._next(name) for name in names])
 
@@ -172,7 +184,7 @@ class ZipDirectoryPath:
             if mode[0] == "w":
                 raise ValueError("write() requires mode 'w', 'x', or 'a'")
             raise ValueError('open() requires mode "r" or "w"')
-        toc = self._loader._get_files().get(self._at)
+        toc = _files(self._loader, self._at).get(self._at)
         if toc is None:
             raise FileNotFoundError(self)
         data = None

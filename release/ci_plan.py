@@ -38,7 +38,17 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SHARD_PLAN = REPO / "tests" / "release_shards.toml"
 # The outputs a path can set, in the table's order.
-FLAGS = ("set", "runner", "harness", "upstream", "workflow", "progress", "news", "agents")
+FLAGS = (
+    "set",
+    "runner",
+    "platform",
+    "harness",
+    "upstream",
+    "workflow",
+    "progress",
+    "news",
+    "agents",
+)
 # The folders whose paths set no output of their own: not docs_only, so the own shards run.
 OWN_ONLY = ("tests/", "fixtures/")
 # Each system's runner, as the judge jobs and verify run on it.
@@ -52,10 +62,17 @@ VERIFY_RUNNERS = ("ubuntu-24.04", "windows-2025", "macos-15")
 COVERAGE_SHARDS = (
     "own-embedding",
     "own-embedding-a",
+    "own-embedding-b",
+    "own-embedding-c",
     "own-hostile",
-    "own-guest",
+    "own-hostile-b",
+    "own-guest-a",
+    "own-guest-b",
+    "own-guest-c",
+    "own-guest-d",
     "own-runner",
     "own-rest",
+    "own-pins",
 )
 OWN_SYSTEMS = ("macos", "linux", "windows")
 # The two workflows whose top-level env the set's key holds.
@@ -104,15 +121,24 @@ DOCS_FILES = ("README.md", "CHANGELOG.md", "SECURITY.md", "mkdocs.yml", ".gitign
 AGENTS_DIRS = (".claude", ".agents")
 AGENTS_FILES = ("AGENTS.md", "CLAUDE.md", "CLAUDE.local.md")
 SET_FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
+# The host-specific code (the platform module and its families) and the engine's pin: a pull
+# request that changes either keeps its macOS legs, since that is where macOS alone can fail.
+PLATFORM_DIR = "src/wasi_python/"
+PLATFORM_PREFIX = "_platform"
+ENGINE_PIN = "uv.lock"
 # The judge's code and data folders; tests/judge_options registers an option every pytest run
 # reads before any conftest, so it steers the judge as tests/conftest.py does.
-HARNESS_DIRS = ("tests/harness/", "tests/judge_options/", "context/upstream/")
+HARNESS_DIRS = (
+    "tests/harness/",
+    "tests/judge_options/",
+    "context/upstream/",
+    "context/release-claims/",
+)
 HARNESS_FILES = (
     "tests/conftest.py",
     "tests/release_shards.toml",
     "tests/known_gaps.toml",
     "context/embedders.txt",
-    "context/release-tier-claims.toml",
     ".gitattributes",
 )
 
@@ -136,8 +162,14 @@ def classify(path: str) -> frozenset[str]:
     out = set()
     if path in SET_FILES or path.startswith(("scripts/", "recipes/", "tests/harness/constructors")):
         out.add("set")
-    if path.startswith("src/") or path in ("pyproject.toml", "uv.lock"):
+    if path.startswith("src/") or path in ("pyproject.toml", ENGINE_PIN):
         out.add("runner")
+    if path == ENGINE_PIN or (
+        path.startswith(PLATFORM_DIR)
+        and "/" not in path[len(PLATFORM_DIR) :]
+        and path[len(PLATFORM_DIR) :].startswith(PLATFORM_PREFIX)
+    ):
+        out.add("platform")
     if path.startswith(HARNESS_DIRS) or path in HARNESS_FILES:
         out.add("harness")
     if path.startswith("tests/upstream/") or path == "tests/checks/test_v1_3_upstream_suites.py":
@@ -166,20 +198,29 @@ def agents_only(changed: list[str]) -> bool:
 
 # The release's preparation: bump's version line and date's moves, with the release's reviews.
 VERSION_FILE = "src/wasi_python/__init__.py"
-LEDGER_FILES = ("context/release-tier-claims.toml", "context/release-tier-claims-history.md")
+# The release ledger: a folder of one file per pull request, named after its news file, and its
+# history by release; and the single file it was until then, which may not come back.
+LEDGER_DIR = "context/release-claims/"
+LEDGER_HISTORY = "context/release-claims-history.md"
+OLD_LEDGER = "context/release-claims.toml"
+
+
+def is_ledger(path: str) -> bool:
+    """A path of the release ledger: a file in its folder, or its history."""
+    return path == LEDGER_HISTORY or path.startswith(LEDGER_DIR)
 
 
 def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bool) -> bool:
     """Whether a pull request into dev is the release's preparation, bump and date together:
     `changes` its (status, path) pairs. Its one change outside documentation is the version line
     of the package (`version_line_only`: nothing else in that file moves); bump removes every news
-    file, so it carries none of its own, and date moves the release-tier ledger. It is judged as
+    file, so it carries none of its own, and date moves the release ledger. It is judged as
     the release's documentation change, since the release pull request judges it whole."""
     paths_ = {p for _, p in changes}
     if VERSION_FILE not in paths_ or not version_line_only:
         return False
     for status, path in changes:
-        if path == VERSION_FILE or path in LEDGER_FILES:
+        if path == VERSION_FILE or is_ledger(path):
             continue
         if NEWS.fullmatch(path) and status == "D":
             continue
@@ -189,7 +230,7 @@ def is_release_preparation(changes: list[tuple[str, str]], version_line_only: bo
 
 
 def _news():
-    """The judge's reader of news files and of the release-tier ledger, loaded by its path."""
+    """The judge's reader of news files and of the release ledger, loaded by its path."""
     spec = importlib.util.spec_from_file_location(
         "ci_plan_news", REPO / "tests" / "harness" / "news.py"
     )
@@ -199,34 +240,122 @@ def _news():
     return mod
 
 
-def ledger_move_refusal(base: tuple[str, str], head: tuple[str, str], version: str) -> str | None:
-    """Why a preparation's change to the release-tier ledger is not `date`'s move, or None when
-    it is (or the ledger did not change). `base` and `head` are (the ledger, its history) at the
-    merge base and at the head. The ledger is a source of reasons the release pull request's
-    acceptance consumes, and a preparation asks no review file, so its change must be mechanical:
-    the head's ledger is the base's header comments alone, and the head's history is the base's
-    with the base's blocks moved under `## <version>`, on the day that section names."""
+def ledger_move_refusal(
+    base: tuple[dict[str, str], str], head: tuple[dict[str, str], str], version: str
+) -> str | None:
+    """Why a preparation's change to the release ledger is not `date`'s move with any claim block
+    the preparation adds, or None when it is (or the ledger did not change). `base` and `head` are
+    (the ledger's files, name to text; its history) at the merge base and at the head. The
+    preparation is where a reason an acceptance on dev recorded as missing is written, so an added
+    block in a claim's shape is admitted: in a file moved under the version (a new one, or after
+    a base file's blocks) or in a file left in the folder after the move. Each base file's blocks
+    are reasons already given, which the move carries whole."""
     if head == base:
         return None
-    lines = base[0].splitlines(keepends=True)
-    at = next((k for k, line in enumerate(lines) if not line.startswith("#")), len(lines))
-    if head[0] != "".join(lines[:at]):
-        return "the ledger is left with more than its header comments, which date's move leaves"
     said = r"Moved by `release/version.py date` on (\d{4}-\d{2}-\d{2})"
     m = re.search(rf"^## {re.escape(version)}\n\n" + said, head[1], re.M)
     if m is None:
         return f"the ledger's history has no section for {version} that date's move writes"
     news = _news()
+    moved = news.moved_files(head[1], version)
+    for name, text in base[0].items():
+        kept, now = text.strip(), moved.get(name)
+        if now is None or (now != kept and not now.startswith(kept + "\n")):
+            return f"{name}, a ledger file the base held, was dropped or edited under ## {version}"
+        if head[0].get(name, "").strip() == kept:
+            return f"{name} is moved under ## {version} and left in the folder too"
+        if now[len(kept) :].lstrip() and not now[len(kept) :].lstrip().startswith("[[claim]]"):
+            # Text after the file's last block that is not a new table continues that block, so it
+            # would be read as a reason given under that block: an edit, not an addition.
+            return (
+                f"text added after {name}'s last block under ## {version} does not begin a new "
+                "[[claim]] block, so it edits that block"
+            )
     try:
-        want = news.move_ledger(base[0], base[1], version, m[1])
+        for name, text in head[0].items():
+            news.ledger_file_claims(name, text)
+        want = news.move_ledger(moved, base[1], version, m[1])
     except news.NewsError as e:
-        return f"date's move of the base's ledger fails: {e}"
-    if head != want:
+        return f"a block is not in a claim's shape: {e}"
+    if head[1] != want:
         return (
-            f"the ledger's history is not date's move of the base's blocks under ## {version}: "
-            "a block was added, dropped or edited"
+            f"the ledger's history is not date's move of the base's files under ## {version}, "
+            "with any added claim block"
         )
     return None
+
+
+def ledger_claims_of(text: str) -> list[str]:
+    """Each [[claim]] table of ledger text as TOML reads it, whatever the spelling of its header,
+    as a canonical string; text TOML cannot read is one item, itself, so a change to it still
+    counts."""
+    try:
+        tables = tomllib.loads(text).get("claim", [])
+    except tomllib.TOMLDecodeError:
+        return [text.strip()]
+    if not isinstance(tables, list):
+        return [text.strip()]
+    return [json.dumps(t, sort_keys=True, default=str) for t in tables]
+
+
+def ledger_refusals(changed: list[str], base: dict[str, str], head: dict[str, str]) -> list[str]:
+    """What a pull request into dev may not do to the release ledger: `base` and `head` are its
+    files, path to text, at the merge base and at the head, the single file it once was among
+    them. A claim the head holds that the base did not (an added claim, or an edited one), as
+    TOML reads it, lies in a file of the folder named after one of the pull request's news
+    files; another change's file is not renamed or removed, nor a claim dropped from it; and the
+    single file does not come back. A claim moved whole from one file to another is neither
+    added nor dropped."""
+    stems = {m[1] for p in changed if (m := NEWS.fullmatch(p))}
+
+    def own(path: str) -> bool:
+        name = path[len(LEDGER_DIR) :]
+        return path.startswith(LEDGER_DIR) and name.removesuffix(".toml") in stems
+
+    out = []
+    if OLD_LEDGER in head:
+        out.append(
+            f"{OLD_LEDGER} is back: each pull request writes its claim blocks in a file of its "
+            f"own, {LEDGER_DIR}<its news file's NNN-slug>.toml"
+        )
+    for path in sorted(base):
+        if path.startswith(LEDGER_DIR) and path not in head and not own(path):
+            out.append(
+                f"{path}, another change's ledger file, is renamed or removed; its name says "
+                "whose it is, and only date's move in the release's preparation removes it"
+            )
+    left: dict[str, int] = {}
+    for text in base.values():
+        for c in ledger_claims_of(text):
+            left[c] = left.get(c, 0) + 1
+    # The pull request's own files first: a claim it moves into them from elsewhere is matched
+    # there, so a copy left behind in another's file still counts as added there.
+    for path in sorted(head, key=lambda p: (not own(p), p)):
+        for c in ledger_claims_of(head[path]):
+            if left.get(c):
+                left[c] -= 1
+            elif not own(path):
+                out.append(
+                    f"{path} gains a [[claim]] block (spec {_spec_of(c)}), but a pull request "
+                    f"writes its blocks only in its own file, {LEDGER_DIR}<its news file's "
+                    "NNN-slug>.toml"
+                )
+    for path in sorted(p for p in base if p in head or not p.startswith(LEDGER_DIR)):
+        for c in ledger_claims_of(base[path]):
+            if left.get(c) and not own(path):
+                left[c] -= 1
+                out.append(
+                    f"{path} loses a [[claim]] block (spec {_spec_of(c)}) of another change; "
+                    "only date's move in the release's preparation removes one"
+                )
+    return out
+
+
+def _spec_of(claim: str) -> str:
+    try:
+        return str(json.loads(claim).get("spec", "?"))
+    except (ValueError, AttributeError):
+        return "?"
 
 
 def version_line_only(diff: str) -> bool:
@@ -288,18 +417,21 @@ class Commit:
 @dataclass
 class PullRequest:
     """What the review check reads of a pull request: its description (the self-check), its
-    commits oldest first, and each review file's text at its head (absent when deleted)."""
+    commits oldest first, and each review file's text at its head (absent when deleted); and,
+    when it changes the release ledger, the ledger's files at its merge base and at its head."""
 
     body: str
     commits: list[Commit]
     files: dict[str, str]
     title: str = ""
+    ledger: tuple[dict[str, str], dict[str, str]] | None = None
 
 
 @dataclass
 class Decision:
     set: bool = False
     runner: bool = False
+    platform: bool = False  # the platform module or the engine's pin: macOS legs on a pull request
     harness: bool = False
     upstream: bool = False
     workflow: bool = False
@@ -308,8 +440,12 @@ class Decision:
     agents: bool = False
     docs_only: bool = False
     agents_only: bool = False  # the agents' files and documentation alone: quick, and reviewed
-    full: bool = False  # the merge-grade set: every normal-tier shard on its systems, build too
-    rebuild: bool = False  # the release shape: the macOS build, both rebuilds and same-bytes
+    full: bool = False  # the merge-grade set: every normal-tier shard on its systems
+    # The release shape: both rebuilds, the build shard in the x86-64 one, and same-bytes.
+    rebuild: bool = False
+    # A pushed tag: it compiles and rebuilds, proves the bytes are the ones the release pull
+    # request accepted on the tree it judged, attests and publishes, and judges nothing again.
+    publish: bool = False
     tier: str = "normal"
     # A merge into dev, or the release pull request: accept-record follows a green gather. The
     # push onto dev is accept-push's after a merge, and after the release pull request the
@@ -324,8 +460,13 @@ class Decision:
 
     @property
     def judge(self) -> bool:
-        """Any judge job, verify or the gather runs."""
-        return not self.quiet and (self.full or not (self.docs_only or self.agents_only))
+        """Any judge job or the gather runs (and verify, which a tag's run has too). A tag's run
+        judges nothing: its tree is the release pull request's plus that run's acceptance."""
+        return (
+            not self.quiet
+            and not self.publish
+            and (self.full or not (self.docs_only or self.agents_only))
+        )
 
 
 def decide(
@@ -384,9 +525,12 @@ def decide(
             d.full = True
             d.why.append("the workflow or release/ changed")
     elif event.tag:
-        d.full = d.rebuild = True
-        d.tier = "release"
-        d.why.append("a pushed tag: build, judge both tiers, attest, publish")
+        d.rebuild = d.publish = True
+        d.tier = ""
+        d.why.append(
+            "a pushed tag: build and rebuild from the pins, prove these are the bytes the release"
+            " pull request accepted, attest, publish; no judge"
+        )
     elif event.name == "push":
         d.full = d.accept = True
         d.why.append("a merge into dev: the merge-grade set, then the acceptance")
@@ -431,7 +575,9 @@ def load_shards(path: Path = SHARD_PLAN) -> dict[str, Shard]:
 def select(d: Decision, plan: dict[str, Shard]) -> dict:
     """The shards each judge job runs, the build shard, verify's runners, the Linux legs that run
     under coverage.py, and every selected (system, shard) pair as `system/shard`, which the
-    gather reads as PLAN."""
+    gather reads as PLAN. A pull request takes macOS legs only when the platform module or the
+    engine's pin changed; the build shard runs where the rebuild compiles from the pins and the
+    run judges. Every run that rebuilds installs the wheel on the three systems, a tag's too."""
     sel: dict = {s: [] for s in (*OWN_SYSTEMS, "release")}
     sel.update(build=False, verify=[], coverage=[])
     if d.judge:
@@ -441,18 +587,22 @@ def select(d: Decision, plan: dict[str, Shard]) -> dict:
                     continue
                 if d.full:
                     take = True
+                elif system == "macos":
+                    take = d.platform
                 elif s.kind == "own":
-                    take = system != "macos" or d.runner or d.set or d.harness
+                    take = True
                 else:  # the upstream groups: on Linux, when something they read changed
                     take = system == "linux" and (d.set or d.upstream or d.harness)
                 if take:
                     sel[system].append(s.name)
         if d.tier == "release":
             sel["release"] = [s.name for s in plan.values() if s.kind == "release"]
-        sel["build"] = d.full and any(s.kind == "build" for s in plan.values())
+        sel["build"] = d.rebuild and any(s.kind == "build" for s in plan.values())
         sel["verify"] = list(VERIFY_RUNNERS) if d.full else [RUNNER["linux"]]
         if d.full:
             sel["coverage"] = [n for n in COVERAGE_SHARDS if n in sel["linux"]]
+    if d.rebuild and not d.quiet:
+        sel["verify"] = list(VERIFY_RUNNERS)
     sel["selected"] = [f"{s}/{n}" for s in (*OWN_SYSTEMS, "release") for n in sel[s]]
     sel["selected"] += ["build/build"] if sel["build"] else []
     return sel
@@ -485,17 +635,20 @@ def refusals(
         )
     if d.preparation_refusal:
         out.append(
-            "the release's preparation may change the release-tier ledger only by date's move, "
-            f"since it asks no review file: {d.preparation_refusal}"
+            "the release's preparation may change the release ledger only by date's move and "
+            f"added claim blocks: {d.preparation_refusal}"
         )
+    if into_dev(event) and pr is not None and pr.ledger is not None and not d.release_preparation:
+        out += ledger_refusals(changed or [], *pr.ledger)
     documented = changed is not None and (docs_only(changed) or d.release_preparation)
     if into_dev(event) and changed is not None and not documented and not d.news:
         out.append(
             "a pull request that is not documentation only carries its news file, "
             "context/changes/NNN-<slug>.md: its CHANGELOG line, its package rows and its claims"
         )
-    if into_dev(event) and changed is not None and not documented and pr is not None:
-        out += review_refusals(changed, pr)
+    # ci-status keeps the review's refusals beside the review job's until the ruleset requires
+    # that job, so no pull request can merge unreviewed in between.
+    out += review_check(d, event, changed, pr)
     if into_dev(event) and pr is not None:
         said = f"{pr.title}\n{pr.body or ''}".lower()
         for word in SKIP_WORDS:
@@ -514,6 +667,22 @@ def refusals(
                 "and accepts the merge; quote it another way"
             )
     return out
+
+
+def review_check(
+    d: Decision, event: Event, changed: list[str] | None, pr: PullRequest | None
+) -> list[str]:
+    """What the review job refuses: on a pull request into dev that is not documentation only
+    (nor the release's preparation), and whose commits and description are read (`pr`), the
+    review file's refusals; nothing on any other run, so a documentation-only pull request and
+    the release pull request ask no review of it. A re-used run reads it as any other. A pull
+    request into dev whose base cannot be read had no review file read, so it is refused."""
+    if into_dev(event) and changed is None:
+        return ["the pull request's base could not be read, so its review file was not read"]
+    documented = changed is not None and (docs_only(changed) or d.release_preparation)
+    if into_dev(event) and changed is not None and not documented and pr is not None:
+        return review_refusals(changed, pr)
+    return []
 
 
 def release_refusals(pr: PullRequest) -> list[str]:
@@ -649,13 +818,17 @@ def _json(value) -> str:
     return json.dumps(value, separators=(",", ":"))
 
 
-def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
-    """Every output as the workflow reads it: one line each."""
+def outputs(
+    d: Decision, sel: dict, refused: list[str], review_refused: list[str] = ()
+) -> dict[str, str]:
+    """Every output as the workflow reads it: one line each. `review_refused` is the review job's
+    (`review_check`); ci-status reads `refused`, which holds them too for now."""
     out = {name: _bool(getattr(d, name) and not d.quiet) for name in FLAGS}
     out.update(
         docs_only=_bool(d.docs_only),
         full=_bool(d.full),
         rebuild=_bool(d.rebuild),
+        publish=_bool(d.publish),
         judge=_bool(d.judge),
         accept=_bool(d.accept),
         acceptance=_bool(d.acceptance),
@@ -666,6 +839,7 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
         coverage=_json(sel["coverage"]),
         selected=_json(sel["selected"]),
         refusals=_json(refused),
+        review_refusals=_json(list(review_refused)),
     )
     for system in (*OWN_SYSTEMS, "release"):
         out[system] = _json(sel[system])
@@ -676,7 +850,9 @@ def outputs(d: Decision, sel: dict, refused: list[str]) -> dict[str, str]:
 # A push of documentation alone onto a green head re-uses that head's run
 
 GATHER_JOB = "gather the shards' records"  # the gather's display name in a run's jobs
-REQUIRED_JOB = "ci-status"
+# The two checks whose verdict a run's re-use does not carry over: the required check, and the
+# review, which waited for the review file; both read the newer run's own plan.
+NOT_THE_CODES = ("ci-status", "review")
 LOOKED_AT = 5  # runs whose head is behind this one by documentation alone, at most
 
 
@@ -699,8 +875,8 @@ def find_reusable(
 ) -> tuple[int | None, str]:
     """The newest completed run of this pull request whose head is an ancestor of `head` by a
     change `allowed` admits (documentation alone, unless the release pull request's rule is
-    given) and whose gather passed with every other job but ci-status green or skipped
-    (ci-status waited for the review file); its id and why, or (None, "")."""
+    given) and whose gather passed with every other job but ci-status and review green or
+    skipped (both waited for the review file); its id and why, or (None, "")."""
     looked = 0
     what = "the accepted state" if allowed is is_acceptance else "documentation"
     for run in runs:
@@ -715,7 +891,7 @@ def find_reusable(
         jobs = jobs_of(int(run_id)) if isinstance(run_id, int) else None
         if not jobs or jobs.get(GATHER_JOB) != "success":
             continue
-        if any(c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB):
+        if any(c not in ("success", "skipped") for n, c in jobs.items() if n not in NOT_THE_CODES):
             continue
         return run_id, (
             f"re-uses run {run_id}, green on {sha[:12]}: every path changed since is {what}"
@@ -731,16 +907,16 @@ def reusable_after_edit(
 ) -> tuple[int | None, str]:
     """The run an edit that left the base alone re-uses: the newest run of this pull request
     other than this one, when it is completed, on this head, and every job of it but ci-status
-    succeeded or was skipped; its id and why, or (None, ""). Never an older run behind it: a base
-    change starts a run of its own, so the run before an edit is the one that judged this base, and
-    when that run did not finish green the edit runs the selection again."""
+    and review succeeded or was skipped; its id and why, or (None, ""). Never an older run behind
+    it: a base change starts a run of its own, so the run before an edit is the one that judged
+    this base, and when that run did not finish green the edit runs the selection again."""
     newest = next((r for r in runs if r.get("databaseId") != this_run), None)
     if newest is None or newest.get("headSha") != head or newest.get("status") != "completed":
         return None, ""
     run_id = newest.get("databaseId")
     jobs = jobs_of(int(run_id)) if isinstance(run_id, int) else None
     if not jobs or any(
-        c not in ("success", "skipped") for n, c in jobs.items() if n != REQUIRED_JOB
+        c not in ("success", "skipped") for n, c in jobs.items() if n not in NOT_THE_CODES
     ):
         return None, ""
     return run_id, (
@@ -974,7 +1150,24 @@ def read_pull_request(
             )
             if r.returncode == 0:
                 files[path] = r.stdout
-    return PullRequest(body, commits, files, title)
+    ledger = None
+    if any(is_ledger(p) or p == OLD_LEDGER for p in changed):
+        ledger = (ledger_texts(repo, base, OLD_LEDGER), ledger_texts(repo, head, OLD_LEDGER))
+    return PullRequest(body, commits, files, title, ledger)
+
+
+def ledger_texts(repo: Path, ref: str, *more: str) -> dict[str, str]:
+    """The release ledger's .toml files at a commit, with any of the paths `more` it holds: path
+    to text."""
+    listed = git_paths(repo, "ls-tree", "-r", "--name-only", ref, "--", LEDGER_DIR, *more)
+    out = {}
+    for path in listed:
+        if path.endswith(".toml"):
+            r = subprocess.run(
+                ["git", "-C", str(repo), "show", f"{ref}:{path}"], capture_output=True, text=True
+            )
+            out[path] = r.stdout if r.returncode == 0 else ""
+    return out
 
 
 def event_of(environ) -> Event:
@@ -1022,16 +1215,16 @@ def from_runner(
             pairs = status_pairs(base, head)
             diff = _git("diff", "-U0", base, head, "--", VERSION_FILE)
             preparation = is_release_preparation(pairs, version_line_only(diff))
-            if preparation and set(LEDGER_FILES) & set(changed):
-                text = {
-                    (ref, path): _show(ref, path) for ref in (base, head) for path in LEDGER_FILES
-                }
+            if preparation and any(is_ledger(p) for p in changed):
                 version = re.search(r'^__version__ = "([^"]+)"$', _show(head, VERSION_FILE), re.M)
-                why = ledger_move_refusal(
-                    (text[(base, LEDGER_FILES[0])], text[(base, LEDGER_FILES[1])]),
-                    (text[(head, LEDGER_FILES[0])], text[(head, LEDGER_FILES[1])]),
-                    version[1] if version else "",
-                )
+                at = {
+                    ref: (
+                        {p[len(LEDGER_DIR) :]: t for p, t in ledger_texts(REPO, ref).items()},
+                        _show(ref, LEDGER_HISTORY),
+                    )
+                    for ref in (base, head)
+                }
+                why = ledger_move_refusal(at[base], at[head], version[1] if version else "")
                 if why:
                     preparation, refused_preparation = False, why
         runs = (
@@ -1064,7 +1257,8 @@ def from_runner(
 
 
 def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | None) -> str:
-    rows = [f"| {name} | {getattr(d, name)} |" for name in (*FLAGS, "docs_only", "full", "rebuild")]
+    names = (*FLAGS, "docs_only", "full", "rebuild", "publish")
+    rows = [f"| {name} | {getattr(d, name)} |" for name in names]
     lines = ["### The plan", "", "| output | value |", "|---|---|", *rows, f"| tier | {d.tier} |"]
     lines += ["", f"Why: {'; '.join(d.why) or 'the changed paths'}."]
     count = "not read: the run is whole" if changed is None else len(changed)
@@ -1100,7 +1294,8 @@ def main(argv: list[str]) -> int:
     d = decide(changed, event, moved, reused, preparation, refused_preparation)
     sel = select(d, load_shards())
     refused = refusals(d, event, changed, pr)
-    text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused).items())
+    review = review_check(d, event, changed, pr)
+    text = "".join(f"{k}={v}\n" for k, v in outputs(d, sel, refused, review).items())
     target = os.environ.get("GITHUB_OUTPUT")
     if target:
         with open(target, "a", encoding="utf-8") as f:

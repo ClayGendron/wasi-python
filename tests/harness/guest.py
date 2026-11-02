@@ -123,6 +123,7 @@ class Result:
     fuel: int
     root: Path
     trap_cause: str | None = None  # the line after "Caused by:"
+    memory_size: int | None = None  # the linear memory's bytes once the export returned
 
     @property
     def text(self) -> str:
@@ -615,6 +616,7 @@ def run(
     clock_step_ns: int = CLOCK_STEP_NS,
     root_writable: bool = True,
     image: bytes | None = None,
+    memory_limit: int | None = None,
 ) -> Result:
     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
     matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
@@ -629,7 +631,9 @@ def run(
     default, `clock_res_get` answers from `CLOCK_RESOLUTION_NS`, read at call time, and
     with another step the realtime and monotonic clocks state that step as their resolution.
     `root_writable=False` grants the root read-only. `image` is a starting image of the snapshot,
-    copied into the fresh instance before its `run`."""
+    copied into the fresh instance before its `run`. `memory_limit` caps the linear memory's
+    bytes (wasmtime's store limit: a `memory.grow` past it fails, as the C library sees a full
+    heap); `Result.memory_size` is the memory's size once the export returned."""
     if measured and own is None:
         named = host_paths_in((*host_roots_always(), *host_roots), argv, env, files, preopens)
         if named:
@@ -664,6 +668,8 @@ def run(
         dest.write_bytes(content.encode() if isinstance(content, str) else content)
 
     store = wt.Store(eng)
+    if memory_limit is not None:
+        store.set_limits(memory_size=memory_limit)
     if counted:
         store.set_fuel(UNMETERED)  # fuel is metered from the end of instantiation
         store.set_epoch_deadline(EPOCH_FAR_OFF)
@@ -733,10 +739,12 @@ def run(
     trapped: str | None = None
     cause: str | None = None
     metered = False  # the budget is set only once instantiation has succeeded
+    memory: list[Any] = []
 
     def go() -> int:  # on a thread with room for the wasm stack
         nonlocal metered
         inst = linker.instantiate(store, mod)
+        memory.append(inst.exports(store)["memory"])
         files.bind(store, eng, inst)  # before the guest runs
         if image is not None:
             restore(store, inst.exports(store)["memory"], image)
@@ -765,6 +773,7 @@ def run(
         _release(store, lib)
         raise
     spent = fuel - store.get_fuel() if metered else 0
+    size = memory[0].data_len(store) if memory else None
     result = Result(
         exit_code=exit_code,
         stdout=(io / "stdout").read_bytes(),
@@ -773,6 +782,7 @@ def run(
         fuel=spent,
         root=root,
         trap_cause=cause,
+        memory_size=size,
     )
     try:
         watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
@@ -792,6 +802,7 @@ class Turn:
     trapped: str | None
     exit_code: int | None = None  # proc_exit's code, when the call exited
     fuel: int = 0  # the instructions the call ran
+    memory_size: int = 0  # the linear memory's bytes once the call returned
 
     @property
     def text(self) -> str:
@@ -806,13 +817,14 @@ class Turn:
 class Turns:
     """One instance of the guest kept across calls, driven raw:
     `turn(code)` and `prepare(code)` write the code through `host_alloc` and call their export;
-    `turn_raw(ptr, length)`, `run()` and `shutdown()` call the exports as they are; `image()` reads
-    the memory whole. Each call gets `fuel` and reports only what it wrote and the fuel it ran.
+    `turn_raw(ptr, length)`, `run()`, `shutdown()` and `checkpoint(enter)` call the exports as they
+    are; `image()` reads the memory whole. Each call gets `fuel` and reports only what it wrote and
+    the fuel it ran.
     The door's host function, if any, is called with this object and the request, so a check can
     call back into the instance from the door. With `answered`, the driver answers entropy, the
     clocks and a file's inode number and times as `run` does, so an instance's memory repeats;
     `image` is a starting image copied in before the first call; `mpl_data` grants matplotlib's
-    data as `run` does."""
+    data as `run` does; `memory_limit` caps the linear memory's bytes, as `run`'s does."""
 
     def __init__(
         self,
@@ -828,6 +840,7 @@ class Turns:
         answered: bool = False,
         image: bytes | None = None,
         mpl_data: bool = False,
+        memory_limit: int | None = None,
     ) -> None:
         self.mod = module(wasm)
         self.how = kind(self.mod)
@@ -841,6 +854,8 @@ class Turns:
         self._lib = lib = base / "lib"
         _place(stdlib, lib / stdlib_name(python_version, stdlib))
         self.store = wt.Store(engine())
+        if memory_limit is not None:
+            self.store.set_limits(memory_size=memory_limit)
         self.store.set_fuel(UNMETERED)
         self.store.set_epoch_deadline(EPOCH_FAR_OFF)  # the runner's engine has epochs
         wasi = wt.WasiConfig()
@@ -915,7 +930,13 @@ class Turns:
         except wt.WasmtimeError as e:
             trapped = str(e).strip().splitlines()[0]
         spent = fuel - self.store.get_fuel()
-        return Turn(value, self._new("stdout"), self._new("stderr"), trapped, exit_code, spent)
+        out, err = self._new("stdout"), self._new("stderr")
+        return Turn(value, out, err, trapped, exit_code, spent, self.memory_size)
+
+    @property
+    def memory_size(self) -> int:
+        """The linear memory's bytes now."""
+        return self.exports["memory"].data_len(self.store)
 
     def write(self, code: bytes) -> int:
         """`code` in a buffer from host_alloc: its address."""
@@ -950,6 +971,9 @@ class Turns:
 
     def shutdown(self, fuel: int = DEFAULT_FUEL) -> Turn:
         return self._call(lambda: self.exports["shutdown"](self.store), fuel)
+
+    def checkpoint(self, enter: int, fuel: int = DEFAULT_FUEL) -> Turn:
+        return self._call(lambda: self.exports["checkpoint"](self.store, enter), fuel)
 
     def call_from_door(self, caller: str, *args: int) -> int:
         """Call an export from inside a door call (the store is the caller's); its value."""

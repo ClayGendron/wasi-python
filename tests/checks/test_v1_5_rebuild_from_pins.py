@@ -114,11 +114,11 @@ def test_download_step_fails_on_a_fetched_file_with_no_pin(host, tmp_path) -> No
     m = re.match(r"downloads: (\d+) pins, 0 fetched, (\d+) verified", summary)
     assert whole.returncode == 0 and m and m[1] == m[2], (whole.returncode, whole.stderr[-300:])
     (repo / "downloads" / "SHA256SUMS").write_text(
-        "".join(line for line in sums if not line.endswith("  zlib-1.3.1.tar.gz\n"))
+        "".join(line for line in sums if not line.endswith("  zlib-1.3.2.tar.gz\n"))
     )
     short = _run_download(repo, bin_dir, host)
     assert short.returncode == 1, (short.returncode, short.stdout[-300:])
-    assert "zlib-1.3.1.tar.gz" in short.stderr and "curl must not run" not in short.stderr, (
+    assert "zlib-1.3.2.tar.gz" in short.stderr and "curl must not run" not in short.stderr, (
         short.stderr
     )
 
@@ -234,7 +234,7 @@ def test_stdlib_zip_names_no_build_host(artifacts) -> None:
 
 
 def test_release_workflow_rebuilds_on_two_more_hosts() -> None:
-    """An arm64 Linux runner and an x86_64 Linux runner rebuild the set beside the build, each
+    """An arm64 macOS runner and an x86_64 Linux runner rebuild the set beside the build, each
     within its own time limit and printing its core count and binfmt_misc entries, and nothing is
     signed or published until each one's SHA256SUMS and wheel equal the set's."""
     workflow = paths.REPO / ".github" / "workflows" / "release.yml"
@@ -565,7 +565,18 @@ def test_one_qhull_is_linked() -> None:
 
 
 CPYTHON_CONFIGURE = paths.REPO / "tests" / "cpython_configure.txt"
-PYCONFIG = Path("Python-3.15.0") / "cross-build" / "wasm32-wasip1" / "pyconfig.h"
+
+
+def _pyconfig() -> Path:
+    """The guest CPython's pyconfig.h under build/, in the tree of the line's own version."""
+    return (
+        Path(f"Python-{_line_values()['PYTHON_VERSION']}")
+        / "cross-build"
+        / "wasm32-wasip1"
+        / "pyconfig.h"
+    )
+
+
 DEFINE = re.compile(r"^\s*#\s*define\s+(\S+)(?:\s+(.*?))?\s*$")
 
 
@@ -587,8 +598,9 @@ def test_the_guests_configure_results_are_recorded() -> None:
     assert len(digests) == 1, "tests/cpython_configure.txt holds no single digest line"
     recorded = {line for line in text if line.strip() and not line.startswith(("#", "digest "))}
     needs.need("compile records")
-    header = paths.BUILD / PYCONFIG
-    assert header.is_file(), f"no build/{PYCONFIG}"
+    pyconfig = _pyconfig()
+    header = paths.BUILD / pyconfig
+    assert header.is_file(), f"no build/{pyconfig}"
     built = _defines(header.read_text(errors="replace"))
     reserved = scan.read_names(paths.EMBEDDERS)
     visible = {line for line in built if not any(name in line.lower() for name in reserved)}

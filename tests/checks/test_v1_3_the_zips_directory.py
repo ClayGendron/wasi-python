@@ -1,6 +1,10 @@
 """v1.3: the zip's directory is read once. The stdlib's own import and resource
 machinery works, and is cheap: a start reads the zip's directory through the reactor's own
 reader, which gives zipimport's dict; resource reads and metadata answer from that one parse.
+On the plain binary the stdlib zip is read by folder: its archive comment holds a table of its
+top-level folders, a start reads every name outside them and each folder's own name and
+`__init__` entries, and a folder's other members load on its first use. The snapshot reads the
+whole directory when it is built.
 
 Slopes are (fuel on padded.zip − fuel on small.zip) ÷ (their member counts' difference), plain
 only: the snapshot runs only beside its own zip. Each check runs its measured program
@@ -53,10 +57,11 @@ print(json.dumps({
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_the_zip_reader_is_ours_from_the_first_import(guest, which) -> None:
     """The gate (criterion 1): the start's own read of the zip, which imports `encodings`, went
-    through `_zip_directory`, and the modules the core phase imports keep their file names."""
+    through `_zip_directory`, by folder on the plain binary and whole on the snapshot, and the
+    modules the core phase imports keep their file names."""
     got = _json(guest(which, ["-c", GATE]))
     assert got == {
-        "served": {ZIP: "fast"},
+        "served": {ZIP: "folders" if which == "plain" else "fast"},
         "reader": True,
         "resources": True,
         "metadata": True,
@@ -67,29 +72,59 @@ def test_the_zip_reader_is_ours_from_the_first_import(guest, which) -> None:
     }, got
 
 
-def test_a_plain_start_grows_at_most_30k_fuel_per_member(guest, judge_zips, note) -> None:
-    padded = guest("plain", ["-c", "pass"], stdlib=judge_zips.padded)
-    small = guest("plain", ["-c", "pass"], stdlib=judge_zips.small)
+# A folder no program uses costs a start its own directory entries' bytes and little else: the
+# bound per member of a padding folder, for a start, an import and a first resource read.
+PER_MEMBER = 2_000
+FIRST_GET_DATA = "import pkgutil\npkgutil.get_data('tzdata', 'zoneinfo/UTC')\n"
+GROWS = {"a start": "pass", "import pandas": "import pandas", "a first get_data": FIRST_GET_DATA}
+
+
+@pytest.mark.parametrize("what", GROWS)
+def test_a_plain_start_grows_at_most_2k_fuel_per_member(guest, judge_zips, note, what) -> None:
+    """The padding is three tabled folders no program touches, so a plain start, `import pandas`
+    and a first `pkgutil.get_data` each pay only the walk past their table lines."""
+    padded = guest("plain", ["-c", GROWS[what]], stdlib=judge_zips.padded)
+    small = guest("plain", ["-c", GROWS[what]], stdlib=judge_zips.small)
     assert padded.exit_code == 0 and small.exit_code == 0, (padded.describe(), small.describe())
     slope = judge_zips.slope(small.fuel, padded.fuel)
-    note(f"{slope:,.0f} fuel per member; small.zip {small.fuel:,}, padded.zip {padded.fuel:,}")
-    assert slope <= 30_000, f"a plain start grows {slope:,.0f} fuel per member (bound 30,000)"
+    note(f"{what}: {slope:,.0f} fuel per member; small.zip {small.fuel:,}, padded {padded.fuel:,}")
+    assert slope <= PER_MEMBER, f"{what} grows {slope:,.0f} fuel per member ({PER_MEMBER:,})"
 
 
 READER = """
 import json, sys, importlib, zipimport
 import _zip_directory as zd
 
-def outcome(read, path):
+def shape(files, by_folder):
+    # A dict read by folder: its items sorted and each folder's children in order, once every
+    # folder is loaded; any other: its items in order.
+    if not by_folder:
+        return [list(files.items())]
+    kids = {}
+    for name in files:
+        kids.setdefault(name.rstrip("/").rpartition("/")[0], []).append(name)
+    kids.pop("", None)
+    return [sorted(files.items()), kids]
+
+def ours(path):
+    files = zd.read_directory(path)
+    if zd.served.get(path) == "folders":  # in the cache, so every folder loads into it
+        zipimport._zip_directory_cache[path] = files
+        zd.load_all(path)
+    return files
+
+def outcome(read, path, by_folder):
     try:
-        return ["ok", list(read(path).items())]
+        return ["ok", *shape(read(path), by_folder)]
     except Exception as e:
         return ["error", type(e).__name__, str(e)]
 
 path, module = sys.argv[1], sys.argv[2]
-fast = outcome(zd.read_directory, path)
+fast = outcome(ours, path, False)
 served = zd.served.get(path)
-stock = outcome(zd.stock_read_directory, path)
+if served == "folders":
+    fast = outcome(lambda p: zipimport._zip_directory_cache[p], path, True)
+stock = outcome(zd.stock_read_directory, path, served == "folders")
 who = None
 if module:
     sys.path.insert(0, path)
@@ -127,7 +162,9 @@ ODD = {
 def test_the_fast_reader_builds_zipimports_dict(guest, judge_zips, case) -> None:
     """`read_directory` gives zipimport's own dict (keys, values and order) on the judge's zips
     and on odd ones; Zip64, cp437 names and a broken directory go to zipimport's reader, with
-    its result or its error (criterion 3)."""
+    its result or its error (criterion 3). The stdlib zip, read by folder on the plain binary,
+    gives the same dict once every folder is loaded, each folder's children in zipimport's
+    order; the snapshot's cached dict is zipimport's, order and all."""
     if case == "snapshot":
         got = _json(guest("snapshot", ["-c", SNAPSHOT_CACHE]))
         assert got["equal"] and got["names"] > 1000, got
@@ -135,7 +172,7 @@ def test_the_fast_reader_builds_zipimports_dict(guest, judge_zips, case) -> None
     if case in ("small", "padded"):
         stdlib = judge_zips.small if case == "small" else judge_zips.padded
         got = _json(guest("plain", ["-c", READER, ZIP, ""], stdlib=stdlib))
-        assert got["equal"] and got["served"] == "fast", got
+        assert got["equal"] and got["served"] == "folders", got
         return
     module, route, who = ODD[case]
     data = zips.ODD_ZIPS[case]()
@@ -152,9 +189,9 @@ def test_the_fast_reader_builds_zipimports_dict(guest, judge_zips, case) -> None
         assert got["outcome"] == "ok" and got["zip_served"] == route, got
 
 
-def test_a_reread_after_invalidate_caches_is_the_fast_read(guest, judge_zips, note) -> None:
+def test_a_reread_after_invalidate_caches_is_the_folder_read(guest, judge_zips, note) -> None:
     """Agent code that writes a module calls `importlib.invalidate_caches()`; the import after it
-    reads the zip's directory again, through the same reader (criterion 8)."""
+    reads the zip's directory again, through the same reader and by folder (criterion 8)."""
     reread = (
         "import importlib, json, _zip_directory as zd\n"
         "zd.served.clear()\n"
@@ -168,14 +205,17 @@ def test_a_reread_after_invalidate_caches_is_the_fast_read(guest, judge_zips, no
         y = guest("plain", ["-c", plain], stdlib=stdlib)
         x = guest("plain", ["-c", reread], stdlib=stdlib)
         assert y.exit_code == 0, y.describe()
-        assert json.loads(x.text if x.exit_code == 0 else "null") == {ZIP: "fast"}, x.describe()
+        got = json.loads(x.text if x.exit_code == 0 else "null")
+        assert got == {ZIP: "folders"}, x.describe()
         fuel[name] = x.fuel - y.fuel
     slope = judge_zips.slope(fuel["small"], fuel["padded"])
     note(f"{slope:,.0f} fuel per member; the re-read on small.zip {fuel['small']:,}")
-    assert slope <= 30_000, f"the re-read grows {slope:,.0f} fuel per member (bound 30,000)"
+    assert slope <= PER_MEMBER, f"the re-read grows {slope:,.0f} fuel per member ({PER_MEMBER:,})"
 
 
-ZONES = "import zoneinfo, importlib.resources\n"
+# The baseline imports tzdata's zone package, so a first zone less it is the resource read alone:
+# on the plain binary, importing tzdata loads its folder's members.
+ZONES = "import zoneinfo, importlib.resources, tzdata.zoneinfo\n"
 PARIS = ZONES + "zoneinfo.ZoneInfo('Europe/Paris')\n"
 TOKYO = PARIS + "zoneinfo.ZoneInfo('Asia/Tokyo')\n"
 
@@ -424,3 +464,242 @@ def test_metadata_answers_from_the_zips_directory(guest, judge_zips, note, which
     slope = judge_zips.slope(b - a, pb - pa)
     note(f"a miss after the import: {b - a:,} (padded {pb - pa:,}, {slope:,.0f} per member)")
     assert slope <= 6_000, f"a metadata miss grows {slope:,.0f} fuel per member (6,000)"
+
+
+# The stdlib zip read by folder: every reader sees what the whole read gives it.
+
+FULL_READ = """
+import sys, zipimport, _zip_directory as zd
+ZIP = "/usr/local/lib/python315.zip"
+
+def whole():
+    # zipimport's whole read in the cache's place, every importer made again: the reference.
+    zipimport._zip_directory_cache[ZIP] = zd.stock_read_directory(ZIP)
+    zd._folders.pop(ZIP, None)
+    sys.path_importer_cache.clear()
+"""
+
+
+def _both(guest, body: str, **kw) -> dict:
+    """`body` defines `answers()`; its value read by folder, then after the whole read."""
+    code = FULL_READ + body + "\nimport json\nlazy = answers()\nwhole()\n"
+    code += "print(json.dumps({'lazy': lazy, 'whole': answers(), 'served': zd.served[ZIP]}))\n"
+    got = _json(guest("plain", ["-c", code], **kw))
+    assert got["served"] == "folders", got["served"]
+    return got
+
+
+FIRST_TOUCH = {
+    "get_data": "pkgutil.get_data('tzdata', 'zoneinfo/Europe/Paris')",
+    "iterdir": "sorted(p.name for p in ir.files('tzdata').joinpath('zoneinfo/Europe').iterdir())",
+    "joinpath": "[ir.files('tzdata').joinpath('zoneinfo/Europe/Paris').is_file()]",
+    "read_bytes": "ir.files('tzdata').joinpath('zoneinfo/Europe/Paris').read_bytes()",
+}
+
+
+@pytest.mark.parametrize("touch", FIRST_TOUCH)
+def test_a_first_resource_read_loads_its_folder(guest, touch) -> None:
+    """`pkgutil.get_data` and `importlib.resources`' `iterdir`, `joinpath` and `read_bytes`, each
+    as a program's first touch of tzdata, answer as the whole read does."""
+    body = f"""
+import importlib.resources as ir, pkgutil, zipfile
+def answers():
+    got = {FIRST_TOUCH[touch]}
+    return got.hex() if isinstance(got, bytes) else got
+"""
+    got = _both(guest, body)
+    assert got["lazy"] == got["whole"] and got["lazy"], got
+
+
+AFTER_INVALIDATION = {
+    "get_data": "pkgutil.get_data('tzdata', 'zoneinfo/UTC')",
+    "files": "importlib.resources.files('tzdata').joinpath('zoneinfo/UTC').read_bytes()",
+}
+
+
+@pytest.mark.parametrize("how", AFTER_INVALIDATION)
+def test_a_read_after_invalidate_caches_reads_again_first(guest, how) -> None:
+    """`import tzdata`, `importlib.invalidate_caches()`, then a first read of one of its files:
+    the trigger takes the dict through the importer's own `_get_files()`, so the zip is read
+    again, every folder loaded before is loaded again, and the file is found."""
+    code = (
+        "import importlib, importlib.resources, pkgutil, sys, zipfile, tzdata\n"
+        "importlib.invalidate_caches()\n"
+        f"got = {AFTER_INVALIDATION[how]}\n"
+        "print(got == zipfile.ZipFile(sys._stdlib_dir).read('tzdata/zoneinfo/UTC'))\n"
+    )
+    r = guest("plain", ["-c", code])
+    assert (r.exit_code, r.text) == (0, "True\n"), r.describe()
+
+
+PANDAS_FOLDERS = ["numpy", "dateutil", "pandas"]
+
+
+def test_pandas_styler_reads_its_templates(guest) -> None:
+    """pandas' Styler, which reads its templates through jinja2's `PackageLoader`, imports, and
+    the loader lists and renders them as with the whole read."""
+    body = """
+import pandas
+from pandas.io.formats.style import Styler
+import jinja2
+def answers():
+    loader = jinja2.PackageLoader("pandas", "io/formats/templates")
+    html = pandas.DataFrame({"a": [1]}).style.to_html()
+    return [loader.list_templates(), "<table" in html]
+"""
+    got = _both(guest, body)
+    assert got["lazy"] == got["whole"] and got["lazy"][0] and got["lazy"][1], got
+
+
+def test_import_pandas_loads_exactly_its_packages(guest, note) -> None:
+    """The folders of packages loaded by `import pandas`: numpy, dateutil and pandas."""
+    code = (
+        "import sys, json, pandas, _zip_directory as zd\n"
+        "print(json.dumps([f for f in zd.loaded(sys._stdlib_dir)"
+        " if f not in sys.stdlib_module_names]))\n"
+    )
+    got = _json(guest("plain", ["-c", code]))
+    note(f"loaded: {got}")
+    assert sorted(got) == sorted(PANDAS_FOLDERS), got
+
+
+def test_metadata_and_module_listings_match_the_whole_read(guest) -> None:
+    """`importlib.metadata`'s distributions and the zip's top-level names, in order, and
+    `pkgutil.iter_modules()` at the top and under `pandas.__path__`, as the whole read gives
+    them."""
+    body = """
+import importlib.metadata as md, pkgutil
+def answers():
+    import pandas
+    md.FastPath.__new__.cache_clear()
+    dists = sorted((d.metadata["Name"], d.version) for d in md.distributions())
+    root = md.FastPath(ZIP)
+    return [dists, list(root.zip_children()), [m.name for m in pkgutil.iter_modules()],
+            [m.name for m in pkgutil.iter_modules(pandas.__path__)]]
+"""
+    got = _both(guest, body)
+    assert got["lazy"] == got["whole"] and all(got["lazy"]), got
+
+
+def test_a_prefixed_zipimporter_answers_as_the_whole_read(guest) -> None:
+    """`zipimporter(ZIP + "/pandas/")`, made before pandas is imported, loads the folder and
+    answers its API, and its errors on a missing name, as with the whole read."""
+    body = """
+import zipimport
+def answers():
+    zi = zipimport.zipimporter(ZIP + "/pandas/")
+    out = [zi.prefix, zi.is_package("core"), zi.is_package("io"), zi.get_filename("core"),
+           zi.find_spec("core").origin, len(zi.get_data(ZIP + "/pandas/__init__.pyc"))]
+    for call in (lambda: zi.is_package("nope"), lambda: zi.get_data(ZIP + "/pandas/nope.txt"),
+                 lambda: zi.get_code("nope"), lambda: zi.get_source("nope")):
+        try:
+            out.append(["ok", str(call())])
+        except Exception as e:
+            out.append([type(e).__name__, str(e)])
+    out.append(zi.find_spec("nope"))
+    return out
+"""
+    got = _both(guest, body)
+    assert got["lazy"] == got["whole"], got
+
+
+def test_namespaces_and_submodules_across_an_invalidation(guest) -> None:
+    """The namespace package `mpl_toolkits` (no `__init__`) resolves and loads on its first
+    submodule; `invalidate_caches()` between two submodule imports of a folder loses nothing."""
+    code = (
+        "import importlib, sys\n"
+        "import mpl_toolkits.mplot3d\n"
+        "import xml.dom\n"
+        "importlib.invalidate_caches()\n"
+        "import xml.dom.minidom, email.mime\n"
+        "importlib.invalidate_caches()\n"
+        "import email.mime.text\n"
+        "print(type(mpl_toolkits.__spec__.loader).__name__, xml.dom.minidom.__name__,"
+        " email.mime.text.__name__)\n"
+    )
+    r = guest("plain", ["-c", code], mpl_data=True, env={"MPLBACKEND": "Agg"})
+    want = "NamespaceLoader xml.dom.minidom email.mime.text\n"
+    assert (r.exit_code, r.text) == (0, want), r.describe()
+
+
+IMPORT_PATH_ZIP = """
+import json, sys, _zip_directory as zd
+sys.path[:0] = ["/zips/tabled.zip", "/zips/plain.zip"]
+import tabled_pkg.mod, plain_pkg.mod
+print(json.dumps([zd.served["/zips/tabled.zip"], zd.served["/zips/plain.zip"],
+                  tabled_pkg.mod.WHO, plain_pkg.mod.WHO]))
+"""
+
+
+def test_a_zip_on_the_import_path_is_read_whole(guest, work_zip_pair) -> None:
+    """Only the stdlib zip is read by folder: a guest's zip on the import path, with a folder
+    table or without, is read whole, as before."""
+    got = _json(guest("plain", ["-c", IMPORT_PATH_ZIP], files=work_zip_pair))
+    assert got == ["fast", "fast", "tabled", "plain"], got
+
+
+@pytest.fixture
+def work_zip_pair(tmp_path) -> dict[str, bytes]:
+    tabled = tmp_path / "tabled.zip"
+    tabled.write_bytes(
+        zips.build({"tabled_pkg/__init__.py": "", "tabled_pkg/mod.py": "WHO = 'tabled'\n"})
+    )
+    zips.write_folder_table(tabled)
+    with zipfile.ZipFile(tabled) as z:
+        assert z.comment.startswith(b"wasi-python folders 1\n")
+    plain = zips.build({"plain_pkg/__init__.py": "", "plain_pkg/mod.py": "WHO = 'plain'\n"})
+    return {"/zips/tabled.zip": tabled.read_bytes(), "/zips/plain.zip": plain}
+
+
+POP = (
+    "import os, zipimport, _zip_directory as zd\n"
+    "ZIP = '/usr/local/lib/python315.zip'\n"
+    "zd.load_all(ZIP)\n"
+    "zd._folders.clear()\n"  # the reader's own hold on a dict read by folder
+)
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_teardown_does_not_free_the_stdlib_directory(guest, note, which) -> None:
+    """The reactor holds the stdlib zip's dict to the instance's end, so dropping the cache's
+    reference frees nothing: popping it costs within 1 M of not popping it, with every folder
+    loaded on the plain binary."""
+    stay = guest(which, ["-c", POP + "os._exit(0)\n"], record=False)
+    drop = guest(which, ["-c", POP + "zipimport._zip_directory_cache.pop(ZIP)\nos._exit(0)\n"])
+    assert stay.exit_code == 0 and drop.exit_code == 0, (stay.describe(), drop.describe())
+    note(f"the pop costs {drop.fuel - stay.fuel:,} fuel")
+    assert drop.fuel - stay.fuel <= 1_000_000, f"the pop costs {drop.fuel - stay.fuel:,} (1 M)"
+
+
+LOAD_RAISES = """
+import sys
+ZIP = sys._stdlib_dir
+armed = [True]
+
+def hook(event, args):
+    # Only the open a folder's load makes, the first time.
+    if not (armed[0] and event == "open" and args and args[0] == ZIP):
+        return
+    frame = sys._getframe(1)
+    while frame is not None and frame.f_code.co_name != "_load":
+        frame = frame.f_back
+    if frame is not None:
+        armed[0] = False
+        raise RuntimeError("refused once")
+
+sys.addaudithook(hook)
+try:
+    import tomllib
+    print("first: imported")
+except RuntimeError as e:
+    print("first:", e)
+import tomllib
+print("second:", tomllib.loads("a = 1"))
+"""
+
+
+def test_a_load_that_raises_is_tried_again(guest) -> None:
+    """An audit hook refuses the open of the zip that a folder's first load makes: that import
+    raises, and the folder stays pending, so the next import loads it and succeeds, as natively."""
+    r = guest("plain", ["-c", LOAD_RAISES])
+    assert (r.exit_code, r.text) == (0, "first: refused once\nsecond: {'a': 1}\n"), r.describe()

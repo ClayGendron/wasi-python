@@ -3,28 +3,40 @@
     uv run python tests/harness/gather.py --records records [--out release-record]
 
 reads `WASM_SHA256` (the build job's `wasm-sha256`), `SET_SUMS_SHA256` (its `set-sums-sha256`, the
-set's own `SHA256SUMS`), `RECORD_BUILD_BUILD` (the SHA-256 build-shard handed on), `TIER` (the tier
-the decision job decided), `PLAN` on a pull request into dev (the (system, shard) pairs the
-decision job selected, as a JSON list of `system/shard`), and
-`GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets them
-(a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the artifact
-its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's folder;
-the build shard's, by id, into `build-shard/`. From those it derives again whether this is a
-release run (a pushed tag, a run on main, or a pull request into main), which must have judged the
-release tier. It collects the judge once at this commit and is red, one line per reason, unless G1
-to G7 hold. On a pull request into dev, G1 to G6 hold over the selected pairs, the rows an
-acceptance needs a reason for are listed under GROWTH rather than red, and G7 is not evaluated.
-After a merge into dev G1 to G6 are whole, G7 is not evaluated, since that run makes the
-acceptance it would compare with, and the rows an acceptance needs a reason for are listed too:
-the accept job clears each with the claim of a news file, or refuses it. On both, an absent check
-a news file's claim retires is listed beside them; one no claim retires stays red, as a lost pass
-does. Each listed row names the reason a news file's claim gives (the news files at this commit),
-or `unclaimed`. The release pull request into main is judged whole, with G7 in its own form, its
-rows that a claim of the news files or of the release-tier ledger gives a reason for listed as
-after a merge, and the rest red. It prints the merged scoreboard, writes the merged record (with
-its own red lines, the event, and each shard's commit and guards, which the acceptance from CI's
-record holds) and the job's summary, and writes nothing to the progress history. It is the
-parallel judge's controller merge, across machines.
+set's own `SHA256SUMS`), `RECORD_BUILD_BUILD` (the SHA-256 the x86-64 rebuild handed on for the
+build shard's record), `TIER` (the tier the decision job decided), `BUILD` (whether the decision
+job ran the build shard: only where a run rebuilds the set from the pins), `PLAN` on a pull request
+into dev (the (system, shard) pairs the decision job selected, as a JSON list of `system/shard`),
+and `GITHUB_EVENT_NAME`, `GITHUB_REF_TYPE`, `GITHUB_REF` and `GITHUB_BASE_REF` as the runner sets
+them (a step cannot override a `GITHUB_*` variable). Each shard's record is the one file of the
+artifact its leg uploaded under its own name, `record-<system>-<shard>`, downloaded into its job's
+folder; the build shard's, by id, into `rebuild-linux-x86-64/`. From those it derives again whether
+this is a release run (a pushed tag, a run on main, or a pull request into main), which must have
+judged the release tier. It collects the judge once at this commit and is red, one line per reason,
+unless G1 to G7 hold. On a pull request into dev, G1 to G6 hold over the selected pairs, the rows
+an acceptance needs a reason for are listed under GROWTH rather than red, and G7 is not evaluated.
+After a merge into dev G1 to G6 are whole but for the build shard, which runs only where the pins
+are compiled (its checks are not selected there, as the release tier's are not on a normal run); G7
+is not evaluated, since that run makes the acceptance it would compare with, and the rows an
+acceptance needs a reason for are listed too: the accept job clears each with the claim of a news
+file, or refuses it. On both, an absent check a news file's claim retires is listed beside them;
+one no claim retires stays red, as a lost pass does. Each listed row names the reason a news file's
+claim gives (the news files at this commit), or `unclaimed`. The release pull request into main is
+judged whole, with G7 in its own form, its rows that a claim of the news files or of the
+release ledger gives a reason for listed as after a merge, and the rest red. It prints the
+merged scoreboard, writes the merged record (with its own red lines, the event, and each shard's
+commit and guards, which the acceptance from CI's record holds) and the job's summary, and writes
+nothing to the progress history. It is the parallel judge's controller merge, across machines.
+
+    uv run python tests/harness/gather.py --prove-set <set-sums-sha256> <wasm-sha256>
+    uv run python tests/harness/gather.py --prove-set --tree-only
+
+is a pushed tag's proof that it publishes what the release pull request judged, since its run
+judges nothing again: the newest acceptance is a release pull request's, whole and clean, made on
+the tagged commit's parent, and on these bytes (the set's own SHA256SUMS and python.wasm, each
+hashed from the build's files); and the tagged commit adds that acceptance and nothing else. The
+tree alone needs no compile, so the build job runs it before its own; it exits non-zero with one
+line naming the first mismatch.
 """
 
 from __future__ import annotations
@@ -66,9 +78,10 @@ CI_NEEDS: dict[str, frozenset[str]] = {
 # The worst status first; `deselected` last, so a check run anywhere is never shown deselected.
 ORDER = ("fail", "unrun", "blocked", "gap", "pass", "deselected")
 UPSTREAM_SUITE = re.compile(re.escape(shards.UPSTREAM_FILE) + r"::test_upstream_suite\[(.+)\]$")
-# The build record comes from build-shard, a fresh arm64 Linux build on every run.
+# The build record comes from the x86-64 rebuild, which compiles from the pins wherever a run
+# rebuilds, and runs the build shard on its own tree.
 JOB = {
-    "build": "build-shard",
+    "build": "rebuild-linux-x86-64",
     "macos": "judge-macos",
     "linux": "judge-linux",
     "windows": "judge-windows",
@@ -82,13 +95,15 @@ def expected_keys(
     plan: dict[str, shards.Shard],
     tier: str = "normal",
     selected: list[tuple[str, str]] | None = None,
+    build: bool = True,
 ) -> list[tuple[str, str]]:
-    """(system, shard) for every record the run hands on: each system's shards, and build; the
-    release shards only when the run judged the release tier. On a pull request, exactly the
-    pairs its plan selected (`selected`), each one the plan runs on that system."""
+    """(system, shard) for every record the run hands on: each system's shards, and build when
+    the run ran the build shard (`build`); the release shards only when the run judged the
+    release tier. On a pull request, exactly the pairs its plan selected (`selected`), each one
+    the plan runs on that system."""
     if selected is not None:
         return [k for k in selected if _in_plan(plan, k)]
-    keys = [("build", "build")] if "build" in plan else []
+    keys = [("build", "build")] if "build" in plan and build else []
     keys += [(s, name) for s in shards.OWN_SYSTEMS for name in shards.on(plan, s)]
     if tier == "release":
         keys += [("release", name) for name in shards.on(plan, "release")]
@@ -127,6 +142,8 @@ class Inputs:
     release_checks: set[str] = field(default_factory=set)  # by the upstream files at this commit
     # The pairs a pull request's plan selected (PLAN); None on a run judged whole.
     selected: list[tuple[str, str]] | None = None
+    # Whether the run ran the build shard (BUILD): only where it rebuilt the set from the pins.
+    build: bool = True
     event: str = ""  # GITHUB_EVENT_NAME
     # G7's form for the event: whole, pull-request, post-merge or release-pull-request.
     g7: str = "whole"
@@ -152,6 +169,23 @@ class Verdict:
     def list_growth(self, row: str, kind: str, key: str) -> None:
         self.growth.append(row)
         self.growth_keys.append((kind, key))
+
+
+def rise(claims: list[news.Claim], node: str) -> str:
+    """What a rise in an upstream group's pass count is shown with. A rise needs no reason, as the
+    ratchet and the acceptance hold, so this is never a verdict. Among the claims that name the
+    count under `passes`, the first text that names the group: a `growth`, or a judge file's
+    reason whose path names it (a claim's growth may be another row's); else the first such
+    claim's number alone."""
+    m = UPSTREAM_SUITE.match(node)
+    group = m[1] if m else node
+    named = [c for c in claims if any(news.names(e, node) for e in c.passes)]
+    for c in named:
+        texts = [c.growth] if group in c.growth else []
+        texts += [r for f, r in c.judge.items() if group in f and r]
+        if texts:
+            return f"{c.spec}: {texts[0]}"
+    return f"{named[0].spec}: names this count under passes" if named else "more, needing no claim"
 
 
 def allowed(node: str, need, system: str, may_block: dict[str, frozenset[str]]) -> bool:
@@ -191,15 +225,18 @@ def gather(i: Inputs) -> Verdict:
     release_pr = i.event == "pull_request" and i.base_ref == "main"
     pull_request = i.event == "pull_request" and not release_pr
     # Where an acceptance's reasons are the news files' (and, on the release pull request, the
-    # release-tier ledger's too), a row that needs one is listed, not red: the acceptance clears it
+    # release ledger's too), a row that needs one is listed, not red: the acceptance clears it
     # with its claim, or refuses it, named. A lost pass stays red everywhere.
     listed = pull_request or i.g7 in ("post-merge", "release-pull-request")
+    # After a merge into dev a row no claim gives a reason for is listed too: the acceptance
+    # records it unclaimed, and the release pull request's acceptance asks for its reason.
+    post_merge = i.g7 == "post-merge"
 
     def claimed(kind: str, key: str) -> bool:
         """A row a news file's claim gives its reason for: listed on a pull request and after a
-        merge; with no claim, listed on a pull request (named `unclaimed`) and red after a merge,
-        where the accept job would have nothing to consume."""
-        return pull_request or news.reason(i.claims, kind, key) is not None
+        merge; with no claim, listed (named `unclaimed`) on a pull request and after a merge into
+        dev, and red on the release pull request, whose own rows need their claim."""
+        return pull_request or post_merge or news.reason(i.claims, kind, key) is not None
 
     def retired(node: str) -> bool:
         """An absent check a news file's claim retires: the acceptance consumes the claim, so
@@ -219,7 +256,7 @@ def gather(i: Inputs) -> Verdict:
             red.append(
                 f"G1 {system}/{name}: selected, and the plan does not run {name} on {system}"
             )
-    keys = expected_keys(i.plan, i.tier, i.selected)
+    keys = expected_keys(i.plan, i.tier, i.selected, i.build)
     # What this run was asked to judge: the selected shards' goal checks, or the whole judge.
     selected_shards = {name for _, name in keys}
     # G1: every record, and only those, one to one, each under its own job's folder.
@@ -322,13 +359,15 @@ def gather(i: Inputs) -> Verdict:
         if not ran and not units.get("count"):
             red.append(f"{where}: selected nothing")
     unrun = collected - run_somewhere
-    if i.selected is not None:  # a check of a shard the plan left out was not this run's to run
-        unrun &= {n for name in selected_shards for n in goal_share.get(name, [])}
-    in_scope = (
-        collected
-        if i.selected is None
-        else {n for name in selected_shards for n in goal_share.get(name, [])}
-    )
+    # A check of a shard the plan left out was not this run's to run: on a pull request, every
+    # shard it did not select; on a run judged whole, the build shard where it did not rebuild.
+    if i.selected is not None:
+        in_scope = {n for name in selected_shards for n in goal_share.get(name, [])}
+    elif i.build:
+        in_scope = collected
+    else:  # the judge less the build shard's share: a check in no shard's share stays red
+        in_scope = collected - set(goal_share.get("build", []))
+    unrun &= in_scope
     if normal:  # the normal tier runs no release-tier check, and must not
         unrun -= i.release_checks
         red += [
@@ -391,8 +430,8 @@ def gather(i: Inputs) -> Verdict:
             acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
             want = set(acc.get("darwin-arm64", {})) - set(scoreboard.LABELS)
             dropped = sorted(want - set(have))
-            if dropped and news.reason(i.claims, "grows", node) is not None:
-                dropped = []  # claimed, and listed by the ratchet with its reason
+            if dropped and (post_merge or news.reason(i.claims, "grows", node) is not None):
+                dropped = []  # listed by the ratchet, with its claim's reason or `unclaimed`
             for name in dropped:
                 red.append(f"G5 {system}/{shard}: {node} records no {name} (accepted.json has it)")
             for name, value in sorted(have.items()):
@@ -481,7 +520,9 @@ def gather(i: Inputs) -> Verdict:
         acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {}).get("darwin-arm64", {})
         if runs and "passes" in acc and passes != {acc["passes"]}:
             row = f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
-            if listed and claimed("passes", node):
+            if _whole(acc["passes"]) and all(_whole(p) and p > acc["passes"] for p in passes):
+                v.list_growth(row, "more", node)  # a rise: listed, never red, as the ratchet's
+            elif listed and claimed("passes", node):
                 v.list_growth(row, "passes", node)
             else:
                 red.append(row)
@@ -513,7 +554,8 @@ def gather(i: Inputs) -> Verdict:
     if v.growth:
         shown_rows = ["GROWTH, each needing its reason at the acceptance:"]
         for row, (kind, key) in zip(v.growth, v.growth_keys, strict=True):
-            shown_rows.append(f"  {row} · {news.reason(i.claims, kind, key) or 'unclaimed'}")
+            why = rise(i.claims, key) if kind == "more" else news.reason(i.claims, kind, key)
+            shown_rows.append(f"  {row} · {why or 'unclaimed'}")
         v.lines[at:at] = shown_rows
     if not red:
         at = next(
@@ -701,7 +743,7 @@ def news_claims(repo: Path = paths.REPO) -> list[news.Claim]:
 
 
 def release_ledger(repo: Path = paths.REPO) -> list[news.Claim]:
-    """The release-tier ledger's claims for this version, which the release pull request's
+    """The release ledger's claims for this version, which the release pull request's
     acceptance reads beside the news files; none when it is broken, which its acceptance names."""
     try:
         return news.ledger_claims(repo)
@@ -867,6 +909,83 @@ def collect(
     return goal, [n for n, area in c.items if area is None], c.may_block
 
 
+# The acceptance commit a release's tag sits on changes these two files and nothing else, the rule
+# the push of the release's acceptance holds.
+ACCEPTED_FILE = "context/progress/accepted.json"
+HISTORY_VOLUME = re.compile(r"context/progress/history(-\d{5,})?\.jsonl")
+
+
+def prove_set(repo: Path, sums: tuple[str, str] | None = None) -> str | None:
+    """The first reason the commit checked out in `repo` may not publish, or None: its parent is
+    the commit the newest acceptance judged, that acceptance is a release pull request's (from
+    CI, the release tier and a pull request's event: only its acceptance writes them), whole and
+    made on a clean tree,
+    and the commit changes accepted.json and one history volume alone, so the tagged tree is the
+    judged one plus its record; `sums` (the set's own SHA256SUMS' SHA-256 and python.wasm's) are
+    the bytes it accepted. None for `sums` holds the tree alone."""
+
+    def git(*args: str) -> str | None:
+        r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+        return r.stdout.strip() if r.returncode == 0 else None
+
+    parent = git("rev-parse", "--verify", "-q", "HEAD^")
+    if not parent:
+        return "the tagged commit has no parent in this checkout"
+    lines = history.lines(repo / "context" / "progress")
+    try:
+        newest = json.loads(lines[-1]) if lines else {}
+        accepted = json.loads((repo / ACCEPTED_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return f"the accepted state cannot be read ({e})"
+    # A line from before the event was recorded has none; CI's source and the release tier
+    # name the release pull request's acceptance alone.
+    made = (newest.get("source"), newest.get("tier"), newest.get("event", "pull_request"))
+    if made != ("ci", "release", "pull_request"):
+        return (
+            "the newest acceptance is not a release pull request's: source, tier and event "
+            f"{made}, not ('ci', 'release', 'pull_request')"
+        )
+    if newest.get("commit") != parent or accepted.get("commit") != parent:
+        return (
+            f"the newest acceptance judged {newest.get('commit')} (accepted.json says "
+            f"{accepted.get('commit')}), not {parent}, the tagged commit's parent"
+        )
+    if newest.get("partial_reason"):
+        return "the newest acceptance is partial"
+    if newest.get("dirty") is not False:
+        return "the newest acceptance was not made on a clean tree"
+    changed = sorted((git("diff", "--name-only", "--no-renames", "HEAD^", "HEAD") or "").split())
+    volumes = [p for p in changed if HISTORY_VOLUME.fullmatch(p)]
+    if len(changed) != 2 or ACCEPTED_FILE not in changed or len(volumes) != 1:
+        return (
+            f"the tagged commit must change {ACCEPTED_FILE} and one history volume alone, "
+            f"not: {' '.join(changed) or 'nothing'}"
+        )
+    if sums is not None:
+        set_sums, wasm = sums
+        if newest.get("set_sums") != set_sums:
+            accepted_sums = newest.get("set_sums")
+            return f"the set's own SHA256SUMS is {set_sums}, not {accepted_sums}, the set accepted"
+        if newest.get("artifact") != wasm:
+            return f"python.wasm is {wasm}, not {newest.get('artifact')}, the python.wasm accepted"
+    return None
+
+
+def prove_main(hashes: list[str], tree_only: bool) -> int:
+    """`--prove-set`: one line, and 0 when the tagged commit may publish."""
+    if tree_only == bool(hashes) or not (tree_only or len(hashes) == 2):
+        raise SystemExit("gather: --prove-set takes the two SHA-256 values, or --tree-only alone")
+    if not all(HEX64.fullmatch(h) for h in hashes):
+        raise SystemExit(f"gather: --prove-set's values are not SHA-256 hex: {hashes}")
+    reason = prove_set(paths.REPO, None if tree_only else (hashes[0], hashes[1]))
+    if reason:
+        print(f"prove-set: {reason}")
+        return 1
+    held = "the tree" if tree_only else "the tree and the bytes"
+    print(f"prove-set: {held} are the ones the release pull request judged and accepted")
+    return 0
+
+
 def is_tag(environ) -> bool:
     """A pushed tag, as the runner names it: only then must the judge be the accepted one (G7)."""
     return environ.get("GITHUB_EVENT_NAME") == "push" and environ.get("GITHUB_REF_TYPE") == "tag"
@@ -912,6 +1031,15 @@ def read_plan(environ) -> list[tuple[str, str]] | None:
     return [(p[0], p[1]) for p in pairs]
 
 
+def read_build(environ) -> bool:
+    """Whether the run ran the build shard, the decision job's `build` output as `BUILD`; a run
+    that hands on none (a local gather) is judged whole. A malformed BUILD stops the gather."""
+    text = environ.get("BUILD", "")
+    if text not in ("", "true", "false"):
+        raise SystemExit(f"gather: BUILD is {text[:40]!r}, not true or false")
+    return text != "false"
+
+
 def record_path(records_dir: Path, system: str, shard: str) -> Path:
     """Where a shard's record lands: the build shard's, downloaded by id, in its job's folder
     itself; every other, downloaded by its artifact's name, in a folder of that name under its
@@ -942,15 +1070,22 @@ def main(argv: list[str]) -> int:
     from harness import plugin
 
     ap = argparse.ArgumentParser(prog="gather.py")
-    ap.add_argument("--records", required=True, type=Path)
+    ap.add_argument("--records", type=Path)
     ap.add_argument("--out", default="release-record", type=Path)
+    ap.add_argument("--prove-set", nargs="*", metavar="SHA256")
+    ap.add_argument("--tree-only", action="store_true")
     a = ap.parse_args(argv)
+    if a.prove_set is not None:
+        return prove_main(a.prove_set, a.tree_only)
+    if a.records is None or a.tree_only:
+        ap.error("the gather takes --records; --tree-only goes with --prove-set")
     from harness import upstream
 
     plan = shards.load()
     tier = os.environ.get("TIER", "")
     selected = read_plan(os.environ)
-    handed = handed_from(a.records, expected_keys(plan, tier, selected))
+    build = read_build(os.environ)
+    handed = handed_from(a.records, expected_keys(plan, tier, selected, build))
     # The build shard's record also comes with the SHA-256 its job handed on: G1 holds the file
     # downloaded by its id to it.
     if os.environ.get("RECORD_BUILD_BUILD") and ("build", "build") in handed:
@@ -984,6 +1119,7 @@ def main(argv: list[str]) -> int:
             release_run=is_release_run(os.environ),
             release_checks=upstream.release_checks(upstream.load_all()),
             selected=selected,
+            build=build,
             event=os.environ.get("GITHUB_EVENT_NAME", ""),
             g7=g7_form(os.environ),
             ref=os.environ.get("GITHUB_REF", ""),

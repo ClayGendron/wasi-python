@@ -1,0 +1,19 @@
+snapshot	seg-plotly.zip	base	80261762	
+snapshot	seg-plotly.zip	full read	289787351	
+snapshot	seg-plotly.zip	lazy read	101918343	
+snapshot	seg-plotly.zip	lazy read + load_all	279366425	
+snapshot	seg-plotly.zip	lazy eq	561012513	914 9379 True False True
+snapshot	seg-plotly.zip	full + import json	78625477	
+snapshot	seg-plotly.zip	lazy + import json	80553417	
+snapshot	seg-plotly.zip	full + import pandas	4935834214	
+snapshot	seg-plotly.zip	lazy + import pandas	4775578372	['tzdata']
+snapshot	seg-plotly.zip	full + plotly job	2168359765	
+snapshot	seg-plotly.zip	lazy + plotly job	1992134586	
+snapshot	seg-plotly.zip	lazy + plotly get_data	676070831	4815814
+snapshot	seg-plotly.zip	lazy + resources	642347153	 ERR FileNotFoundError: /usr/local/lib/python315.zip/plotly/package_data/plotly.min.js
+snapshot	seg-plotly.zip	lazy + metadata	471453908	7.1.0 0
+snapshot	seg-plotly.zip	full + metadata	695093960	7.1.0 0
+snapshot	seg-plotly.zip	lazy + iter_modules	218127948	252 True
+snapshot	seg-plotly.zip	full + iter_modules	535104223	252 True
+snapshot	seg-plotly.zip	count + import pandas	4958253327	1293 2297 589
+snapshot	seg-plotly.zip	count + plotly job	2178545387	654 900

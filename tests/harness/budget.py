@@ -18,6 +18,11 @@ operations. Each goal check the quick job's JUnit report says took longer than t
 `seconds` becomes a warning annotation and a line of the job's summary:
 
     uv run python tests/harness/budget.py --times build/ci/quick-rules.xml
+
+A document's length is reported the same way, never failed on: lint names each specification past
+2,000 words, or whose landing notes run past 15 lines, as a warning annotation and a line of the
+job's summary, so a specification stays one that is read in ten minutes. One written before the
+caps is not named.
 """
 
 from __future__ import annotations
@@ -40,6 +45,15 @@ FILE = paths.REPO / "tests" / "lint" / "budget.toml"
 UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 GOAL_DIR = "tests/checks/"
 WARNING = "::warning title=fast-tier budget::"  # a GitHub Actions annotation
+LENGTH_WARNING = "::warning title=document length::"
+SPEC_WORDS = 2000  # a specification says its decisions in about 1,500
+LANDING_LINES = 15  # its landing notes are ten lines; the history lives in the pull request
+# The caps hold from this date; a specification dated before it is not rewritten to fit, so it is
+# not named either, and the warning stays a short list someone can act on.
+LENGTH_SINCE = "2026-10-30"
+DATE = re.compile(r"^- \*\*Date:\*\*\s*(\d{4}-\d{2}-\d{2})", re.M)
+ANY_DATE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+RELEASE_WARNING = "::warning title=release leg minutes::"
 
 
 @dataclass(frozen=True)
@@ -145,6 +159,13 @@ def new_families(accepted: dict, files: Iterable[str]) -> set[str]:
     return {PurePosixPath(f).stem for f in files if f not in seen}
 
 
+def new_upstream_families(accepted: dict, upstream_family: dict[str, str]) -> set[str]:
+    """The packages whose upstream checks no accepted check is one of: suites added since the
+    last acceptance, whose cap comes with them as a new check file's does."""
+    seen = {upstream_family[node] for node in accepted.get("checks", {}) if node in upstream_family}
+    return set(upstream_family.values()) - seen
+
+
 def _node(classname: str, name: str, repo: Path) -> str:
     """A JUnit test case's node id: the longest dotted prefix of its class name that is a file."""
     parts = classname.split(".")
@@ -243,6 +264,54 @@ def time_warnings(
             f.write("### The fast tier's time budget (warnings)\n\n")
             f.write("".join(f"- {line}\n" for line in lines) + "\n")
     return [WARNING + line for line in lines]
+
+
+def length_over(
+    specs: Iterable[Path], words: int = SPEC_WORDS, lines: int = LANDING_LINES
+) -> list[str]:
+    """Each specification past `words` words, and each whose landing notes section runs past
+    `lines` lines that are not blank. One dated before `LENGTH_SINCE` is left out: its Date line,
+    or else the first date its header names (the oldest specifications have only a Status)."""
+    out = []
+    for spec in specs:
+        text = spec.read_text(encoding="utf-8")
+        dated = DATE.search(text) or ANY_DATE.search(text.split("\n## ", 1)[0])
+        if dated and dated[1] < LENGTH_SINCE:
+            continue
+        count = len(text.split())
+        if count > words:
+            out.append(f"{spec.name}: {count:,} words, past {words:,}")
+        notes = re.search(r"^## Landing notes[ \t]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+        if notes:
+            n = sum(1 for line in notes[1].splitlines() if line.strip())
+            if n > lines:
+                out.append(f"{spec.name}: its landing notes run {n} lines, past {lines}")
+    return out
+
+
+def length_warnings(specs: Iterable[Path], summary: Path | None = None) -> list[str]:
+    """The annotation lines for each specification `length_over` names, each written to the
+    job's summary too when it is given. Never a failure."""
+    lines = length_over(specs)
+    if summary is not None and lines:
+        with summary.open("a", encoding="utf-8") as f:
+            f.write("### Long specifications (warnings)\n\n")
+            f.write("".join(f"- {line}\n" for line in lines) + "\n")
+    return [LENGTH_WARNING + line for line in lines]
+
+
+def release_minutes_warnings(plan: dict) -> list[str]:
+    """The annotation lines for each release shard whose measured minutes pass the packing's
+    cap: a group too long to share a leg, named until its suite's groups are split. Never a
+    failure, since the minutes were read from one run's host."""
+    from harness import shards
+
+    cap = shards.RELEASE_LEG_MINUTES
+    return [
+        f"{RELEASE_WARNING}{name}: {s.minutes} measured minutes, past the release legs' {cap}"
+        for name, s in plan.items()
+        if "release" in s.systems and isinstance(s.minutes, int | float) and s.minutes > cap
+    ]
 
 
 def main(argv: list[str]) -> int:

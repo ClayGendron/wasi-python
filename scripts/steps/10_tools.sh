@@ -224,8 +224,8 @@ done
 F2PY="$T/f2py-numpy"
 cp "$(pinned "$NUMPY_HOST_WHEEL")" "$B/wheelhouse/"
 sha=$(pin_of "$NUMPY_HOST_WHEEL")
-printf 'numpy==2.5.2 --hash=sha256:%s\n' "$sha" > "$B/f2py-requirements.txt"
+printf 'numpy==2.5.4 --hash=sha256:%s\n' "$sha" > "$B/f2py-requirements.txt"
 uv pip install --python "$HOSTPY" --target "$F2PY" --offline --no-index --find-links "$B/wheelhouse" --require-hashes -r "$B/f2py-requirements.txt"
 f2py_version=$(PYTHONPATH="$F2PY" "$HOSTPY" -s -c 'import numpy; print(numpy.__version__)')
-[ "$f2py_version" = 2.5.2 ] || die "build/tools/f2py-numpy holds numpy $f2py_version, not 2.5.2"
+[ "$f2py_version" = 2.5.4 ] || die "build/tools/f2py-numpy holds numpy $f2py_version, not 2.5.4"
 echo "tools: python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), meson $(meson --version), ninja $(ninja --version), cython $(cython --version 2>&1 | cut -d' ' -f3), pkgconf $("$PKGCONF" --version), f2py numpy $f2py_version"

@@ -494,3 +494,77 @@ def test_close_from_an_async_tool_in_a_run_async_turn_ends_the_session(stepped) 
     assert after == ["the loop went on"]
     assert done.trapped == "cancelled"
     assert (s.ended, s.shutdown_outcome) == ("closed", "skipped")
+
+
+def test_a_turns_stdin_answers_input() -> None:
+    """A turn's `stdin` is `sys.stdin` for that turn: `input()` reads its lines, then end of
+    file; the next turn without one reads end of file at once, and none reads another's
+    leftover. Its reader has no descriptor, and descriptor 0 stays the session's own."""
+    with _session()() as s:
+        given = s.run(
+            "a = input(); b = input()\nprint(a, b)\n"
+            "try:\n    input()\nexcept EOFError:\n    print('eof')",
+            stdin=b"first\nsecond\n",
+        )
+        assert (given.exit_code, given.stdout) == (0, b"first second\neof\n"), given
+        partly = s.run("print(input())", stdin=b"one\ntwo\n")  # "two" is left unread
+        assert partly.stdout == b"one\n", partly
+        after = s.run("import sys\nprint(repr(sys.stdin.read()))")
+        assert after.stdout == b"''\n", after
+        empty = s.run("try:\n    input()\nexcept EOFError:\n    print('eof')")
+        assert (empty.exit_code, empty.stdout) == (0, b"eof\n"), empty
+        no_fd = s.run(
+            "import io, os, sys\n"
+            "try:\n    sys.stdin.fileno()\nexcept io.UnsupportedOperation:\n    print('none')\n"
+            "print(len(os.read(0, 10)))",
+            stdin=b"x",
+        )
+        assert no_fd.stdout == b"none\n0\n", no_fd
+
+
+def test_a_turns_stdin_is_checked_before_the_claim() -> None:
+    """A `stdin` that is not bytes-like is a `TypeError`, and the session stays open."""
+    with _session()() as s:
+        with pytest.raises(TypeError, match="stdin must be bytes-like"):
+            s.run("print(1)", stdin="text")  # type: ignore[arg-type]
+        assert s.ended is None
+        assert s.run("print(2)").stdout == b"2\n"
+
+
+def test_a_turn_streams() -> None:
+    """A turn's chunks, joined, are its output, and a turn's `output_keep` is its own; the
+    streamed turn leaves no thread behind."""
+    from wasi_python import OutputChunk
+
+    with _session()() as s:
+        s.run("pass")  # the engine, the module and the ticker, before counting
+        before = set(threading.enumerate())
+        chunks: list[OutputChunk] = []
+        done = s.run(
+            "import sys\nprint('out')\nprint('err', file=sys.stderr)", on_output=chunks.append
+        )
+        assert b"".join(c.data for c in chunks if c.stream == "stdout") == done.stdout == b"out\n"
+        assert b"".join(c.data for c in chunks if c.stream == "stderr") == done.stderr == b"err\n"
+        left = [t for t in threading.enumerate() if t not in before and t.is_alive()]
+        assert not left, left
+        tail = s.run("print('x' * 50 + 'END')", output_bytes=30, output_keep="tail")
+        assert tail.stdout.endswith(b"END\n") and len(tail.stdout) == 30, tail
+        assert s.run("print('whole')").stdout == b"whole\n"
+
+
+def test_a_turn_streams_under_run_async() -> None:
+    """Under `Session.run_async` the chunks reach the event loop's thread, and a feed follows
+    the turn's task."""
+    from wasi_python import OutputFeed
+
+    make = _session()
+
+    async def main():
+        with make() as s:
+            feed = OutputFeed()
+            task = asyncio.ensure_future(s.run_async("print('a')\nprint('b')", on_output=feed))
+            chunks = [c async for c in feed.follow(task)]
+            return chunks, await task
+
+    chunks, done = asyncio.run(main())
+    assert b"".join(c.data for c in chunks) == done.stdout == b"a\nb\n"

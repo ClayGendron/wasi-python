@@ -1,0 +1,21 @@
+# tinycss2's own tests in the guest, from its test source, the pinned sdist. A judge file: every
+# edit is a judge change. Its tests are one file, tests/test_tinycss2.py, which runs the CSS parsing
+# tests' JSON cases: a smoke family's tiers split by path, so the whole file is the smoke group,
+# in the normal tier, and nothing is left for the release tier.
+
+package = "tinycss2"
+driver = "package"
+grant = "/upstream-tinycss2"
+test_source = true
+wheel = "tinycss2-1.5.1-py3-none-any.whl"
+budget = 159_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.tinycss2-smoke]
+paths = ["tests"]
+smoke = "the whole suite, one file that a smoke family cannot split by path; the parser CairoSVG reads CSS with, the package from the zip"
+fuel = 159_000_000_000
+measured = 105_872_940_047

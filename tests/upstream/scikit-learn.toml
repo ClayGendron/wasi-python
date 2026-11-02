@@ -14,7 +14,7 @@ package = "scikit-learn"
 driver = "package"
 grant = "/upstream-scikit-learn"
 component = "scikit_learn"
-budget = 15_171_000_000_000
+budget = 15_212_000_000_000
 stage_folders = [
     "sklearn/_loss/tests",
     "sklearn/callback/tests",
@@ -157,8 +157,8 @@ measured = 322_567_375_793
 [groups.scikit-learn-datasets]
 paths = ["sklearn/datasets/tests"]
 tier = "release"
-fuel = 99_000_000_000
-measured = 65_566_937_060
+fuel = 140_000_000_000
+measured = 90_941_855_101
 
 [groups.scikit-learn-decomposition-pca-1]
 paths = ["sklearn/decomposition/tests/test_pca.py"]
@@ -508,14 +508,6 @@ keywords = [
 ]
 
 [[expected]]
-id = "pillow-zlib-only-at-setup"
-group = "scikit-learn-datasets"
-outcome = "error"
-match = "(en|de)coder jpeg not available"
-reason = "Pillow is built with zlib only, so the faces dataset's JPEG fixtures cannot be written, at setup or teardown (README)"
-closes_with = "docs/reference/limitations.md"
-
-[[expected]]
 id = "no-mmap"
 group = "scikit-learn-decomposition-1"
 outcome = "failed"
@@ -674,3 +666,12 @@ outcome = "failed"
 match = "assert 8 == 4$|^assert 4 == 0$"
 reason = "check_estimator finds four more failing checks for NuSVC than upstream expects: the checks that copy the data into memory maps fail without mmap (README)"
 closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "pandas-categories"
+group = "scikit-learn-datasets"
+outcome = "failed"
+match = "expected string or bytes-like object, got '(int|bool)'"
+reason = "pandas 3.1.0's read_csv(dtype='category') infers numeric and boolean categories where 3.0.6 kept strings; scikit-learn 1.9.1's ARFF parser passes them to re.search, and its openml tests see other category types. The same 27 tests fail natively on pandas 3.1.0 (upstream: scikit-learn's next release)"
+closes_with = "context/roadmap.md"
+

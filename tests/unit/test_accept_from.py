@@ -358,7 +358,14 @@ def test_9_a_blocked_accepted_pass_is_always_refused(inputs, need) -> None:
     assert "blocked" in refused(inputs) or "did not run" in refused(inputs)
 
 
+def _release(i: accept_from.Inputs) -> None:
+    """The record is the release pull request's into main, whose own rows still need a claim."""
+    i.record["meta"].update(event="pull_request", ref="refs/pull/9/merge", base_ref="main")
+    i.record["meta"]["set_source"] = "built"
+
+
 def test_10_growth_is_cleared_by_grows_with_its_growth(inputs) -> None:
+    _release(inputs)
     inputs.record["checks"][TOOLS]["metrics"] = {"fuel": 120}
     assert "unclaimed" in refused(inputs) and f"{TOOLS}: fuel 100 -> 120" in refused(inputs)
     inputs.claims = [claim(grows=["tests/checks/test_v1_4_*"], growth="the tool table is larger")]
@@ -368,6 +375,7 @@ def test_10_growth_is_cleared_by_grows_with_its_growth(inputs) -> None:
 
 
 def test_11_a_fall_in_a_pass_count_is_cleared_by_passes_with_its_reason(inputs) -> None:
+    _release(inputs)
     inputs.record["checks"][GROUP]["metrics"] = {"passes": 8, "fuel": 913}
     assert "fell" in refused(inputs)
     inputs.claims = [claim(passes=[GROUP])]  # named, with no reason for the fall
@@ -391,6 +399,7 @@ def test_12_a_judge_change_that_moves_no_verdict_needs_no_claim(inputs) -> None:
 
 
 def test_12_a_verdict_bearing_judge_file_is_cleared_by_judge(inputs) -> None:
+    _release(inputs)
     files = {"tests/harness/plugin.py": "1" * 64, "tests/known_gaps.toml": "2" * 64}
     inputs.judge = {"hash": "k" * 64, "files": files}
     inputs.record["meta"]["judge"]["hash"] = "k" * 64
@@ -407,6 +416,7 @@ def test_12_the_records_judge_must_be_this_checkouts(inputs) -> None:
 
 
 def test_13_a_tier_move_is_cleared_by_moved(inputs) -> None:
+    _release(inputs)
     inputs.record["release_checks"] = [GROUP]
     for entry in (inputs.record["checks"][GROUP], inputs.record["checks"][GROUP]["source"]):
         entry.update(status="deselected", reason="release tier")
@@ -418,9 +428,174 @@ def test_13_a_tier_move_is_cleared_by_moved(inputs) -> None:
     assert json.loads(a.line)["tier_move_reason"] == "999: its tests are slow"
 
 
+def test_a_check_the_record_did_not_select_keeps_its_accepted_row_and_its_pass(inputs) -> None:
+    """A merge's run judges no build shard: its checks ran in no record, which the gather allows
+    as not selected. The acceptance keeps their accepted rows, and their passes stay in the
+    history's passed set, as a normal run keeps the release tier's."""
+    before = copy.deepcopy(inputs.accepted["checks"][TOOLS])
+    start = json.loads(inputs.history_lines[-1])
+    inputs.record["checks"][TOOLS] = {
+        "area": AREAS[TOOLS],
+        "status": "deselected",
+        "reason": "",
+        "need": None,
+        "metrics": {},
+        "worst_platform": DARWIN,
+    }
+    inputs.record["deselected"] = [TOOLS]
+    a = accept_from.accept(inputs)
+    assert a.accepted["checks"][TOOLS] == before
+    line = json.loads(a.line)
+    assert line["passed_removed"] == []
+    assert line["counts"] == start["counts"]
+
+
 def test_14_a_history_that_does_not_replay_is_refused(inputs) -> None:
     inputs.history_errors = ["history line 1: prev does not hash line 0"]
     assert "history" in refused(inputs)
+
+
+# ---------------------------------------------------------------------------------------------
+# On dev an unclaimed row is recorded, not refused; the release reconciles it
+
+
+def _grow(i: accept_from.Inputs) -> None:
+    i.record["checks"][TOOLS]["metrics"] = {"fuel": 120}
+
+
+def _fall(i: accept_from.Inputs) -> None:
+    i.record["checks"][GROUP]["metrics"] = {"passes": 8, "fuel": 913}
+
+
+def _move(i: accept_from.Inputs) -> None:
+    i.record["release_checks"] = [GROUP]
+    for entry in (i.record["checks"][GROUP], i.record["checks"][GROUP]["source"]):
+        entry.update(status="deselected", reason="release tier")
+    i.record["deselected"] = [GROUP]
+
+
+def _judge(i: accept_from.Inputs) -> None:
+    i.judge = {"hash": "k" * 64, "files": {**JUDGE["files"], "tests/known_gaps.toml": "2" * 64}}
+    i.record["meta"]["judge"]["hash"] = "k" * 64
+
+
+GREW = {"kind": "grows", "check": TOOLS, "metric": "fuel", "old": 100, "new": 120}
+FELL = {"kind": "passes", "check": GROUP, "metric": "passes", "old": 10, "new": 8}
+MOVED = {"kind": "moved", "check": GROUP, "old": "normal", "new": "release"}
+JUDGED = {"kind": "judge", "file": "tests/known_gaps.toml", "old": None, "new": "2" * 64}
+
+
+@pytest.mark.parametrize(
+    ("edit", "row"),
+    [(_grow, GREW), (_fall, FELL), (_move, MOVED), (_judge, JUDGED)],
+    ids=["a growth", "a fall in passes", "a tier move", "a verdict-bearing judge file"],
+)
+def test_on_dev_an_unclaimed_row_is_accepted_and_written_unclaimed(inputs, edit, row) -> None:
+    """A merge is accepted when its run is green: a row no claim gives a reason for is written
+    into the history line, with its values, for the release to reconcile, and accepted.json takes
+    the new value as a claimed row's would."""
+    edit(inputs)
+    a = accept_from.accept(inputs)
+    line = json.loads(a.line)
+    assert line["schema"] == 3 and line["event"] == "push"
+    assert line["unclaimed"] == [row]
+    checks = a.accepted["checks"]
+    if row is GREW:
+        assert checks[TOOLS]["metrics"][DARWIN]["fuel"] == 120
+    elif row is FELL:
+        assert checks[GROUP]["metrics"][DARWIN]["passes"] == 8
+    elif row is MOVED:
+        assert checks[GROUP]["tier"] == "release"
+    else:
+        assert a.accepted["judge"]["files"]["tests/known_gaps.toml"] == "2" * 64
+    assert any(r.startswith("unclaimed: ") for r in a.reasons), a.reasons
+
+
+def test_on_dev_a_claimed_row_writes_no_unclaimed_row(inputs) -> None:
+    _grow(inputs)
+    inputs.claims = [claim(grows=[TOOLS], growth="the tool table is larger")]
+    line = json.loads(accept_from.accept(inputs).line)
+    assert line["unclaimed"] == [] and line["growth_reason"] == "999: the tool table is larger"
+
+
+def test_on_dev_a_lost_pass_and_an_unretired_absent_check_are_still_refused(inputs) -> None:
+    """Those are losses, not growth: no line records them, and no claim but `retired` clears the
+    absent check."""
+    inputs.record["checks"][TOOLS]["source"]["status"] = "fail"
+    inputs.record["checks"][TOOLS]["status"] = "fail"
+    assert "lost" in refused(inputs) and TOOLS in refused(inputs)
+    inputs.record["checks"][TOOLS]["source"]["status"] = "pass"
+    inputs.record["checks"][TOOLS]["status"] = "pass"
+    _drop(inputs, RULE)
+    assert "absent, and no claim retires it" in refused(inputs) and RULE in refused(inputs)
+
+
+def _accepted_on_dev(i: accept_from.Inputs, edit=_grow) -> accept_from.Inputs:
+    """The inputs of the next acceptance, after `edit`'s row was accepted unclaimed on dev."""
+    edit(i)
+    a = accept_from.accept(i)
+    i.accepted, i.history_lines = a.accepted, [*i.history_lines, a.line]
+    return i
+
+
+def test_the_release_is_refused_while_a_row_accepted_unclaimed_has_no_claim(inputs) -> None:
+    """The refusal names the row, the line that wrote it and the ledger that would clear it."""
+    _release(_accepted_on_dev(inputs))
+    why = refused(inputs)
+    assert "history line 2" in why and TOOLS in why and "fuel 100 -> 120" in why, why
+    assert f"{news.LEDGER}/NNN-<slug>.toml" in why and news.LEDGER == "context/release-claims"
+
+
+def test_a_ledger_claim_clears_a_row_accepted_unclaimed(inputs, tmp_path) -> None:
+    _release(_accepted_on_dev(inputs))
+    (tmp_path / news.LEDGER).mkdir(parents=True)
+    (tmp_path / news.LEDGER / "999-the-table.toml").write_text(
+        '[[claim]]\nspec = "999"\ngrows = ["' + TOOLS + '"]\ngrowth = "the table grew"\n'
+    )
+    inputs.claims = news.ledger_claims(tmp_path)
+    line = json.loads(accept_from.accept(inputs).line)
+    assert line["event"] == "pull_request" and line["unclaimed"] == []
+
+
+@pytest.mark.parametrize(
+    ("edit", "kind", "claimed"),
+    [
+        (_fall, "passes", claim(passes=[GROUP], fewer="two tests moved")),
+        (_move, "moved", claim(moved={GROUP: "its tests are slow"})),
+        (_judge, "judge", claim(judge={"tests/known_gaps.toml": "a new allowance"})),
+    ],
+    ids=["a fall in passes", "a tier move", "a verdict-bearing judge file"],
+)
+def test_each_kind_of_unclaimed_row_is_reconciled_by_its_own_claim(inputs, edit, kind, claimed):
+    _release(_accepted_on_dev(inputs, edit))
+    assert f"{kind} " in refused(inputs)
+    inputs.claims = [claimed]
+    assert accept_from.accept(inputs).line
+
+
+def test_a_row_accepted_unclaimed_before_the_last_release_is_not_asked_again(inputs) -> None:
+    _release(_accepted_on_dev(inputs))
+    inputs.claims = [claim(grows=[TOOLS], growth="the tool table is larger")]
+    a = accept_from.accept(inputs)
+    inputs.accepted, inputs.history_lines = a.accepted, [*inputs.history_lines, a.line]
+    inputs.claims = []
+    assert accept_from.accept(inputs).line  # the next release: nothing since the last one
+
+
+def test_the_last_release_is_the_newest_line_of_a_release_pull_request() -> None:
+    """A line from before the event key was written marks a release by CI's source and the
+    release tier; the start of history stands in when no release was accepted."""
+    rows = [{"kind": "grows", "check": "a", "metric": "fuel", "old": 1, "new": 2}]
+    lines = [
+        json.dumps({"n": 1, "commit": "1", "source": "ci", "tier": "release"}),
+        json.dumps({"n": 2, "commit": "2", "schema": 3, "event": "push", "unclaimed": rows}),
+        json.dumps({"n": 3, "commit": "3", "schema": 3, "event": "pull_request", "unclaimed": []}),
+        json.dumps({"n": 4, "commit": "4", "schema": 3, "event": "push", "unclaimed": rows}),
+    ]
+    assert accept_from.since_release(lines) == ([(4, rows[0])], "3")
+    assert accept_from.since_release(lines[:3]) == ([], "3")
+    assert accept_from.since_release(lines[:2]) == ([(2, rows[0])], "1")
+    assert accept_from.since_release(lines[1:2]) == ([(2, rows[0])], None)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -651,19 +826,67 @@ def test_the_release_pull_requests_acceptance_names_the_release() -> None:
     )
 
 
-def test_the_release_records_claims_are_the_ledgers_too(tmp_path: Path) -> None:
-    """The news files that claimed a release-tier row were assembled and removed by bump before
-    the release pull request, so its acceptance also reads the release-tier ledger: the blocks
-    still in it and the ones the date moved under this version."""
-    (tmp_path / "src" / "wasi_python").mkdir(parents=True)
-    (tmp_path / "src" / "wasi_python" / "__init__.py").write_text('__version__ = "0.1.1"\n')
-    (tmp_path / "context").mkdir()
-    (tmp_path / news.LEDGER).write_text('[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n')
-    (tmp_path / news.LEDGER_HISTORY).write_text("# history\n")
+def test_the_release_records_claims_are_the_ledgers_too(repo: Path) -> None:
+    """The release pull request's acceptance also reads the release ledger: the blocks still in
+    it and the ones the date moved under this version."""
+    (repo / "src" / "wasi_python").mkdir(parents=True)
+    (repo / "src" / "wasi_python" / "__init__.py").write_text('__version__ = "0.1.1"\n')
+    (repo / news.LEDGER).mkdir(parents=True)
+    (repo / news.LEDGER / "140-a-pin.toml").write_text(
+        '[[claim]]\nspec = "140"\ngrows = ["x"]\ngrowth = "y"\n'
+    )
+    (repo / news.LEDGER_HISTORY).write_text("# history\n")
+    _commit(repo, "start")
     release = {"meta": {"event": "pull_request", "base_ref": "main"}}
     merge = {"meta": {"event": "push", "ref": "refs/heads/dev"}}
-    assert [c.spec for c in accept_from.release_claims(release, tmp_path)] == ["140"]
-    assert accept_from.release_claims(merge, tmp_path) == []
+    assert [c.spec for c in accept_from.release_claims(release, repo, [])] == ["140"]
+    assert accept_from.release_claims(merge, repo, []) == []
+
+
+def test_the_release_reads_the_news_files_bump_removed_from_git(repo: Path) -> None:
+    """A reason written at the merge still counts at the release: each news file a commit since
+    the last release removed (bump, or date for one merged after bump) is read at that commit's
+    parent. One removed before the last release is not read, nor is a file of another shape."""
+    changes = repo / "context" / "changes"
+    changes.mkdir(parents=True)
+    (changes / "100-old.md").write_text(NEWS.format(n="100"))
+    _commit(repo, "the change before the last release")
+    (changes / "100-old.md").unlink()
+    released = _commit(repo, "the last release's bump")
+    (changes / "200-new.md").write_text(NEWS.format(n="200"))
+    (changes / "README.md").write_text("# the folder\n")
+    _commit(repo, "a merge since")
+    (changes / "300-late.md").write_text(NEWS.format(n="300"))
+    _commit(repo, "a merge after the bump")
+    (changes / "200-new.md").unlink()
+    (changes / "README.md").unlink()
+    _commit(repo, "bump")
+    (changes / "300-late.md").unlink()
+    _commit(repo, "date")
+    got = accept_from.removed_news(repo, released)
+    assert sorted(c.spec for c in got) == ["200", "300"]
+    assert [c.spec for c in accept_from.removed_news(repo, None)] == ["300", "200", "100"]
+    line = json.dumps({"n": 1, "commit": released, "schema": 3, "event": "pull_request"})
+    release = {"meta": {"event": "pull_request", "base_ref": "main"}}
+    specs = [c.spec for c in accept_from.release_claims(release, repo, [line])]
+    assert sorted(specs) == ["200", "300"]
+    with pytest.raises(accept_from.Refused, match="not in this commit's history"):
+        accept_from.removed_news(repo, "e" * 40)
+
+
+def test_a_news_file_claim_read_from_git_clears_a_row_accepted_unclaimed(inputs, repo) -> None:
+    """The row accepted unclaimed on dev, the news file that names it removed by bump: the
+    release's acceptance reads the file from git and is cleared by its claim."""
+    changes = repo / "context" / "changes"
+    changes.mkdir(parents=True)
+    (changes / "200-new.md").write_text(NEWS.format(n="200").replace('["x"]', f'["{TOOLS}"]'))
+    _commit(repo, "a merge")
+    (changes / "200-new.md").unlink()
+    _commit(repo, "bump")
+    _release(_accepted_on_dev(inputs))
+    assert "fuel 100 -> 120" in refused(inputs)
+    inputs.claims = accept_from.removed_news(repo, None)
+    assert accept_from.accept(inputs).line
 
 
 def test_a_check_past_its_familys_fuel_cap_is_not_accepted(inputs) -> None:

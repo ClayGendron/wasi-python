@@ -33,7 +33,7 @@ pybind11_*  # C linkage, by pybind11's design: the thirteen `extern "C" inline` 
 
 # numpy's API table for f2py, made weak on purpose by spec 037.
 _npy_f2py_ARRAY_API  # C linkage, data: f2py's numpy API pointer, which recipes/scipy_f2py_weak_api.h makes weak in scipy.linalg._fblas and _flapack (spec 037, Decision 6) so the link keeps one; each module's import_array() writes the same numpy table into it, and fortranobject.c's strong reference still fails a link that has none
-_npy_f2py_ARRAY_APIPyArray_RUNTIME_VERSION  # C linkage, data: numpy 2.5.2's PyArray_RUNTIME_VERSION under the same f2py prefix (numpy/_core/include/numpy/__multiarray_api.h, declared with NPY_API_SYMBOL_ATTRIBUTE), weak by the same recipe in the same two modules; import_array() writes numpy's one runtime version into it
+_npy_f2py_ARRAY_APIPyArray_RUNTIME_VERSION  # C linkage, data: numpy 2.5.4's PyArray_RUNTIME_VERSION under the same f2py prefix (numpy/_core/include/numpy/__multiarray_api.h, declared with NPY_API_SYMBOL_ATTRIBUTE), weak by the same recipe in the same two modules; import_array() writes numpy's one runtime version into it
 
 # scipy 1.18.1's special functions: the xsf subproject's headers.
 scope:xsf  # scipy 1.18.1's subprojects/xsf/include/xsf/*.h, inline templates and functions in scipy.special's _gufuncs, _specfun, _special_ufuncs, _ufuncs, _ufuncs_cxx and cython_special; recipes/scipy_special_xsf.h makes the forty non-inline ones inline on purpose (spec 037), so the link keeps one definition and nothing computes differently
@@ -56,5 +56,5 @@ scope:Sketch  # a class template of matplotlib 3.11.2's src/path_converters.h, i
 scope:check_trailing_shape  # a function template of matplotlib 3.11.2's src/mplutils.h, instantiated for pybind11::array_t<double> in _backend_agg and _path
 _ZTSA19_c  # "typeinfo name for char [19]", in _backend_agg and ft2font: the compiler's name string for a built-in type, whose bytes are that type's mangled name, so every copy is equal
 
-# numpy 2.5.2's floating-point flag word, from this project's own recipe (spec 099).
+# numpy 2.5.4's floating-point flag word, from this project's own recipe (spec 099).
 wasi_python_fe_flags  # C linkage, data, weak on purpose: recipes/npy_fenv_flags.h, force-included into every numpy C and C++ compile by recipes/wasi-numpy.cross, defines `__attribute__((weak)) int wasi_python_fe_flags;` in every numpy object (numpy's module archives and the static libraries their .deps name: 17 of the link's archives at numpy 2.5.2), so the link keeps one 4-byte word that every numpy file raises into and reads; every copy is the same zero-filled int, and sharing one object across files is the point, not state of one file (build/link/python.map shows one definition)

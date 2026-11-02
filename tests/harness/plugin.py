@@ -851,18 +851,32 @@ def _read(path: Path) -> str | None:
     return path.read_text() if path.is_file() else None
 
 
-def claimed_by_news(ratchet: scoreboard.Ratchet, root: Path) -> None:
+# The reason a shard after a merge into dev lists a row no news file claims under.
+UNCLAIMED = "unclaimed: the acceptance records it, and the release asks its reason"
+
+
+def after_a_merge() -> bool:
+    """The run is a shard of the run after a merge into dev, as the runner's own variables name
+    it, the same reading the gather makes."""
+    from harness import gather
+
+    return gather.g7_form(os.environ) == "post-merge"
+
+
+def claimed_by_news(ratchet: scoreboard.Ratchet, root: Path, post_merge: bool = False) -> None:
     """Fill the ratchet's rows a news file at this commit gives a reason for: each absent check
     its `retired` names, each growth its `grows` names, each fall in a pass count its `passes`
     names with its `fewer`, each tier move its `moved` names. So a change that carries its claim
-    keeps its own run and the run after its merge green until the accept job consumes the claim;
-    an unclaimed row stays red. A broken news file claims nothing (the rules check that holds
-    their shape reports it)."""
+    keeps its own run and the run after its merge green until the accept job consumes the claim.
+    After a merge into dev (`post_merge`) a growth, fall or tier move no claim names is listed
+    too, as unclaimed: the acceptance records it and the release asks its reason. Elsewhere an
+    unclaimed row stays red, and a lost pass or an unretired absent check stays red everywhere.
+    A broken news file claims nothing (the rules check that holds their shape reports it)."""
     try:
         claims = [c for n in news.folder(root / news.CHANGES) for c in n.claims]
     except news.NewsError:
-        return
-    if not claims:
+        claims = []
+    if not claims and not post_merge:
         return
 
     def node(row: str) -> str:
@@ -878,6 +892,8 @@ def claimed_by_news(ratchet: scoreboard.Ratchet, root: Path) -> None:
             why = news.reason(claims, kind, key(row))
             if why:
                 into[row] = why
+            elif post_merge and kind != "retired":
+                into[row] = UNCLAIMED
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -964,7 +980,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     accepted = json.loads(accepted_text) if accepted_text else None
     root = Path(str(config.rootpath))
     ratchet = scoreboard.compare(run, accepted, root)
-    claimed_by_news(ratchet, root)
+    claimed_by_news(ratchet, root, after_a_merge())
     red = ratchet.red(partial=bool(partial)) if accepted else []
     if config.stash.get(WORKERS, 0) and not state.collections:
         red.append("no worker handed its collection over: the record is incomplete")
@@ -1019,7 +1035,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
                 f.write(line + "\n")
             accept_line = f"accepted: {where} line {json.loads(line)['n']}"
             ratchet = scoreboard.compare(run, new, root)  # re-judged against what was accepted
-            claimed_by_news(ratchet, root)
+            claimed_by_news(ratchet, root, after_a_merge())
             red = [r for r in red if r.startswith("tests/known_gaps.toml")]
             red += ratchet.red(partial=bool(partial))
     elif _opt(config, "--retire"):

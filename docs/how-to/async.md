@@ -21,6 +21,8 @@ async def run_code(code: str):
 
 A `Session` has the same method for its turns: `await session.run_async(code)`.
 
+To read the guest's output while it runs, pass `on_output`, or an `OutputFeed` you iterate beside the task. See [Read output while the guest runs](output-while-it-runs.md).
+
 ## Cancel a call
 
 To stop a guest, cancel its task. `run_async` has no `cancel` argument; the task's cancellation is the cancel.

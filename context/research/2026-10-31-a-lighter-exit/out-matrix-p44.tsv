@@ -1,0 +1,10 @@
+P44 scandir left open, warnings on	native		ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	plain:today	377920220	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	snapshot:today	105089622	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P44 scandir left open, warnings on	snapshot:F skip if nothing to finalize [None]	59877793	ok	0		x.txt:0 y.txt:0
+P44 scandir left open, warnings on	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	453865628	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	native		ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	plain:today	488954975	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	snapshot:today	105099257	ok	0	ResourceWarning	x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	snapshot:F skip if nothing to finalize [None]	59940109	ok	0		x.txt:0 y.txt:0
+P45 scandir hung on a pre-imported module	plain:F skip if nothing to finalize [a class with __del__ whose instances are untracked]	592862313	ok	0	ResourceWarning	x.txt:0 y.txt:0

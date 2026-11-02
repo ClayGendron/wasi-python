@@ -1,0 +1,3 @@
+tests/image/test_image.py::DescribeImage::it_can_construct_from_an_image_blob
+tests/image/test_image.py::DescribeImage::it_can_construct_from_an_image_path
+tests/image/test_jpeg.py::Describe_App1Marker::it_gets_a_tiff_from_its_Exif_segment_to_help_construct

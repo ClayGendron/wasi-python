@@ -7,12 +7,20 @@ scikit-learn gives native scikit-learn's answers serially: no OpenMP, joblib in 
 calling thread, its datasets and style sheets read from the zip (one carried patch), and what the
 sandbox lacks raised by name. statsmodels gives native statsmodels' answers, its
 public-domain datasets read from the zip (one carried patch), the thirteen left out raising
-FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised."""
+FileNotFoundError, both formula engines in pure Python, and what the sandbox lacks raised.
+python-docx and python-pptx start from their default templates, read from the zip through one
+carried patch each, and write Word and PowerPoint files with native Python's output.
+pdfplumber reads text and tables with native Python's output, pdfminer.six without cryptography
+until a file needs AES (one carried patch), and page images name pypdfium2; xarray aligns, groups,
+interpolates and writes netCDF3 with native Python's output. drawsvg draws SVG, HTML and
+animations with native Python's output, and its parts the set lacks fail by name."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -38,6 +46,16 @@ def test_files_from_the_zip_job_matches_native(guest) -> None:
     Equal output shows the patches change no result on these calls; the Styler check
     below shows the patched branch served them."""
     _job(guest, "files_from_the_zip")
+
+
+@pytest.mark.slow
+def test_documents_job_matches_native(guest) -> None:
+    """python-docx writes a Word document (a heading, bold and italic runs, a table, a picture, a
+    section's own header and footer, and a comment) and python-pptx a deck (a title slide, a
+    bullet slide, a table, a column chart, a picture and a notes slide), each from its default
+    template; each file is saved, reopened and read back as native Python reads it. Equal output
+    shows the patches change no result on these calls."""
+    _job(guest, "documents")
 
 
 @pytest.mark.slow
@@ -107,6 +125,40 @@ def test_pdf_reports_job_matches_native(guest) -> None:
     Unicode text in DejaVu Sans and a matplotlib image, each PDF's bytes (built invariant and
     uncompressed) or pypdf's read-back equal to the oracle's."""
     _job(guest, "pdf_reports", **MPL)
+
+
+@pytest.mark.slow
+def test_pdf_tables_job_matches_native(guest) -> None:
+    """reportlab draws a two-page ruled table; pdfplumber reads each page's text, its words'
+    boxes, its ruling lines and its tables, and opens a copy pypdf encrypted with RC4 by its
+    password, all as native pdfplumber does."""
+    _job(guest, "pdf_tables")
+
+
+@pytest.mark.slow
+def test_vector_drawings_job_matches_native(guest) -> None:
+    """drawsvg draws its README drawing, a native SVG animation with playback controls, frame
+    callbacks, 1,000 circles, an embedded PNG and a clip path and mask, as SVG and HTML with
+    native drawsvg's bytes. drawsvg ships no tests, so this holds the guest's interpreter to
+    native's on drawsvg's code: the two agree, which is not to say the SVG is right."""
+    _job(guest, "vector_drawings")
+
+
+@pytest.mark.slow
+def test_plotly_figures_job_matches_native(guest) -> None:
+    """plotly builds a graph-objects figure and an express scatter of its iris dataset, reads its
+    tips, gapminder and election datasets, and writes JSON, an HTML fragment, an offline page with
+    plotly.js inside and a page that loads it from the CDN, as native plotly does; `to_image`
+    fails as natively without kaleido."""
+    _job(guest, "plotly_figures")
+
+
+@pytest.mark.slow
+def test_labelled_arrays_job_matches_native(guest) -> None:
+    """xarray aligns two arrays on their labels, groups, rolls, resamples and interpolates through
+    scipy, round-trips a DataFrame and netCDF3 bytes, and draws its HTML view from the package's
+    files, as native xarray does; an absent engine and the tutorial data fail by name."""
+    _job(guest, "labelled_arrays")
 
 
 PURE = """
@@ -384,6 +436,130 @@ def test_networkx_atlas_reads_from_the_zip(guest, which) -> None:
     the patch, `gzip.open` refuses the zip's Traversable with TypeError."""
     findings = _findings(guest, which, ATLAS)
     assert not findings, scan.report(findings)
+
+
+# python-docx's six template sites and python-pptx's three, each called as the package calls it.
+# A site that returns a path (as an install from files does) is opened, so the check reads what the
+# package would read; each result is hashed. parse_from_template's result is compared with the
+# zip's member parsed by parse_xml, both serialised; the icon by the blob of the image part an OLE
+# object adds. Then a document and a deck are made from the defaults and saved in memory.
+OFFICE = """
+import hashlib, io, json, zipfile
+from lxml import etree
+import docx, pptx
+from docx import api as docx_api
+from docx.parts.comments import CommentsPart
+from docx.parts.hdrftr import FooterPart, HeaderPart
+from docx.parts.settings import SettingsPart
+from docx.parts.styles import StylesPart
+from pptx import api as pptx_api
+from pptx.enum.shapes import PROG_ID
+from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+from pptx.oxml import parse_from_template, parse_xml
+from pptx.util import Inches
+
+def digest(call):
+    try:
+        got = call()
+        if isinstance(got, str):
+            with open(got, "rb") as f:
+                got = f.read()
+        elif not isinstance(got, bytes):
+            got = got.read()
+        return hashlib.sha256(got).hexdigest()
+    except Exception as e:
+        return type(e).__name__
+
+def icon(prog_id):
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.shapes.add_ole_object(io.BytesIO(b"object"), prog_id, Inches(1), Inches(1))
+    (blob,) = [r.target_part.blob for r in slide.part.rels.values() if r.reltype == RT.IMAGE]
+    return blob
+
+def saved(make):
+    try:
+        out = io.BytesIO()
+        make().save(out)
+        return out.getvalue()[:2].decode()
+    except Exception as e:
+        return type(e).__name__
+
+def document():
+    d = docx.Document()
+    d.add_paragraph("body")
+    d.sections[0].header.paragraphs[0].text = "header"
+    d.sections[0].footer.paragraphs[0].text = "footer"
+    d.add_comment(d.paragraphs[0].runs, text="a comment", author="judge")
+    return d
+
+def deck():
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
+    slide.notes_slide.notes_text_frame.text = "notes"
+    return prs
+
+sites = {
+    "docx/templates/default.docx": lambda: docx_api._default_docx_path(),
+    "docx/templates/default-settings.xml": SettingsPart._default_settings_xml,
+    "docx/templates/default-styles.xml": StylesPart._default_styles_xml,
+    "docx/templates/default-comments.xml": CommentsPart._default_comments_xml,
+    "docx/templates/default-footer.xml": FooterPart._default_footer_xml,
+    "docx/templates/default-header.xml": HeaderPart._default_header_xml,
+    "pptx/templates/default.pptx": lambda: pptx_api._default_pptx_path(),
+    "pptx/templates/generic-icon.emf": lambda: icon("Foo.Bar.18"),
+    "pptx/templates/docx-icon.emf": lambda: icon(PROG_ID.DOCX),
+    "pptx/templates/pptx-icon.emf": lambda: icon(PROG_ID.PPTX),
+    "pptx/templates/xlsx-icon.emf": lambda: icon(PROG_ID.XLSX),
+}
+out = {"files": [docx.__file__, pptx.__file__]}
+out["sites"] = {member: digest(call) for member, call in sites.items()}
+out["parsed"] = {}
+with zipfile.ZipFile("/usr/local/lib/python315.zip") as z:
+    for name in ("theme", "notesMaster", "notes"):
+        member = parse_xml(z.read(f"pptx/templates/{name}.xml"))
+        out["parsed"][name] = [
+            digest(lambda: etree.tostring(parse_from_template(name))),
+            digest(lambda: etree.tostring(member)),
+        ]
+out["saved"] = {"docx": saved(document), "pptx": saved(deck)}
+print(json.dumps(out))
+"""
+OFFICE_MEMBERS = (
+    "docx/templates/default.docx",
+    "docx/templates/default-settings.xml",
+    "docx/templates/default-styles.xml",
+    "docx/templates/default-comments.xml",
+    "docx/templates/default-footer.xml",
+    "docx/templates/default-header.xml",
+    "pptx/templates/default.pptx",
+    "pptx/templates/generic-icon.emf",
+    "pptx/templates/docx-icon.emf",
+    "pptx/templates/pptx-icon.emf",
+    "pptx/templates/xlsx-icon.emf",
+)
+
+
+@BINARY
+def test_office_templates_read_from_the_zip(guest, artifacts, which) -> None:
+    """python-docx's and python-pptx's nine template sites each read their template from the zip,
+    the bytes the zip holds (parse_from_template's three XML templates parse to the zip member's
+    tree, and each OLE object's default icon is the zip's), and a document and a deck made from
+    the defaults save in memory, with nothing granted. Both packages are imported from the zip.
+    Without the carried patches each site opens a path inside the zip, and `Document()` and
+    `Presentation()` raise PackageNotFoundError."""
+    r = guest(which, ["-c", OFFICE], root_writable=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    zip_path = "/usr/local/lib/python315.zip/"
+    assert all(f.startswith(zip_path) for f in got["files"]), got["files"]
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        want = {m: hashlib.sha256(z.read(m)).hexdigest() for m in OFFICE_MEMBERS}
+    assert got["sites"] == want
+    assert sorted(got["parsed"]) == ["notes", "notesMaster", "theme"]
+    for name, (template, member) in got["parsed"].items():
+        assert len(template) == 64 and template == member, (name, template, member)
+    assert got["saved"] == {"docx": "PK", "pptx": "PK"}
 
 
 # scikit-learn. Each behaviour check runs as an embedder calls it, nothing
@@ -775,3 +951,202 @@ def test_statsmodels_modules_are_builtin(guest, which) -> None:
     assert len(got["names"]) == SM_MODULES, got["names"]
     assert set(SM_RENAMED) <= set(got["names"]), got["names"]
     assert got["wrong"] == [], got["wrong"]
+
+
+# pdfplumber and pdfminer.six. A one-page PDF, and the same page encrypted with AES-256 (revision
+# 6), whose password check itself runs AES, are written in the program; no file is granted.
+PDF_PAGES = """
+import io, json, sys
+import pdfplumber
+from pdfminer.high_level import extract_text
+out = {"files": [pdfplumber.__file__, sys.modules["pdfminer"].__file__],
+       "cryptography": "cryptography" in sys.modules}
+
+def pdf(objs, trailer=b""):
+    data = bytearray(b"%PDF-1.7\\n")
+    offsets = []
+    for i, o in enumerate(objs, 1):
+        offsets.append(len(data))
+        data += b"%d 0 obj\\n" % i + o + b"\\nendobj\\n"
+    xref = len(data)
+    data += b"xref\\n0 %d\\n0000000000 65535 f \\n" % (len(objs) + 1)
+    for o in offsets:
+        data += b"%010d 00000 n \\n" % o
+    tail = b"trailer\\n<< /Size %d /Root 1 0 R%s >>\\nstartxref\\n%d\\n%%%%EOF\\n"
+    return bytes(data + tail % (len(objs) + 1, trailer, xref))
+
+def zeros(n):
+    return b"<" + b"00" * n + b">"
+
+PAGE = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] >>"]
+AES = (b"<< /Filter /Standard /V 5 /R 6 /Length 256 /P -4 /O " + zeros(48) + b" /U " + zeros(48)
+       + b" /OE " + zeros(32) + b" /UE " + zeros(32) + b" /Perms " + zeros(16)
+       + b" /CF << /StdCF << /CFM /AESV3 /AuthEvent /DocOpen /Length 32 >> >>"
+       + b" /StmF /StdCF /StrF /StdCF >>")
+locked = pdf(PAGE + [AES], b" /Encrypt 4 0 R /ID [" + zeros(16) + b" " + zeros(16) + b"]")
+with pdfplumber.open(io.BytesIO(pdf(PAGE))) as p:
+    page = p.pages[0]
+    out["plain"] = [len(p.pages), page.width, page.height]
+    try:
+        page.to_image()
+    except Exception as e:
+        out["to_image"] = [type(e).__name__, getattr(e, "name", None)]
+out["cryptography after a plain file"] = "cryptography" in sys.modules
+try:
+    pdfplumber.open(io.BytesIO(locked))
+except Exception as e:
+    cause = e.args[0] if e.args else None
+    out["aes"] = [type(e).__name__, type(cause).__name__, getattr(cause, "name", None)]
+try:
+    extract_text(io.BytesIO(locked))
+except Exception as e:
+    out["aes, pdfminer"] = [type(e).__name__, getattr(e, "name", None)]
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_pdfplumber_needs_cryptography_only_for_aes(guest, artifacts, which) -> None:
+    """pdfplumber and pdfminer.six import from the zip without cryptography, which the profile
+    does not carry, and read a plain file; a file encrypted with AES raises ModuleNotFoundError
+    naming it (pdfplumber wraps it in its PdfminerException), and a page image names pypdfium2,
+    which is not carried either. The zip holds none of pdfminer's predefined CJK character maps.
+    Without the carried patch `import pdfplumber` itself raises ModuleNotFoundError."""
+    r = guest(which, ["-c", PDF_PAGES], root_writable=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    zip_path = "/usr/local/lib/python315.zip/"
+    assert all(f.startswith(zip_path) for f in got.pop("files")), r.text
+    assert got == {
+        "cryptography": False,
+        "plain": [1, 200, 100],
+        "to_image": ["ModuleNotFoundError", "pypdfium2"],
+        "cryptography after a plain file": False,
+        "aes": ["PdfminerException", "ModuleNotFoundError", "cryptography"],
+        "aes, pdfminer": ["ModuleNotFoundError", "cryptography"],
+    }, got
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        assert not [n for n in z.namelist() if n.startswith("pdfminer/cmap/")]
+
+
+# xarray reads a netCDF3 file on disk through scipy, which maps a file it is given by path; the
+# guest has no mmap, so the limitations page names the two routes that read it.
+NETCDF_FILE = """
+import json, os
+import numpy as np
+import xarray as xr
+os.makedirs("/work", exist_ok=True)
+ds = xr.Dataset({"a": ("x", np.arange(3.0))}, coords={"x": [10.0, 20.0, 30.0]}, attrs={"t": "u"})
+ds.to_netcdf("/work/a.nc")
+out = {}
+try:
+    xr.open_dataset("/work/a.nc").load()
+    out["by path"] = "read"
+except OSError as e:
+    out["by path"] = str(e)
+with xr.open_dataset("/work/a.nc", mmap=False) as read:
+    out["mmap=False"] = read.load().identical(ds)
+with open("/work/a.nc", "rb") as f, xr.open_dataset(f) as read:
+    out["an open file"] = read.load().identical(ds)
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_xarray_reads_netcdf3_files_without_mmap(guest, which) -> None:
+    """A netCDF3 file written to a folder reads back identical with `mmap=False`, and through an
+    open file; opened by path alone it raises OSError naming mmap, which the guest lacks."""
+    r = guest(which, ["-c", NETCDF_FILE])
+    assert r.exit_code == 0, r.describe()
+    assert json.loads(r.text) == {
+        "by path": "mmap is unavailable on wasm32-wasi",
+        "mmap=False": True,
+        "an open file": True,
+    }, r.text
+
+
+# drawsvg's optional parts: rasterizing works through CairoSVG; the parts the set does not carry
+# fail by name, as natively without them.
+DRAWSVG_LACKS = """
+import json, sys
+import drawsvg as draw
+out = {"files": sorted({m.__file__ for n, m in sys.modules.items() if n.startswith("drawsvg")})}
+d = draw.Drawing(20, 20)
+d.append(draw.Circle(10, 10, 5))
+out["rasterize"] = d.rasterize().png_data[:8].hex()
+try:
+    import drawsvg.color
+except ImportError as e:
+    cause = e.__cause__
+    out["color"] = [type(e).__name__, type(cause).__name__, getattr(cause, "name", None)]
+try:
+    d.embed_google_font("Permanent Marker", text="x")
+except Exception as e:
+    out["google font"] = [type(e).__name__, str(getattr(e, "reason", e))]
+try:
+    import drawsvg.widgets
+except ImportError as e:
+    out["widgets"] = [type(e).__name__, e.name]
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_drawsvg_names_what_the_set_lacks(guest, which) -> None:
+    """drawsvg imports from the zip and draws, and rasterizes to PNG through CairoSVG; what it
+    cannot do here raises a named exception. The colour helpers need pwkit, not carried, so
+    drawsvg raises its ImportError from the missing module's; a Google font raises URLError,
+    since the guest has no ssl module, so no HTTPS handler, and no network; the widgets need
+    ipywidgets."""
+    r = guest(which, ["-c", DRAWSVG_LACKS])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    zip_path = "/usr/local/lib/python315.zip/"
+    files = got.pop("files")
+    assert files and all(f.startswith(zip_path) for f in files), r.text
+    assert got == {
+        "rasterize": "89504e470d0a1a0a",
+        "color": ["ImportError", "ModuleNotFoundError", "pwkit"],
+        "google font": ["URLError", "unknown url type: https"],
+        "widgets": ["ModuleNotFoundError", "ipywidgets"],
+    }, got
+
+
+# plotly reads its validators' table, its datasets and plotly.js from the zip through one carried
+# patch (the golden job shows the results equal native's); its JupyterLab extension and the
+# widget's script stay out, so FigureWidget, which needs anywidget, fails as natively without it.
+PLOTLY_ZIP = """
+import json, sys, zipfile
+import plotly, plotly.graph_objects as go
+out = {"file": plotly.__file__}
+try:
+    go.FigureWidget()
+except ImportError as e:
+    out["FigureWidget"] = ["ImportError", "anywidget" in str(e)]
+with zipfile.ZipFile("/usr/local/lib/python315.zip") as z:
+    names = z.namelist()
+out["left out"] = sorted(
+    n for n in names if n.startswith("plotly/labextension/") or n.endswith("widgetbundle.js")
+)
+out["kept"] = sorted(
+    n for n in ("plotly/validators/_validators.json", "plotly/package_data/plotly.min.js")
+    if n in names
+)
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_plotly_reads_its_data_from_the_zip(guest, which) -> None:
+    """plotly imports from the zip with its validators' table and plotly.js beside it, and without
+    its notebook widget's parts, so FigureWidget raises ImportError naming anywidget."""
+    r = guest(which, ["-c", PLOTLY_ZIP], root_writable=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    assert got.pop("file").startswith("/usr/local/lib/python315.zip/"), r.text
+    assert got == {
+        "FigureWidget": ["ImportError", True],
+        "left out": [],
+        "kept": ["plotly/package_data/plotly.min.js", "plotly/validators/_validators.json"],
+    }, got

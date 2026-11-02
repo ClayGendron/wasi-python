@@ -41,14 +41,17 @@ RUNNER_FILES = (
     "_limits.py",
     "_platform_common.py",
     "_platform_windows.py",
+    "_platform_posix.py",
     "_platform.py",
     "_artifacts.py",
+    "_packages.py",
     "_engines.py",
     "_private_dirs.py",
     "_zip.py",
     "_places.py",
     "_home.py",
     "_outputs.py",
+    "_results.py",
     "_snapshot.py",
     "_call.py",
     "_sessions.py",
@@ -79,8 +82,11 @@ INTERNAL_MODULES = tuple(
 DEFINING = (
     "__init__.py",
     "_artifacts.py",
+    "_packages.py",
     "_places.py",
     "_snapshot.py",
+    "_outputs.py",
+    "_results.py",
     "_call.py",
     "_sessions.py",
     "runner.py",
@@ -715,6 +721,7 @@ def readme_block(text: str) -> tuple[int, str | None]:
 
 
 def annotation_namespace(modules: dict[str, Any]) -> dict[str, Any]:
+    import asyncio
     import builtins
     import collections.abc
     import concurrent.futures
@@ -726,6 +733,7 @@ def annotation_namespace(modules: dict[str, Any]) -> dict[str, Any]:
     ns.update({k: v for k, v in vars(typing).items() if not k.startswith("_")})
     ns.update({k: v for k, v in vars(collections.abc).items() if not k.startswith("_")})
     ns.update(os=os, threading=threading, concurrent=concurrent, Path=pathlib.Path)
+    ns.update(asyncio=asyncio)
     assert concurrent.futures
     for modname in PUBLIC:
         mod = modules[modname]

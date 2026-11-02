@@ -35,11 +35,13 @@ STEPS = (
     "36_xml_libs",
     "37_plot_libs",
     "38_openblas",
+    "39_cairo_libs",
     "40_numpy",
     "50_pandas",
     "53_regex",
     "54_lxml",
     "55_matplotlib",
+    "56_cairocffi",
     "57_scipy",
     "58_sklearn",
     "59_statsmodels",
@@ -1005,9 +1007,15 @@ def _download_tree(root: Path, *, curl: bool, other: bool = False) -> Path:
     (d / "SHA256SUMS").write_text(
         "".join(f"{hashlib.sha256(n.encode()).hexdigest()}  {n}\n" for n in names)
     )
-    for n in ("Python-3.15.0.tar.xz", "zlib-1.3.1.tar.gz"):
+    for n in _present(names):
         (d / n).write_text(n)
     return root
+
+
+def _present(names: list[str]) -> list[str]:
+    """The two pins a test tree holds before the step runs: the line's CPython tarball and zlib's,
+    in the script's order, so the tree follows the pins as they move."""
+    return [n for n in names if n.startswith(("Python-", "zlib-")) and n.endswith((".xz", ".gz"))]
 
 
 def _download(root: Path) -> subprocess.CompletedProcess:
@@ -1030,7 +1038,7 @@ def test_the_download_step_says_what_it_fetched_and_verified(work) -> None:
     lines = out.stdout.splitlines()
     present = [x for x in lines if x.startswith("present ")]
     fetched = [x for x in lines if x.startswith("fetched ")]
-    assert present == ["present Python-3.15.0.tar.xz", "present zlib-1.3.1.tar.gz"]
+    assert present == [f"present {n}" for n in _present(GET.findall(DOWNLOAD.read_text()))]
     n = len(present) + len(fetched)
     assert n > 20
     assert sum(x.endswith(": OK") for x in lines) == n
@@ -1065,10 +1073,10 @@ def test_the_download_step_refuses_without_curl(work) -> None:
 def test_a_download_that_does_not_match_fails_the_step(work) -> None:
     _needs_sh()
     root = _download_tree(work, curl=True)
-    (root / "downloads" / "zlib-1.3.1.tar.gz").write_text("changed")
+    (root / "downloads" / "zlib-1.3.2.tar.gz").write_text("changed")
     out = _download(root)
     assert out.returncode != 0
-    assert "zlib-1.3.1.tar.gz: FAILED" in out.stdout
+    assert "zlib-1.3.2.tar.gz: FAILED" in out.stdout
     assert not any(x.startswith("downloads: ") for x in out.stdout.splitlines())
 
 

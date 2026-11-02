@@ -1,0 +1,1 @@
+cairocffi/test_cairo.py::test_image_bytearray_buffer

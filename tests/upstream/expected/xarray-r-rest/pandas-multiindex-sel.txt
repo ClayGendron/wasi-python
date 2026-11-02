@@ -1,0 +1,1 @@
+xarray/tests/test_indexes.py::TestPandasMultiIndex::test_sel

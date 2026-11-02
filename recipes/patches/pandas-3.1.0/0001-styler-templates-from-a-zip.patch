@@ -1,0 +1,18 @@
+diff --git a/pandas/io/formats/style_render.py b/pandas/io/formats/style_render.py
+index a53c8e9..874d93e 100644
+--- a/pandas/io/formats/style_render.py
++++ b/pandas/io/formats/style_render.py
+@@ -73,7 +73,12 @@ class StylerRenderer:
+ 
+     this_dir = pathlib.Path(__file__).parent.resolve()
+     template_dir = this_dir / "templates"
+-    loader = jinja2.FileSystemLoader(template_dir)
++    if template_dir.is_dir():
++        loader = jinja2.FileSystemLoader(template_dir)
++    else:
++        # pandas was imported from a zip archive, so its templates are not
++        # files on disk. PackageLoader reads them through zipimport.
++        loader = jinja2.PackageLoader("pandas", "io/formats/templates")
+     env = jinja2.Environment(loader=loader, trim_blocks=True)
+     template_html = env.get_template("html.tpl")
+     template_html_table = env.get_template("html_table.tpl")

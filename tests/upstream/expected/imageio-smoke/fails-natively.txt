@@ -1,0 +1,1 @@
+tests/test_pillow.py::test_png_16bit

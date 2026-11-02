@@ -56,6 +56,10 @@ PURE_SUITES = (
     "markupsafe", "tabulate", "charset-normalizer", "networkx", "patsy", "sympy", "mpmath",
     "attrs", "more-itertools", "toolz", "tqdm", "typing-extensions", "joblib", "cloudpickle",
     "threadpoolctl", "narwhals", "seaborn", "reportlab", "formulaic", "interface-meta", "wrapt",
+    "python-docx", "python-pptx",
+    "pdfplumber", "pdfminer-six", "xarray",
+    "tinycss2", "cssselect2", "imageio", "cairocffi", "cairosvg",
+    "plotly",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"
@@ -143,12 +147,38 @@ class FuelFact:
 
 @dataclass(frozen=True)
 class Klass:
+    """Failures of one cause in one group. An ordinary class claims every outcome that fits it and
+    no earlier class, and its list file holds its members. A node-limited class names its tests
+    (`nodes`): it claims theirs alone, before any other class, and those tests must fail or error
+    for its cause in every run; its list is its nodes. It is for tests whose outcome the run's
+    timing chooses among its causes, and nothing else."""
+
     id: str
     group: str
-    outcome: str
+    outcome: str  # "failed" or "error"; empty when `outcomes` names them
     match: str
     reason: str
     closes_with: str
+    nodes: tuple[str, ...] | None = None  # a node-limited class's tests
+    outcomes: tuple[str, ...] = ()  # a node-limited class's outcomes, in place of `outcome`
+
+    def claims(self, outcome: str) -> bool:
+        return outcome in (self.outcomes or (self.outcome,))
+
+
+def klass_of(e: dict) -> Klass:
+    """A class from its TOML table."""
+    nodes = e.get("nodes")
+    return Klass(
+        e["id"],
+        e["group"],
+        e.get("outcome", ""),
+        e["match"],
+        e["reason"],
+        e["closes_with"],
+        None if nodes is None else tuple(nodes),
+        tuple(e.get("outcomes", ())),
+    )
 
 
 @dataclass(frozen=True)
@@ -262,10 +292,7 @@ def from_raw(raw: dict, directory: Path = HERE) -> Config:
             Trap(t["id"], t["node"], t["reason"], t["closes_with"], t.get("group", ""))
             for t in raw.get("trap", [])
         ],
-        expected=[
-            Klass(e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"])
-            for e in raw.get("expected", [])
-        ],
+        expected=[klass_of(e) for e in raw.get("expected", [])],
         fuel_facts=_fuel_facts(raw),
         **tier_fields(raw),
     )
@@ -300,10 +327,7 @@ def _load_regrtest(raw: dict, directory: Path) -> Config:
             )
             for t in raw.get("trap", [])
         ],
-        expected=[
-            Klass(e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"])
-            for e in raw.get("expected", [])
-        ],
+        expected=[klass_of(e) for e in raw.get("expected", [])],
         runner="regrtest",
         component=raw["component"],
         grant=raw["grant"],
@@ -361,6 +385,13 @@ def release_checks(configs: dict[str, Config]) -> set[str]:
 
 def list_path(klass: Klass, expected_dir: Path = EXPECTED) -> Path:
     return expected_dir / klass.group / f"{klass.id}.txt"
+
+
+def class_list(klass: Klass, expected_dir: Path = EXPECTED) -> list[str]:
+    """A class's node ids: a node-limited class's own nodes, any other's list file."""
+    if klass.nodes is not None:
+        return sorted(klass.nodes)
+    return read_list(list_path(klass, expected_dir))
 
 
 def read_list(path: Path) -> list[str]:
@@ -760,14 +791,35 @@ def _profile_ok(profile: str) -> bool:
     return fields.get("derandomize") == "True" and fields.get("database") == "None"
 
 
+def _limited_finding(k: Klass, rx: re.Pattern, outcome: str, node: str, reason: str) -> str:
+    """Why an outcome of a node-limited class's test is not the class's, or "" when it is: the
+    test must fail or error for the class's cause, so a pass, a skip or another cause is a
+    finding, never handed to an ordinary class."""
+    if k.claims(outcome) and rx.search(reason):
+        return ""
+    if outcome in OUTCOMES:
+        return f"unexpected {outcome} {node} — {reason}"
+    return f"{outcome} {node}, which class {k.id} says fails"
+
+
 def judge_group(stream: Stream, run: GuestRun, classes: list[Klass]) -> GroupOutcome:
     findings: list[str] = []
     members: dict[str, list[str]] = {k.id: [] for k in classes}
     compiled = [(k, re.compile(k.match)) for k in classes]
+    limited = {n: (k, rx) for k, rx in compiled if k.nodes is not None for n in k.nodes}
+    ordinary = [(k, rx) for k, rx in compiled if k.nodes is None]
     for outcome, node, reason in stream.outcomes:
+        if node in limited:
+            k, rx = limited[node]
+            finding = _limited_finding(k, rx, outcome, node, reason)
+            if finding:
+                findings.append(finding)
+            else:
+                members[k.id].append(node)
+            continue
         if outcome not in OUTCOMES:
             continue  # pass, skip, xfail, non-strict xpass: upstream's own outcomes
-        k = next((k for k, rx in compiled if k.outcome == outcome and rx.search(reason)), None)
+        k = next((k for k, rx in ordinary if k.claims(outcome) and rx.search(reason)), None)
         if k is not None:
             members[k.id].append(node)
         else:
@@ -921,6 +973,27 @@ def families(configs: dict[str, Config]) -> dict[str, dict[str, Config]]:
     return out
 
 
+def class_shape_errors(k: Klass, runner: str = "pytest") -> list[str]:
+    """A class's outcome keys and nodes: `outcome` or `outcomes`, not both, each failed or error;
+    `outcomes` and `nodes` only on a node-limited class, which names at least one node, sorted and
+    unique, and only in a pytest family, whose judge alone reads them."""
+    name = f"class {k.group}-{k.id}"
+    errors = []
+    if k.outcome and k.outcomes:
+        errors.append(f"{name} names outcome or outcomes, not both")
+    errors += [f"{name}: outcome {o!r}" for o in (k.outcomes or (k.outcome,)) if o not in OUTCOMES]
+    if k.outcomes and k.nodes is None:
+        errors.append(f"{name} names outcomes only with nodes")
+    if k.nodes is not None:
+        if not k.nodes:
+            errors.append(f"{name} names no node")
+        elif list(k.nodes) != sorted(set(k.nodes)):
+            errors.append(f"{name}: its nodes are not sorted and unique")
+        if runner == "regrtest":
+            errors.append(f"{name} names nodes, which only a pytest family's judge reads")
+    return errors
+
+
 def rule_errors(
     configs: dict[str, Config],
     gap_checks: set[str],
@@ -962,18 +1035,26 @@ def rule_errors(
 
         errors += tiers.rule_errors(pkg, cfg, (members or {}).get(pkg))
         seen: set[tuple[str, str]] = set()
+        limited: set[tuple[str, str]] = set()
         for k in cfg.expected:
             if (k.group, k.id) in seen:
                 errors.append(f"{pkg}: class {k.group}-{k.id} is listed twice")
             seen.add((k.group, k.id))
             if k.group not in cfg.groups:
                 errors.append(f"{pkg}: class {k.id} names no group of its package: {k.group}")
-            if k.outcome not in OUTCOMES:
-                errors.append(f"{pkg}: class {k.group}-{k.id}: outcome {k.outcome!r}")
+            errors += [f"{pkg}: {e}" for e in class_shape_errors(k, cfg.runner)]
             try:
                 re.compile(k.match)
             except re.error as e:
                 errors.append(f"{pkg}: class {k.group}-{k.id}: match does not compile: {e}")
+            if k.nodes is not None:
+                for n in k.nodes:
+                    if (k.group, n) in limited:
+                        errors.append(f"{pkg}: {n} is named by two node-limited classes")
+                    limited.add((k.group, n))
+                if k.nodes and class_node(k.group, k.id) not in gap_checks:
+                    errors.append(f"{pkg}: class {k.group}-{k.id} has members but no gap")
+                continue  # its list is its nodes: it has no list file
             f = list_path(k, expected_dir)
             lists.add(f)
             if not f.is_file():

@@ -1,0 +1,5 @@
+snapshot	seg-noplotly.zip	base	78239456	
+snapshot	seg-noplotly.zip	full read	246940483	
+snapshot	seg-noplotly.zip	lazy read	96077143	
+snapshot	seg-noplotly.zip	lazy read + load_all	227201289	
+snapshot	seg-noplotly.zip	lazy eq	524557605	909 7445 True False False ['']

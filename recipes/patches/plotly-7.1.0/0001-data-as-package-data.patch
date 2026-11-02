@@ -1,0 +1,102 @@
+diff --git a/plotly/data/__init__.py b/plotly/data/__init__.py
+index 3bba389..f0dade9 100644
+--- a/plotly/data/__init__.py
++++ b/plotly/data/__init__.py
+@@ -2,7 +2,9 @@
+ Built-in datasets for demonstration, educational and test purposes.
+ """
+ 
+-import os
++import gzip
++import io
++import pkgutil
+ from importlib import import_module
+ 
+ import narwhals.stable.v1 as nw
+@@ -188,17 +190,9 @@ def election_geojson():
+         is an electoral district numerical ID and whose `district` property is the ID and
+         district name.
+     """
+-    import gzip
+     import json
+-    import os
+ 
+-    path = os.path.join(
+-        os.path.dirname(os.path.dirname(__file__)),
+-        "package_data",
+-        "datasets",
+-        "election.geojson.gz",
+-    )
+-    with gzip.GzipFile(path, "r") as f:
++    with _dataset_file("election.geojson.gz") as f:
+         result = json.loads(f.read().decode("utf-8"))
+     return result
+ 
+@@ -397,13 +391,6 @@ def _get_dataset(d, return_type):
+     -------
+     Dataframe of `return_type` type
+     """
+-    filepath = os.path.join(
+-        os.path.dirname(os.path.dirname(__file__)),
+-        "package_data",
+-        "datasets",
+-        d + ".csv.gz",
+-    )
+-
+     if return_type not in AVAILABLE_BACKENDS:
+         msg = (
+             f"Unsupported return_type. Found {return_type}, expected one "
+@@ -424,7 +411,18 @@ def _get_dataset(d, return_type):
+         raise ModuleNotFoundError(msg)
+ 
+     try:
+-        return backend.read_csv(filepath)
++        return backend.read_csv(_dataset_file(d + ".csv.gz"))
+     except Exception as e:
+         msg = f"Unable to read '{d}' dataset due to: {e}"
+         raise Exception(msg).with_traceback(e.__traceback__)
++
++
++def _dataset_file(name):
++    """
++    A gzipped file of package_data/datasets, decompressed as it is read.
++
++    The file is read through the package's loader, so it is found when plotly
++    is imported from a zip archive as well as from a folder.
++    """
++    data = pkgutil.get_data("plotly", "package_data/datasets/" + name)
++    return gzip.GzipFile(fileobj=io.BytesIO(data), mode="rb")
+diff --git a/plotly/validator_cache.py b/plotly/validator_cache.py
+index 7f7f74c..f446af5 100644
+--- a/plotly/validator_cache.py
++++ b/plotly/validator_cache.py
+@@ -1,7 +1,7 @@
+ from _plotly_utils.basevalidators import LiteralValidator
+ import _plotly_utils.basevalidators as basevalidators
+ import json
+-import os.path as opath
++import pkgutil
+ 
+ DERIVED_CLASSES = {
+     "DataValidator": "data",
+@@ -16,16 +16,10 @@ class ValidatorCache(object):
+     @staticmethod
+     def get_validator(parent_path, prop_name):
+         if ValidatorCache._json_cache is None:
+-            # Load the JSON validator params from the file
+-            validator_json_path = opath.join(
+-                opath.dirname(__file__), "validators", "_validators.json"
+-            )
+-            if not opath.exists(validator_json_path):
+-                raise FileNotFoundError(
+-                    f"Validator JSON file not found: {validator_json_path}"
+-                )
+-            with open(validator_json_path, "r") as f:
+-                ValidatorCache._json_cache = json.load(f)
++            # Load the JSON validator params through the package's loader, so
++            # the file is found when plotly is imported from a zip archive
++            validator_json = pkgutil.get_data("plotly", "validators/_validators.json")
++            ValidatorCache._json_cache = json.loads(validator_json)
+ 
+         key = (parent_path, prop_name)
+         if key not in ValidatorCache._cache:

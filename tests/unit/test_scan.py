@@ -311,23 +311,44 @@ def test_a_release_has_its_structural_review(work) -> None:
     ]
 
 
-def test_a_release_has_its_release_notes_review(work) -> None:
+def test_a_releases_notes_are_read_in_its_security_review(work) -> None:
     reviews = work / "reviews"
     reviews.mkdir()
-    assert scan.release_notes_review_errors("0.1.2a1", reviews) == []  # a prerelease: never
-    assert scan.release_notes_review_errors("0.1.1", reviews) == []  # before the reader's notes
-    assert scan.release_notes_review_errors("0.1.2", reviews) == [
-        "0.1.2 is a release; reviews/ has no 0.1.2-release-notes-review-<date>.md"
-    ]
-    write(reviews, "0.1.2-structural-review-2026-11-02.md", "## Verdict\n\nReads.\n")
-    assert len(scan.release_notes_review_errors("0.1.2", reviews)) == 1  # the twin does not count
+    missing = (
+        "0.2.0 is a release; reviews/ has no 0.2.0-security-review-<date>.md with a "
+        "## Release notes section"
+    )
+    assert scan.release_notes_read_errors("0.2.0a1", reviews) == []  # a prerelease: never
+    assert scan.release_notes_read_errors("0.1.1", reviews) == []  # before the reader's notes
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]
+    write(reviews, "0.2.0-security-review-2026-11-02.md", "## Findings\n\nNone.\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]
+    write(reviews, "0.2.0-security-review-2026-11-02.md", "## Release notes\n\n## Verdict\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]  # an empty section
+    write(reviews, "0.2.0-structural-review-2026-11-02.md", "## Release notes\n\nRead.\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]  # the twin does not count
+    write(reviews, "0.2.0-release-notes-review-2026-11-02.md", "## Verdict\n\nReads.\n")
+    assert scan.release_notes_read_errors("0.2.0", reviews) == [missing]  # a file of its own
+    write(
+        reviews, "0.2.0-security-review-2026-11-03.md", "## Release notes\n\nRead.\n\n## Verdict\n"
+    )
+    assert scan.release_notes_read_errors("0.2.0", reviews) == []
+    assert scan.release_notes_read_errors("0.3.0", reviews) == [missing.replace("0.2.0", "0.3.0")]
+
+
+def test_a_release_up_to_0_1_2_may_have_its_notes_read_in_a_file_of_their_own(work) -> None:
+    reviews = work / "reviews"
+    reviews.mkdir()
     write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Findings\n\nNone.\n")
-    assert scan.release_notes_review_errors("0.1.2", reviews) == [
+    assert scan.release_notes_read_errors("0.1.2", reviews) == [
         "0.1.2-release-notes-review-2026-11-02.md: has no ## Verdict section"
     ]
     write(reviews, "0.1.2-release-notes-review-2026-11-02.md", "## Verdict\n\nReads.\n")
-    assert scan.release_notes_review_errors("0.1.2", reviews) == []
-    assert len(scan.release_notes_review_errors("0.2.0", reviews)) == 1  # another version's file
+    assert scan.release_notes_read_errors("0.1.2", reviews) == []
+
+
+def test_the_0_1_2_reviews_pass_the_release_notes_rule_unchanged() -> None:
+    assert scan.release_notes_read_errors("0.1.2", paths.CONTEXT / "reviews") == []
 
 
 NOTES_NEWS = """# 300: a change
@@ -588,7 +609,7 @@ jobs:
     needs: build
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, gather]
+    needs: [build, verify, judged]
     permissions:
       id-token: write
       attestations: write
@@ -604,7 +625,7 @@ jobs:
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, attest, gather]
+    needs: [build, verify, attest, judged]
     permissions:
       contents: write
   pypi:
@@ -619,12 +640,12 @@ BAD_WORKFLOWS = [
     (("  attest:\n", "  other:\n"), "no attest job"),
     ((ATTEST_IF, "  attest:\n    if: always()\n"), "attest's or publish's if:"),
     (
-        ("    needs: [build, verify, gather]\n", "    needs: [build]\n"),
+        ("    needs: [build, verify, judged]\n", "    needs: [build]\n"),
         "attest does not need build,",
     ),
     (
-        ("    needs: [build, verify, gather]\n", "    needs: [build, verify]\n"),
-        "attest does not need build, verify and gather",
+        ("    needs: [build, verify, judged]\n", "    needs: [build, verify]\n"),
+        "attest does not need build, verify and judged",
     ),
     (("      contents: read\n", "      contents: write\n"), "attest's permissions are not"),
     (
@@ -649,12 +670,12 @@ BAD_WORKFLOWS = [
         "publish has id-token: write or write-all",
     ),
     (
-        ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, gather]\n"),
-        "publish does not need attest and gather",
+        ("    needs: [build, verify, attest, judged]\n", "    needs: [build, verify, judged]\n"),
+        "publish does not need attest and judged",
     ),
     (
-        ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, attest]\n"),
-        "publish does not need attest and gather",
+        ("    needs: [build, verify, attest, judged]\n", "    needs: [build, verify, attest]\n"),
+        "publish does not need attest and judged",
     ),
     # Ways around the first scan.
     (
@@ -662,13 +683,13 @@ BAD_WORKFLOWS = [
         "no actions/attest step pinned by a 40-hex commit",
     ),
     (
-        ("    needs: [build, verify, gather]\n", "    needs: [build]  # verify, gather\n"),
+        ("    needs: [build, verify, judged]\n", "    needs: [build]  # verify, judged\n"),
         "attest does not need build,",
     ),
     (
         (
-            "    needs: [build, verify, gather]\n",
-            "    needs: [build, verify, gather]\n    continue-on-error: true\n",
+            "    needs: [build, verify, judged]\n",
+            "    needs: [build, verify, judged]\n    continue-on-error: true\n",
         ),
         "attest has a job-level continue-on-error:",
     ),
@@ -823,7 +844,7 @@ def _rebuild_job(job: str, runner: str, minutes: int, cond: str) -> str:
       - name: The runner's own tools
         run: |
           uname -srm
-          nproc
+          getconf _NPROCESSORS_ONLN
           ls /proc/sys/fs/binfmt_misc/
           python3 --version
       - uses: astral-sh/setup-uv@{PIN} # v10.3.0
@@ -894,12 +915,12 @@ jobs:
           echo "release-assets: artifact $ASSETS_ID, digest $ASSETS_DIGEST"
           cat release-assets/SHA256SUMS
 """
-    + _rebuild_job("build-shard", "ubuntu-24.04-arm", 120, "needs.plan.outputs.build == 'true'")
+    + _rebuild_job("rebuild-macos-arm64", "macos-15", 120, "needs.plan.outputs.rebuild == 'true'")
     + _rebuild_job(
         "rebuild-linux-x86-64", "ubuntu-24.04", 120, "needs.plan.outputs.rebuild == 'true'"
     )
     + """  same-bytes:
-    needs: [plan, build, build-shard, rebuild-linux-x86-64]
+    needs: [plan, build, rebuild-macos-arm64, rebuild-linux-x86-64]
     if: needs.plan.outputs.rebuild == 'true'
     runs-on: ubuntu-24.04
     permissions:
@@ -909,8 +930,8 @@ jobs:
     + READ_ASSETS
     + """      - name: The rebuild jobs handed on artifact ids
         env:
-          ARM64_SUMS_ID: ${{ needs.build-shard.outputs.sums-id }}
-          ARM64_WHEEL_ID: ${{ needs.build-shard.outputs.wheel-id }}
+          ARM64_SUMS_ID: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}
+          ARM64_WHEEL_ID: ${{ needs.rebuild-macos-arm64.outputs.wheel-id }}
           X86_64_SUMS_ID: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
           X86_64_WHEEL_ID: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
         run: |
@@ -920,19 +941,19 @@ jobs:
             esac
           done
 """
-    + _rebuild_download("build-shard", "sums-id", "rebuilds", "ubuntu-24.04-arm")
-    + _rebuild_download("build-shard", "wheel-id", "rebuilt-wheels", "ubuntu-24.04-arm")
+    + _rebuild_download("rebuild-macos-arm64", "sums-id", "rebuilds", "macos-15")
+    + _rebuild_download("rebuild-macos-arm64", "wheel-id", "rebuilt-wheels", "macos-15")
     + _rebuild_download("rebuild-linux-x86-64", "sums-id", "rebuilds", "ubuntu-24.04")
     + _rebuild_download("rebuild-linux-x86-64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04")
     + """      - name: Every rebuild's SHA256SUMS is the set's
         run: |
           sums=set/SHA256SUMS
-          for runner in ubuntu-24.04-arm ubuntu-24.04; do
+          for runner in macos-15 ubuntu-24.04; do
             cmp "$sums" "rebuilds/$runner/SHA256SUMS"
           done
       - name: The wheel is the wheel each host rebuilt
         run: |
-          for r in ubuntu-24.04-arm ubuntu-24.04; do
+          for r in macos-15 ubuntu-24.04; do
             cmp -s "$wheel" "rebuilt-wheels/$r/$(basename "$wheel")"
           done
   verify:
@@ -942,9 +963,10 @@ jobs:
     steps:
 """
     + READ_ASSETS
-    + """  weekly-issue:
+    + """  red-run-issue:
     permissions:
       issues: write
+      actions: read
     steps:
       - name: Open the issue, or comment on the open one
         env:
@@ -953,7 +975,7 @@ jobs:
           gh issue create --title "$title" --body "$body"
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, gather]
+    needs: [build, verify, same-bytes, judged]
     permissions:
       id-token: write
       attestations: write
@@ -970,7 +992,7 @@ jobs:
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, attest, gather]
+    needs: [build, verify, same-bytes, attest, judged]
     environment: release
     permissions:
       contents: write
@@ -1030,8 +1052,8 @@ def test_the_release_workflow_passes_every_release_scan() -> None:
 
 
 REBUILD_GUARD_LOOP = '"$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"'
-ARM_SUMS = "artifact-ids: ${{ needs.build-shard.outputs.sums-id }}"
-FIRST_REBUILD_PATH = "          path: rebuilds/ubuntu-24.04-arm\n"
+ARM_SUMS = "artifact-ids: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}"
+FIRST_REBUILD_PATH = "          path: rebuilds/macos-15\n"
 
 UPLOAD = "      - name: Upload the wheel through trusted publishing\n"
 
@@ -1127,14 +1149,14 @@ BAD_BINDINGS = [
             "      - uses: actions/attest@",
             "      - name: The rebuild handed on an id\n"
             "        env:\n"
-            "          R_ID: ${{ needs.build-shard.outputs.sums-id }}\n"
+            "          R_ID: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}\n"
             "        run: |\n"
             '          case "$R_ID" in\n'
             '            "" | *[!0-9]*) echo "no id"; exit 1 ;;\n'
             "          esac\n"
             f"      - uses: actions/download-artifact@{PIN} # v8.0.2\n"
             "        with:\n"
-            "          artifact-ids: ${{ needs.build-shard.outputs.sums-id }}\n"
+            "          artifact-ids: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}\n"
             "          path: release-assets\n"
             "          digest-mismatch: error\n"
             "      - uses: actions/attest@",
@@ -1145,7 +1167,7 @@ BAD_BINDINGS = [
     (
         (
             "same-bytes",
-            "          path: rebuilt-wheels/ubuntu-24.04-arm\n",
+            "          path: rebuilt-wheels/macos-15\n",
             "          path: release-assets\n",
         ),
         {16},
@@ -1198,7 +1220,7 @@ BAD_BINDINGS = [
         ),
         {19},
     ),
-    (("weekly-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
+    (("red-run-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
     # PyPI's upload: the pinned uv, trusted publishing alone, no container, no env.
     (
         (
@@ -1372,7 +1394,7 @@ OTHER_SPELLINGS = [
 
 @pytest.mark.parametrize("spelling", OTHER_SPELLINGS)
 def test_rule_16_reads_the_download_path_as_a_path(spelling) -> None:
-    old = "          path: rebuilt-wheels/ubuntu-24.04-arm\n"
+    old = "          path: rebuilt-wheels/macos-15\n"
     changed = _in_job(RELEASE_WORKFLOW, "same-bytes", old, f"          path: {spelling}\n")
     assert _rules(_binding(changed)) == {16}
 
@@ -1380,13 +1402,13 @@ def test_rule_16_reads_the_download_path_as_a_path(spelling) -> None:
 @pytest.mark.parametrize(
     "spelling",
     [
-        "./rebuilt-wheels/ubuntu-24.04-arm",
-        "${{ github.workspace }}/rebuilt-wheels/ubuntu-24.04-arm",
-        '"rebuilt-wheels/ubuntu-24.04-arm"',
+        "./rebuilt-wheels/macos-15",
+        "${{ github.workspace }}/rebuilt-wheels/macos-15",
+        '"rebuilt-wheels/macos-15"',
     ],
 )
 def test_rule_16_lets_another_spelling_of_a_rebuild_folder_through(spelling) -> None:
-    old = "          path: rebuilt-wheels/ubuntu-24.04-arm\n"
+    old = "          path: rebuilt-wheels/macos-15\n"
     changed = _in_job(RELEASE_WORKFLOW, "same-bytes", old, f"          path: {spelling}\n")
     assert _binding(changed) == []
 
@@ -1437,23 +1459,23 @@ def test_a_checkout_of_another_ref_is_named() -> None:
 
 # (job, old, new) -> the first breach the rebuild gate names.
 BAD_REBUILDS = [
-    (("build-shard", "build-shard:", "build-arm64:"), "no build-shard job"),
+    (("rebuild-macos-arm64", "rebuild-macos-arm64:", "build-arm64:"), "no rebuild-macos-arm64 job"),
     (("same-bytes", "same-bytes:", "same-bits:"), "no same-bytes job"),
     (
-        ("rebuild-linux-x86-64", "    runs-on: ubuntu-24.04\n", "    runs-on: ubuntu-24.04-arm\n"),
+        ("rebuild-linux-x86-64", "    runs-on: ubuntu-24.04\n", "    runs-on: macos-15\n"),
         "rebuild-linux-x86-64 does not run on ubuntu-24.04",
     ),
     (
-        ("build-shard", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
-        "build-shard's timeout-minutes is not 120",
+        ("rebuild-macos-arm64", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
+        "rebuild-macos-arm64's timeout-minutes is not 120",
     ),
     (
         ("rebuild-linux-x86-64", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
         "rebuild-linux-x86-64's timeout-minutes is not 120",
     ),
     (
-        ("build-shard", "    if: needs.plan.outputs.build == 'true'\n", ""),
-        "build-shard's if: is not the plan's",
+        ("rebuild-macos-arm64", "    if: needs.plan.outputs.rebuild == 'true'\n", ""),
+        "rebuild-macos-arm64's if: is not the plan's",
     ),
     (
         (
@@ -1463,22 +1485,25 @@ BAD_REBUILDS = [
         ),
         "rebuild-linux-x86-64's if: is not the plan's",
     ),
-    (("build-shard", "          nproc\n", ""), "build-shard's tools step does not print nproc"),
+    (
+        ("rebuild-macos-arm64", "          getconf _NPROCESSORS_ONLN\n", ""),
+        "rebuild-macos-arm64's tools step does not print the core count",
+    ),
     (
         ("rebuild-linux-x86-64", "          ls /proc/sys/fs/binfmt_misc/\n", ""),
         "rebuild-linux-x86-64's tools step does not print binfmt_misc",
     ),
     (
-        ("build-shard", "run: scripts/build.sh", "run: echo"),
-        "build-shard does not run scripts/build.sh",
+        ("rebuild-macos-arm64", "run: scripts/build.sh", "run: echo"),
+        "rebuild-macos-arm64 does not run scripts/build.sh",
     ),
     (
         ("rebuild-linux-x86-64", "name: rebuild-ubuntu-24.04\n", "name: rebuild\n"),
         "rebuild-linux-x86-64 does not upload build/artifacts/SHA256SUMS",
     ),
     (
-        ("build-shard", "      - id: wheel\n", "      - id: wheels\n"),
-        "build-shard does not upload dist/wasi_python-*.whl",
+        ("rebuild-macos-arm64", "      - id: wheel\n", "      - id: wheels\n"),
+        "rebuild-macos-arm64 does not upload dist/wasi_python-*.whl",
     ),
     (
         ("rebuild-linux-x86-64", "wheel-id: ${{ steps.wheel.", "wheel-id: ${{ steps.sums."),
@@ -1509,7 +1534,7 @@ BAD_REBUILDS = [
         "same-bytes's permissions are more than",
     ),
     (
-        ("same-bytes", "build-shard, rebuild-linux-x86-64]", "build-shard]"),
+        ("same-bytes", "rebuild-macos-arm64, rebuild-linux-x86-64]", "rebuild-macos-arm64]"),
         "same-bytes does not need build and both",
     ),
     (
@@ -1519,8 +1544,8 @@ BAD_REBUILDS = [
     # The x86_64 job's id downloaded into the arm64 job's folder.
     (
         ("same-bytes", ARM_SUMS, "artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}"),
-        "same-bytes does not download build-shard's SHA256SUMS by id into "
-        "rebuilds/ubuntu-24.04-arm",
+        "same-bytes does not download rebuild-macos-arm64's SHA256SUMS by id into "
+        "rebuilds/macos-15",
     ),
     (
         ("same-bytes", "path: rebuilt-wheels/ubuntu-24.04\n", "path: elsewhere\n"),
@@ -1529,31 +1554,31 @@ BAD_REBUILDS = [
     (
         (
             "same-bytes",
-            "for runner in ubuntu-24.04-arm ubuntu-24.04;",
+            "for runner in macos-15 ubuntu-24.04;",
             "for runner in ubuntu-24.04;",
         ),
-        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04-arm",
+        "same-bytes' SHA256SUMS loop does not run over macos-15",
     ),
     (
-        ("same-bytes", "for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04-arm;"),
+        ("same-bytes", "for r in macos-15 ubuntu-24.04;", "for r in macos-15;"),
         "same-bytes' wheel loop does not run over ubuntu-24.04",
     ),
     (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
     # The runner's own python3 is named in the log.
     (
-        ("build-shard", "          python3 --version\n", ""),
-        "build-shard's tools step does not print python3 --version",
+        ("rebuild-macos-arm64", "          python3 --version\n", ""),
+        "rebuild-macos-arm64's tools step does not print python3 --version",
     ),
     (
         (
             "attest",
-            "    needs: [build, verify, same-bytes, gather]\n",
-            "    needs: [build, verify, gather]\n",
+            "    needs: [build, verify, same-bytes, judged]\n",
+            "    needs: [build, verify, judged]\n",
         ),
         "attest does not need same-bytes",
     ),
     (
-        ("publish", "same-bytes, attest, gather]", "attest, gather]"),
+        ("publish", "same-bytes, attest, judged]", "attest, judged]"),
         "publish does not need same-bytes",
     ),
 ]
@@ -2086,7 +2111,7 @@ def test_fp_record_scan_requires_every_listed_record_and_lists_every_record(work
     assert len(read) == len(scan.MESON_BUILDS) + len(scan.AUTOCONF_MAKEFILES) + 1 + len(
         scan.LINK_RECORDS
     )
-    assert read[0] == "contourpy-build/compile_commands.json: 1 commands"  # the first, sorted
+    assert read[0] == "cairo-build/compile_commands.json: 1 commands"  # the first, sorted
     # A listed record missing; an unlisted record present; a banned option on one command.
     (build / "pandas-build" / "compile_commands.json").unlink()
     errors, _ = scan.fp_record_errors(work)
@@ -2441,7 +2466,7 @@ ASSETS_IN_GATHER = f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
           digest-mismatch: error
       - name: The gather
 """
-# The build job runs no shard; the build shard is build-shard's.
+# The build job runs no shard; the build shard is the x86-64 rebuild's.
 REC_IN_BUILD = (
     "      - name: The build shard\n"
     "        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest x\n"
@@ -2531,10 +2556,10 @@ BAD_SHARDS = [
         "    timeout-minutes: 30\n    outputs:\n      own-rest-id: x\n",
         "rule 5: judge-linux hands on outputs",
     ),
-    ("attest", "same-bytes, gather]", "same-bytes]", "rule 8: attest"),
+    ("attest", "same-bytes, judged]", "same-bytes]", "rule 8: attest"),
     (
         "gather",
-        "artifact-ids: ${{ needs.build-shard.outputs.record-id }}",
+        "artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.record-id }}",
         "pattern: record-build-*",
         "rule 7: gather does not download",
     ),
@@ -2560,7 +2585,7 @@ BAD_SHARDS = [
     ("judge-macos", "      contents: read\n", "      contents: write\n", "rule 1: judge-macos"),
     ("judge-macos", "    needs: [plan, build]\n", "    needs: build\n", "rule 1: judge-macos"),
     (
-        "build-shard",
+        "rebuild-linux-x86-64",
         '--shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"',
         "",
         "rule 6:",
@@ -2607,9 +2632,9 @@ BAD_SHARDS = [
     (
         "verify",
         "      - name: The wheel, installed fresh, runs a program in one call\n",
-        "      - name: Say own-guest\n        run: echo own-guest\n"
+        "      - name: Say own-guest-a\n        run: echo own-guest-a\n"
         "      - name: The wheel, installed fresh, runs a program in one call\n",
-        "rule 13: the workflow names the shard own-guest",
+        "rule 13: the workflow names the shard own-guest-a",
     ),
     # The set's own SHA256SUMS, from the build to the gather alone.
     ("build", "      set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}\n", "", "rule 6:"),
@@ -2628,7 +2653,14 @@ BAD_SHARDS = [
         "          SET_SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}\n          SET_SOURCE:",
         "rule 7: gather's step",
     ),
-    # The gather is told where the set came from, and reads build-shard's record.
+    # The gather is told where the set came from, whether the build shard ran, and reads the
+    # x86-64 rebuild's record of it.
+    (
+        "gather",
+        "          BUILD: ${{ needs.plan.outputs.build }}\n",
+        "",
+        "rule 7: gather's step",
+    ),
     (
         "gather",
         "          SET_SOURCE: ${{ needs.build.outputs.set-source }}\n",
@@ -2651,7 +2683,21 @@ BAD_SHARDS = [
         "needs.plan.outputs.selected || '' }}\n",
         "rule 7: gather's step",
     ),
-    ("gather", "build-shard, same-bytes, judge-macos", "judge-macos", "rule 7: gather is not"),
+    ("gather", "rebuild-linux-x86-64, judge-macos", "judge-macos", "rule 7: gather is not"),
+    # same-bytes gates publishing, not the gather, which reads records that are complete.
+    (
+        "gather",
+        "rebuild-linux-x86-64, judge-macos",
+        "rebuild-linux-x86-64, same-bytes, judge-macos",
+        "rule 7: gather is not",
+    ),
+    # No judge job is throttled below the plan's own limit.
+    (
+        "judge-release",
+        "      fail-fast: false\n",
+        "      fail-fast: false\n      max-parallel: 18\n",
+        "rule 14: judge-release throttles its legs",
+    ),
     (
         "build",
         "      - name: The wheel\n",
@@ -2748,7 +2794,7 @@ def test_a_gather_holding_the_assets_breaks_rule_16_too() -> None:
     errors = _binding(text)
     assert any(e.startswith("rule 16: gather holds the build's files") for e in errors), errors
     second = ASSETS_IN_GATHER.replace(
-        "needs.build.outputs.assets-id", "needs.build-shard.outputs.record-id"
+        "needs.build.outputs.assets-id", "needs.rebuild-linux-x86-64.outputs.record-id"
     )
     second = second.replace("path: release-assets", "path: release-assets/more")
     text = _in_job(REAL_WORKFLOW, "gather", "      - name: The gather\n", second)
@@ -2758,7 +2804,7 @@ def test_a_gather_holding_the_assets_breaks_rule_16_too() -> None:
     )
 
 
-ARM64_SUMS_IDS = "artifact-ids: ${{ needs.build-shard.outputs.sums-id }}"
+ARM64_SUMS_IDS = "artifact-ids: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}"
 
 
 def test_a_list_of_ids_from_two_jobs_or_with_one_unguarded_is_refused() -> None:
@@ -3422,10 +3468,11 @@ BAD_TIER = [
     ("gather", "          TIER: ${{ needs.plan.outputs.tier }}\n", "", "rule 7: gather's step"),
     # a job after the gather that a branch run reaches, with no status function in its if:
     (
-        "attest",
-        "    if: github.event_name == 'push' && github.ref_type == 'tag'\n",
-        "",
-        "rule 12: attest",
+        "accept-record",
+        "    if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && "
+        "needs.gather.result == 'success' }}\n",
+        "    if: needs.plan.outputs.accept == 'true'\n",
+        "rule 12: accept-record",
     ),
 ]
 
@@ -3465,7 +3512,7 @@ def _ci_plan():
 @pytest.mark.parametrize(
     ("event", "ref", "input_", "tier"),
     [
-        ("push", "refs/tags/v0.1.0", "", "release"),
+        ("push", "refs/tags/v0.1.0", "", ""),
         ("workflow_dispatch", "refs/heads/main", "false", "release"),
         ("workflow_dispatch", "refs/heads/spec/102", "true", "release"),
         ("workflow_dispatch", "refs/heads/spec/102", "false", "normal"),
@@ -3476,8 +3523,9 @@ def _ci_plan():
 )
 def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, tier) -> None:
     """The decision job decides the tier from the event, the ref and the dispatch's input as the
-    runner hands them on: a tag and a run on main always judge the release tier, a dispatch only
-    when its input is exactly true."""
+    runner hands them on: a run on main always judges the release tier, a dispatch only when its
+    input is exactly true, and a pushed tag judges no tier: the release pull request judged its
+    tree."""
     ci_plan = _ci_plan()
     environ = {"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref, "PLAN_RELEASE_TIER": input_}
     e, changed, *_ = ci_plan.from_runner(environ)
@@ -3496,6 +3544,14 @@ BAD_CI_STATUS = [
         "ci-status's one step",
     ),
     ("ci-status", '("success", "skipped")', '("success", "skipped", "cancelled")', "ci-status's"),
+    # A tag whose publish was skipped would be green.
+    (
+        "ci-status",
+        'if os.environ.get("PUBLISH") == "true" and',
+        'if os.environ.get("PUBLISH") == "yes" and',
+        "ci-status's one step",
+    ),
+    ("ci-status", ", same-bytes, judged,", ", same-bytes,", "ci-status does not need"),
     (
         "ci-status",
         "    permissions: {}\n",
@@ -3509,7 +3565,21 @@ BAD_CI_STATUS = [
         "verify does not need the plan",
     ),
     ("inputs", "    needs: plan\n", "", "inputs does not need the plan"),
-]
+    # The review is its own check: ci-status does not wait for it, and it gates on the event.
+    ("ci-status", "    needs: [plan, quick,", "    needs: [plan, review, quick,",
+     "ci-status needs"),
+    ("ci-status", "    needs: [plan, quick,", "    needs: [plan,", "ci-status does not need"),
+    ("review", "    needs: plan\n", "    needs: [plan, quick]\n", "review does not need"),
+    ("review", "github.base_ref == 'dev'", "github.base_ref != 'main'", "review's if:"),
+    ("review", "    if: ${{ always() && ", "    if: ${{ needs.plan.outputs.judge == 'true' && ",
+     "review's if:"),
+    ("review", "    name: review\n", "    name: the review\n", "review is not named review"),
+    ("review", "needs.plan.outputs.review_refusals", "needs.plan.outputs.refusals",
+     "review's one step"),
+    ("review", '[ "$REVIEW_REFUSALS" != "[]" ]', '[ -z "$REVIEW_REFUSALS" ]', "review's one step"),
+    ("plan", "      review_refusals: ${{ steps.plan.outputs.review_refusals }}\n", "",
+     "the plan hands on no review_refusals"),
+]  # fmt: skip
 
 
 @pytest.mark.parametrize(
@@ -3518,6 +3588,149 @@ BAD_CI_STATUS = [
 def test_the_ci_status_scan_names_each_breach(job, old, new, error) -> None:
     errors = scan.ci_status_errors(_in_job(REAL_WORKFLOW, job, old, new))
     assert any(e.startswith(error) for e in errors), errors
+
+
+# A pushed tag's run: each mutant named by tag_run_errors.
+PYPI_LIMIT_STEP = scan.PYPI_LIMIT_STEP
+TAG_PROOF_RUN = 'uv run python tests/harness/gather.py --prove-set "$sums" "$wasm"'
+BAD_TAG_RUN = [
+    ("plan", "      publish: ${{ steps.plan.outputs.publish }}\n", "",
+     "the plan hands on no publish"),
+    ("inputs", " || needs.plan.outputs.rebuild == 'true'", "", "inputs's if:"),
+    ("build", " || needs.plan.outputs.rebuild == 'true'", "", "build's if:"),
+    # The tree held after the compile, or on every run, or not at all.
+    ("build", "        if: github.event_name == 'push' && github.ref_type == 'tag'\n", "",
+     "build does not run"),
+    ("build", " --prove-set --tree-only", " --prove-set", "build does not run"),
+    # The build shard on a tag, with no gather to read its record.
+    ("rebuild-linux-x86-64", "        if: needs.plan.outputs.build == 'true'\n", "",
+     "rebuild-linux-x86-64's step 'The build shard'"),
+    ("judged", "    needs: [plan, build, same-bytes]\n", "    needs: [plan, build]\n",
+     "judged does not need"),
+    ("judged", "    if: needs.plan.outputs.publish == 'true'\n",
+     "    if: needs.plan.outputs.rebuild == 'true'\n", "judged's if:"),
+    ("judged", "fetch-depth: 2", "fetch-depth: 1", "judged does not check out"),
+    # The release assets' SHA256SUMS (which lists the wheel) in place of the set's own.
+    ("judged", 'sha256sum "$1/SHA256SUMS"', "sha256sum release-assets/SHA256SUMS",
+     "judged does not run"),
+    ("judged", TAG_PROOF_RUN, 'uv run python tests/harness/gather.py --prove-set "$sums" "$sums"',
+     "judged does not run"),
+    ("judged", TAG_PROOF_RUN, "uv run python tests/harness/gather.py --prove-set --tree-only",
+     "judged does not run"),
+    ("attest", "same-bytes, judged]", "same-bytes]", "attest does not need judged"),
+    ("publish", "attest, judged]", "attest]", "publish does not need judged"),
+    # The wheel's limit: read from another condition than pypi's, from no variable, or skipped.
+    ("judged", "TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}", "TO_PYPI: ${{ vars.PYPI_PUBLISH }}",
+     "judged does not run 'The wheel is within"),
+    ("judged", "          TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}\n", "",
+     "judged does not run 'The wheel is within"),
+    ("judged", "${{ vars.PYPI_FILE_LIMIT_GRANTED }}", "268435456",
+     "judged does not run 'The wheel is within"),
+    ("judged", f"      - name: {PYPI_LIMIT_STEP}\n",
+     f"      - name: {PYPI_LIMIT_STEP}\n        if: vars.PYPI_PUBLISH == 'true'\n",
+     "judged does not run 'The wheel is within"),
+    ("judged", f"      - name: {PYPI_LIMIT_STEP}\n", "      - name: The wheel's size\n",
+     "judged does not run 'The wheel is within"),
+    ("judged", f"      - name: {PYPI_LIMIT_STEP}\n",
+     f"      - name: {PYPI_LIMIT_STEP}\n        continue-on-error: true\n",
+     "judged does not run 'The wheel is within"),
+]  # fmt: skip
+
+
+def test_the_real_workflow_holds_the_tag_run_rules() -> None:
+    assert scan.tag_run_errors(REAL_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_TAG_RUN, ids=[b[3] for b in BAD_TAG_RUN]
+)
+def test_the_tag_run_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.tag_run_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+# The build, the rebuilds and the gather's needs, as the reuse rules hold them.
+SET_CACHE_WORKFLOW = (paths.REPO / ".github" / "workflows" / "set-cache.yml").read_text()
+ZERO_PATCH_NAME = "      - name: The source trees are their tarballs plus the recorded patches\n"
+SHARD_NAME = "      - name: The build shard\n"
+
+
+def _reuse_errors(text: str) -> list[str]:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "set_key_for_the_reuse_rules", paths.REPO / "release" / "set_key.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return scan.release_reuse_errors(text, SET_CACHE_WORKFLOW, mod.ENV)
+
+
+def _shard_after_the_wheel(text: str) -> str:
+    """The x86_64 rebuild with its build shard moved after its wheel, whose copy into src/ would
+    make the record's tree unclean."""
+    wheel = "      - id: wheel\n"
+    start = text.index("\n  rebuild-linux-x86-64:\n")
+    begin = text.index(SHARD_NAME, start)
+    step = text[begin : text.index("      - ", begin + len(SHARD_NAME))]
+    rest = text[:begin] + text[begin + len(step) :]
+    at = rest.index(wheel, start)
+    return rest[:at] + step + rest[at:]
+
+
+BAD_REUSE = [
+    ("build", "    needs: [plan, inputs]\n", "    needs: [plan, inputs, quick]\n",
+     "R3: build does not need the plan and inputs alone"),
+    ("build", "'ubuntu-24.04' || 'ubuntu-24.04-arm' }}",
+     "'ubuntu-24.04' || needs.plan.outputs.rebuild == 'true' && 'macos-15'"
+     " || 'ubuntu-24.04-arm' }}",
+     "R3: build's runs-on"),
+    ("rebuild-linux-x86-64", "          fetch-depth: 0 # the build shard's rules read the"
+     " checkout's history\n", "", "R4: rebuild-linux-x86-64 does not check out the whole history"),
+    ("rebuild-linux-x86-64", ZERO_PATCH_NAME, "      - name: The trees\n",
+     "R4: rebuild-linux-x86-64 does not run, in order"),
+    ("rebuild-macos-arm64", ZERO_PATCH_NAME, "      - name: The trees\n",
+     "R4: rebuild-macos-arm64 does not run, in order"),
+    ("rebuild-macos-arm64", "            -k test_source_tree_matches_its_tarball",
+     "            -k test_source_tree", "R4: rebuild-macos-arm64's zero-patch step is not"),
+    ("rebuild-macos-arm64", "    needs: plan\n", "    needs: [plan, build]\n",
+     "R4: rebuild-macos-arm64 needs another job than the plan"),
+    ("rebuild-linux-x86-64", "--shard=build --progress-latest",
+     "--shard=build -k tree --progress-latest",
+     "R4: rebuild-linux-x86-64's step 'The build shard' does not run the build shard alone"),
+    ("gather", "rebuild-linux-x86-64, judge-macos", "rebuild-linux-x86-64, same-bytes, judge-macos",
+     "R6: gather does not need rebuild-linux-x86-64, or needs same-bytes"),
+    ("gather", "build, rebuild-linux-x86-64, judge-macos", "build, judge-macos",
+     "R6: gather does not need rebuild-linux-x86-64"),
+    ("ci-status", "rebuild-macos-arm64, same-bytes, judged", "rebuild-macos-arm64, judged",
+     "R6: ci-status does not need same-bytes"),
+]  # fmt: skip
+
+
+def test_the_real_workflow_holds_the_reuse_rules() -> None:
+    assert _reuse_errors(REAL_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(("job", "old", "new", "error"), BAD_REUSE, ids=[b[3] for b in BAD_REUSE])
+def test_the_reuse_scan_names_each_breach(job, old, new, error) -> None:
+    errors = _reuse_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_a_job_of_its_own_that_builds_from_the_pins_is_named() -> None:
+    """The build shard runs in the x86_64 rebuild: a build-shard job compiling a fourth time is
+    a breach."""
+    start = REAL_WORKFLOW.index("\n  rebuild-macos-arm64:\n")
+    end = REAL_WORKFLOW.index("\n  same-bytes:\n")
+    extra = REAL_WORKFLOW[start:end].replace("  rebuild-macos-arm64:", "  build-shard:", 1)
+    text = REAL_WORKFLOW[:end] + extra + REAL_WORKFLOW[end:]
+    errors = _reuse_errors(text)
+    assert "R4: build-shard builds from the pins, and is not the build or a rebuild" in errors
+
+
+def test_the_build_shard_runs_before_the_x86_64_rebuilds_wheel() -> None:
+    errors = _reuse_errors(_shard_after_the_wheel(REAL_WORKFLOW))
+    assert any(e.startswith("R4: rebuild-linux-x86-64 does not run, in order") for e in errors)
 
 
 def test_a_paths_filter_or_another_concurrency_is_named() -> None:
@@ -3977,12 +4190,11 @@ def test_the_real_workflows_weekly_run_holds() -> None:
     assert scan.weekly_errors(REAL_WORKFLOW) == []
 
 
+def test_the_real_workflows_red_run_issue_holds() -> None:
+    assert scan.red_run_issue_errors(REAL_WORKFLOW) == []
+
+
 BAD_WEEKLY = [
-    ("weekly-issue", "    permissions:\n      issues: write\n",
-     "    permissions:\n      issues: write\n      contents: write\n",
-     "weekly-issue's permissions"),
-    ("weekly-issue", "needs.plan.outputs.weekly == 'true' && ", "", "weekly-issue's if:"),
-    ("weekly-issue", "gh issue comment", "echo", "weekly-issue does not comment"),
     ("accept-record", "needs.plan.outputs.accept == 'true'", "needs.plan.outputs.full == 'true'",
      "accept-record does not run on the plan's accept output"),
 ]  # fmt: skip
@@ -3992,6 +4204,62 @@ BAD_WEEKLY = [
 def test_the_weekly_scan_names_each_breach(job, old, new, error) -> None:
     errors = scan.weekly_errors(_in_job(REAL_WORKFLOW, job, old, new))
     assert any(e.startswith(error) for e in errors), errors
+
+
+BAD_RED_RUN = [
+    ("red-run-issue", "    permissions:\n      issues: write\n",
+     "    permissions:\n      issues: write\n      contents: write\n",
+     "red-run-issue's permissions"),
+    ("red-run-issue", "needs.plan.outputs.weekly == 'true' && ", "", "red-run-issue's if:"),
+    ("red-run-issue", " || (needs.plan.outputs.accept == 'true' && github.event_name == 'push')",
+     "", "red-run-issue's if:"),
+    ("red-run-issue", "gh issue comment", "echo", "red-run-issue does not comment"),
+    ("red-run-issue", "gh issue close", "echo", "red-run-issue does not close"),
+    ("red-run-issue", "needs.gather.result == 'success' && ", "", "red-run-issue's close step"),
+    ("red-run-issue", "        if: ${{ contains(needs.*.result, 'failure') || ",
+     "        if: ${{ ", "red-run-issue's open step"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"),
+    BAD_RED_RUN,
+    ids=[b[3] + str(i) for i, b in enumerate(BAD_RED_RUN)],
+)
+def test_the_red_run_issue_scan_names_each_breach(job, old, new, error) -> None:
+    errors = scan.red_run_issue_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+MERGE_OUTPUTS = {"weekly": "false", "accept": "true"}
+WEEKLY_OUTPUTS = {"weekly": "true", "accept": "false"}
+PULL_REQUEST = {"event_name": "pull_request", "ref": "refs/pull/9/merge", "base_ref": "dev"}
+SCHEDULE = {"event_name": "schedule", "ref": "refs/heads/dev", "ref_type": "branch"}
+
+
+def test_the_red_run_issue_opens_on_a_red_merge_or_weekly_run_and_closes_on_a_green_merge() -> None:
+    def acts(outputs, context, red):
+        return scan.red_run_issue_acts(REAL_WORKFLOW, outputs, context, red)
+
+    assert acts(MERGE_OUTPUTS, PUSH_DEV, red=True) == {"open"}
+    assert acts(MERGE_OUTPUTS, PUSH_DEV, red=False) == {"close"}
+    assert acts(WEEKLY_OUTPUTS, SCHEDULE, red=True) == {"open"}
+    assert acts(WEEKLY_OUTPUTS, SCHEDULE, red=False) == set()
+    quiet = {"weekly": "false", "accept": "false"}
+    assert acts(quiet, PULL_REQUEST, red=True) == set()
+    assert acts(quiet, PUSH_DEV, red=True) == set()
+    # The release pull request accepts too, but it is no push: its red run opens nothing.
+    assert acts(MERGE_OUTPUTS, {**PULL_REQUEST, "base_ref": "main"}, red=True) == set()
+
+
+def test_a_merges_run_whose_plan_failed_opens_the_issue_and_no_other_run_does() -> None:
+    def acts(context):
+        return scan.red_run_issue_acts(REAL_WORKFLOW, {}, context, red=True, plan_failed=True)
+
+    assert acts(PUSH_DEV) == {"open"}
+    assert acts(PULL_REQUEST) == set()
+    assert acts(SCHEDULE) == set()
+    assert acts({**PUSH_DEV, "ref": "refs/tags/v0.1.3", "ref_type": "tag"}) == set()
 
 
 def test_a_workflow_without_the_weekly_input_is_named() -> None:

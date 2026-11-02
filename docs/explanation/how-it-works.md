@@ -67,7 +67,7 @@ You can make a snapshot of your own, too. `make_snapshot` runs your code once in
 
 The standard library and every package's Python code live in one deflated zip of bytecode only, built the same way on every build. The host grants it to the guest read-only, in a folder of its own at `/usr/local/lib`, so the guest finds `/usr/local/lib/python315.zip`. It is never in a writable place. matplotlib's data files travel inside the zip as one inner archive, which the runner extracts and grants read-only.
 
-The reactor reads the zip's directory once per process and answers later imports and resource reads from that one read. The [guest filesystem](../reference/guest-filesystem.md) page lists everything the guest sees.
+The zip's comment holds a table of its top-level folders. The plain reactor reads each folder's part of the zip's directory the first time a program uses that folder, so an empty program reads little of it. The snapshot holds the whole directory, read when it was built. Later imports and resource reads answer from what was read, and the directory is never freed while the instance lives. The [guest filesystem](../reference/guest-filesystem.md) page lists everything the guest sees.
 
 ## The runner and the module cache
 

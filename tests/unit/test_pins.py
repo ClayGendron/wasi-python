@@ -117,13 +117,13 @@ def test_the_cpython_source_is_matched_case_sensitively() -> None:
 
 
 def test_the_real_zlib_tarball_round_trips_and_a_patch_is_caught(work) -> None:
-    tarball = paths.DOWNLOADS / "zlib-1.3.1.tar.gz"
+    tarball = paths.DOWNLOADS / "zlib-1.3.2.tar.gz"
     if not tarball.is_file():
-        pytest.skip("zlib-1.3.1.tar.gz is not downloaded")
+        pytest.skip("zlib-1.3.2.tar.gz is not downloaded")
     assert paths.sha256_file(tarball) == paths.read_pin_list()[tarball.name]
     with tarfile.open(tarball) as t:
         t.extractall(work, filter="data")
-    tree = work / "zlib-1.3.1"
+    tree = work / "zlib-1.3.2"
     assert pins.tree_drift(tarball, tree) == []
     with (tree / "zconf.h").open("a") as f:
         f.write("/* a patch */\n")

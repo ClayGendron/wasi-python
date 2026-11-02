@@ -13,9 +13,10 @@ pinned wheel or sdist the zip takes, and whose tests come from its sdist or its 
 archive) is tied to the bytes that ship at staging: the test source's pin equals the artifact's
 MANIFEST, its tree is the pinned archive with exactly its recorded patches, and every file of the
 package's pinned wheel is the same file in the test source (`tie_skips` names any it lacks, with a
-reason). Such a family may name test-only wheels (`kit_extra`), folders copied into the working
-folder (`cwd_folders`), environment variables (`env`, from a per-family list), flags set on `sys`
-before the package is imported (`sys_flags`), and groups that run items rather than paths: the
+reason). Such a family may name test-only wheels (`kit_extra`), test-side stand-ins for modules a
+test file imports that have no build here (`test_stand_ins`, into its kit), folders copied into the
+working folder (`cwd_folders`), environment variables (`env`, from a per-family list), flags set on
+`sys` before the package is imported (`sys_flags`), and groups that run items rather than paths: the
 docstrings of modules or of whole packages, doctest files, and a module's own `test_*` functions.
 
 numpy's and pandas' configurations, `drive.py` and their guard are untouched: this module reads
@@ -113,6 +114,8 @@ RELEASE_ONLY = "release-only: "
 # A golden job line that stands in for a smoke file: the job, the line, and a word on that line
 JOB_COVER = re.compile(r"job (tests/jobs/[\w.]+\.py):(\d+) (\S+)")
 KIT_EXTRA = paths.REPO / "tests" / "upstream" / "kit-extra.txt"
+# A family's test-side stand-ins: the folder that holds them, relative to the repository.
+STAND_INS = "tests/upstream/stand-ins"
 NONE = "none"  # an empty folder of the stage's judge folder: what an item group collects
 # The flags a family may set on `sys` before its package is imported: sympy's conftest sets
 # `_running_pytest` as its first statement, so its test helpers turn its decorators into pytest's
@@ -231,6 +234,7 @@ class PackageKeys:
     tie_skips: dict[str, str] = field(default_factory=dict)  # a wheel file the source lacks: why
     extra_sources: dict[str, str] = field(default_factory=dict)  # stage folder -> component
     kit_extra: tuple[str, ...] = ()
+    test_stand_ins: dict[str, str] = field(default_factory=dict)  # module -> its stand-in file
     cwd_folders: tuple[str, ...] = ()
     sys_flags: tuple[str, ...] = ()
     doctest_setup: tuple[str, ...] = ()  # module:function, run once before the first example
@@ -336,6 +340,7 @@ def load(raw: dict, directory: Path | None = None) -> upstream.Config:
         tie_skips=dict(raw.get("tie_skips", {})),
         extra_sources=dict(raw.get("extra_sources", {})),
         kit_extra=tuple(raw.get("kit_extra", [])),
+        test_stand_ins=dict(raw.get("test_stand_ins", {})),
         cwd_folders=tuple(raw.get("cwd_folders", [])),
         sys_flags=tuple(raw.get("sys_flags", [])),
         doctest_setup=tuple(raw.get("doctest_setup", [])),
@@ -363,12 +368,7 @@ def load(raw: dict, directory: Path | None = None) -> upstream.Config:
             upstream.Trap(t["id"], t["node"], t["reason"], t["closes_with"], t.get("group", ""))
             for t in raw.get("trap", [])
         ],
-        expected=[
-            upstream.Klass(
-                e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"]
-            )
-            for e in raw.get("expected", [])
-        ],
+        expected=[upstream.klass_of(e) for e in raw.get("expected", [])],
         grant=raw["grant"],
         driver="package",
         component=raw.get("component", ""),
@@ -758,7 +758,24 @@ def stage_extras(cfg: upstream.Config, root: Path) -> list[str]:
             errors.append(f"kit_extra {name} is not in kit-extra.txt")
             continue
         unpack_extra(upstream.WHEELS / entries[name], root / "kit")
+    errors += stand_in_errors(cfg, zip_top_names(d / "python-stdlib.zip"))
+    if not errors:
+        for module, rel in cfg.keys.test_stand_ins.items():
+            shutil.copyfile(paths.REPO / rel, root / "kit" / f"{module}.py")
     (root / "judge" / NONE).mkdir(exist_ok=True)
+    return errors
+
+
+def stand_in_errors(cfg: upstream.Config, top_names: list[str]) -> list[str]:
+    """A family's test-side stand-ins (`test_stand_ins`, a module a test file imports that has no
+    build here) must each be `tests/upstream/stand-ins/<module>.py`, and name no module the
+    product's zip carries, so a stand-in can never take the place of what ships."""
+    errors = []
+    for module, rel in cfg.keys.test_stand_ins.items():
+        if rel != f"{STAND_INS}/{module}.py" or not (paths.REPO / rel).is_file():
+            errors.append(f"test_stand_ins {module}: no {STAND_INS}/{module}.py")
+        elif module in top_names:
+            errors.append(f"test_stand_ins {module}: the product's zip carries {module}")
     return errors
 
 
@@ -1474,9 +1491,12 @@ def rule_errors(
 
 # A test-source family's smoke group is small, and all of them together are: the normal tier runs
 # them at every landing, so it cannot grow a second suite unnoticed. Moving either is a judge
-# change. They bound the test-source families only.
-SMOKE_GROUP_BOUND = 100 * 10**9
-SMOKE_TOTAL_BOUND = 10**12
+# change. They bound the test-source families only. Both rose with the five families of SVG to
+# PNG through cairo (tinycss2, cssselect2, cairocffi, CairoSVG, imageio): a group from 100 G to
+# 110 G for tinycss2's one test file, 105.9 G whole, which a smoke family cannot split by path;
+# the total from 1 T to 1.2 T, their smoke groups measuring 201.3 G together.
+SMOKE_GROUP_BOUND = 110 * 10**9
+SMOKE_TOTAL_BOUND = 12 * 10**11
 
 
 def source_rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
@@ -1516,7 +1536,8 @@ def source_rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None)
     for g in cfg.groups.values():
         if g.smoke is not None and (g.measured or 0) > SMOKE_GROUP_BOUND:
             errors.append(
-                f"{pkg}: smoke group {g.name} measures {g.measured / 1e9:.1f} G, past 100 G"
+                f"{pkg}: smoke group {g.name} measures {g.measured / 1e9:.1f} G, "
+                f"past {SMOKE_GROUP_BOUND / 1e9:.0f} G"
             )
     if members is not None:
         for f in k.cwd_folders:
@@ -1535,7 +1556,10 @@ def smoke_total_errors(configs: dict[str, upstream.Config]) -> list[str]:
         if g.smoke is not None
     )
     if total > SMOKE_TOTAL_BOUND:
-        return [f"the test-source smoke groups measure {total / 1e9:.1f} G together, past 1 T"]
+        return [
+            f"the test-source smoke groups measure {total / 1e9:.1f} G together, "
+            f"past {SMOKE_TOTAL_BOUND / 1e12:.1f} T"
+        ]
     return []
 
 

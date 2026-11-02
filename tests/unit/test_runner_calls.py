@@ -15,7 +15,15 @@ import wasmtime as wt
 
 import wasi_python
 from harness import needs
-from wasi_python import _call, _engines, _home, _platform, _platform_windows, _wasmtime_ffi
+from wasi_python import (
+    _call,
+    _engines,
+    _home,
+    _platform,
+    _platform_posix,
+    _platform_windows,
+    _wasmtime_ffi,
+)
 from wasi_python._fs_table import _Files
 from wasi_python._process import RENEW, process
 
@@ -339,7 +347,7 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
         return lambda signum: table.get(signum, ours)
 
     def ready(machine="x86_64", host=None, handler_base=None, wasmtime_base=lambda: ours):
-        host = _platform._Linux() if host is None else host
+        host = _platform_posix._Linux() if host is None else host
         return host.trap_handlers_ready(machine, handler_base, wasmtime_base)
 
     assert ready(handler_base=bases()) is None
@@ -353,7 +361,7 @@ def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
         raise OSError("dladdr failed")
 
     assert ready(handler_base=broken) == "SIGSEGV"
-    for host in (_platform._Darwin(), _platform_windows._Windows()):
+    for host in (_platform_posix._Darwin(), _platform_windows._Windows()):
         assert ready(host=host, handler_base=broken) is None
 
 

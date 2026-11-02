@@ -35,6 +35,7 @@ JOBS = (
     "pandas_csv",
     "numpy_random",
     "compress",
+    "zstd_files",
     "sqlite",
     "callbacks",
     "pandas_tz",
@@ -66,6 +67,19 @@ JOBS = (
     "pdf_reports",
     # statsmodels (Decision 12)
     "statistical_models",
+    # python-docx and python-pptx from their default templates
+    "documents",
+    # pdfplumber's tables and xarray's labelled arrays
+    "pdf_tables",
+    "labelled_arrays",
+    # drawsvg's vector drawings and animations, as SVG and HTML
+    "vector_drawings",
+    # Pillow's JPEG codec, libjpeg-turbo
+    "jpeg_images",
+    # SVG to PNG and PDF through cairo
+    "svg_to_png",
+    # plotly's figures, HTML and JSON
+    "plotly_figures",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -89,8 +103,18 @@ PLATFORM_BOUND = (
     "machine_learning",
     "statistical_plots",
     "statistical_models",
+    "svg_to_png",
 )
-DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
+# Jobs whose oracle needs C built natively first, and the folder that build leaves for the oracle's
+# PYTHONPATH: svg_to_png runs on a native cairo built from the guest's pins by
+# tests/jobs/oracle/cairo_native.sh, with the zip's own cairocffi and CairoSVG. Until that script
+# has run, the oracle cannot reproduce the job here.
+NATIVE_SITES = {"svg_to_png": paths.BUILD / "cairo-native" / "site"}
+# A small PNG an SVG drawing embeds as a data URI, read from the data folder.
+DATA = {
+    "sales.csv": paths.REPO / "fixtures" / "sales.csv",
+    "swatch.png": paths.REPO / "fixtures" / "swatch.png",
+}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
 # guest does: nothing is built on the host.
 PURE_SDIST = "pyyaml-6.0.3.tar.gz"
@@ -117,6 +141,8 @@ def this_platform() -> str:
 
 def reproducible_here(job: str) -> bool:
     """Whether the oracle can reproduce this job's golden on this machine."""
+    if job in NATIVE_SITES and not NATIVE_SITES[job].is_dir():
+        return False
     if job not in PLATFORM_BOUND:
         return True
     f = platform_path(job)
@@ -282,6 +308,12 @@ def run_native(job: str, seed: int, workdir: Path, *, offline: bool = True) -> b
     out.mkdir(parents=True)
     env = oracle_env(seed)
     env["MPLCONFIGDIR"] = str(base / "mplconfig")  # fresh for every run: no font cache carried over
+    if job in NATIVE_SITES:
+        if not NATIVE_SITES[job].is_dir():
+            raise RuntimeError(
+                f"{job}: no {NATIVE_SITES[job]}: run tests/jobs/oracle/cairo_native.sh"
+            )
+        env["PYTHONPATH"] = os.pathsep.join([str(NATIVE_SITES[job]), env["PYTHONPATH"]])
     r = subprocess.run(
         oracle_command(str(script(job)), str(data), str(out), offline=offline),
         env=env,

@@ -103,31 +103,37 @@ tests() { # url name [mirror]: a test source, data the judge stages and never bu
 case "$HOST_KEY" in
   MACOS_ARM64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-macos.tar.gz wasi-sdk-34.0-arm64-macos.tar.gz
-    get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-macos.tar.xz wasmtime-v49.0.3-aarch64-macos.tar.xz
-    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
+    get https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-aarch64-macos.tar.xz wasmtime-v50.0.1-aarch64-macos.tar.xz
+    get https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2%2B20261026-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.2+20261026-aarch64-apple-darwin-install_only.tar.gz
     get https://files.pythonhosted.org/packages/ea/45/7f6988070013e16918e39b1b3dab9c5f2c8e404253a7fd10ee685bbd6902/cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
     get https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
     get https://files.pythonhosted.org/packages/bf/67/fcd20a9e78fd6bba952e982a86e98e0240a95a216143eab389cbef045d43/pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl pkgconf-3.0.7.post0-py3-none-macosx_11_0_arm64.whl
     # numpy for the build host, whose f2py writes scipy's Fortran-wrapper C
-    get https://files.pythonhosted.org/packages/78/d9/8c4b3937ef204cb2fd88d389ccd0f265a2ffb11f35a01d2064cf46714bd6/numpy-2.5.2-cp315-cp315-macosx_14_0_arm64.whl numpy-2.5.2-cp315-cp315-macosx_14_0_arm64.whl
+    get https://files.pythonhosted.org/packages/47/c0/d0b335a499a04b65f532c3f034346ef390f81299060f928492dabc1e0272/numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl
+    # cffi for the build host, which writes cairocffi's bindings as C at build time
+    get https://files.pythonhosted.org/packages/0c/75/2f5207ff6d1a613133b23a5203cc0c2a628313b5eb3974d7956ae3c57950/cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl
     ;;
   LINUX_AARCH64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-linux.tar.gz wasi-sdk-34.0-arm64-linux.tar.gz
-    get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-linux.tar.xz wasmtime-v49.0.3-aarch64-linux.tar.xz
-    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.0+20261009-aarch64-unknown-linux-gnu-install_only.tar.gz
+    get https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-aarch64-linux.tar.xz wasmtime-v50.0.1-aarch64-linux.tar.xz
+    get https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2%2B20261026-aarch64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.2+20261026-aarch64-unknown-linux-gnu-install_only.tar.gz
     get https://files.pythonhosted.org/packages/6e/5d/afb6866ab10236bb208dff0f172ea4b397c9693c5250280c4d9d26057218/cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
     get https://files.pythonhosted.org/packages/35/54/7368ce188625e39acc03ee362bb86cc9bfa6ad15e25c50889ae36e2889b3/ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
     get https://files.pythonhosted.org/packages/42/b9/6c5293a5c65de1152db827cffaaede42a001c5913927e1ef2e8e8aae139f/pkgconf-3.0.7.post0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
-    get https://files.pythonhosted.org/packages/43/f3/acb18d8b137a393c8e7803a8c994c9e64bde3930692a69d826993113a159/numpy-2.5.2-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl numpy-2.5.2-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
+    get https://files.pythonhosted.org/packages/b3/02/5dad269b02166965a7b4ca14adaddd75dbee0de42435bfecf561b84ba5a6/numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
+    # cffi for the build host, which writes cairocffi's bindings as C at build time
+    get https://files.pythonhosted.org/packages/e2/31/9e1313b0a6e30e91b3b3d3fff51ae99c857c07738e3afcce1f7334e1b7ab/cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
     ;;
   LINUX_X86_64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz wasi-sdk-34.0-x86_64-linux.tar.gz
-    get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-x86_64-linux.tar.xz wasmtime-v49.0.3-x86_64-linux.tar.xz
-    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-x86_64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.0+20261009-x86_64-unknown-linux-gnu-install_only.tar.gz
+    get https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz wasmtime-v50.0.1-x86_64-linux.tar.xz
+    get https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2%2B20261026-x86_64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.2+20261026-x86_64-unknown-linux-gnu-install_only.tar.gz
     get https://files.pythonhosted.org/packages/c9/aa/4c0b6773ecf6bc1ec6cda7db8312a566611b330fb6dae87d740e44a47822/cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
     get https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     get https://files.pythonhosted.org/packages/6c/eb/4a4fe6c178d4447f3a3189b5fb740a76dc7ef8846a57886270315f22f7ee/pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-    get https://files.pythonhosted.org/packages/a9/bf/a8e9bb0db815a0e265b5744ebedd3af0bd5faad8604e5b50a1cd012f3c91/numpy-2.5.2-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl numpy-2.5.2-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+    get https://files.pythonhosted.org/packages/93/3a/01360c8036822ed9f7aa32189a77d1476567ec1e8e1383522389e4faac45/numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+    # cffi for the build host, which writes cairocffi's bindings as C at build time
+    get https://files.pythonhosted.org/packages/44/16/29e6d01b388bef055ecd6ca8244b3f4d336bd09e92d5d892187b9601084e/cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     # The fallback's compiler: the arm64 Linux
     # SDK's clang, under Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries
     # that clang loads, each a snapshot.debian.org URL, which does not change when Debian moves on.
@@ -148,14 +154,15 @@ get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-s
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libclang_rt-34.0.tar.gz libclang_rt-34.0.tar.gz
 
 # Sources
-get https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz Python-3.15.0.tar.xz
-get https://files.pythonhosted.org/packages/9a/80/db0b4559e57ec36362bedbb05530a87fafbcb6067708c946967a41d449e7/numpy-2.5.2.tar.gz numpy-2.5.2.tar.gz
-get https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz pandas-3.0.6.tar.gz
-get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
-# The C libraries of _bz2, _lzma and _sqlite3: host-neutral sources, like zlib's
+get https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz Python-3.15.2.tar.xz
+get https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz numpy-2.5.4.tar.gz
+get https://files.pythonhosted.org/packages/55/b1/a10c0d1a7e3ce44eb42635771004aa503e3b9ddde0bd39c524dda65f7eff/pandas-3.1.0.tar.gz pandas-3.1.0.tar.gz
+get https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz zlib-1.3.2.tar.gz
+# The C libraries of _bz2, _lzma, _sqlite3 and _zstd: host-neutral sources, like zlib's
 get https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz bzip2-1.0.8.tar.gz
 get https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.gz xz-5.8.4.tar.gz
 get https://sqlite.org/2026/sqlite-autoconf-3540100.tar.gz sqlite-autoconf-3540100.tar.gz
+get https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz zstd-1.5.7.tar.gz
 # regex: its sdist, whose two C files are compiled and whose package goes in the zip
 get https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz regex-2026.9.29.tar.gz
 # matplotlib: the five C libraries at matplotlib 3.11.2's own wrap versions, which give
@@ -169,6 +176,8 @@ get https://github.com/qhull/qhull/archive/v8.0.2/qhull-8.0.2.tar.gz qhull-8.0.2
 get https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz matplotlib-3.11.2.tar.gz
 get https://files.pythonhosted.org/packages/ba/07/bd78e6a8fae171ea041ef5bba3ed21a003522fa088834b069b1909981f30/kiwisolver-1.5.1.tar.gz kiwisolver-1.5.1.tar.gz
 get https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz pillow-13.0.0.tar.gz
+# Pillow's JPEG codec: libjpeg-turbo at Pillow 13.0.0's own pinned version, compiled without SIMD
+get https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz libjpeg-turbo-3.2.0.tar.gz
 # matplotlib's second milestone: contourpy's sdist, whose C++ is compiled
 get https://files.pythonhosted.org/packages/83/5a/a55177dd22553a277388e8a1b3220e92de91bacb28356cdc73caa240121d/contourpy-1.4.0.tar.gz contourpy-1.4.0.tar.gz
 # lxml: libxml2 and libxslt, the newest release of each, and lxml's sdist, whose
@@ -194,7 +203,7 @@ get https://files.pythonhosted.org/packages/b0/79/f0f1ca286b78f6f33c521a36b5cbd5
 
 # Pure-Python packages for the stdlib zip
 get https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl python_dateutil-2.9.0.post0-py2.py3-none-any.whl
-get https://files.pythonhosted.org/packages/94/21/1e5995a1c920cce14e4bffae20c665ec10e7ed03ab25e006cd741092b718/tzdata-2026.5-py2.py3-none-any.whl tzdata-2026.5-py2.py3-none-any.whl
+get https://files.pythonhosted.org/packages/0a/66/9a06c2227fedfd4919f0eaaa8b94377d9730882a7e4f95823c9a331ab5e1/tzdata-2026.6-py2.py3-none-any.whl tzdata-2026.6-py2.py3-none-any.whl
 get https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl six-1.17.0-py2.py3-none-any.whl
 get https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl cycler-0.12.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/38/bb/d215ee7c73b61497b28a5503f9f53523f294fcc936762b7caf90e0c1c2b5/pyparsing-3.3.3-py3-none-any.whl pyparsing-3.3.3-py3-none-any.whl
@@ -206,10 +215,10 @@ get https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e7686
 get https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl et_xmlfile-2.0.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/3a/0c/3662f4a66880196a590b202f0db82d919dd2f89e99a27fadef91c4a33d41/xlsxwriter-3.2.9-py3-none-any.whl xlsxwriter-3.2.9-py3-none-any.whl
 get https://files.pythonhosted.org/packages/1a/62/c8d562e7766786ba6587d09c5a8ba9f718ed3fa8af7f4553e8f91c36f302/xlrd-2.0.2-py2.py3-none-any.whl xlrd-2.0.2-py2.py3-none-any.whl
-get https://files.pythonhosted.org/packages/85/e6/24c944e473c34e818cf1b98085796fcd780465ecfe17663f2bf8fee1958b/pypdf-6.21.1-py3-none-any.whl pypdf-6.21.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/3f/4b/77e8ad4ac42c9d93600f40541a50e9feb3a61d2bbee2d76f659346072051/pypdf-6.21.4-py3-none-any.whl pypdf-6.21.4-py3-none-any.whl
 get https://files.pythonhosted.org/packages/07/6c/aa3f2f849e01cb6a001cd8554a88d4c77c5c1a31c95bdf1cf9301e6d9ef4/defusedxml-0.7.1-py2.py3-none-any.whl defusedxml-0.7.1-py2.py3-none-any.whl
 get https://files.pythonhosted.org/packages/88/c6/92fcd42f1ba33e1184263f25bfabf3d27c383410470f169e4b8163bf9c17/beautifulsoup4-4.15.0-py3-none-any.whl beautifulsoup4-4.15.0-py3-none-any.whl
-get https://files.pythonhosted.org/packages/49/ca/f639c80449997b88aba7bc9705d25dd76cc0844f45f187862fd8f8bb18fa/soupsieve-3.0.3-py3-none-any.whl soupsieve-3.0.3-py3-none-any.whl
+get https://files.pythonhosted.org/packages/07/66/473f7ca0be0b06e38ee8c85ee2db184e3981bd769fac2e7c19c8a8865211/soupsieve-3.0.4-py3-none-any.whl soupsieve-3.0.4-py3-none-any.whl
 get https://files.pythonhosted.org/packages/6c/dd/a834df6482147d48e225a49515aabc28974ad5a4ca3215c18a882565b028/html5lib-1.1-py2.py3-none-any.whl html5lib-1.1-py2.py3-none-any.whl
 get https://files.pythonhosted.org/packages/77/c6/040cbc72480d789a5f40d63fb484d3106554c4dfa2d2b70ad5022057750f/webencodings-0.6.1-py3-none-any.whl webencodings-0.6.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz pyyaml-6.0.3.tar.gz
@@ -236,11 +245,44 @@ get https://files.pythonhosted.org/packages/d1/89/5d4c86da1130d9059681e5b6cd7645
 # pieces of code it vendors (its wheel holds one licence), and reportlab's wheel; both pure Python
 get https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz seaborn-0.13.2.tar.gz
 get https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl reportlab-5.0.1-py3-none-any.whl
+# python-docx and python-pptx: each its sdist, since a pure package that carries a patch comes
+# from its sdist, which also holds the project's own tests; both pure Python
+get https://files.pythonhosted.org/packages/a9/f7/eddfe33871520adab45aaa1a71f0402a2252050c14c7e3009446c8f4701c/python_docx-1.2.0.tar.gz python_docx-1.2.0.tar.gz
+get https://files.pythonhosted.org/packages/52/a9/0c0db8d37b2b8a645666f7fd8accea4c6224e013c42b1d5c17c93590cd06/python_pptx-1.0.2.tar.gz python_pptx-1.0.2.tar.gz
 # statsmodels' formula engine formulaic and its two requirements, each its pure wheel;
 # wrapt's py3-none-any wheel is upstream's pure form, its C file carried as source only
 get https://files.pythonhosted.org/packages/fc/75/0576b03f7889ad25b5385b4f6c69e0543713425a6f193b056c9b0a2e65ce/formulaic-1.2.2-py3-none-any.whl formulaic-1.2.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/a1/d3/20a61a248feb1249cd81f83ce731f0bdf5170ed96a08a298f7081cda9e90/interface_meta-2.0.1-py3-none-any.whl interface_meta-2.0.1-py3-none-any.whl
-get https://files.pythonhosted.org/packages/bc/0c/7da7513ddcc8f1d831ec4bfbedc9f7f174ecb91042bc16916fc1e0d06b22/wrapt-2.5.1-py3-none-any.whl wrapt-2.5.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/77/8b/1ea57b936b70f98e8e7620a352578096d778dbee95b262f73c066d210ffb/wrapt-2.5.2-py3-none-any.whl wrapt-2.5.2-py3-none-any.whl
+# pdfplumber, its pure wheel, and pdfminer.six, which it pins exactly, from its sdist, since it
+# carries a patch; xarray from its sdist, which holds the notices of the code it adapts (its wheel
+# holds one licence); all pure Python
+get https://files.pythonhosted.org/packages/a2/9a/07d658e1e7fad860f1c541ab941348125dbdab773be3a0afaf32361866c7/pdfplumber-0.11.10-py3-none-any.whl pdfplumber-0.11.10-py3-none-any.whl
+get https://files.pythonhosted.org/packages/34/a4/5cec1112009f0439a5ca6afa8ace321f0ab2f48da3255b7a1c8953014670/pdfminer_six-20260107.tar.gz pdfminer_six-20260107.tar.gz
+get https://files.pythonhosted.org/packages/ff/f5/781c70b234f54e0401f4f7c4427a7486da38d50dbb138c7d7c55144b3d86/xarray-2026.9.0.tar.gz xarray-2026.9.0.tar.gz
+# drawsvg, its pure wheel: vector drawings and SMIL animations as SVG and HTML
+get https://files.pythonhosted.org/packages/15/5a/c47c10de42c49a3a9957123d77e5692b56b4fbc342b55285b52c41a8f1c1/drawsvg-2.4.2-py3-none-any.whl drawsvg-2.4.2-py3-none-any.whl
+# SVG to PNG through cairo: pixman, libpng and cairo, built from their release tarballs (libpng's
+# 614 files equal the tree of its tag v1.6.59, whose signature is Cosmin Truta's key
+# 1FED507E3236B4A6E53E922BB292C64843FF5BCF); cffi's sdist, whose C backend is built in, and
+# pycparser, which the build host's cffi reads cairocffi's declarations with; cairocffi and
+# CairoSVG from their sdists; tinycss2, cssselect2 and imageio, each its pure wheel
+get https://www.cairographics.org/releases/pixman-0.46.4.tar.xz pixman-0.46.4.tar.xz
+get https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz libpng-1.6.59.tar.xz
+get https://www.cairographics.org/releases/cairo-1.18.6.tar.xz cairo-1.18.6.tar.xz
+get https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz cffi-2.1.1.tar.gz
+get https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl pycparser-3.12-py3-none-any.whl
+get https://files.pythonhosted.org/packages/70/c5/1a4dc131459e68a173cbdab5fad6b524f53f9c1ef7861b7698e998b837cc/cairocffi-1.7.1.tar.gz cairocffi-1.7.1.tar.gz
+get https://files.pythonhosted.org/packages/c6/80/db62c0a96d2e55282c83524f6b1d02f09c7fd7f612e93bf83e30de1dc75c/cairosvg-2.9.1.tar.gz cairosvg-2.9.1.tar.gz
+get https://files.pythonhosted.org/packages/60/45/c7b5c3168458db837e8ceab06dc77824e18202679d0463f0e8f002143a97/tinycss2-1.5.1-py3-none-any.whl tinycss2-1.5.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/bd/59/6b1daa3b94de8970e2a2787ba73616c2d0675d2f948ef4cad8bef7f21bc6/cssselect2-0.10.1-py3-none-any.whl cssselect2-0.10.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/7d/8a/3b7f62b9df56460959f1b9bef094248d2a4d7f393c5b0d2da8efcdf0e40e/imageio-2.38.1-py3-none-any.whl imageio-2.38.1-py3-none-any.whl
+# plotly from its sdist, since it carries a patch; pure Python. Two notices its files name only by
+# URL: cmocean's licence at the last commit that touched it, and maplibre-gl-js's at the release
+# plotly.js 4.1.1 bundles
+get https://files.pythonhosted.org/packages/49/c3/72b369f5ed7701b04ab0ea3dcf83e9bbce71c0b3bc6f07f87568550d09ea/plotly-7.1.0.tar.gz plotly-7.1.0.tar.gz
+get https://raw.githubusercontent.com/matplotlib/cmocean/501d10ef9ecb3d8f56ac093894b750c8367e044a/LICENSE.txt cmocean-501d10ef-LICENSE.txt
+get https://raw.githubusercontent.com/maplibre/maplibre-gl-js/v6.9.0/LICENSE.txt maplibre-gl-js-v6.9.0-LICENSE.txt
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)
@@ -260,6 +302,9 @@ get https://raw.githubusercontent.com/unicode-org/unicodetools/4fd8eca90b30aa4c7
 # The full MPL-2.0 text tqdm's notice needs: its wheel carries only Exhibit A;
 # SPDX's license-list-data at a commit, so the bytes cannot change
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MPL-2.0.txt spdx-31ba1a50-MPL-2.0.txt
+# The full GPL-3.0 text CairoSVG's LGPL-3.0 builds on, which CairoSVG's own LICENSE does not
+# carry; from the same SPDX commit
+get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/GPL-3.0-only.txt spdx-31ba1a50-GPL-3.0-only.txt
 # The notices of three projects scikit-learn adapts code from with no full notice of their own:
 # numpydoc's docscrape, django's slugify and pytest's lines in
 # sklearn/utils/_testing.py, each at the last commit that touched the file
@@ -271,17 +316,17 @@ get https://raw.githubusercontent.com/pytest-dev/pytest/0d90a31d4a647fa7ba0d53a0
 get https://raw.githubusercontent.com/mne-tools/mne-python/2c4a3b03968a29570f87c3d741d2adc53b35f1dc/LICENSE.txt mne-python-2c4a3b03-LICENSE.txt
 
 # The pure-Python packages' own tests: each sdist, or its release tag's archive where the
-# sdist carries none (named -tag.tar.gz), and pypdf's sample files at the commit its 6.21.1
+# sdist carries none (named -tag.tar.gz), and pypdf's sample files at the commit its 6.21.4
 # tag records for its sample-files submodule. Data only: the judge unpacks and stages them.
 tests https://files.pythonhosted.org/packages/94/36/102e180f8f5dbaee88b26595b01ca8aa80bf4e62128d9aa94265b3996c96/fonttools-4.67.0.tar.gz fonttools-4.67.0.tar.gz
 tests https://files.pythonhosted.org/packages/e4/11/b213bebff182584360cb8d17c72c1677fec5c5c228de439e63bcf8ab1c8f/pyparsing-3.3.3.tar.gz pyparsing-3.3.3.tar.gz
 tests https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz packaging-26.3.tar.gz
 tests https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz python-dateutil-2.9.0.post0.tar.gz
 tests https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz six-1.17.0.tar.gz
-tests https://files.pythonhosted.org/packages/d9/68/f1b440335057bfce71b6e50a9d09445aa2ecbd08359a337976627b8409e7/tzdata-2026.5.tar.gz tzdata-2026.5.tar.gz
-tests https://files.pythonhosted.org/packages/51/e1/32a9c4dbd94618145f8bab5c623bdb0a528f23fc8719afd77ba0278fd377/pypdf-6.21.1.tar.gz pypdf-6.21.1.tar.gz
+tests https://files.pythonhosted.org/packages/7a/29/6a1391d31cd00ff9e927215a224a880e1e84e826b64ba80a499e51c074d8/tzdata-2026.6.tar.gz tzdata-2026.6.tar.gz
+tests https://files.pythonhosted.org/packages/1e/e1/ec8f4d155c997c45917153a5521e60d6ee6389d68abdcbc8e44e564caffc/pypdf-6.21.4.tar.gz pypdf-6.21.4.tar.gz
 tests https://files.pythonhosted.org/packages/43/65/318323f98dbee45d42dff61d8f047181bc6f2268a9068cfad035a46be5af/beautifulsoup4-4.15.0.tar.gz beautifulsoup4-4.15.0.tar.gz
-tests https://files.pythonhosted.org/packages/5e/77/2dcfa996b01702ab8fd0763d84098f6a640d6162a328f1c04c2697579a1a/soupsieve-3.0.3.tar.gz soupsieve-3.0.3.tar.gz
+tests https://files.pythonhosted.org/packages/19/63/0b6bae54546aed98d72f12d09df57b19a287f01c84d22047fa2e23772ab9/soupsieve-3.0.4.tar.gz soupsieve-3.0.4.tar.gz
 tests https://files.pythonhosted.org/packages/ac/b6/b55c3f49042f1df3dcd422b7f224f939892ee94f22abcf503a9b7339eaf2/html5lib-1.1.tar.gz html5lib-1.1.tar.gz
 tests https://files.pythonhosted.org/packages/d5/a0/8fd707bcb776a7be556bad06a2ea5fb9bd519df78ef8e26f70ccf0f38bff/webencodings-0.6.1.tar.gz webencodings-0.6.1.tar.gz
 tests https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz defusedxml-0.7.1.tar.gz
@@ -302,7 +347,7 @@ tests https://files.pythonhosted.org/packages/bf/21/f64d6b2dbea7bf3f8c38cdc786dc
 tests https://files.pythonhosted.org/packages/f1/87/e7b9b39d218793f159d7425e264c0ac196da07f1decc333001502fac02fb/formulaic-1.2.2.tar.gz formulaic-1.2.2.tar.gz
 tests https://files.pythonhosted.org/packages/28/5b/202a48a1ccdef721a95357fbe263c54ef87c18c4972df1ab5c22fe0f33d5/interface_meta-2.0.1.tar.gz interface_meta-2.0.1.tar.gz
 tests https://files.pythonhosted.org/packages/4a/51/dbe28534ae12c852f61be91f039f343305fd1f34f1c66b8de75afae7a525/reportlab-5.0.1.tar.gz reportlab-5.0.1.tar.gz
-tests https://files.pythonhosted.org/packages/04/22/89e2f3bdae5cb34e0cab0cd86d7172dbf418de4b46c9b17b9c7a560dfa44/wrapt-2.5.1.tar.gz wrapt-2.5.1.tar.gz
+tests https://files.pythonhosted.org/packages/9c/b0/f752d19e1e83ab8bd64aeccfde32ff086aee3ef08520f7340b69a8d0a4d2/wrapt-2.5.2.tar.gz wrapt-2.5.2.tar.gz
 tests https://github.com/matplotlib/cycler/archive/refs/tags/v0.12.1.tar.gz cycler-0.12.1-tag.tar.gz
 tests https://github.com/cloudpipe/cloudpickle/archive/refs/tags/v3.1.2.tar.gz cloudpickle-3.1.2-tag.tar.gz
 tests https://github.com/joblib/threadpoolctl/archive/refs/tags/3.7.0.tar.gz threadpoolctl-3.7.0-tag.tar.gz
@@ -311,7 +356,20 @@ tests https://github.com/python-excel/xlrd/archive/refs/tags/2.0.2.tar.gz xlrd-2
 tests https://github.com/jmcnamara/XlsxWriter/archive/refs/tags/RELEASE_3.2.9.tar.gz xlsxwriter-3.2.9-tag.tar.gz
 tests https://foss.heptapod.net/openpyxl/openpyxl/-/archive/3.1.5/openpyxl-3.1.5.tar.gz openpyxl-3.1.5-tag.tar.gz https://github.com/ClayGendron/wasi-python/releases/download/test-sources-2026-10-28/openpyxl-3.1.5-tag.tar.gz
 tests https://foss.heptapod.net/openpyxl/et_xmlfile/-/archive/2.0.0/et_xmlfile-2.0.0.tar.gz et_xmlfile-2.0.0-tag.tar.gz https://github.com/ClayGendron/wasi-python/releases/download/test-sources-2026-10-28/et_xmlfile-2.0.0-tag.tar.gz
-tests https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz pypdf-6.21.1-sample-files-tag.tar.gz
+tests https://github.com/py-pdf/sample-files/archive/818dc013ad1f537198e9fcfae8a6b0dffe25ffa3.tar.gz pypdf-6.21.4-sample-files-tag.tar.gz
+# pdfplumber's and pdfminer.six's release tags: their sdists hold the tests but not the PDF files the
+# tests read
+tests https://github.com/jsvine/pdfplumber/archive/refs/tags/v0.11.10.tar.gz pdfplumber-0.11.10-tag.tar.gz
+tests https://github.com/pdfminer/pdfminer.six/archive/refs/tags/20260107.tar.gz pdfminer_six-20260107-tag.tar.gz
+# The tests of the packages that draw through cairo: tinycss2's, cssselect2's and imageio's sdists,
+# and imageio's test images at one commit, which its suite would clone with git. CairoSVG's own
+# tests are in its sdist (cairosvg/test_api.py), and cairocffi's in its sdist too.
+tests https://files.pythonhosted.org/packages/a3/ae/2ca4913e5c0f09781d75482874c3a95db9105462a92ddd303c7d285d3df2/tinycss2-1.5.1.tar.gz tinycss2-1.5.1.tar.gz
+tests https://files.pythonhosted.org/packages/06/00/2456b6b664c7a770989cbe3c352aac4eb962c938486f03a2e1255ae963c6/cssselect2-0.10.1.tar.gz cssselect2-0.10.1.tar.gz
+tests https://files.pythonhosted.org/packages/f3/cd/69e4ac55b6dafdd2b5f32075236841a3945dea7323d0232d80f28c37cea8/imageio-2.38.1.tar.gz imageio-2.38.1.tar.gz
+tests https://github.com/imageio/test_images/archive/f676c96b1af7e04bb1eed1e4551e058eb2f14acd.tar.gz imageio-test-images-f676c96b-tag.tar.gz
+# plotly's release tag: its sdist holds no tests
+tests https://github.com/plotly/plotly.py/archive/refs/tags/v7.1.0.tar.gz plotly-7.1.0-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

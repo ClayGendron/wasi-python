@@ -1,0 +1,133 @@
+diff --git a/src/docx/api.py b/src/docx/api.py
+index aea87645..c5ea93cc 100644
+--- a/src/docx/api.py
++++ b/src/docx/api.py
+@@ -5,7 +5,8 @@ Provides a syntactically more convenient API for interacting with the OpcPackage
+ 
+ from __future__ import annotations
+ 
+-import os
++import io
++import pkgutil
+ from typing import IO, TYPE_CHECKING, cast
+ 
+ from docx.opc.constants import CONTENT_TYPE as CT
+@@ -31,7 +32,10 @@ def Document(docx: str | IO[bytes] | None = None) -> DocumentObject:
+     return document_part.document
+ 
+ 
+-def _default_docx_path():
+-    """Return the path to the built-in default .docx package."""
+-    _thisdir = os.path.split(__file__)[0]
+-    return os.path.join(_thisdir, "templates", "default.docx")
++def _default_docx_path() -> IO[bytes]:
++    """Return a stream of the built-in default .docx package.
++
++    The template is read through the package's loader, so it is found whether `docx` is
++    installed as files or imported from a zip archive.
++    """
++    return io.BytesIO(cast(bytes, pkgutil.get_data("docx", "templates/default.docx")))
+diff --git a/src/docx/parts/comments.py b/src/docx/parts/comments.py
+index 0e4cc743..89159a5c 100644
+--- a/src/docx/parts/comments.py
++++ b/src/docx/parts/comments.py
+@@ -2,7 +2,7 @@
+ 
+ from __future__ import annotations
+ 
+-import os
++import pkgutil
+ from typing import TYPE_CHECKING, cast
+ 
+ from typing_extensions import Self
+@@ -45,7 +45,4 @@ class CommentsPart(StoryPart):
+     @classmethod
+     def _default_comments_xml(cls) -> bytes:
+         """A byte-string containing XML for a default comments part."""
+-        path = os.path.join(os.path.split(__file__)[0], "..", "templates", "default-comments.xml")
+-        with open(path, "rb") as f:
+-            xml_bytes = f.read()
+-        return xml_bytes
++        return cast(bytes, pkgutil.get_data("docx", "templates/default-comments.xml"))
+diff --git a/src/docx/parts/hdrftr.py b/src/docx/parts/hdrftr.py
+index 35113801..32d540c6 100644
+--- a/src/docx/parts/hdrftr.py
++++ b/src/docx/parts/hdrftr.py
+@@ -2,8 +2,8 @@
+ 
+ from __future__ import annotations
+ 
+-import os
+-from typing import TYPE_CHECKING
++import pkgutil
++from typing import TYPE_CHECKING, cast
+ 
+ from docx.opc.constants import CONTENT_TYPE as CT
+ from docx.oxml.parser import parse_xml
+@@ -27,10 +27,7 @@ class FooterPart(StoryPart):
+     @classmethod
+     def _default_footer_xml(cls):
+         """Return bytes containing XML for a default footer part."""
+-        path = os.path.join(os.path.split(__file__)[0], "..", "templates", "default-footer.xml")
+-        with open(path, "rb") as f:
+-            xml_bytes = f.read()
+-        return xml_bytes
++        return cast(bytes, pkgutil.get_data("docx", "templates/default-footer.xml"))
+ 
+ 
+ class HeaderPart(StoryPart):
+@@ -47,7 +44,4 @@ class HeaderPart(StoryPart):
+     @classmethod
+     def _default_header_xml(cls):
+         """Return bytes containing XML for a default header part."""
+-        path = os.path.join(os.path.split(__file__)[0], "..", "templates", "default-header.xml")
+-        with open(path, "rb") as f:
+-            xml_bytes = f.read()
+-        return xml_bytes
++        return cast(bytes, pkgutil.get_data("docx", "templates/default-header.xml"))
+diff --git a/src/docx/parts/settings.py b/src/docx/parts/settings.py
+index 7fe371f0..fa5c9246 100644
+--- a/src/docx/parts/settings.py
++++ b/src/docx/parts/settings.py
+@@ -2,7 +2,7 @@
+ 
+ from __future__ import annotations
+ 
+-import os
++import pkgutil
+ from typing import TYPE_CHECKING, cast
+ 
+ from docx.opc.constants import CONTENT_TYPE as CT
+@@ -44,7 +44,4 @@ class SettingsPart(XmlPart):
+     @classmethod
+     def _default_settings_xml(cls):
+         """Return a bytestream containing XML for a default settings part."""
+-        path = os.path.join(os.path.split(__file__)[0], "..", "templates", "default-settings.xml")
+-        with open(path, "rb") as f:
+-            xml_bytes = f.read()
+-        return xml_bytes
++        return cast(bytes, pkgutil.get_data("docx", "templates/default-settings.xml"))
+diff --git a/src/docx/parts/styles.py b/src/docx/parts/styles.py
+index 6e065bee..ab463174 100644
+--- a/src/docx/parts/styles.py
++++ b/src/docx/parts/styles.py
+@@ -2,8 +2,8 @@
+ 
+ from __future__ import annotations
+ 
+-import os
+-from typing import TYPE_CHECKING
++import pkgutil
++from typing import TYPE_CHECKING, cast
+ 
+ from docx.opc.constants import CONTENT_TYPE as CT
+ from docx.opc.packuri import PackURI
+@@ -36,7 +36,4 @@ class StylesPart(XmlPart):
+     @classmethod
+     def _default_styles_xml(cls):
+         """Return a bytestream containing XML for a default styles part."""
+-        path = os.path.join(os.path.split(__file__)[0], "..", "templates", "default-styles.xml")
+-        with open(path, "rb") as f:
+-            xml_bytes = f.read()
+-        return xml_bytes
++        return cast(bytes, pkgutil.get_data("docx", "templates/default-styles.xml"))

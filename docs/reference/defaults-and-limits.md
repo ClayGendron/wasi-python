@@ -10,7 +10,8 @@ A *limit* here is a bound the runner enforces on one guest: memory, time, output
 |---|---|---|---|---|---|
 | memory | 1 GiB | bytes of linear memory | `memory_bytes=` | `memory_bytes=` (whole session) | `--memory-bytes` |
 | deadline | 60 | seconds of wall-clock time | `deadline_s=` | `deadline_s=` (each turn), or per turn | `--deadline-s` |
-| output | 16 MiB | bytes kept per stream | `output_bytes=` | `output_bytes=` (each turn), or per turn | `--output-bytes` |
+| output | 16 MiB | bytes kept per stream, and once more for a call's displays under `results=True` | `output_bytes=` | `output_bytes=` (each turn), or per turn | `--output-bytes` |
+| displays | 1,000 | records a call or turn keeps under `results=True`, its value included | not offered | not offered | not offered |
 | fuel | none | guest instructions | `fuel=` | `fuel=` (each turn), or per turn | `--fuel` |
 | open files | 1,024 | files and folders open at once | `max_open_files=` | `max_open_files=` | `--max-open-files` |
 | provider calls | 10,000 | calls to a mount's provider | `max_file_calls=` | `max_file_calls=` (each turn) | not offered |
@@ -42,7 +43,7 @@ Two exceptions:
 |---|---|
 | memory | The guest cannot grow its linear memory past it; an allocation that needs more fails inside the guest. |
 | deadline | The call ends with `trapped == "deadline"`. The deadline holds while the guest sleeps or waits. |
-| output | Bytes past the limit are dropped, and the stream is named in `truncated`. |
+| output | Bytes past the limit are dropped, and the stream is named in `truncated`. A stream keeps its first bytes, or its last under `output_keep="tail"` (`--output-keep tail`), after a line `[N bytes cut]`. At most the limit of each stream is delivered to `on_output`. |
 | fuel | The call ends with `trapped == "out of fuel"`. |
 | open files | The next open answers `EMFILE`, and the guest runs on. |
 | provider calls | The call that would pass the limit is not made; the run ends with `trapped == "out of file calls"`. |
@@ -76,6 +77,10 @@ The runner checks every limit before any work. A value of the wrong type or out 
 The deadline is ten times `run`'s because making a snapshot is a setup step, run once: the image of every package runs about 35 billion instructions. A saved file's header holds at most 17 MiB, and an image at most 4 GiB, the guest's address space.
 
 A call or session from a snapshot holds a private copy of the whole image while it lives, since the copy writes every page: N calls at once hold N times the image, plus the one copy the `Snapshot` holds. The image of every package is 203 MiB. A call's `memory_bytes` must be at least the image's size, else it raises `SnapshotMismatch` before any work.
+
+A session keeps 256 KiB of its `memory_bytes` back, so a turn's code can use the rest; the 256 KiB are let go when the turn's code or its parse meets a full heap, and taken again at the next turn, so the turn after one that filled the heap can still run.
+
+A checkpoint, `Session.checkpoint()`, takes no limit of its own: it arms no deadline and no fuel, and the session's lifetime bounds it. Its image is the session's whole memory, up to the session's `memory_bytes`. A session on the snapshot binary given `artifacts=` hashes the set's snapshot binary and zip once as it opens, about 0.1 s, so a checkpoint can name its set.
 
 A call from a snapshot ends without tearing down the modules the snapshot holds, so its fuel is its own work. Tearing them down, as a call without a snapshot does, would add about 1,546 million instructions to each call from the image of every package.
 

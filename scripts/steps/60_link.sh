@@ -1,24 +1,26 @@
 #!/bin/sh
-# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; contourpy and
-# matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt, scipy and numpy
-# with one OpenBLAS, scikit-learn, statsmodels, zlib, bz2, lzma, sqlite3 and the host door into CPython as
-# builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
-# reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o, and
-# with three link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at iconv_open,
-# recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP as wasi-libc's dup
-# does, and recipes/freopen_refusal.c, which refuses freopen. Last, the static constructors and
-# target features are checked against the judge's reviewed lists, so a build with a constructor no
-# review has read stops here, before step 80 would hang on it. Around the link, two checks of
-# scripts/weak_duplicates.py: before it, no weak definition that two archives share unless a review
-# allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a word;
-# after it, the link map names scikit-learn's renamed random generators and none of the originals.
+# Step 60: link numpy, pandas, the plot packages (Pillow with zlib and JPEG, kiwisolver, matplotlib;
+# contourpy and matplotlib's _qhull with step 37's qhull), regex, lxml with libxml2 and libxslt,
+# scipy and numpy with one OpenBLAS, scikit-learn, statsmodels, cffi's backend and cairocffi's
+# bindings with cairo, zlib, bz2, lzma, sqlite3, zstd and
+# the host door into CPython as builtins through the build-directory Modules/Setup.local, then relink
+# the interpreter as a WASI reactor (build/out/python.wasm) with recipes/reactor_main.c in place of
+# Programs/python.o, and with three link-time refusals: recipes/iconv_refusals.c, which refuses
+# GB18030 at iconv_open, recipes/fcntl_dup_refusal.c, which answers fcntl's two dup commands ENOTSUP
+# as wasi-libc's dup does, and recipes/freopen_refusal.c, which refuses freopen. Last, the static
+# constructors and target features are checked against the judge's reviewed lists, so a build with a
+# constructor no review has read stops here, before step 80 would hang on it. Around the link, two
+# checks of scripts/weak_duplicates.py: before it, no weak definition that two archives share unless
+# a review allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a
+# word; after it, the link map names scikit-learn's renamed random generators and none of the
+# originals.
 set -eu
 . "$(dirname "$0")/common.sh"
 
 L="$B/link"
 # Step 35's archives: a tree built before that step has none, and make would fail
 # with a long log.
-for lib in libbz2.a liblzma.a libsqlite3.a; do
+for lib in libbz2.a liblzma.a libsqlite3.a libzstd.a; do
   [ -s "$B/stdlib-libs/lib/$lib" ] || die "build/stdlib-libs/lib/$lib is missing: run step 35"
 done
 # Step 55's extension archives, each at its import path (contourpy).
@@ -42,6 +44,8 @@ PM="$B/plot-modules"
 [ -s "$B/numpy-shims/libnumpy_lapack_shims.a" ] || die "build/numpy-shims/libnumpy_lapack_shims.a is missing: run step 40"
 # Step 59's modules.
 [ -d "$B/statsmodels-modules/statsmodels" ] || die "build/statsmodels-modules/statsmodels is missing: run step 59"
+# Step 56's modules: cffi's backend and cairocffi's bindings, with cairo.
+[ -d "$B/cffi-modules" ] || die "build/cffi-modules is missing: run step 56"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
@@ -52,7 +56,7 @@ mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" --against "$W/Modules/config.c" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
   PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" \
   contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build" scipy="$B/scipy-modules" \
-  sklearn="$B/sklearn-modules" statsmodels="$B/statsmodels-modules"
+  sklearn="$B/sklearn-modules" statsmodels="$B/statsmodels-modules" cffi="$B/cffi-modules"
 
 # makesetup takes *.a tokens as libraries: each module's archive is copied under a unique name, and
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
@@ -68,7 +72,7 @@ deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
   kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" contourpy:"$PM/contourpy" \
   regex:"$B/regex-build" lxml:"$B/lxml-build" scipy:"$B/scipy-modules" sklearn:"$B/sklearn-modules" \
-  statsmodels:"$B/statsmodels-modules"; do
+  statsmodels:"$B/statsmodels-modules" cffi:"$B/cffi-modules"; do
   pkg=${pair%%:*}
   dir=${pair#*:}
   for so in $(find "$dir" -name "*.cpython-$PYTHON_TAG-wasm32-wasi.so" | sort); do
@@ -93,11 +97,11 @@ libs="$libs$B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack
 
 # The weak-duplicate gate: every archive this link takes but the SDK's
 # runtime libraries and CPython's own (the modules', the static libraries their .deps name,
-# scipy's and numpy's shims, and the four C libraries the Setup lines below link), read with the
+# scipy's and numpy's shims, and the five C libraries the Setup lines below link), read with the
 # SDK's llvm-nm.
 weak_archives="$archives $(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')"
 weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a $B/zlib-wasi/lib/libz.a"
-for lib in libbz2.a liblzma.a libsqlite3.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
+for lib in libbz2.a liblzma.a libsqlite3.a libzstd.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
 "$HOSTPY" "$HERE/scripts/weak_duplicates.py" archives "$SDK/bin/llvm-nm" "$SDK/bin/llvm-cxxfilt" \
   "$HERE/recipes/weak-duplicates-allowed.txt" $weak_archives > "$L/weak-duplicates.log" 2>&1 \
   || { grep '^ERROR' "$L/weak-duplicates.log" | head -n 20; die "the link's archives share a weak definition no review allowed (build/link/weak-duplicates.log)"; }
@@ -112,6 +116,8 @@ for f in blob connection cursor microprotocols module prepare_protocol row state
   SQLITE_SRC="$SQLITE_SRC _sqlite/$f.c"
 done
 SQLITE_SRC=${SQLITE_SRC# }
+# _zstd from CPython's own four files, as Modules/Setup.stdlib.in lists them.
+ZSTD_SRC="_zstd/_zstdmodule.c _zstd/zstddict.c _zstd/compressor.c _zstd/decompressor.c"
 
 # makesetup mangles absolute source paths, so the two C files are copied into Modules/.
 cp "$HERE/recipes/hostmodule.c" "$L/inittab.c" "$CP/Modules/"
@@ -124,6 +130,7 @@ cp "$HERE/recipes/hostmodule.c" "$L/inittab.c" "$CP/Modules/"
   echo "_bz2 _bz2module.c -I$SL/include $SL/lib/libbz2.a"
   echo "_lzma _lzmamodule.c -I$SL/include $SL/lib/liblzma.a"
   echo "_sqlite3 $SQLITE_SRC -I$CP/Modules/_sqlite -I$SL/include -DPY_SQLITE_HAVE_SERIALIZE $SL/lib/libsqlite3.a"
+  echo "_zstd $ZSTD_SRC -I$SL/include $SL/lib/libzstd.a"
 } > "$W/Modules/Setup.local"
 cd "$W"
 make -j8 all LDFLAGS_NODIST="-fwasm-exceptions" > "$L/make.log" 2>&1 || { tail -n 20 "$L/make.log"; die "make failed (build/link/make.log)"; }
@@ -136,17 +143,22 @@ clashes() {
 clashes "$L/make.log"
 # makesetup drops a module it cannot read without an error; the judge would see it, but the build
 # stops here first.
-for m in _bz2 _lzma _sqlite3; do
+for m in _bz2 _lzma _sqlite3 _zstd; do
   grep -q "PyInit_$m" "$W/Modules/config.c" || die "Setup.local's $m line was dropped (Modules/config.c)"
 done
 
 # The reactor: CPython's own compile and link commands for its main, read with `make -n`, with
 # Programs/python.c swapped for the reactor's entry points. The link wraps the four WASI calls whose
-# answers a snapshot would otherwise capture (recipes/reactor_main.c, "pinned"), and iconv_open,
+# answers a snapshot would otherwise capture (recipes/reactor_main.c, "pinned"), poll_oneoff, whose
+# absolute monotonic waits a store resumed from a checkpoint shifts into its own time, and iconv_open,
 # whose wrapper refuses GB18030, which wasi-libc decodes wrongly without an error
 # (recipes/iconv_refusals.c), and fcntl, whose wrapper answers F_DUPFD and
 # F_DUPFD_CLOEXEC with ENOTSUP, which wasi-libc 34 answers EINVAL on preview1
-# (recipes/fcntl_dup_refusal.c). Each guard is compiled by the reactor's own
+# (recipes/fcntl_dup_refusal.c). It also wraps the C library's allocators (malloc, calloc,
+# realloc, aligned_alloc, posix_memalign, and musl's __libc_malloc and __libc_calloc, which its
+# locale and time-zone code calls), so the reactor counts every allocation a call's teardown makes
+# while it skips frees, and frees what it skipped before teardown could take more than its budget
+# (recipes/reactor_main.c, "Teardown frees nothing"). Each guard is compiled by the reactor's own
 # command into its own object. Only the reactor carries them: the interpreter `make all` links
 # above is CPython's own build, never shipped.
 rm -f python.wasm Programs/python.o
@@ -166,7 +178,9 @@ for g in $GUARDS; do
 "
   guard_objects="$guard_objects Modules/$g.o"
 done
-WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close -Wl,--wrap=fcntl -Wl,--wrap=freopen"
+WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_poll_oneoff -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close -Wl,--wrap=fcntl -Wl,--wrap=freopen"
+WRAP="$WRAP -Wl,--wrap=malloc -Wl,--wrap=calloc -Wl,--wrap=realloc -Wl,--wrap=aligned_alloc"
+WRAP="$WRAP -Wl,--wrap=posix_memalign -Wl,--wrap=__libc_malloc -Wl,--wrap=__libc_calloc"
 link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-model=reactor $WRAP -Wl,--Map=$L/python.map -o $OUT/python.wasm Modules/reactor_main.o$guard_objects#")
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \

@@ -31,12 +31,15 @@ DOOR_RUN = """
     (i32.const 0))
 """
 
-# A session's two exports, a turn that runs nothing and a shutdown that does nothing, and a
-# `prepare` that refuses.
+# A session's exports, a turn that runs nothing, a turn's stdin that is taken and dropped, a
+# shutdown that does nothing, a `prepare` that refuses, and a `checkpoint` that enters and leaves,
+# changing nothing.
 SESSION = """
   (func (export "turn") (param i32 i32) (result i32) (i32.const 0))
+  (func (export "turn_input") (param i32 i32) (result i32) (i32.const 0))
   (func (export "shutdown") (result i32) (i32.const 0))
   (func (export "prepare") (param i32 i32) (result i32) (i32.const -1))
+  (func (export "checkpoint") (param i32) (result i32) (i32.const 0))
 """
 
 HOST_ALLOC = """

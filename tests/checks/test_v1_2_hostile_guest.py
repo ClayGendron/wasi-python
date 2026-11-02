@@ -3381,7 +3381,7 @@ def test_recursion_raises_under_the_wasmtime_cli(guest_workdir) -> None:
 # hosts with a quarter of room, and one at least 40% past the higher host's edge that ends in the
 # named trap; then the next call works. The structure is built, acted on, and either freed (`del`)
 # or left (os._exit) so freeing is not what is measured. Edges, arm64 / x86_64 (the research's
-# edges-8m-*.jsonl): freeing a list 37,433 / 32,753; a dict 22,785 / 20,962; hash 40,313 / 40,312;
+# edges-8m-*.jsonl): freeing a list 37,433 / 32,753; a dict 22,785 / 20,962;
 # compiling terms 58,227 / 52,402; C14N 23,818 / 23,817; a raised recursion limit 47,642 / 43,670.
 DONE = "print('ok', flush=True)\nos._exit(0)"
 LIMIT_FREE = (
@@ -3391,7 +3391,6 @@ LIMIT_FREE_DICT = (
     "import os\nN = {n}\nx = {{}}\nfor i in range(N): x = {{'k': x}}\ndel x\n"
     "print('ok', flush=True)"
 )
-LIMIT_HASH = "import os\nN = {n}\nx = ()\nfor i in range(N): x = (x,)\nhash(x)\n" + DONE
 LIMIT_COMPILE = (
     "import os\nN = {n}\ntry:\n    compile('+'.join(['1'] * N), 's', 'eval')\n"
     "except RecursionError:\n    pass\n" + DONE
@@ -3415,7 +3414,6 @@ LIMIT_RAISED = (
 LIMITS = {
     "free-list": (LIMIT_FREE, 24_000, 52_500),
     "free-dict": (LIMIT_FREE_DICT, 15_000, 32_000),
-    "hash-tuple": (LIMIT_HASH, 30_000, 57_000),
     "compile-terms": (LIMIT_COMPILE, 39_000, 82_000),
     "c14n-deep-tree": (LIMIT_C14N, 17_000, 34_000),
     "relaxng-deep-tree": (LIMIT_RELAXNG, 4_300, 9_000),  # edges 6,388 / 5,756 (the build)
@@ -3503,6 +3501,9 @@ RAISES = {
         "RecursionError",
     ),
     "repr-list": (400_000, NEST, "repr(x)", "RecursionError"),
+    # CPython 3.15.2 guards hashing a tuple with its C-stack check (gh-154318): a deep tuple
+    # raises RecursionError where 3.15.0 recursed until the stack overflowed and trapped
+    "hash-tuple": (400_000, "x = ()\nfor i in range(N): x = (x,)", "hash(x)", "RecursionError"),
     "json-dumps": (400_000, "import json\n" + NEST, "json.dumps(x)", "RecursionError"),
     "json-default": (2_000, HOOK, "json.dumps(O(N), default=dflt)", "RecursionError"),
     "eval-parens": (199, "s = '(' * N + '1' + ')' * N", "eval(s)", "MemoryError Parser stack"),
@@ -4473,3 +4474,105 @@ def test_a_triangulation_leaves_every_writable_grant_as_it_was(guest_turns, gues
         f"{g}: {sorted(set(after[g]) ^ set(before[g]))}" for g in grants if after[g] != before[g]
     ]
     assert not changed, "a writable grant changed: " + "; ".join(changed)
+
+
+# A frame a guest sends to a call with results, at most about six times `output_bytes` long, the
+# most the host reads for a display: empty objects, which held about fifty times the frame at once
+# when the host parsed them whole; or one long string, which costs about its length, up to four
+# bytes for each character once one character needs four, and whose decoded bytes past the room
+# are answered before it is decoded.
+FRAME_ROOM = 1 << 20
+FRAME_BYTES = 6 * FRAME_ROOM
+FRAME_GUEST = """
+import _host, sys
+shape, size = sys.argv[1], int(sys.argv[2])
+if shape in ("string", "astral", "escapes"):
+    head = b'{"v":1,"id":1,"op":"display","value":false,"data":{"text/plain":"'
+    last = b"x" if shape == "string" else chr(0x1F600).encode()
+    unit = b"\\\\u0041" if shape == "escapes" else b"x"
+    frame = head + unit * ((size - len(head) - len(last) - 3) // len(unit)) + last + b'"}}'
+else:
+    head = b'{"v":1,"id":1,"op":"%s","tool":"total","args":{"xs":[' % shape.encode()
+    frame = head + b"{}," * ((size - len(head) - 4) // 3) + b"{}]}}"
+answer = _host.call(frame)
+print(len(frame), answer.decode()[:300])
+"""
+
+
+def _host_peak(call) -> tuple[Any, int]:
+    """What `call()` returns and the most bytes the host's Python held at once during it, above
+    what it held before: tracemalloc sees every allocation of the host, and none of the guest's
+    memory, which wasmtime maps apart."""
+    import tracemalloc
+
+    started = not tracemalloc.is_tracing()
+    if started:
+        tracemalloc.start()
+    try:
+        tracemalloc.reset_peak()
+        before = tracemalloc.get_traced_memory()[0]
+        done = call()
+        peak = tracemalloc.get_traced_memory()[1] - before
+    finally:
+        if started:
+            tracemalloc.stop()
+    return done, peak
+
+
+MiB = 1 << 20
+
+
+@pytest.mark.parametrize(
+    ("shape", "size", "room", "with_tools", "said", "most"),
+    [
+        ("display", FRAME_BYTES, FRAME_ROOM, False, '"kind":"protocol"', 3 * FRAME_BYTES),
+        ("display", FRAME_BYTES, None, False, '"kind":"protocol"', 3 * FRAME_BYTES),
+        ("call", FRAME_BYTES, FRAME_ROOM, True, '"kind":"too_large"', 3 * FRAME_BYTES),
+        ("astral", FRAME_BYTES, FRAME_ROOM, False, '"id":null', 3 * FRAME_BYTES),
+        ("escapes", FRAME_BYTES, FRAME_ROOM, False, '"kept":true', 40 * FRAME_ROOM),
+        ("string", 3 * MiB, 4 * MiB, False, '"kept":true', 4 * 3 * MiB),
+        ("astral", 3 * MiB, 4 * MiB, False, '"kept":true', 10 * 3 * MiB),
+    ],
+    ids=[
+        "display",
+        "display, no output cap",
+        "call, under tools",
+        "one long string past the room, one character of four bytes",
+        "escapes that fit the room, one character of four bytes",
+        "one long string",
+        "one long string, one character of four bytes",
+    ],
+)
+def test_a_display_frame_costs_the_host_about_its_length(
+    shape, size, room, with_tools, said, most
+) -> None:
+    """Guards a change: with `results=True` a frame of six times `output_bytes` of empty objects
+    was parsed whole before it was judged, and the host held about fifty times the frame at
+    once; under tools a tool call that long was parsed the same way before the tool host's cap
+    refused it; and a frame of six times `output_bytes` of text with one four-byte character
+    held about nine times the frame. A display holds a few values outside its strings, and its
+    strings fit the room, so the host answers a frame that breaks either before it decodes it,
+    and holds the frame twice, as it leaves the guest's memory. A frame that passes both costs a
+    few times its length: the frame, its text and the string, each up to four bytes a character
+    once one needs four. The worst, a frame of escapes whose text fits the room and holds one
+    four-byte character, holds about 35 times the room."""
+    run = _run()
+    from wasi_python.tools import tool
+
+    @tool
+    def total(xs: list[int]) -> int:
+        """Add the numbers."""
+        return sum(xs)
+
+    kw: dict[str, Any] = {"results": True, "output_bytes": room}
+    if with_tools:
+        kw["tools"] = [total]
+    argv = ["-c", FRAME_GUEST, shape, str(size)]
+    run(argv[:2] + ["string", "200"], **kw)  # the first call's imports, outside the count
+    done, peak = _host_peak(lambda: run(argv, **kw))
+    assert (done.exit_code, done.trapped) == (0, None), done
+    line = done.stdout.decode()
+    assert size - 8 < int(line.split()[0]) <= size and said in line, line
+    if said == '"kept":true' and shape != "escapes":
+        assert done.displays and len(done.displays[0].data["text/plain"]) > size - 100
+    assert peak <= most, f"the host held {peak:,} bytes for a frame of {size:,}"

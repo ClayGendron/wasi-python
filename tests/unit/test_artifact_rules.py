@@ -27,6 +27,7 @@ PIN_FILES = {
     "bzip2-1.0.8.tar.gz": b"bzip2 source",
     "xz-5.8.4.tar.gz": b"xz source",
     "sqlite-autoconf-3540100.tar.gz": b"sqlite source",
+    "zstd-1.5.7.tar.gz": b"zstd source",
     "python_dateutil-2.9.0.post0-py2.py3-none-any.whl": b"dateutil wheel",
     "tzdata-2026.5-py2.py3-none-any.whl": b"tzdata wheel",
     "six-1.17.0-py2.py3-none-any.whl": b"six wheel",
@@ -46,6 +47,7 @@ PIN_FILES = {
     "fonttools-4.67.0-py3-none-any.whl": b"fonttools pin",
     "contourpy-1.4.0.tar.gz": b"contourpy pin",
     "qhull-8.0.2.tar.gz": b"qhull pin",
+    "libjpeg-turbo-3.2.0.tar.gz": b"libjpeg-turbo pin",
     "libxml2-2.15.4.tar.xz": b"libxml2 pin",
     "libxslt-1.1.45.tar.xz": b"libxslt pin",
     "lxml-6.1.3.tar.gz": b"lxml pin",
@@ -88,6 +90,22 @@ PIN_FILES = {
     "formulaic-1.2.2-py3-none-any.whl": b"formulaic pin",
     "interface_meta-2.0.1-py3-none-any.whl": b"interface-meta pin",
     "wrapt-2.5.1-py3-none-any.whl": b"wrapt pin",
+    "python_docx-1.2.0.tar.gz": b"python-docx pin",
+    "python_pptx-1.0.2.tar.gz": b"python-pptx pin",
+    "pdfplumber-0.11.10-py3-none-any.whl": b"pdfplumber pin",
+    "pdfminer_six-20260107.tar.gz": b"pdfminer.six pin",
+    "xarray-2026.9.0.tar.gz": b"xarray pin",
+    "drawsvg-2.4.2-py3-none-any.whl": b"drawsvg pin",
+    "pixman-0.46.4.tar.xz": b"pixman pin",
+    "libpng-1.6.59.tar.xz": b"libpng pin",
+    "cairo-1.18.6.tar.xz": b"cairo pin",
+    "cffi-2.1.1.tar.gz": b"cffi pin",
+    "cairocffi-1.7.1.tar.gz": b"cairocffi pin",
+    "cairosvg-2.9.1.tar.gz": b"cairosvg pin",
+    "tinycss2-1.5.1-py3-none-any.whl": b"tinycss2 pin",
+    "cssselect2-0.10.1-py3-none-any.whl": b"cssselect2 pin",
+    "imageio-2.38.1-py3-none-any.whl": b"imageio pin",
+    "plotly-7.1.0.tar.gz": b"plotly pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -99,6 +117,7 @@ PACKAGES = {
     "bzip2": "1.0.8",
     "xz": "5.8.4",
     "sqlite-autoconf": "3540100",
+    "zstd": "1.5.7",
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
@@ -118,6 +137,7 @@ PACKAGES = {
     "fonttools": "4.67.0",
     "contourpy": "1.4.0",
     "qhull": "8.0.2",
+    "libjpeg-turbo": "3.2.0",
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
     "lxml": "6.1.3",
@@ -160,6 +180,22 @@ PACKAGES = {
     "formulaic": "1.2.2",
     "interface-meta": "2.0.1",
     "wrapt": "2.5.1",
+    "python-docx": "1.2.0",
+    "python-pptx": "1.0.2",
+    "pdfplumber": "0.11.10",
+    "pdfminer-six": "20260107",
+    "xarray": "2026.9.0",
+    "drawsvg": "2.4.2",
+    "pixman": "0.46.4",
+    "libpng": "1.6.59",
+    "cairo": "1.18.6",
+    "cffi": "2.1.1",
+    "cairocffi": "1.7.1",
+    "cairosvg": "2.9.1",
+    "tinycss2": "1.5.1",
+    "cssselect2": "0.10.1",
+    "imageio": "2.38.1",
+    "plotly": "7.1.0",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
@@ -199,20 +235,24 @@ def good(work) -> Path:
 
 
 def test_the_session_exports_have_their_types(good, work) -> None:
-    """`turn` and `prepare` are (i32, i32) -> i32 and `shutdown` () -> i32; a set from
-    before sessions names all three as missing."""
+    """`turn`, `turn_input` and `prepare` are (i32, i32) -> i32, `shutdown` () -> i32 and
+    `checkpoint` (i32) -> i32; a set from before sessions names all five as missing."""
     for b in ("python.wasm", "python-snapshot.wasm"):
         assert rules.export_type_errors(good / b) == []
     old = wat.build(work / "old", "python-snapshot.wasm", wat.BEFORE_SESSIONS)
     assert rules.export_type_errors(old) == [
+        "python-snapshot.wasm: no function export checkpoint",
         "python-snapshot.wasm: no function export prepare",
         "python-snapshot.wasm: no function export shutdown",
         "python-snapshot.wasm: no function export turn",
+        "python-snapshot.wasm: no function export turn_input",
     ]
     assert rules.export_errors(old, rules.SNAPSHOT_EXPORTS) == [
+        "python-snapshot.wasm: no export checkpoint",
         "python-snapshot.wasm: no export prepare",
         "python-snapshot.wasm: no export shutdown",
         "python-snapshot.wasm: no export turn",
+        "python-snapshot.wasm: no export turn_input",
     ]
 
 
@@ -462,6 +502,29 @@ def test_xz_and_sqlite_notices_must_hold_their_whole_licence(good, work, monkeyp
     )
 
 
+def test_zstds_notice_holds_the_bsd_licence_the_set_takes_not_gplv2(
+    good, work, monkeypatch
+) -> None:
+    """zstd is BSD-3-Clause or GPLv2 at the user's choice, and its tarball lists COPYING (GPLv2)
+    before LICENSE. The set takes BSD-3-Clause, so its notice must hold LICENSE, and GPLv2's text
+    alone does not pass (TOP_LICENCE)."""
+    downloads = work / "downloads"
+    downloads.mkdir()
+    bsd, gpl = b"BSD License\nFor Zstandard software\n", b"GNU GENERAL PUBLIC LICENSE\n"
+    _tar(downloads / "zstd-1.5.7.tar.gz", "zstd-1.5.7", {"COPYING": gpl, "LICENSE": bsd})
+    sha = paths.sha256_file(downloads / "zstd-1.5.7.tar.gz")
+    (downloads / "SHA256SUMS").write_text(f"{sha}  zstd-1.5.7.tar.gz\n")
+    monkeypatch.setattr(paths, "DOWNLOADS", downloads)
+    m = paths.parse_manifest(manifest_text())
+    (good / "LICENSES" / "zstd.txt").write_bytes(bsd + b"divsufsort's MIT notice\n")
+    errors, content, _ = paths.licence_errors(good, m)
+    assert "zstd" in content, content
+    assert not [e for e in errors if "zstd" in e], errors
+    (good / "LICENSES" / "zstd.txt").write_bytes(gpl)
+    errors = paths.licence_errors(good, m)[0]
+    assert "LICENSES/zstd.txt does not contain the licence of zstd-1.5.7.tar.gz" in errors, errors
+
+
 # A cut of GIST's notice as matplotlib ships it in LICENSE/LICENSE_YORICK.
 YORICK = (
     b"BSD-style license for gist/yorick packages.\n"
@@ -571,6 +634,28 @@ def test_a_wheel_carries_the_list_and_nothing_else(good, work) -> None:
     assert rules.wheel_errors(wheel, good) == [
         f"{wheel.name} carries wasi_python/artifacts/Thumbs.db, which SHA256SUMS does not list",
         f"{wheel.name} carries wasi_python/artifacts/stray.bin, which SHA256SUMS does not list",
+    ]
+
+
+def test_a_wheel_must_fit_pypis_file_limit(good, work, monkeypatch) -> None:
+    """PyPI refuses a file over its limit for the project, and on a tag the GitHub release is made
+    before the upload: a wheel one byte over the limit is named, one at the limit is not."""
+    wheel = work / "wasi_python-0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as w:
+        w.writestr(rules.TYPED, b"")
+        w.writestr(LICENCE_MEMBER, _combined(good))
+        for p in good.rglob("*"):
+            if p.is_file():
+                w.writestr(
+                    f"wasi_python/artifacts/{p.relative_to(good).as_posix()}", p.read_bytes()
+                )
+    assert rules.PYPI_FILE_LIMIT == 268_435_456
+    size = wheel.stat().st_size
+    monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size)
+    assert rules.wheel_errors(wheel, good) == []
+    monkeypatch.setattr(rules, "PYPI_FILE_LIMIT", size - 1)
+    assert rules.wheel_errors(wheel, good) == [
+        f"{wheel.name} is {size:,} bytes, over the limit asked of PyPI, {size - 1:,}"
     ]
 
 

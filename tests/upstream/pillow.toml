@@ -5,7 +5,7 @@
 package = "pillow"
 driver = "package"
 grant = "/upstream-pillow"
-budget = 650_000_000_000
+budget = 910_000_000_000
 stage_folders = ["Tests", "checks"]
 # selftest.py: Pillow's doctest self-test (its Makefile runs it), run by docstring
 support_files = ["selftest.py"]
@@ -16,8 +16,8 @@ markers = []
 
 [groups.pillow]
 paths = ["Tests", "checks"]
-fuel = 650_000_000_000
-measured = 432_950_151_677
+fuel = 910_000_000_000
+measured = 605_066_723_558
 
 [[not_selected]]
 files = ["Tests/test_main.py"]
@@ -28,14 +28,6 @@ closes_with = "docs/reference/limitations.md"
 files = ["checks/check_release_notes.py"]
 reason = "it reads docs/releasenotes/*.rst for a leftover TODO: Pillow's documentation, not staged and not the product"
 closes_with = "docs/reference/limitations.md"
-
-[[expected]]
-id = "pillow-zlib-only"
-group = "pillow"
-outcome = "failed"
-match = '(en|de)coder jpeg not available'
-reason = "Pillow is built with zlib only (spec 023): a test that opens JPEG without its own feature guard"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 
 [[expected]]
 id = "no-mmap"
@@ -84,7 +76,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[not_selected]]
 files = ["checks/check_icns_dos.py", "checks/check_j2k_dos.py"]
-reason = "denial-of-service reproductions, not tests: each passes when Image.open returns or raises without hanging; pytest reports the expected UnidentifiedImageError at import as a collection error. In the guest each raised it at once (EXECUTED, the build); JPEG 2000 is not in the product (zlib only, spec 023)"
+reason = "denial-of-service reproductions, not tests: each passes when Image.open returns or raises without hanging; pytest reports the expected UnidentifiedImageError at import as a collection error. In the guest each raised it at once (EXECUTED, the build); JPEG 2000 is not in the product (zlib and JPEG only, specs 023 and 170)"
 closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 
 [[not_selected]]
@@ -105,8 +97,8 @@ id = "not-pillows-wheel"
 group = "pillow"
 outcome = "failed"
 match = "^AssertionError: assert (\\{|set\\(\\) ==)"
-reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib only (spec 023)"
-closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib and JPEG only (specs 023 and 170)"
+closes_with = "docs/reference/limitations.md"
 
 [[expected]]
 id = "fli-overflow-native"

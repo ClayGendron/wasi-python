@@ -449,21 +449,43 @@ def structural_review_errors(version: str, reviews: Path) -> list[str]:
     return errors
 
 
-def release_notes_review_errors(version: str, reviews: Path) -> list[str]:
-    """A released version whose notes are written for the reader has a review of those notes by
-    someone who wrote none of them, `<version>-release-notes-review-YYYY-MM-DD.md`, ending with
-    its verdict. A prerelease needs none from the judge: its string is what the tree carries all
-    cycle; nor does a version whose notes were published in the older shape."""
+# The last release whose notes were read in a review file of their own; from the next one, the
+# read is a section of the release's review against its threat model, so the preparation
+# carries two files.
+LAST_SEPARATE_NOTES_READ = (0, 1, 2)
+NOTES_SECTION = re.compile(r"^## Release notes[ \t]*\n(.*?)(?=^## |\Z)", re.M | re.S)
+
+
+def _dated_reviews(reviews: Path, version: str, kind: str) -> list[Path]:
+    """The review files `<version>-<kind>-YYYY-MM-DD.md`, oldest first."""
+    name = re.compile(rf"^{re.escape(version)}-{kind}-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
+    return sorted(p for p in reviews.glob("*.md") if name.match(p.name))
+
+
+def release_notes_read_errors(version: str, reviews: Path) -> list[str]:
+    """A released version whose notes are written for the reader has those notes read by someone
+    who wrote none of them, in a `## Release notes` section, with text under it, of its review
+    against the threat model, `<version>-security-review-YYYY-MM-DD.md`. A release up to 0.1.2
+    may instead have had the read in a file of its own,
+    `<version>-release-notes-review-YYYY-MM-DD.md`, ending with its verdict, as 0.1.2's was. A
+    prerelease needs none from the judge: its string is what the tree carries all cycle; nor
+    does a version whose notes were published in the older shape."""
     if not RELEASE_VERSION.match(version) or not news.is_reader_version(version):
         return []
-    name = re.compile(rf"^{re.escape(version)}-release-notes-review-\d{{4}}-\d{{2}}-\d{{2}}\.md$")
-    found = sorted(p for p in reviews.glob("*.md") if name.match(p.name))
-    if not found:
-        return [f"{version} is a release; reviews/ has no {version}-release-notes-review-<date>.md"]
+    for p in _dated_reviews(reviews, version, "security-review"):
+        m = NOTES_SECTION.search(p.read_text(encoding="utf-8"))
+        if m and m[1].strip():
+            return []
+    separate = _dated_reviews(reviews, version, "release-notes-review")
+    if separate and tuple(int(x) for x in version.split(".")) <= LAST_SEPARATE_NOTES_READ:
+        return [
+            f"{p.name}: has no ## Verdict section"
+            for p in separate
+            if not re.search(r"^## Verdict\s*$", p.read_text(encoding="utf-8"), re.M)
+        ]
     return [
-        f"{p.name}: has no ## Verdict section"
-        for p in found
-        if not re.search(r"^## Verdict\s*$", p.read_text(encoding="utf-8"), re.M)
+        f"{version} is a release; reviews/ has no {version}-security-review-<date>.md with a "
+        "## Release notes section"
     ]
 
 
@@ -554,6 +576,8 @@ ATTEST_USES = re.compile(r"uses:\s*actions/attest@[0-9a-f]{40}\b")
 VERIFY_FLAGS = ("--repo", "--signer-workflow", "--source-ref", "--deny-self-hosted-runners")
 TAG_ONLY = "github.event_name == 'push' && github.ref_type == 'tag'"
 ID_TOKEN = re.compile(r"id-token:\s*write|write-all")
+# The job that holds a tag's bytes and tree to the release pull request's acceptance.
+TAG_PROOF_JOB = "judged"
 
 
 def without_comments(text: str) -> str:
@@ -619,7 +643,8 @@ def _job_permissions(lines: list[str]) -> set[str]:
 
 def release_attestation_errors(text: str) -> list[str]:
     """Every rule of the release's provenance (each asset attested, then verified), as one line
-    per breach, on the workflow without its comments; attest and publish also need gather."""
+    per breach, on the workflow without its comments; attest and publish also need judged, the
+    proof that the bytes are the ones the release pull request accepted."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     if "attest" not in jobs:
@@ -629,8 +654,8 @@ def release_attestation_errors(text: str) -> list[str]:
     if _job_field(attest, "if") != TAG_ONLY or _job_field(publish, "if") != TAG_ONLY:
         errors.append("attest's or publish's if: is not the pushed-tag condition")
     needs_attest = _job_field(attest, "needs") or ""
-    if not {"build", "verify", "gather"} <= set(re.findall(r"[a-z_-]+", needs_attest)):
-        errors.append("attest does not need build, verify and gather")
+    if not {"build", "verify", TAG_PROOF_JOB} <= set(re.findall(r"[a-z_-]+", needs_attest)):
+        errors.append(f"attest does not need build, verify and {TAG_PROOF_JOB}")
     if _job_permissions(attest) != ATTEST_PERMISSIONS:
         errors.append(f"attest's permissions are not {sorted(ATTEST_PERMISSIONS)}")
     body = "\n".join(attest)
@@ -668,8 +693,10 @@ def release_attestation_errors(text: str) -> list[str]:
     for name, lines in jobs.items():
         if name not in ("attest", "pypi") and ID_TOKEN.search("\n".join(lines)):
             errors.append(f"{name} has id-token: write or write-all")
-    if not {"attest", "gather"} <= set(re.findall(r"[a-z_-]+", _job_field(publish, "needs") or "")):
-        errors.append("publish does not need attest and gather")
+    if not {"attest", TAG_PROOF_JOB} <= set(
+        re.findall(r"[a-z_-]+", _job_field(publish, "needs") or "")
+    ):
+        errors.append(f"publish does not need attest and {TAG_PROOF_JOB}")
     return errors
 
 
@@ -887,6 +914,8 @@ MESON_BUILDS = (
     "scipy-build",  # added for scipy
     "sklearn-build",  # added for scikit-learn
     "statsmodels-build",  # added for statsmodels
+    "pixman-build",  # added for cairo
+    "cairo-build",
 )
 # The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's), and
 # step 60's two command files.
@@ -1220,16 +1249,17 @@ def _permission_set(lines: list[str]) -> set[str] | None:
 # The release workflow's rebuilds
 
 # One job per host, so each job's outputs are its own (a matrix shares one output namespace):
-# arm64 Linux (build-shard, whose one compile also serves the build shard) and x86_64 Linux, each
-# compiling with its own pinned clang. Each job's time limit, in minutes, and the decision job's
-# output it runs on: both rebuild natively, a hung job frees the gate after two hours, and the
-# plan sets both outputs on every run of the release shape (a rules check holds that).
+# x86_64 Linux (whose compile also serves the build shard) and arm64 macOS, beside the build's
+# arm64 Linux, each compiling with its own pinned clang. Each job's time limit, in minutes, and
+# the decision job's output it runs on: both rebuild natively, a hung job frees the gate after two
+# hours, and the plan sets the output on every run of the release shape (a rules check holds
+# that).
+REBUILD_IF = "needs.plan.outputs.rebuild == 'true'"
 REBUILD_JOBS = {
-    "build-shard": ("ubuntu-24.04-arm", 120, "needs.plan.outputs.build == 'true'"),
-    "rebuild-linux-x86-64": ("ubuntu-24.04", 120, "needs.plan.outputs.rebuild == 'true'"),
+    "rebuild-linux-x86-64": ("ubuntu-24.04", 120, REBUILD_IF),
+    "rebuild-macos-arm64": ("macos-15", 120, REBUILD_IF),
 }
 REBUILD_RUNNERS = tuple(runner for runner, _, _ in REBUILD_JOBS.values())
-REBUILD_IF = "needs.plan.outputs.rebuild == 'true'"
 TOOLS_STEP = "The runner's own tools"
 WHEEL_STEP = "The wheel, as the build job makes it"
 
@@ -1280,12 +1310,12 @@ def rebuild_gate_errors(text: str) -> list[str]:
             errors.append(f"{job}'s timeout-minutes is not {minutes}")
         if _job_field(lines, "if") != cond:
             errors.append(f"{job}'s if: is not the plan's {cond}")
-        # The core count beside every time figure, and any binfmt_misc entry that would run an
-        # aarch64 ELF through the runner's own qemu and hide a gap in the launcher's closure.
-        # The runner's own python3, which step 10's shim keeps out of the build, named
-        # in the log.
+        # The core count beside every time figure, read the same way on Linux and macOS, and any
+        # binfmt_misc entry that would run another architecture's ELF through the runner's own
+        # qemu and hide a gap in the launcher's closure. The runner's own python3, which step
+        # 10's shim keeps out of the build, named in the log.
         for fact, pattern in (
-            ("nproc", r"^\s+nproc\s*$"),
+            ("the core count", r"^\s+getconf _NPROCESSORS_ONLN\s*$"),
             ("binfmt_misc", r"/proc/sys/fs/binfmt_misc"),
             ("python3 --version", r"^\s+python3 --version\s*$"),
         ):
@@ -1397,18 +1427,24 @@ NOT_BY_ID = (
 )
 OTHER_FETCH = re.compile(r"gh\s+run\s+download|actions/github-script|/actions/artifacts")
 ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}  # accept-push's, by the accept scan
-PYPI_IF = TAG_ONLY + " && vars.PYPI_PUBLISH == 'true'"
+# Whether a tag uploads to PyPI: the pypi job's condition, which the judged job reads too.
+PYPI_CONDITION = "vars.PYPI_PUBLISH == 'true'"
+PYPI_IF = TAG_ONLY + " && " + PYPI_CONDITION
 JOB_PERMISSIONS = {
     # The decision job reads the history, and this pull request's runs to re-use a green one;
     # quick runs the tools and the rules; ci-status reads only its needs' results.
     "plan": {"contents: read", "actions: read"},
     "quick": {"contents: read"},
     "ci-status": set(),
+    # The review reads the plan's output alone.
+    "review": set(),
     "build": {"contents: read"},
     **{job: {"contents: read"} for job in REBUILD_JOBS},
     # It checks this commit out for the local action alone.
     "same-bytes": {"contents: read"},
     "verify": {"contents: read"},
+    # It checks the tagged commit and its parent out and reads the build's files.
+    TAG_PROOF_JOB: {"contents: read"},
     # The judge jobs check out and read the build's files; the gather checks out alone.
     **{
         job: {"contents: read"}
@@ -1419,8 +1455,9 @@ JOB_PERMISSIONS = {
     "accept-record": {"contents: read"},
     # The push of the acceptance: it checks out with the deploy key, which the token never is.
     "accept-push": {"contents: read"},
-    # The weekly run's issue: it opens or comments on one, and checks nothing out.
-    "weekly-issue": {"issues: write"},
+    # The issue when a run on dev is red: it reads the run's jobs to name the red legs, opens,
+    # comments on or closes one, and checks nothing out.
+    "red-run-issue": {"issues: write", "actions: read"},
     # The key and the decision; the cache's writer.
     "inputs": {"contents: read"},
     "save-set": {"contents: read"},
@@ -1854,7 +1891,7 @@ def release_binding_errors(text: str, action: str) -> list[str]:
                 and "continue-on-error" not in f
                 and (
                     _record_download(f.get("with", {})) is not None
-                    or "build-shard.outputs.record-id" in reads
+                    or f"{BUILD_SHARD_JOB}.outputs.record-id" in reads
                 )
             )
             if role and ({"if", "continue-on-error"} & set(f)) and not plan_only:
@@ -1957,11 +1994,16 @@ SHA_RUN = (
 BUILD_SHARD_RUN = (
     f"uv run pytest -p no:cacheprovider --shard=build --progress-latest {RECORD_PATH}\n"
 )
+# The job whose build tree the build shard reads: the x86_64 rebuild, which compiles from the
+# pins on every run that rebuilds, cached set or not.
+BUILD_SHARD_JOB = "rebuild-linux-x86-64"
 RECORD_ID_OUTPUT = re.compile(
-    r"needs\.(?:build(?:-shard)?\.outputs\.record-id|judge-[a-z]+\.outputs\.[\w-]+-id)\b"
+    rf"needs\.(?:(?:build|{BUILD_SHARD_JOB})\.outputs\.record-id"
+    r"|judge-[a-z]+\.outputs\.[\w-]+-id)\b"
 )
-# The job whose build tree the build shard reads: a fresh arm64 Linux build.
-BUILD_SHARD_JOB = "build-shard"
+# The gather's needs, exactly: the plan, the build, the build shard's job and the judges; never
+# same-bytes, which gates what is cached, signed and published, not the reading of records.
+GATHER_NEEDS = {"plan", "build", BUILD_SHARD_JOB}
 # The gather's step env, exactly: the build's hashes, where the set came from, the build shard's
 # record hash, the tier, and the selected pairs on a pull request into dev alone: the release pull
 # request into main is judged whole.
@@ -1970,6 +2012,7 @@ GATHER_ENV = {
     "SET_SUMS_SHA256": "${{ needs.build.outputs.set-sums-sha256 }}",
     "SET_SOURCE": "${{ needs.build.outputs.set-source }}",  # built or reused
     "RECORD_BUILD_BUILD": f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-sha256 }}}}",
+    "BUILD": "${{ needs.plan.outputs.build }}",  # whether the build shard ran
     "TIER": "${{ needs.plan.outputs.tier }}",
     "PLAN": (
         "${{ github.event_name == 'pull_request' && github.base_ref != 'main' && "
@@ -2070,7 +2113,7 @@ def shard_id_errors(text: str, plan: dict) -> list[str]:
     """No shard of the plan is named in the workflow, its comments aside, and no matrix is a
     written list: each judge job's legs come from the decision job's outputs, generated from
     tests/release_shards.toml, so the two cannot drift. The build shard alone is run by name, in
-    build-shard, the job that has its build tree."""
+    the x86_64 rebuild, the job that has its build tree."""
     body = without_comments(text)
     tokens = set(re.findall(r"[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9]", body))
     errors = [f"the workflow names the shard {n}" for n in plan if n != "build" and n in tokens]
@@ -2149,8 +2192,8 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     if len(shapes) > 1:
         errors.append("rule 3: the four judge jobs differ beyond their runner, system and name")
     # Rule 5: a record's name binds it to its leg, so only that leg uploads under it: judge-<s>
-    # under record-<s>-<its shard>, build-shard under record-build-build, nothing else under a
-    # record- name, and nothing overwrites an artifact.
+    # under record-<s>-<its shard>, the x86_64 rebuild under record-build-build, nothing else
+    # under a record- name, and nothing overwrites an artifact.
     for job, job_steps in steps.items():
         for _, f in job_steps:
             if not f.get("uses", "").startswith("actions/upload-artifact@"):
@@ -2166,8 +2209,8 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             ) or (job == BUILD_SHARD_JOB and name == "record-build-build")
             if not mine:
                 errors.append(f"rule 5: {job} uploads {name}, a name that is not its own record's")
-    # Rule 6: build-shard judges the build shard on its own build and hands on its record; the
-    # build job hands on python.wasm's hash and runs no other pytest: a reused set has no tree.
+    # Rule 6: the x86_64 rebuild judges the build shard on its own build and hands on its record;
+    # the build job hands on python.wasm's hash and runs no other pytest: a reused set has no tree.
     build = [f for _, f in steps.get("build", [])]
     outputs = _job_map(jobs.get("build", []), "outputs")
     runs = [str(f.get("run", "")).strip() for f in build]
@@ -2257,13 +2300,13 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             _job_field(gather, "runs-on") != "ubuntu-24.04"
             or _job_field(gather, "timeout-minutes") != "15"
             or _permission_set(gather) != {"contents: read"}
-            or not {"plan", "build", BUILD_SHARD_JOB, "same-bytes", *JUDGE_JOBS} <= _needs(gather)
+            or _needs(gather) != {*GATHER_NEEDS, *JUDGE_JOBS}
             or _job_field(gather, "continue-on-error") is not None
         ):
             errors.append(
                 "rule 7: gather is not on ubuntu-24.04, 15 minutes, contents: read, needing "
-                "plan, build, build-shard, same-bytes and the four judge jobs, with no "
-                "continue-on-error:"
+                f"exactly plan, build, {BUILD_SHARD_JOB} and the four judge jobs (never "
+                "same-bytes), with no continue-on-error:"
             )
         if _job_field(gather, "if") != GATHER_IF:
             errors.append(
@@ -2299,25 +2342,27 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         if downloads != want:
             errors.append(
                 "rule 7: gather does not download exactly every record, the build shard's by id "
-                "into records/build-shard and each judge job's by name into records/<job>, each "
-                "when the plan ran it, and nothing else (never release-assets)"
+                f"into records/{BUILD_SHARD_JOB} and each judge job's by name into records/<job>, "
+                "each when the plan ran it, and nothing else (never release-assets)"
             )
         step = next((f for f in gs if "tests/harness/gather.py" in str(f.get("run", ""))), {})
         if not step or step.get("env", {}) != GATHER_ENV:
             errors.append(
                 "rule 7: gather's step does not run tests/harness/gather.py with exactly "
-                "WASM_SHA256, SET_SUMS_SHA256, SET_SOURCE, RECORD_BUILD_BUILD, TIER and PLAN "
-                "bound in env:"
+                "WASM_SHA256, SET_SUMS_SHA256, SET_SOURCE, RECORD_BUILD_BUILD, BUILD, TIER and "
+                "PLAN bound in env:"
             )
         # The build shard's record id is guarded only when the plan ran it.
         for f in gs:
             reads = " ".join(f.get("env", {}).values())
             if (
-                "build-shard.outputs.record-id" in reads
+                f"{BUILD_SHARD_JOB}.outputs.record-id" in reads
                 and GUARD_TEST in str(f.get("run", ""))
                 and f.get("if") != "needs.plan.outputs.build == 'true'"
             ):
-                errors.append("rule 11: gather guards build-shard's record id on another if:")
+                errors.append(
+                    f"rule 11: gather guards {BUILD_SHARD_JOB}'s record id on another if:"
+                )
     # Rule 12: past the gather, a job a branch run reaches needs a status function in its if:,
     # or a skipped judge job would skip it too.
     for job, lines in jobs.items():
@@ -2329,10 +2374,11 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
                 f"rule 12: {job} needs gather, runs on a branch run, and its if: has no status "
                 "function"
             )
-    # Rule 8: attest and publish need the gather; only the gather reads a record id.
+    # Rule 8: attest and publish need the proof that the bytes are the accepted ones (a tag's run
+    # has no gather); only the gather reads a record id.
     for job in ("attest", "publish"):
-        if "gather" not in _needs(jobs.get(job, [])):
-            errors.append(f"rule 8: {job} does not need gather")
+        if TAG_PROOF_JOB not in _needs(jobs.get(job, [])):
+            errors.append(f"rule 8: {job} does not need {TAG_PROOF_JOB}")
     for job, lines in jobs.items():
         if job != "gather" and RECORD_ID_OUTPUT.search("\n".join(lines)):
             errors.append(f"rule 8: {job} reads a record id")
@@ -2350,6 +2396,113 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
                 errors.append(f"rule 10: {job} sets {name}")
     # Rule 13: no shard is written in the workflow.
     errors += [f"rule 13: {e}" for e in shard_id_errors(text, plan)]
+    # Rule 14: no judge job throttles its legs below the plan's own limit of jobs at once.
+    for job in JUDGE_JOBS:
+        if re.search(r"^\s+max-parallel:", "\n".join(jobs.get(job, [])), re.M):
+            errors.append(f"rule 14: {job} throttles its legs (max-parallel:)")
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# A pushed tag publishes what the release pull request judged
+
+# The plan's output that is true on a pushed tag alone, and the gates of the jobs it shapes: the
+# set is compiled when the plan judges or rebuilds; the build shard runs where the plan says.
+PUBLISH_IF = "needs.plan.outputs.publish == 'true'"
+COMPILE_IF = "needs.plan.outputs.judge == 'true' || needs.plan.outputs.rebuild == 'true'"
+BUILD_SHARD_IF = "needs.plan.outputs.build == 'true'"
+TREE_PROOF_RUN = "uv run python tests/harness/gather.py --prove-set --tree-only"
+SET_PROOF_RUN = re.compile(
+    r'^uv run python tests/harness/gather\.py --prove-set "\$(\w+)" "\$(\w+)"$', re.M
+)
+# The judged job's step that holds the wheel to the file limit PyPI has granted, before anything
+# is signed: whether the run uploads to PyPI is the pypi job's own condition, evaluated by the
+# same expression, and the limit is a repository variable the owner sets when PyPI grants more.
+PYPI_LIMIT_STEP = "The wheel is within the file limit PyPI has granted, when it goes to PyPI"
+PYPI_LIMIT_ENV = {
+    "TO_PYPI": "${{ " + PYPI_CONDITION + " }}",
+    "PYPI_FILE_LIMIT_GRANTED": "${{ vars.PYPI_FILE_LIMIT_GRANTED }}",
+}
+
+
+def tag_run_errors(text: str) -> list[str]:
+    """A pushed tag's run, one line per breach, on the workflow without its comments: the plan
+    hands on `publish`; inputs and build run when the plan judges or rebuilds, so a tag compiles;
+    the build job holds the tagged tree to the acceptance (`--prove-set --tree-only`) on a tag,
+    before its compile; the x86_64 rebuild runs the build shard, and hands on its record, only
+    where the plan's build output says; the judged job runs on the plan's publish alone, after
+    the build and same-bytes, checks out the tagged commit with its parent, reads the build's
+    files, and holds the set's own SHA256SUMS and python.wasm, each hashed from those files, to
+    the acceptance; it holds the wheel to the limit PyPI has granted on every tag, with no if:
+    or continue-on-error:, reading the pypi job's own condition (whose if: the binding scan
+    holds); attest and publish need it."""
+    text = without_comments(text)
+    jobs = workflow_jobs(text)
+    errors = []
+    if _job_map(jobs.get("plan", []), "outputs").get("publish") != (
+        "${{ steps.plan.outputs.publish }}"
+    ):
+        errors.append("the plan hands on no publish")
+    for name in ("inputs", "build"):
+        if _job_field(jobs.get(name, []), "if") != COMPILE_IF:
+            errors.append(f"{name}'s if: is not {COMPILE_IF}")
+    build = [step_fields(s) for s in workflow_steps(jobs.get("build", []))]
+    tree = next(
+        (i for i, f in enumerate(build) if str(f.get("run", "")).strip() == TREE_PROOF_RUN), None
+    )
+    compiled = next((i for i, f in enumerate(build) if f.get("id") == "compile"), None)
+    if tree is None or compiled is None or tree > compiled or build[tree].get("if") != TAG_ONLY:
+        errors.append(
+            f"build does not run {TREE_PROOF_RUN!r} on a pushed tag ({TAG_ONLY}) before its compile"
+        )
+    shard_steps = [step_fields(s) for s in workflow_steps(jobs.get(BUILD_SHARD_JOB, []))]
+    for f in shard_steps:
+        shard = (
+            f.get("name") == BUILD_SHARD_STEP or str(f.get("run", "")) == BUILD_SHARD_RUN.strip()
+        )
+        if (shard or f.get("id") in ("record", "record-sha")) and f.get("if") != BUILD_SHARD_IF:
+            errors.append(
+                f"{BUILD_SHARD_JOB}'s step {f.get('name') or f.get('id')!r} runs without "
+                f"if: {BUILD_SHARD_IF}"
+            )
+    judged = jobs.get(TAG_PROOF_JOB)
+    if judged is None:
+        return [*errors, f"no {TAG_PROOF_JOB} job"]
+    if _needs(judged) != {"plan", "build", "same-bytes"}:
+        errors.append(f"{TAG_PROOF_JOB} does not need exactly the plan, build and same-bytes")
+    if _job_field(judged, "if") != PUBLISH_IF:
+        errors.append(f"{TAG_PROOF_JOB}'s if: is not {PUBLISH_IF}")
+    if _job_field(judged, "runs-on") != "ubuntu-24.04":
+        errors.append(f"{TAG_PROOF_JOB} does not run on ubuntu-24.04")
+    steps = [step_fields(s) for s in workflow_steps(judged)]
+    checkout = next((f for f in steps if f.get("uses", "").startswith("actions/checkout@")), {})
+    if checkout.get("with", {}).get("fetch-depth") != "2":
+        errors.append(f"{TAG_PROOF_JOB} does not check out the tagged commit with its parent")
+    proofs = [f for f in steps if "--prove-set" in str(f.get("run", ""))]
+    m = SET_PROOF_RUN.search(str(proofs[0].get("run", ""))) if len(proofs) == 1 else None
+    hashed = m and all(
+        re.search(
+            rf'^{var}=\$\(sha256sum "?(?!release-assets/)[^)\n]*/{name}"? \| cut -c1-64\)$',
+            proofs[0]["run"],
+            re.M,
+        )
+        for var, name in zip(m.groups(), ("SHA256SUMS", "python.wasm"), strict=True)
+    )
+    if not hashed:
+        errors.append(
+            f"{TAG_PROOF_JOB} does not run gather.py --prove-set once, on the SHA-256 of the "
+            "set's own SHA256SUMS and of python.wasm, each hashed from the build's files"
+        )
+    limit = [f for f in steps if f.get("name") == PYPI_LIMIT_STEP]
+    skippable = len(limit) == 1 and bool({"if", "continue-on-error"} & set(limit[0]))
+    if len(limit) != 1 or limit[0].get("env") != PYPI_LIMIT_ENV or skippable:
+        errors.append(
+            f"{TAG_PROOF_JOB} does not run {PYPI_LIMIT_STEP!r} once, on every tag, with the env "
+            f"{PYPI_LIMIT_ENV}, and stop the job when it fails"
+        )
+    for name in ("attest", "publish"):
+        if TAG_PROOF_JOB not in _needs(jobs.get(name, [])):
+            errors.append(f"{name} does not need {TAG_PROOF_JOB}")
     return errors
 
 
@@ -2358,12 +2511,26 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
 
 HEAD_REF = "${{ github.event.pull_request.head.sha || github.sha }}"
 # The jobs that need no gate of the plan's: the plan itself, quick (every run), the one required
-# check, and the three that only a pushed tag reaches.
-UNGATED = ("plan", "quick", "ci-status", "attest", "publish", "pypi")
+# check, the review (every pull request into dev), and the three that only a pushed tag reaches.
+TAG_JOBS = ("attest", "publish", "pypi")
+UNGATED = ("plan", "quick", "ci-status", "review", *TAG_JOBS)
 CI_STATUS_ENV = {
     "NEEDS": "${{ toJSON(needs) }}",
     "REFUSALS": "${{ needs.plan.outputs.refusals }}",
+    "PUBLISH": "${{ needs.plan.outputs.publish }}",
 }
+# A run whose plan says it publishes is red unless publish ran: a tag that published nothing.
+CI_STATUS_PUBLISH = (
+    'if os.environ.get("PUBLISH") == "true" and needs.get("publish", {}).get("result") != '
+    '"success":'
+)
+# The review file's own check: on every pull request into dev, whatever the plan judges, so the
+# review file's push reads it on a re-used run; after a plan that failed too, so it is red, never
+# skipped. Its verdict is the review file's, not the code's, so ci-status does not wait for it.
+REVIEW_JOB = "review"
+REVIEW_IF = "${{ always() && github.event_name == 'pull_request' && github.base_ref == 'dev' }}"
+REVIEW_ENV = {"REVIEW_REFUSALS": "${{ needs.plan.outputs.review_refusals }}"}
+REVIEW_TEST = '[ "$REVIEW_REFUSALS" != "[]" ]'
 CONCURRENCY = (
     "concurrency:\n"
     "  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', "
@@ -2390,7 +2557,8 @@ def checkout_ref_errors(text: str) -> list[str]:
 def ci_status_errors(text: str) -> list[str]:
     """The one required check and the gates it rests on: no workflow-level paths: filter (a
     filtered run leaves the check pending); ci-status, named so, runs always(), needs every other
-    job and fails unless each succeeded or was skipped and the plan refused nothing; every job
+    job and fails unless each succeeded or was skipped, the plan refused nothing, and publish ran
+    when the plan said the run publishes; every job
     but the plan, quick, ci-status and the tag's three needs the plan and gates on its outputs;
     a pull request's run cancels its older one, and nothing else is cancelled."""
     errors = []
@@ -2414,8 +2582,11 @@ def ci_status_errors(text: str) -> list[str]:
         return [*errors, "no ci-status job"]
     if _job_field(ci, "name") != "ci-status" or _job_field(ci, "if") != "always()":
         errors.append("ci-status is not named ci-status, or its if: is not always()")
-    if _needs(ci) != set(jobs) - {"ci-status"}:
-        errors.append(f"ci-status does not need every other job: {sorted(set(jobs) - _needs(ci))}")
+    want = set(jobs) - {"ci-status", REVIEW_JOB}
+    if want - _needs(ci):
+        errors.append(f"ci-status does not need every other job: {sorted(want - _needs(ci))}")
+    if REVIEW_JOB in _needs(ci):
+        errors.append(f"ci-status needs {REVIEW_JOB}, whose verdict is the review file's alone")
     if _permission_set(ci) != set():
         errors.append("ci-status's permissions are not {}")
     js = [step_fields(s) for s in workflow_steps(ci)]
@@ -2425,10 +2596,11 @@ def ci_status_errors(text: str) -> list[str]:
         or js[0].get("env") != CI_STATUS_ENV
         or 'n.get("result") not in ("success", "skipped")' not in run
         or 'os.environ.get("REFUSALS") != "[]"' not in run
+        or CI_STATUS_PUBLISH not in run
     ):
         errors.append(
-            "ci-status's one step does not fail on a need neither successful nor skipped, or on "
-            "a refusal of the plan"
+            "ci-status's one step does not fail on a need neither successful nor skipped, on "
+            "a refusal of the plan, or on a skipped publish when the plan said publish"
         )
     for job, lines in jobs.items():
         if job in UNGATED:
@@ -2437,6 +2609,34 @@ def ci_status_errors(text: str) -> list[str]:
             _job_field(lines, "if") or ""
         ):
             errors.append(f"{job} does not need the plan and gate on its outputs with if:")
+    return errors + review_job_errors(jobs)
+
+
+def review_job_errors(jobs: dict[str, list[str]]) -> list[str]:
+    """The review job: named so, needing the plan alone, on the event alone (REVIEW_IF), with no
+    permission, one step that fails unless the plan's review_refusals is the empty list; and the
+    plan hands that output on."""
+    lines = jobs.get(REVIEW_JOB)
+    if lines is None:
+        return [f"no {REVIEW_JOB} job"]
+    errors = []
+    if _job_field(lines, "name") != REVIEW_JOB:
+        errors.append(f"{REVIEW_JOB} is not named {REVIEW_JOB}")
+    if _needs(lines) != {"plan"}:
+        errors.append(f"{REVIEW_JOB} does not need the plan alone")
+    if _job_field(lines, "if") != REVIEW_IF:
+        errors.append(f"{REVIEW_JOB}'s if: is not {REVIEW_IF}")
+    if _permission_set(lines) != set():
+        errors.append(f"{REVIEW_JOB}'s permissions are not {{}}")
+    js = [step_fields(s) for s in workflow_steps(lines)]
+    run = str(js[0].get("run", "")) if len(js) == 1 else ""
+    if len(js) != 1 or js[0].get("env") != REVIEW_ENV or REVIEW_TEST not in run:
+        errors.append(
+            f"{REVIEW_JOB}'s one step does not fail on the plan's review_refusals unless it is []"
+        )
+    outputs = _job_map(jobs.get("plan", []), "outputs")
+    if outputs.get("review_refusals") != "${{ steps.plan.outputs.review_refusals }}":
+        errors.append("the plan hands on no review_refusals")
     return errors
 
 
@@ -2452,7 +2652,15 @@ ACCEPT_PUSH_IF = (
     "${{ !cancelled() && needs.plan.outputs.accept == 'true' && github.event_name == 'push' "
     "&& needs.accept-record.result == 'success' }}"
 )
-NOT_JUDGED_WITH = {"accept-record", "accept-push", "ci-status", "weekly-issue", *UNGATED[3:]}
+NOT_JUDGED_WITH = {
+    TAG_PROOF_JOB,
+    "accept-record",
+    "accept-push",
+    "ci-status",
+    "red-run-issue",
+    REVIEW_JOB,
+    *TAG_JOBS,
+}
 ACCEPT_RUN = (
     "uv run pytest -p no:cacheprovider --accept-from=build/ci/record.json --claims=context/changes/"
 )
@@ -2625,10 +2833,6 @@ def accept_release_errors(text: str) -> list[str]:
     return errors
 
 
-WEEKLY_IF = (
-    "${{ always() && needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') "
-    "|| contains(needs.*.result, 'cancelled')) }}"
-)
 WEEKLY_INPUT = (
     "      weekly:\n        description: the weekly run's shape (the release tier, the rebuilds, "
     "an issue when red), dispatched on dev\n        type: boolean\n        default: false\n"
@@ -2636,10 +2840,9 @@ WEEKLY_INPUT = (
 
 
 def weekly_errors(text: str) -> list[str]:
-    """The weekly run: a schedule and a dispatch input that select its shape; one job, with
-    issues: write and nothing else, that opens or updates an issue when a job the run judges with
-    failed or was cancelled, and never on another run; the accept jobs never follow it (they run on
-    the plan's accept output alone, which the weekly shape never sets)."""
+    """The weekly run: a schedule and a dispatch input that select its shape; the accept jobs
+    never follow it (they run on the plan's accept output alone, which the weekly shape never
+    sets). Its issue when red is the red-run issue job's (`red_run_issue_errors`)."""
     body = without_comments(text)
     head = body.split("\njobs:", 1)[0]
     errors = []
@@ -2648,25 +2851,102 @@ def weekly_errors(text: str) -> list[str]:
     if WEEKLY_INPUT not in head:
         errors.append("workflow_dispatch has no weekly input")
     jobs = workflow_jobs(body)
-    job = jobs.get("weekly-issue")
-    if job is None:
-        return [*errors, "no weekly-issue job"]
-    if _job_field(job, "if") != WEEKLY_IF:
-        errors.append(f"weekly-issue's if: is not {WEEKLY_IF}")
-    want = set(jobs) - NOT_JUDGED_WITH
-    if _needs(job) != want:
-        errors.append(f"weekly-issue does not need every job the run judges with: {sorted(want)}")
-    if _permission_set(job) != {"issues: write"}:
-        errors.append("weekly-issue's permissions are not issues: write alone")
-    script = "\n".join(str(step_fields(st).get("run", "")) for st in workflow_steps(job))
-    if "gh issue comment" not in script or "gh issue create" not in script:
-        errors.append("weekly-issue does not comment on the open issue or create one")
     for name in ("accept-record", "accept-push"):
         if "needs.plan.outputs.accept == 'true'" not in (
             _job_field(jobs.get(name, []), "if") or ""
         ):
             errors.append(f"{name} does not run on the plan's accept output alone")
     return errors
+
+
+RED_RUN_JOB = "red-run-issue"
+RED = "(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))"
+# The job runs on the weekly run when it is red, and on every run after a merge into dev (a push
+# the plan accepts), whose red result opens or comments on the issue and whose green one closes it;
+# and on a push to dev whose plan failed, which has no outputs to say it was a merge.
+RED_RUN_IF = (
+    f"${{{{ always() && ((needs.plan.outputs.weekly == 'true' && {RED}) || "
+    "(needs.plan.outputs.accept == 'true' && github.event_name == 'push') || "
+    "(github.event_name == 'push' && github.ref == 'refs/heads/dev' "
+    "&& needs.plan.result == 'failure')) }}"
+)
+RED_RUN_STEPS = {
+    "open": (
+        "Open the issue, or comment on the open one",
+        f"${{{{ {RED[1:-1]} }}}}",
+        ("gh issue comment", "gh issue create"),
+    ),
+    "close": (
+        "Close the open issue, once a run after a merge is green",
+        "${{ github.event_name == 'push' && needs.gather.result == 'success' && "
+        "!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}",
+        ("gh issue close",),
+    ),
+}
+
+
+def red_run_issue_errors(text: str) -> list[str]:
+    """The red-run issue job: the one job with issues: write (and actions: read, to name the red
+    legs), needing every job the run judges with; its if: and each step's if: are exactly the
+    ones that open or comment on an issue when a run after a merge or the weekly run is red, and
+    close it when a run after a merge is green."""
+    jobs = workflow_jobs(without_comments(text))
+    job = jobs.get(RED_RUN_JOB)
+    if job is None:
+        return [f"no {RED_RUN_JOB} job"]
+    errors = []
+    if _job_field(job, "if") != RED_RUN_IF:
+        errors.append(f"{RED_RUN_JOB}'s if: is not {RED_RUN_IF}")
+    want = set(jobs) - NOT_JUDGED_WITH
+    if _needs(job) != want:
+        errors.append(f"{RED_RUN_JOB} does not need every job the run judges with: {sorted(want)}")
+    if _permission_set(job) != {"issues: write", "actions: read"}:
+        errors.append(f"{RED_RUN_JOB}'s permissions are not issues: write and actions: read")
+    writers = sorted(n for n, lines in jobs.items() if "issues: write" in _job_permissions(lines))
+    if writers != [RED_RUN_JOB]:
+        errors.append(f"issues: write is held by {writers}, not {RED_RUN_JOB} alone")
+    steps = {str(f.get("name")): f for f in map(step_fields, workflow_steps(job))}
+    for act, (name, cond, words) in RED_RUN_STEPS.items():
+        step = steps.get(name)
+        if step is None or step.get("if") != cond:
+            errors.append(f"{RED_RUN_JOB}'s {act} step {name!r} does not run on {cond}")
+            continue
+        verb = "comment on the open issue or create one" if act == "open" else "close the issue"
+        if not all(w in str(step.get("run", "")) for w in words):
+            errors.append(f"{RED_RUN_JOB} does not {verb}")
+    return errors
+
+
+def red_run_issue_acts(
+    text: str,
+    outputs: dict[str, str],
+    context: dict[str, str],
+    red: bool,
+    plan_failed: bool = False,
+) -> set[str]:
+    """What the red-run issue job does on one run: "open" when its open step runs, "close" when
+    its close step does, nothing when the job does not run. `red`: a judge job failed, so the
+    gather after it was skipped; otherwise every job it needs succeeded. `plan_failed`: the
+    decision job itself failed, so every other job was skipped and `outputs` is empty."""
+    jobs = workflow_jobs(without_comments(text))
+    job = jobs.get(RED_RUN_JOB)
+    if job is None:
+        return set()
+    if plan_failed:
+        ran = {n: False for n in _needs(job)}
+        results = ["plan"]
+    else:
+        ran = {n: not (red and n == "gather") for n in _needs(job)}
+        results = ["judge-linux"] if red else []
+    if not _evaluate(_job_field(job, "if") or "", outputs, context, ran, results):
+        return set()
+    names = {name: act for act, (name, _, _) in RED_RUN_STEPS.items()}
+    acts = set()
+    for f in map(step_fields, workflow_steps(job)):
+        cond = f.get("if")
+        if cond is None or _evaluate(str(cond), outputs, context, ran, results):
+            acts.add(names.get(str(f.get("name")), str(f.get("name"))))
+    return acts
 
 
 # A job's if:, as GitHub reads it, rewritten into a Python expression over these names alone.
@@ -2676,17 +2956,29 @@ _EXPR_FUNCTIONS = {
 }
 
 
-def _evaluate(cond: str, outputs: dict[str, str], context: dict[str, str], ran: dict) -> bool:
+def _evaluate(
+    cond: str,
+    outputs: dict[str, str],
+    context: dict[str, str],
+    ran: dict,
+    failed: Iterable[str] = (),
+) -> bool:
     """One job's if: under the plan's outputs, the event's github context and which of its needs
-    ran (each succeeded) or were skipped; nothing fails or is cancelled in the run it models."""
+    ran (each succeeded) or were skipped; nothing fails or is cancelled in the run it models but
+    the needs named in `failed` (read by a red run's model)."""
     expr = cond.strip()
     if expr.startswith("${{") and expr.endswith("}}"):
         expr = expr[3:-2].strip()
-    results = ["success" if r else "skipped" for r in ran.values()]
+    failed = set(failed)
+
+    def result(name: str) -> str:
+        return "failure" if name in failed else "success" if ran.get(name) else "skipped"
+
+    results = [result(n) for n in ran]
     subs = [
         (r"needs\.\*\.result", "RESULTS"),
         (r"needs\.plan\.outputs\.([\w-]+)", lambda m: repr(outputs.get(m[1], ""))),
-        (r"needs\.([\w-]+)\.result", lambda m: repr("success" if ran.get(m[1]) else "skipped")),
+        (r"needs\.([\w-]+)\.result", lambda m: repr(result(m[1]))),
         (r"needs\.[\w-]+\.outputs\.[\w-]+", "''"),
         (r"github\.([\w.]+)", lambda m: repr(context.get(m[1], ""))),
         (r"(?:vars|inputs|secrets)\.[\w-]+", "''"),
@@ -4883,12 +5175,15 @@ SET_PATH = "wasi-python-set"
 REUSE_TRUE = "needs.inputs.outputs.reuse == 'true'"
 REUSE_FALSE = "needs.inputs.outputs.reuse != 'true'"
 COMPILED = "steps.compile.outcome == 'success'"
-# A reused set on Linux; else the published host on the release shape, and arm64 Linux for the
-# one compile of a pull request or a push to dev whose key no cache holds.
+# A reused set on x86_64 Linux; every compile on arm64 Linux, the published host, the one
+# set-cache.yml compiles the cached set on. Never macOS: arm64 macOS rebuilds and votes.
 BUILD_RUNS_ON = (
-    "${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || "
-    "needs.plan.outputs.rebuild == 'true' && 'macos-15' || 'ubuntu-24.04-arm' }}"
+    "${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}"
 )
+# The build starts beside quick, which ci-status waits on, not after it.
+BUILD_NEEDS = {"plan", "inputs"}
+BUILD_SHARD_STEP = "The build shard"
+WHEEL_STEP_RUN = "cp -R build/artifacts src/wasi_python/artifacts"
 SET_SOURCE = (
     "${{ steps.compile.outcome == 'success' && 'built' || "
     "format('reused {0}', needs.inputs.outputs.key) }}"
@@ -4957,9 +5252,9 @@ def _build_step_errors(job: str, job_steps: list[dict]) -> list[str]:
 
 def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[str]) -> list[str]:
     """The reuse rules on both workflows, one line per breach: where a set may be reused, the
-    build job's steps, build-shard, the writers and readers of the cache, and set-cache.yml's
-    rules. Where a reused set is trusted is the decision step's script, run by its own rules
-    check."""
+    build job's steps, the rebuild jobs and the build shard in the x86_64 one, the writers and
+    readers of the cache, what the gather waits for, and set-cache.yml's rules. Where a reused
+    set is trusted is the decision step's script, run by its own rules check."""
     errors: list[str] = []
     text = without_comments(release_text)
     jobs = workflow_jobs(text)
@@ -5011,8 +5306,8 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
     build = steps.get("build", [])
     if _job_field(build_lines, "runs-on") != BUILD_RUNS_ON:
         errors.append(f"R3: build's runs-on is not {BUILD_RUNS_ON}")
-    if _needs(build_lines) != {"plan", "inputs", "quick"}:
-        errors.append("R3: build does not need the plan, inputs and quick alone")
+    if _needs(build_lines) != BUILD_NEEDS:
+        errors.append("R3: build does not need the plan and inputs alone (it runs beside quick)")
     if _job_map(build_lines, "outputs").get("set-source") != SET_SOURCE:
         errors.append("R3: build's set-source is not made from the compile step's outcome")
     want_if = {}
@@ -5038,6 +5333,8 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
             want_if[k] = COMPILED
         elif name == LOGS_STEP:
             want_if[k] = "failure()"
+        elif run == TREE_PROOF_RUN:
+            want_if[k] = TAG_ONLY
         else:
             want_if[k] = None
         if f.get("if") != want_if[k]:
@@ -5069,47 +5366,16 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
         if any(k > at for k in later) or wheel is None or wheel < at:
             errors.append("R3: build's set check is not after the set is made and before the wheel")
     if any("--shard" in r for r in _step_runs(build)):
-        errors.append("R3: build runs a shard (the build shard is build-shard's)")
+        errors.append(f"R3: build runs a shard (the build shard is {BUILD_SHARD_JOB}'s)")
     errors += [f"R3: {e}" for e in _build_step_errors("build", build)]
-    # R4: build-shard builds from the pins on every run, then the zero-patch step and its shard.
-    bs_lines = jobs.get("build-shard")
-    if bs_lines is None:
-        errors.append("R4: no build-shard job")
-    else:
-        bs = steps["build-shard"]
-        body = "\n".join(bs_lines)
-        if _job_field(bs_lines, "runs-on") != "ubuntu-24.04-arm":
-            errors.append("R4: build-shard is not on ubuntu-24.04-arm")
-        if (
-            _job_field(bs_lines, "needs") != "plan"
-            or _job_field(bs_lines, "if") != REBUILD_JOBS["build-shard"][2]
-        ):
-            errors.append("R4: build-shard needs another job than the plan, or runs on another if:")
-        if "WASI_PYTHON_ARTIFACTS" in body:
-            errors.append("R4: build-shard names WASI_PYTHON_ARTIFACTS")
-        if any(f.get("uses", "").startswith("actions/download-artifact@") for f in bs):
-            errors.append("R4: build-shard downloads an artifact")
-        runs = _step_runs(bs)
-        order = ["scripts/00_download.sh", "scripts/build.sh", ZERO_PATCH_STEP, BUILD_SHARD_RUN]
-        at = []
-        for want in order:
-            k = next(
-                (k for k, f in enumerate(bs) if runs[k] == want.strip() or f.get("name") == want),
-                None,
-            )
-            at.append(k)
-        if None in at or at != sorted(at):
-            errors.append("R4: build-shard does not download, build, check the trees, then shard")
-        for f in bs:
-            if f.get("if") is not None and f.get("name") != LOGS_STEP:
-                errors.append(
-                    f"R4: build-shard's step {f.get('name') or f.get('run')!r} has an if:"
-                )
-        zp = next((f for f in bs if f.get("name") == ZERO_PATCH_STEP), {})
-        bz = next((f for f in build if f.get("name") == ZERO_PATCH_STEP), {})
-        if zp.get("run") != bz.get("run"):
-            errors.append("R4: build-shard's zero-patch step is not the build job's, text for text")
-        errors += [f"R4: {e}" for e in _build_step_errors("build-shard", bs)]
+    # R4: each rebuild job builds from the pins, then checks the trees; the x86_64 one then runs
+    # the build shard on that clean tree, before its wheel.
+    for job in REBUILD_JOBS:
+        errors += [f"R4: {e}" for e in _rebuild_job_errors(job, jobs, steps)]
+    # No other job compiles from the pins: the build shard has no job of its own.
+    for name, job_steps in steps.items():
+        if "scripts/build.sh" in _step_runs(job_steps) and name not in ("build", *REBUILD_JOBS):
+            errors.append(f"R4: {name} builds from the pins, and is not the build or a rebuild")
     # R5: save-set saves only a set this run built (on the release shape, one both rebuilds
     # matched), after its check.
     ss_lines = jobs.get("save-set")
@@ -5134,13 +5400,71 @@ def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[s
             errors.append("R5: save-set does not verify the set before it saves it")
         elif ss[save].get("with") != {"path": SET_PATH, "key": "${{ steps.key.outputs.key }}"}:
             errors.append("R5: save-set does not save the set under the key its checkout gives")
-    # R6: the gather waits for the proof and is told where the set came from.
+    # R6: the gather waits for the build shard's job, never for same-bytes, which gates what is
+    # cached, signed and published, and the required check.
     g = jobs.get("gather", [])
-    if not {"build-shard", "same-bytes"} <= _needs(g):
-        errors.append("R6: gather does not need build-shard and same-bytes")
+    if BUILD_SHARD_JOB not in _needs(g) or "same-bytes" in _needs(g):
+        errors.append(f"R6: gather does not need {BUILD_SHARD_JOB}, or needs same-bytes")
+    for name in ("save-set", "attest", "publish", "ci-status"):
+        if "same-bytes" not in _needs(jobs.get(name, [])):
+            errors.append(f"R6: {name} does not need same-bytes")
     # The set-cache workflow, the writer to dev's cache.
     errors += set_cache_errors(cache_text, release_text, key_env)
     return errors
+
+
+def _rebuild_job_errors(job: str, jobs: dict, steps: dict) -> list[str]:
+    """One rebuild job against R4: on the plan alone and its rebuild output; no set handed in
+    (no WASI_PYTHON_ARTIFACTS, no download); the download, the build and the zero-patch step, in
+    order, that step the build job's text for text and no step but the logs' on an if:. The
+    x86_64 one, which judges the build shard, checks out the whole history, which the build
+    shard's rules read, and runs the shard after the zero-patch step and before its wheel, whose
+    copy into src/ would make the record's tree unclean."""
+    lines = jobs.get(job)
+    if lines is None:
+        return [f"no {job} job"]
+    js, errors = steps[job], []
+    if _job_field(lines, "needs") != "plan" or _job_field(lines, "if") != REBUILD_IF:
+        errors.append(f"{job} needs another job than the plan, or runs on another if:")
+    if "WASI_PYTHON_ARTIFACTS" in "\n".join(lines):
+        errors.append(f"{job} names WASI_PYTHON_ARTIFACTS")
+    if any(f.get("uses", "").startswith("actions/download-artifact@") for f in js):
+        errors.append(f"{job} downloads an artifact")
+    runs = _step_runs(js)
+    order = ["scripts/00_download.sh", "scripts/build.sh", ZERO_PATCH_STEP]
+    if job == BUILD_SHARD_JOB:
+        order += [BUILD_SHARD_STEP, WHEEL_STEP_RUN]
+    at = [
+        next(
+            (
+                k
+                for k, f in enumerate(js)
+                if runs[k] == want or f.get("name") == want or runs[k].startswith(want + "\n")
+            ),
+            None,
+        )
+        for want in order
+    ]
+    if None in at or at != sorted(at):
+        errors.append(f"{job} does not run, in order: {', '.join(order)}")
+    for f in js:
+        # The build shard and its record run where the plan's build output says: not on a tag.
+        shard_step = f.get("name") == BUILD_SHARD_STEP or f.get("id") in ("record", "record-sha")
+        planned = job == BUILD_SHARD_JOB and shard_step and f.get("if") == BUILD_SHARD_IF
+        if f.get("if") is not None and f.get("name") != LOGS_STEP and not planned:
+            errors.append(f"{job}'s step {f.get('name') or f.get('run')!r} has an if:")
+    zero = [f.get("run") for f in js if f.get("name") == ZERO_PATCH_STEP]
+    built = [f.get("run") for f in steps.get("build", []) if f.get("name") == ZERO_PATCH_STEP]
+    if len(zero) != 1 or zero != built:
+        errors.append(f"{job}'s zero-patch step is not the build job's, text for text")
+    if job == BUILD_SHARD_JOB:
+        shard = next((f for f in js if f.get("name") == BUILD_SHARD_STEP), {})
+        if str(shard.get("run", "")).strip() != BUILD_SHARD_RUN.strip():
+            errors.append(f"{job}'s step {BUILD_SHARD_STEP!r} does not run the build shard alone")
+        checkout = next((f for f in js if f.get("uses", "").startswith("actions/checkout@")), {})
+        if checkout.get("with", {}).get("fetch-depth") != "0":
+            errors.append(f"{job} does not check out the whole history (fetch-depth: 0)")
+    return errors + _build_step_errors(job, js)
 
 
 def set_cache_errors(cache_text: str, release_text: str, key_env: Iterable[str]) -> list[str]:

@@ -1,0 +1,2 @@
+tests/shapes/test_shapetree.py::Describe_MoviePicElementCreator::but_it_gets_the_poster_frame_image_from_the_default_bytes_when_None_specified
+tests/shapes/test_shapetree.py::Describe_MoviePicElementCreator::it_gets_the_poster_frame_image_from_the_specified_path_to_help
