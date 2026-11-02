@@ -171,6 +171,23 @@ class Verdict:
         self.growth_keys.append((kind, key))
 
 
+def rise(claims: list[news.Claim], node: str) -> str:
+    """What a rise in an upstream group's pass count is shown with. A rise needs no reason, as the
+    ratchet and the acceptance hold, so this is never a verdict. Among the claims that name the
+    count under `passes`, the first text that names the group: a `growth`, or a judge file's
+    reason whose path names it (a claim's growth may be another row's); else the first such
+    claim's number alone."""
+    m = UPSTREAM_SUITE.match(node)
+    group = m[1] if m else node
+    named = [c for c in claims if any(news.names(e, node) for e in c.passes)]
+    for c in named:
+        texts = [c.growth] if group in c.growth else []
+        texts += [r for f, r in c.judge.items() if group in f and r]
+        if texts:
+            return f"{c.spec}: {texts[0]}"
+    return f"{named[0].spec}: names this count under passes" if named else "more, needing no claim"
+
+
 def allowed(node: str, need, system: str, may_block: dict[str, frozenset[str]]) -> bool:
     """May this check be reported blocked by this need in this system's record (Decision 1)?"""
     if not isinstance(need, str):  # a list cannot be looked up
@@ -503,7 +520,9 @@ def gather(i: Inputs) -> Verdict:
         acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {}).get("darwin-arm64", {})
         if runs and "passes" in acc and passes != {acc["passes"]}:
             row = f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
-            if listed and claimed("passes", node):
+            if _whole(acc["passes"]) and all(_whole(p) and p > acc["passes"] for p in passes):
+                v.list_growth(row, "more", node)  # a rise: listed, never red, as the ratchet's
+            elif listed and claimed("passes", node):
                 v.list_growth(row, "passes", node)
             else:
                 red.append(row)
@@ -535,7 +554,8 @@ def gather(i: Inputs) -> Verdict:
     if v.growth:
         shown_rows = ["GROWTH, each needing its reason at the acceptance:"]
         for row, (kind, key) in zip(v.growth, v.growth_keys, strict=True):
-            shown_rows.append(f"  {row} · {news.reason(i.claims, kind, key) or 'unclaimed'}")
+            why = rise(i.claims, key) if kind == "more" else news.reason(i.claims, kind, key)
+            shown_rows.append(f"  {row} · {why or 'unclaimed'}")
         v.lines[at:at] = shown_rows
     if not red:
         at = next(
