@@ -148,7 +148,7 @@ Its reasons are the claim blocks of the news files added or changed between the 
 5. `--shard` is refused, and so is every flag that gives a reason (`--accept`, `--partial`, `--retire`, `--accept-judge`, `--accept-growth`, `--accept-fewer-passes`, `--accept-tier-move`, `--tier`).
 6. A run that is not green becomes: the gather's verdict (`meta.red`, which the gather writes into the record) has no red line, no shard was steered from outside the judge, and each shard's only override is `--progress-latest`.
 7. A lost pass is refused; no claim clears it.
-8. An absent check is retired only by a claim's `retired`; a `retired` entry that names no absent check refuses, as `--retire` does.
+8. An absent check is retired only by a claim's `retired`; a `retired` entry that names no absent check refuses, as `--retire` does. The release pull request reads again the claims its merges were accepted on, whose checks those merges already retired: there an entry also names a check that a history line since the last release's acceptance lists under `retired` (spec 184).
 9. An accepted pass blocked, or an accepted upstream check not run, is always refused: a merge-grade run that blocks an accepted pass is a broken run, and no claim clears it.
 10. A growth is cleared by `grows` with its `growth`.
 11. A fall in a pass count is cleared by `passes` with its `fewer`.
