@@ -33,7 +33,9 @@ The local acceptance's guards, in their form for a record:
   outside the judge, and each shard's only override is `--progress-latest`;
 - a lost pass is refused, and no claim clears it;
 - an absent check is retired only by a claim's `retired`, and a `retired` entry that names no
-  absent check refuses, as `--retire` does;
+  absent check refuses, as `--retire` does; on the release pull request, which reads again the
+  claims its merges were accepted on, an entry names a check when a merge's acceptance since the
+  last release's retired it;
 - an accepted pass blocked, or an accepted upstream check not run, is always refused: a run that
   blocks an accepted pass is a broken run, and no claim clears it;
 - a growth is cleared by `grows` with its `growth`, a fall in a pass count by `passes` with its
@@ -286,10 +288,17 @@ class Claimed:
     missing: list[tuple[str, str, str]] = field(default_factory=list)
 
 
-def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool) -> Claimed:
+def claimed(
+    ratchet: scoreboard.Ratchet,
+    claims: list[news.Claim],
+    judged: bool,
+    retired_before: frozenset[str] = frozenset(),
+) -> Claimed:
     """Each row the acceptance needs a reason for, with the claim that gives it; a loss, or a
     claim that names nothing, as a refusal; a row no claim gives a reason for, as missing.
-    `judged`: there is an accepted judge to have changed."""
+    `judged`: there is an accepted judge to have changed. `retired_before`: the checks a merge's
+    acceptance already retired, whose claims the release reads again; a `retired` entry that
+    names one of them names a check, though it is no longer absent."""
     c = Claimed()
     if ratchet.lost:
         c.refusals.append(f"lost passes, which no claim clears: {', '.join(ratchet.lost[:3])}")
@@ -306,7 +315,7 @@ def claimed(ratchet: scoreboard.Ratchet, claims: list[news.Claim], judged: bool)
             c.refusals.append(f"absent, and no claim retires it: {node}")
     for claim in claims:
         for entry in claim.retired:
-            if not any(news.names(entry, n) for n in ratchet.absent):
+            if not any(news.names(entry, n) for n in (*ratchet.absent, *retired_before)):
                 c.refusals.append(f"{claim.spec}: retired names {entry}, which is not absent")
     for kind, rows, into in (
         ("grows", ratchet.growth, c.growth),
@@ -411,6 +420,17 @@ def since_release(history_lines: list[str]) -> tuple[list[tuple[int, dict]], str
     return rows, None
 
 
+def retired_since_release(history_lines: list[str]) -> frozenset[str]:
+    """Each check a merge's acceptance retired since the last release's acceptance."""
+    out: set[str] = set()
+    for line in reversed(history_lines):
+        entry = json.loads(line)
+        if _is_release_line(entry):
+            break
+        out.update(entry.get("retired") or [])
+    return frozenset(out)
+
+
 def reconciled(history_lines: list[str], claims: list[news.Claim]) -> list[str]:
     """The release's refusals: each row accepted unclaimed since the last release that no claim
     of the release's gives a reason for, named with its line and the ledger that would clear it."""
@@ -446,8 +466,9 @@ def accept(i: Inputs) -> Acceptance:
         raise Refused(refusals)
     run = run_from_record(i)
     ratchet = scoreboard.compare(run, i.accepted, i.repo)
-    c = claimed(ratchet, i.claims, judged=bool(i.accepted))
     release = _release_pr(i.record["meta"])
+    before = retired_since_release(i.history_lines) if release else frozenset()
+    c = claimed(ratchet, i.claims, judged=bool(i.accepted), retired_before=before)
     unclaimed = [] if release else [unclaimed_row(*m, i.accepted, i.judge) for m in c.missing]
     if release:
         c.refusals += [MISSING[kind].format(row) for kind, _, row in c.missing]

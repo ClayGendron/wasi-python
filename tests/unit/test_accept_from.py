@@ -538,6 +538,45 @@ def _accepted_on_dev(i: accept_from.Inputs, edit=_grow) -> accept_from.Inputs:
     return i
 
 
+def test_the_release_accepts_a_retirement_a_merge_since_the_last_release_made(inputs) -> None:
+    """The release reads again the news file whose claim retired a check at its merge. That check
+    is no longer accepted, so it cannot be absent; the merge's line since the last release that
+    retired it honours the claim. A retirement no such line made is still refused."""
+    retire = claim(retired=[RULE])
+    _drop(inputs, RULE)
+    inputs.claims = [retire]
+    a = accept_from.accept(inputs)
+    inputs.accepted, inputs.history_lines = a.accepted, [*inputs.history_lines, a.line]
+    _release(inputs)
+    assert accept_from.accept(inputs).line
+    inputs.claims = [claim(retired=["tests/checks/test_rules.py"])]
+    assert accept_from.accept(inputs).line  # a file's name retired the check within it
+    inputs.claims = [retire, claim(retired=[TOOLS])]
+    why = refused(inputs)
+    assert f"retired names {TOOLS}, which is not absent" in why and RULE not in why, why
+
+
+def test_a_retirement_before_the_last_release_is_not_honoured_again(inputs) -> None:
+    """Only the lines since the last release's acceptance honour a claim: one the last release
+    already read is not this release's to read."""
+    _drop(inputs, RULE)
+    inputs.claims = [claim(retired=[RULE])]
+    a = accept_from.accept(inputs)
+    released = json.dumps(json.loads(a.line) | {"event": "pull_request"})
+    inputs.accepted, inputs.history_lines = a.accepted, [*inputs.history_lines, released]
+    _release(inputs)
+    assert f"retired names {RULE}, which is not absent" in refused(inputs)
+
+
+def test_a_merge_still_refuses_a_retirement_of_a_check_that_is_not_absent(inputs) -> None:
+    """On dev the rule is the merge's own: its retired entry must name a check absent now."""
+    _drop(inputs, RULE)
+    inputs.claims = [claim(retired=[RULE])]
+    a = accept_from.accept(inputs)
+    inputs.accepted, inputs.history_lines = a.accepted, [*inputs.history_lines, a.line]
+    assert f"retired names {RULE}, which is not absent" in refused(inputs)
+
+
 def test_the_release_is_refused_while_a_row_accepted_unclaimed_has_no_claim(inputs) -> None:
     """The refusal names the row, the line that wrote it and the ledger that would clear it."""
     _release(_accepted_on_dev(inputs))

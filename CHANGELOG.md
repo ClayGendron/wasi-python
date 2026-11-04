@@ -4,7 +4,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 
 ## 0.1.3 — 2026-11-01
 
-0.1.3 checkpoints and forks a live session, returns a cell's value and displays typed, with matplotlib figures as PNGs, and streams a guest's output while it runs. It adds python-docx, python-pptx, pdfplumber, xarray, plotly, drawsvg, SVG to PNG through cairo, JPEG in Pillow, and zstd, and a plain start costs less. You may need to act on seven changes: `SnapshotFailed.completed` may be `None`, `argv` refuses `-Xhost-results`, CPython, numpy and pandas move to 3.15.2, 2.5.4 and 3.1.0, three pure packages move, a snapshot saved with 0.1.2 must be made again, and hashing a deeply nested tuple raises sooner. This release is on GitHub; it reaches PyPI once PyPI raises the project's file limit.
+0.1.3 checkpoints and forks a live session, returns a cell's value and displays typed, with matplotlib figures as PNGs, and streams a guest's output while it runs. It adds python-docx, python-pptx, pdfplumber, xarray, plotly, drawsvg, SVG to PNG through cairo, JPEG in Pillow, and zstd, and a plain start costs less. You may need to act on seven changes: `SnapshotFailed.completed` may be `None`, `argv` refuses `-Xhost-results`, CPython, numpy and pandas move to 3.15.2, 2.5.4 and 3.1.0, three pure packages move, a snapshot saved with 0.1.2 must be made again, and hashing a deeply nested tuple raises sooner. It is published on GitHub and on PyPI.
 
 ### New
 
