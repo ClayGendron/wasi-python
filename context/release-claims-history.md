@@ -2,6 +2,28 @@
 
 `release/version.py date` moves each file of the ledger (`release-claims/NNN-<slug>.toml`, one per pull request) here, under the version it dates and under the file's name, in file-name order, before the release pull request, and removes the file; the ledger's folder keeps its README alone. The release pull request's gather and acceptance read the version's blocks, with any file written since, as their claims (`progress/README.md`, "The release tier" and "Acceptance from CI's record"). Until 0.1.0 the release acceptance moved them. Until 0.1.2 the ledger was `release-tier-claims.toml` and this file `release-tier-claims-history.md`, and they carried release-tier claims alone; the 0.1.2 block below names the ledger by its old name, as it was written. Until specification 177 the ledger was the single file `release-claims.toml`, whose blocks `date` moved as one fence; 0.1.2's section and those before it keep that shape.
 
+## 0.1.4
+
+Moved by `release/version.py date` on 2026-11-05, before the release pull request.
+
+`181-the-release-runs-three-flips.toml`:
+
+```toml
+[[claim]]
+spec = "181"
+changed = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-counted-clock]",
+]
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[fonttools-r-rest]"]
+[claim.judge]
+"tests/upstream/expected/jinja2-r/no-asyncio-loop-error.txt" = "jinja2-r's collector-timing flip, which 172's Decision 5 left uncovered: this set gives the state 0.1.0 to 0.1.2 held, so the list returns to its content before bedf8f30; measured in run 41346031022; 552 passes unchanged; approved by the owner on 2026-11-01, 182 to follow"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "jinja2-r's collector-timing flip, which 172's Decision 5 left uncovered: this set gives the state 0.1.0 to 0.1.2 held, so the list returns to its content before bedf8f30; measured in run 41346031022; approved by the owner on 2026-11-01, 182 to follow"
+"tests/upstream/expected/fonttools-r-rest/counted-clock.txt" = "TimerTest::test_split now passes, 2,634 to 2,635: a GC pass reads the counted clock during its second timed interval on this set; measured in run 41346031022; approved by the owner on 2026-11-01"
+"tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop-error 13, ba56b641f579; jinja2-r-no-asyncio-loop 104, 959d6ba605ec; fonttools-r-rest-counted-clock 2, 0c61ab6175e3; each run 41346031022's membership; approved by the owner on 2026-11-01"
+```
+
 ## 0.1.3
 
 Moved by `release/version.py date` on 2026-11-01, before the release pull request.

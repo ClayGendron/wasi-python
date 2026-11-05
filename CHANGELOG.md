@@ -2,6 +2,21 @@
 
 One section per release of the `wasi-python` artifact set and wheel, newest first. Each section is also the release's notes on GitHub. From 0.1.2 a section opens with what the release gives you, then lists its changes under New, Faster, Security, Fixed, Upgrading and For contributors, each with a link to the page that explains it. Earlier sections are kept as they were published.
 
+## 0.1.4 — 2026-11-05
+
+0.1.4 restores the wheel's provenance on PyPI: its page names the repository, workflow and commit that published it, as 0.1.1's did. The runtime, the packages and the API are those of 0.1.3, so there is nothing to change when you upgrade. Each release now reads PyPI back after the upload and is red unless the wheel carries its provenance. It is published on GitHub and on PyPI.
+
+### Security
+
+- **The wheel on PyPI carries its provenance again.** PyPI's page names the repository, workflow and commit that published it. 0.1.2 and 0.1.3 went to PyPI without it and cannot be changed; their GitHub attestation covers the same file and still verifies. [Verify a download](https://claygendron.github.io/wasi-python/how-to/verify-a-download/)
+
+### For contributors
+
+- **Three test results that moved with no code change are re-recorded.** The plain reactor's fuel in the results check is reported, not ratcheted, since its hash seed is random; jinja2's two asyncio classes return to the members earlier releases held; and fontTools' `test_split` leaves the counted-clock class, as it now passes. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
+- **A suite that passes more tests no longer stops a release.** The release's gather listed a rise in a suite's pass count as unexplained; it now shows it with the reason a change gives, as the acceptance already did, while a fall still needs its reason and a lost pass still fails. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
+- **A check retired at its merge no longer stops the release.** The release's acceptance reads every change's reasons again, and refused a retirement because the check was already gone; it now accepts one a merge since the last release made, and refuses any other as before. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
+- **A release reads PyPI back.** After the upload, the release checks that PyPI serves the wheel's own SHA-256 with provenance from this repository, and is red otherwise. Every release-shaped run rehearses the path first, and a tag signs nothing until the rehearsal passes. [The release process](https://claygendron.github.io/wasi-python/contributing/release-process/)
+
 ## 0.1.3 — 2026-11-01
 
 0.1.3 checkpoints and forks a live session, returns a cell's value and displays typed, with matplotlib figures as PNGs, and streams a guest's output while it runs. It adds python-docx, python-pptx, pdfplumber, xarray, plotly, drawsvg, SVG to PNG through cairo, JPEG in Pillow, and zstd, and a plain start costs less. You may need to act on seven changes: `SnapshotFailed.completed` may be `None`, `argv` refuses `-Xhost-results`, CPython, numpy and pandas move to 3.15.2, 2.5.4 and 3.1.0, three pure packages move, a snapshot saved with 0.1.2 must be made again, and hashing a deeply nested tuple raises sooner. It is published on GitHub and on PyPI.
