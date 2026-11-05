@@ -35,9 +35,11 @@ The first alpha, `0.1.0a1`, has no attestation. Every release after it carries o
 From 0.1.4 the wheel on PyPI also carries PyPI provenance: PyPI shows it on the file's page, and this checks it.
 
 ```sh
-uvx pypi-attestations verify pypi --repository https://github.com/ClayGendron/wasi-python \
+uvx pypi-attestations@0.0.30 verify pypi --repository https://github.com/ClayGendron/wasi-python \
   pypi:wasi_python-<version>-py3-none-any.whl
 ```
+
+This checks the repository only, not the workflow or the tag, so `gh attestation verify` above is the stronger check.
 
 The wheels of 0.1.2 and 0.1.3 on PyPI carry no PyPI provenance, and files on PyPI cannot be changed. Each is the same file as its release's wheel, so check it with `gh attestation verify` above.
 
