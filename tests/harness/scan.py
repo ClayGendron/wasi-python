@@ -654,8 +654,10 @@ def release_attestation_errors(text: str) -> list[str]:
     if _job_field(attest, "if") != TAG_ONLY or _job_field(publish, "if") != TAG_ONLY:
         errors.append("attest's or publish's if: is not the pushed-tag condition")
     needs_attest = _job_field(attest, "needs") or ""
-    if not {"build", "verify", TAG_PROOF_JOB} <= set(re.findall(r"[a-z_-]+", needs_attest)):
-        errors.append(f"attest does not need build, verify and {TAG_PROOF_JOB}")
+    if not {"build", "verify", TAG_PROOF_JOB, "pypi-rehearsal"} <= set(
+        re.findall(r"[a-z_-]+", needs_attest)
+    ):
+        errors.append(f"attest does not need build, verify, {TAG_PROOF_JOB} and pypi-rehearsal")
     if _job_permissions(attest) != ATTEST_PERMISSIONS:
         errors.append(f"attest's permissions are not {sorted(ATTEST_PERMISSIONS)}")
     body = "\n".join(attest)
@@ -1463,8 +1465,12 @@ JOB_PERMISSIONS = {
     "save-set": {"contents: read"},
     "attest": ATTEST_PERMISSIONS,
     "publish": {"contents: write"},
-    # The trusted publisher's token, and the checkout of the local action.
+    # The trusted publisher's token, which the signature uses too, and the checkout of the local
+    # action.
     "pypi": {"contents: read", "id-token: write"},
+    # The read-back of PyPI after the upload, and its rehearsal: read only.
+    "pypi-verify": {"contents: read"},
+    "pypi-rehearsal": {"contents: read"},
 }
 # The systems whose judge job uploads one record per leg, and the gather's download of them: by the
 # names those legs upload under, into the job's own folder, each only when the plan ran the job.
@@ -1593,8 +1599,73 @@ CODE_WORDS = re.compile(r"(?<![\w.-])(uvx?|python[0-9.]*|pip[0-9.]*)\b|(?<![\w-]
 UV_WORD = re.compile(r"(?<![\w.-])uvx?\b")
 TOKEN = re.compile(r"github\.token|secrets\.")
 UV_PUBLISH_BANNED = ("--token", "-t", "--username", "-u", "--password", "-p", "--publish-url",
-                     "--index", "--check-url")  # fmt: skip
+                     "--index", "--check-url", "--no-attestations")  # fmt: skip
 PYPI_USES = re.compile(r"(actions/checkout|astral-sh/setup-uv)@[0-9a-f]{40}")
+# PyPI's signature: Astral's action, pinned by commit, whose own lock holds every wheel it runs by
+# hash; that lock needs uv 0.13 or later, pinned here by version and by the archive's checksum,
+# which setup-uv's own table does not hold for it. The jobs that run the lock check out release/
+# too, since the workflow's UV_BUILD_CONSTRAINT names a file there.
+ATTEST_ACTION = "astral-sh/attest-action"
+ATTEST_ACTION_SHA = "39b6ce43875c196a579e31635b11aa2a2036384a"
+ATTEST_UV_VERSION = '"0.13.5"'
+ATTEST_UV_SHA256 = '"f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"'
+ATTEST_UV_WITH = {
+    "version": ATTEST_UV_VERSION,
+    "checksum": ATTEST_UV_SHA256,
+    "enable-cache": "false",
+}
+# The checkout of the action's own tree, into attest-action/, for the read-back's verifier.
+ATTEST_CHECKOUT = {
+    "repository": ATTEST_ACTION,
+    "ref": ATTEST_ACTION_SHA,
+    "path": "attest-action",
+    "persist-credentials": "false",
+}
+SPARSE_RELEASE = ("            .github/actions", "            release")
+# The step between the signature and the upload that holds dist/ to the wheel and its attestation:
+# uv uploads an attestation only when it is among the files named, so the upload names dist/*.
+PYPI_STAGE_STEP = "Only the wheel and its attestation"
+PYPI_STAGE_CHECK = """set -eu
+wheel=$(cd dist && ls -- *.whl)
+want=$(printf '%s\\n%s.publish.attestation\\n' "$wheel" "$wheel")
+if [ "$(ls dist)" != "$want" ]; then
+  echo "dist/ holds other files than the wheel and its attestation"
+  exit 1
+fi
+"""
+# The read-back after the upload, and the rehearsal of it on every release-shaped run.
+LOCKED_TREE = "uv run --locked --no-dev --project attest-action python -I"
+READBACK_CHECK = """set -eu
+python3 -I release/pypi_readback.py check --sums release-assets/SHA256SUMS \\
+  --repository "$GITHUB_REPOSITORY" --version "${GITHUB_REF_NAME#v}"
+"""
+READBACK_VERIFY = f"""set -eu
+wheel=$(cd release-assets && ls -- *.whl)
+{LOCKED_TREE} -m pypi_attestations \\
+  verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "pypi:$wheel"
+"""
+REHEARSAL_RUNS = (
+    f'{LOCKED_TREE} -c "import pypi_attestations, sigstore"',
+    "python3 -I release/pypi_readback.py rehearse",
+    f"""set -eu
+{LOCKED_TREE} -m pypi_attestations \\
+  verify pypi --repository https://github.com/ClayGendron/wasi-python \\
+  pypi:wasi_python-0.1.1-py3-none-any.whl
+""",
+    # The upload's staging and uv's choice of files, on the build's wheel with a stand-in
+    # attestation, by a dry run with no token.
+    "mkdir dist && mv release-assets/*.whl dist/",
+    """set -eu
+wheel=$(cd dist && ls -- *.whl)
+printf '{}' > "dist/$wheel.publish.attestation"
+""",
+    PYPI_STAGE_CHECK,
+    """set -eu
+uv publish --no-config --trusted-publishing never --dry-run -vv dist/* 2> publish-dry-run.log
+grep -F "Found attestation for distribution" publish-dry-run.log
+""",
+)
+REHEARSAL_IF = "needs.plan.outputs.rebuild == 'true'"
 
 
 def _job_block(lines: list[str], key: str) -> list[str]:
@@ -1652,38 +1723,80 @@ def token_scope_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> li
     return errors
 
 
+def _sparse_has_release(step: list[str]) -> bool:
+    """A checkout step whose sparse list is `.github/actions` and `release`, read from its lines,
+    since a `|` block inside `with:` is not one of its keys."""
+    at = next((i for i, line in enumerate(step) if line.strip() == "sparse-checkout: |"), None)
+    return at is not None and tuple(step[at + 1 : at + 3]) == SPARSE_RELEASE
+
+
+def _attest_uv_errors(name: str, job_steps: list) -> list[str]:
+    """The checkouts and the uv of a job that runs the signer's lock: this commit with release/
+    beside the local action, and setup-uv at ATTEST_UV_VERSION by ATTEST_UV_SHA256."""
+    errors = []
+    ours = [s for s, f in job_steps if f.get("uses", "").startswith("actions/checkout@")
+            and f.get("with", {}).get("repository") is None]  # fmt: skip
+    if len(ours) != 1 or not _sparse_has_release(ours[0]):
+        errors.append(
+            f"{name}'s checkout of this commit does not carry .github/actions and release"
+        )
+    uvs = [f for _, f in job_steps if f.get("uses", "").startswith("astral-sh/setup-uv@")]
+    if len(uvs) != 1 or uvs[0].get("with") != ATTEST_UV_WITH:
+        errors.append(
+            f"{name}'s setup-uv is not version {ATTEST_UV_VERSION} by checksum, cache off"
+        )
+    return errors
+
+
 def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
-    """Rule 20: PyPI's upload runs the pinned uv through trusted publishing alone. pypi uses only
-    the checkout, setup-uv at the workflow's UV_VERSION with no cache, and the local action; one
-    step runs `uv publish --no-config --trusted-publishing always` on files under dist/ with no
-    credential or index of its own; pypi sets no env: anywhere and writes neither GITHUB_ENV nor
-    GITHUB_PATH, since a variable such as UV_CONFIG_FILE is read before --no-config; and no job
-    of the workflow runs in a container or beside a service, whose image is named by a tag."""
+    """Rule 20: PyPI's signature and upload. pypi uses only the checkout (of this commit, with
+    release/), setup-uv at ATTEST_UV_VERSION by its checksum with no cache, the local action, and
+    astral-sh/attest-action at ATTEST_ACTION_SHA once, on dist/*.whl and nothing else, after the
+    local action; a step after it holds dist/ to the wheel and its attestation; then one step runs
+    `uv publish --no-config --trusted-publishing always dist/*`, naming no credential or index of
+    its own and not --no-attestations (uv uploads an attestation only when it is among the files
+    named). pypi sets no env: anywhere and writes neither GITHUB_ENV nor GITHUB_PATH, since a
+    variable such as UV_CONFIG_FILE is read before --no-config; and no job of the workflow runs in
+    a container or beside a service, whose image is named by a tag."""
     errors = []
     for name, lines in jobs.items():
         if _job_field(lines, "container") is not None or _job_field(lines, "services") is not None:
             errors.append(f"rule 20: {name} runs in a container or beside a service")
     pypi = steps.get("pypi", [])
+    attest_uses = f"{ATTEST_ACTION}@{ATTEST_ACTION_SHA}"
     for _, f in pypi:
         uses = f.get("uses")
         if uses is None:
             continue
-        if uses != ASSETS_ACTION and not PYPI_USES.fullmatch(uses):
+        if uses not in (ASSETS_ACTION, attest_uses) and not PYPI_USES.fullmatch(uses):
             errors.append(f"rule 20: pypi uses {uses}")
-        if (
-            uses.startswith("astral-sh/setup-uv@")
-            and (f.get("with") or {}).get("version") != "${{ env.UV_VERSION }}"
-        ):
-            errors.append("rule 20: pypi's setup-uv is not the workflow's UV_VERSION")
+    errors += [f"rule 20: {e}" for e in _attest_uv_errors("pypi", pypi)]
+    signs = [i for i, (_, f) in enumerate(pypi) if f.get("uses") == attest_uses]
+    action = next((i for i, (_, f) in enumerate(pypi) if f.get("uses") == ASSETS_ACTION), None)
+    stage = [
+        i
+        for i, (_, f) in enumerate(pypi)
+        if f.get("name") == PYPI_STAGE_STEP and f.get("run") == PYPI_STAGE_CHECK
+    ]
+    if len(signs) != 1 or pypi[signs[0]][1].get("with") != {"paths": "dist/*.whl"}:
+        errors.append(f"rule 20: pypi does not sign dist/*.whl with {attest_uses} exactly once")
     if _job_block(jobs.get("pypi", []), "env") or any("env" in f for _, f in pypi):
         errors.append("rule 20: pypi sets env:")
     if any(re.search(r"GITHUB_(ENV|PATH)", str(f.get("run", ""))) for _, f in pypi):
         errors.append("rule 20: pypi writes GITHUB_ENV or GITHUB_PATH")
     # Every step that runs uv counts, however its words are ordered (`uv --no-config publish`).
-    uploads = [str(f.get("run", "")) for _, f in pypi if UV_WORD.search(str(f.get("run", "")))]
-    words = uploads[0].replace("\\\n", " ").split() if len(uploads) == 1 else []
+    uploads = [(i, str(f.get("run", ""))) for i, (_, f) in enumerate(pypi)
+               if UV_WORD.search(str(f.get("run", "")))]  # fmt: skip
+    words = uploads[0][1].replace("\\\n", " ").split() if len(uploads) == 1 else []
     if "publish" not in words:
         return [*errors, "rule 20: pypi does not run uv publish in exactly one step"]
+    order = [action, signs[0] if len(signs) == 1 else None, stage[0] if stage else None,
+             uploads[0][0]]  # fmt: skip
+    if len(stage) != 1 or None in order or order != sorted(order):
+        errors.append(
+            "rule 20: pypi does not check the build's files, sign, hold dist/ to the wheel and its "
+            "attestation, and upload, in that order"
+        )
     at = next((k for k, w in enumerate(words) if UV_WORD.fullmatch(w)), None)
     if at is None:  # `/usr/bin/uv`: a path that may name any binary, so the scan names it
         return [*errors, "rule 20: pypi runs uv by a path, not as the word uv"]
@@ -1697,9 +1810,51 @@ def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> li
     ]:
         errors.append("rule 20: uv publish runs without --trusted-publishing always")
     if any(a.split("=")[0] in UV_PUBLISH_BANNED for a in args):
-        errors.append("rule 20: uv publish names a credential or an index of its own")
-    if not files or any(not f.startswith("dist/") for f in files):
-        errors.append("rule 20: uv publish uploads files outside dist/")
+        errors.append("rule 20: uv publish names a credential, an index or --no-attestations")
+    if files != ["dist/*"]:
+        errors.append("rule 20: uv publish uploads other files than dist/*")
+    return errors
+
+
+def pypi_readback_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
+    """Rule 21: PyPI is read back after the upload, and the read-back is rehearsed before a tag.
+    pypi-verify runs on the pypi job's condition after pypi, with contents: read and a timeout,
+    and runs exactly the two checks (the digest and the provenance's publisher, then the
+    signature through Sigstore's trust root), each as the scan holds it, with no way past a
+    failure. pypi-rehearsal runs on every release-shaped run with contents: read and a timeout,
+    and runs the signer's lock and both checks on a released wheel, then the upload's staging and
+    a dry run of it with no token on the build's wheel; attest waits on it (the attestation scan).
+    Both check out this commit
+    with release/, the action's tree at ATTEST_ACTION_SHA into attest-action/, and the signer's
+    uv."""
+    errors = []
+    for name, want_if, want_needs, runs in (
+        ("pypi-verify", PYPI_IF, {"build", "pypi"}, (READBACK_CHECK, READBACK_VERIFY)),
+        ("pypi-rehearsal", REHEARSAL_IF, {"plan", "build"}, REHEARSAL_RUNS),
+    ):
+        lines = jobs.get(name)
+        if lines is None:
+            errors.append(f"rule 21: no {name} job")
+            continue
+        job_steps = steps.get(name, [])
+        if _job_field(lines, "if") != want_if or _needs(lines) != want_needs:
+            errors.append(f"rule 21: {name}'s if: is not {want_if!r} or it needs other jobs")
+        if _job_field(lines, "timeout-minutes") is None:
+            errors.append(f"rule 21: {name} has no timeout-minutes:")
+        theirs = [f for _, f in job_steps if f.get("with", {}).get("repository") is not None]
+        if [f.get("with") for f in theirs] != [ATTEST_CHECKOUT]:
+            errors.append(f"rule 21: {name} does not check out {ATTEST_ACTION} at its pin")
+        errors += [f"rule 21: {e}" for e in _attest_uv_errors(name, job_steps)]
+        scripts = [str(f["run"]) for _, f in job_steps if "run" in f]
+        if [s.strip() for s in scripts] != [r.strip() for r in runs]:
+            errors.append(
+                f"rule 21: {name} does not run exactly its checks, as the scan holds them"
+            )
+        body = without_expressions("\n".join(lines))
+        if re.search(r"\|\||set \+e", body) or re.search(
+            r"^ {6,}(- )?(if|continue-on-error):", "\n".join(lines), re.M
+        ):
+            errors.append(f"rule 21: a step of {name} can carry on past a failure")
     return errors
 
 
@@ -1926,6 +2081,7 @@ def release_binding_errors(text: str, action: str) -> list[str]:
         errors.append(f"rule 18: pypi's if: is not {PYPI_IF!r}, or it does not need publish")
     errors += token_scope_errors(jobs, steps)
     errors += pypi_upload_errors(jobs, steps)
+    errors += pypi_readback_errors(jobs, steps)
     return errors
 
 
@@ -2511,8 +2667,8 @@ def tag_run_errors(text: str) -> list[str]:
 
 HEAD_REF = "${{ github.event.pull_request.head.sha || github.sha }}"
 # The jobs that need no gate of the plan's: the plan itself, quick (every run), the one required
-# check, the review (every pull request into dev), and the three that only a pushed tag reaches.
-TAG_JOBS = ("attest", "publish", "pypi")
+# check, the review (every pull request into dev), and the four that only a pushed tag reaches.
+TAG_JOBS = ("attest", "publish", "pypi", "pypi-verify")
 UNGATED = ("plan", "quick", "ci-status", "review", *TAG_JOBS)
 CI_STATUS_ENV = {
     "NEEDS": "${{ toJSON(needs) }}",
@@ -2540,15 +2696,23 @@ CONCURRENCY = (
 )
 
 
+ATTEST_TREE_JOBS = ("pypi-verify", "pypi-rehearsal")
+
+
 def checkout_ref_errors(text: str) -> list[str]:
     """Every checkout in the workflow names the head commit: a pull request's is its head, never
-    the merge ref, which is a merge commit nobody will merge and the history rules refuse."""
+    the merge ref, which is a merge commit nobody will merge and the history rules refuse. The one
+    other checkout is the signer's tree at ATTEST_ACTION_SHA, in the two jobs that read PyPI
+    back."""
     errors = []
     for job, lines in workflow_jobs(without_comments(text)).items():
         for step in workflow_steps(lines):
             f = step_fields(step)
-            if f.get("uses", "").startswith("actions/checkout@") and (
-                f.get("with", {}).get("ref") != HEAD_REF
+            if (
+                f.get("uses", "").startswith("actions/checkout@")
+                and f.get("with", {}).get("ref") != HEAD_REF
+                # The signer's own tree, at its pin, for the read-back's verifier.
+                and not (job in ATTEST_TREE_JOBS and f.get("with") == ATTEST_CHECKOUT)
             ):
                 errors.append(f"{job} checks out another ref than {HEAD_REF}")
     return errors

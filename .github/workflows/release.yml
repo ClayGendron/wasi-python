@@ -1369,7 +1369,7 @@ jobs:
     # record of both tiers the same way, its reasons the news files' and the release ledger's,
     # and accept-release.yml, which the run's completion starts on dev's own context, commits it.
     # A red or a cancelled run never gets here, so the accepted state never records a red one.
-    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
+    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify, pypi-rehearsal]
     if: ${{ !cancelled() && !failure() && needs.plan.outputs.accept == 'true' && needs.gather.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -1489,7 +1489,7 @@ jobs:
     # fixes it forward the same day or reverts it, while other pull requests keep merging. A green
     # run after a merge closes the open one. A merge's run whose plan itself failed is red too, with
     # no outputs to read. No other run touches an issue.
-    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify]
+    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, verify, pypi-rehearsal]
     if: ${{ always() && ((needs.plan.outputs.weekly == 'true' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) || (needs.plan.outputs.accept == 'true' && github.event_name == 'push') || (github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.plan.result == 'failure')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -1616,10 +1616,11 @@ jobs:
     # verified strictly, before anything is published, and only once arm64 macOS and
     # x86_64 Linux rebuilt the same bytes (same-bytes) and judged held them to the release pull
     # request's acceptance. Only a pushed tag gets here: a signature is permanent in the public
-    # transparency log, so dry runs never sign. It checks out this repository for the local
-    # action alone.
+    # transparency log, so dry runs never sign. It waits on pypi-rehearsal too, so a PyPI path that
+    # would fail stops the tag before anything is signed or published. It checks out this
+    # repository for the local action alone.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, judged]
+    needs: [build, verify, same-bytes, judged, pypi-rehearsal]
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
@@ -1689,16 +1690,23 @@ jobs:
             --title "wasi-python $version" --notes-file notes.md --verify-tag $prerelease
 
   pypi:
-    name: publish the wheel on PyPI
-    # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
-    # repository variable PYPI_PUBLISH to true; judged has already held the wheel to the limit
-    # PyPI has granted (PYPI_FILE_LIMIT_GRANTED, or 100 MiB). It checks out this repository for the local
-    # action alone, and uploads with the workflow's pinned uv through trusted publishing alone:
-    # the job's OIDC token, exchanged for a PyPI token bound to this repository, release.yml and
-    # the pypi environment. It sets no env, so no variable steers uv past --no-config.
+    name: sign and publish the wheel on PyPI
+    # Off until the owner sets the repository variable PYPI_PUBLISH to true; judged has already
+    # held the wheel to the limit PyPI has granted (PYPI_FILE_LIMIT_GRANTED, or 100 MiB). The wheel
+    # is signed here for PyPI, a PEP 740 attestation that PyPI shows as the file's provenance, by
+    # astral-sh/attest-action pinned by commit, whose own lock holds every wheel it runs by hash.
+    # That lock needs uv 0.13 or later (the workflow's UV_VERSION refuses it), so this job pins
+    # 0.13.5 by version and checksum, and uploads with it too. The checkout carries release/,
+    # since the workflow's UV_BUILD_CONSTRAINT names a file there and uv reads it first. The upload
+    # runs through trusted publishing alone: the job's OIDC token, exchanged for a PyPI token bound
+    # to this repository, release.yml and the pypi environment. It names dist/*, the wheel and its
+    # attestation, since uv uploads an attestation only when it is among the files named; the step
+    # before it holds dist/ to exactly those two. It sets no env, so no variable steers uv past
+    # --no-config. pypi-verify then reads PyPI back.
     if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: [build, publish]
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     environment: pypi
     permissions:
       contents: read
@@ -1707,11 +1715,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          sparse-checkout: .github/actions
+          sparse-checkout: |
+            .github/actions
+            release
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          version: ${{ env.UV_VERSION }}
+          version: "0.13.5"
+          checksum: "f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
           enable-cache: false
       - name: The build's files
         uses: ./.github/actions/verify-artifact
@@ -1720,8 +1731,140 @@ jobs:
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
       - name: Only the wheel goes to PyPI
         run: mkdir dist && mv release-assets/*.whl dist/
-      - name: Upload the wheel through trusted publishing
-        run: uv publish --no-config --trusted-publishing always dist/*.whl
+      - uses: astral-sh/attest-action@39b6ce43875c196a579e31635b11aa2a2036384a # v0.0.7
+        with:
+          paths: dist/*.whl
+      - name: Only the wheel and its attestation
+        run: |
+          set -eu
+          wheel=$(cd dist && ls -- *.whl)
+          want=$(printf '%s\n%s.publish.attestation\n' "$wheel" "$wheel")
+          if [ "$(ls dist)" != "$want" ]; then
+            echo "dist/ holds other files than the wheel and its attestation"
+            exit 1
+          fi
+      - name: Upload the wheel and its attestation through trusted publishing
+        run: uv publish --no-config --trusted-publishing always dist/*
+
+  pypi-verify:
+    name: read the wheel and its provenance back from PyPI
+    # After the upload, PyPI must serve the release's own wheel, by SHA-256, with provenance that
+    # names this repository's release.yml in the pypi environment, and that provenance must verify
+    # through Sigstore's trust root. A miss fails this job and ci-status with it, so a tag whose
+    # wheel reached PyPI without its provenance is red the same day. The verifier is attest-action's
+    # locked tree at the commit pypi signs with. It uploads nothing, so a read that timed out is
+    # re-run alone.
+    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+    needs: [build, pypi]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            .github/actions
+            release
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: astral-sh/attest-action
+          ref: 39b6ce43875c196a579e31635b11aa2a2036384a
+          path: attest-action
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.5"
+          checksum: "f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
+          enable-cache: false
+      - name: The build's files
+        uses: ./.github/actions/verify-artifact
+        with:
+          assets-id: ${{ needs.build.outputs.assets-id }}
+          sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
+      - name: PyPI serves the release's wheel with its provenance
+        run: |
+          set -eu
+          python3 -I release/pypi_readback.py check --sums release-assets/SHA256SUMS \
+            --repository "$GITHUB_REPOSITORY" --version "${GITHUB_REF_NAME#v}"
+      - name: PyPI's provenance verifies against this repository
+        run: |
+          set -eu
+          wheel=$(cd release-assets && ls -- *.whl)
+          uv run --locked --no-dev --project attest-action python -I -m pypi_attestations \
+            verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "pypi:$wheel"
+
+  pypi-rehearsal:
+    name: rehearse PyPI's signer and read-back
+    # Nothing before a tag reaches pypi or pypi-verify, so every run of the release shape (the
+    # release pull request into main, a dispatch, the weekly run) runs what they run, short of
+    # signing and uploading: the signer's locked tree under this workflow's env with the same uv,
+    # both read-back checks on a wheel already released with provenance, and the upload's staging
+    # and uv's choice of files on the build's own wheel with a stand-in attestation, by a dry run
+    # with no token. On a tag, attest waits on it, so a slip shows before anything is signed.
+    needs: [plan, build]
+    if: needs.plan.outputs.rebuild == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            .github/actions
+            release
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: astral-sh/attest-action
+          ref: 39b6ce43875c196a579e31635b11aa2a2036384a
+          path: attest-action
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.5"
+          checksum: "f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
+          enable-cache: false
+      - name: The signer's locked tree installs under the release's settings
+        run: uv run --locked --no-dev --project attest-action python -I -c "import pypi_attestations, sigstore"
+      - name: The read-back passes on a released wheel
+        run: python3 -I release/pypi_readback.py rehearse
+      - name: The signature check passes on a released wheel
+        run: |
+          set -eu
+          uv run --locked --no-dev --project attest-action python -I -m pypi_attestations \
+            verify pypi --repository https://github.com/ClayGendron/wasi-python \
+            pypi:wasi_python-0.1.1-py3-none-any.whl
+      - name: The build's files
+        uses: ./.github/actions/verify-artifact
+        with:
+          assets-id: ${{ needs.build.outputs.assets-id }}
+          sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
+      - name: Only the wheel goes to PyPI
+        run: mkdir dist && mv release-assets/*.whl dist/
+      - name: A stand-in for the signature
+        run: |
+          set -eu
+          wheel=$(cd dist && ls -- *.whl)
+          printf '{}' > "dist/$wheel.publish.attestation"
+      - name: Only the wheel and its attestation
+        run: |
+          set -eu
+          wheel=$(cd dist && ls -- *.whl)
+          want=$(printf '%s\n%s.publish.attestation\n' "$wheel" "$wheel")
+          if [ "$(ls dist)" != "$want" ]; then
+            echo "dist/ holds other files than the wheel and its attestation"
+            exit 1
+          fi
+      - name: uv selects the wheel and its attestation, without a token
+        run: |
+          set -eu
+          uv publish --no-config --trusted-publishing never --dry-run -vv dist/* 2> publish-dry-run.log
+          grep -F "Found attestation for distribution" publish-dry-run.log
 
   ci-status:
     name: ci-status
@@ -1733,7 +1876,7 @@ jobs:
     # not run, so a tag that published nothing is never green. It does not need the review job,
     # whose verdict is the review file's and not the code's; it reads the same refusals, so no pull
     # request merges unreviewed until the repository's ruleset requires the review job too.
-    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, judged, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, red-run-issue, attest, publish, pypi]
+    needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, judged, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, red-run-issue, attest, publish, pypi, pypi-verify, pypi-rehearsal]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

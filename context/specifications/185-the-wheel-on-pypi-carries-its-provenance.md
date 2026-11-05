@@ -97,26 +97,30 @@ Every job inherits the workflow's `env:`: `UV_LOCKED=1`, `UV_PYTHON=3.14.2` and 
 
 ### 4. A rehearsal runs the path before the tag
 
-Nothing before a tag ever reaches `pypi`, so a slip in it would only show after `publish` has made the GitHub release (the review's Medium 2). A new job, `pypi-rehearsal`, runs on every run of the release shape (`needs.plan.outputs.rebuild == 'true'`: the release pull request into `main`, a dispatch, the weekly run and the tag). Its permissions are `contents: read` alone. It never signs and never uploads.
+Nothing before a tag ever reaches `pypi`, so a slip in it would only show after `publish` has made the GitHub release (the review's Medium 2). A new job, `pypi-rehearsal`, runs on every run of the release shape (`needs.plan.outputs.rebuild == 'true'`: the release pull request into `main`, a dispatch, the weekly run and the tag). It needs the plan and `build`. Its permissions are `contents: read` alone, and `timeout-minutes: 20`. It never signs and never uploads. **On a tag, `attest` needs it** (round two's N1). So a PyPI path that broke between the release pull request and the tag (Sigstore's trust root or signing config, the managed CPython, PyPI's APIs) stops the tag before anything is signed or published, and a re-run of the same run carries on once it passes.
 
 It runs what `pypi` and `pypi-verify` run, as they run it: the same checkout (with `release`), the same uv by checksum, the workflow's own `env:`, and the action's tree at the same commit (checked out into `attest-action/`). Then:
 
 1. `uv run --locked --no-dev --project attest-action python -I -c "import pypi_attestations, sigstore"`: the lock installs under the release's settings.
 2. `python3 -I release/pypi_readback.py rehearse`: the read-back (Decision 5) on 0.1.1's wheel, whose provenance on PyPI names `ClayGendron/wasi-python`, `release.yml` and `pypi`, and whose SHA-256 is `191f22a3320a71e471ad202c7e98d60ed4c647f0ba3866a20d96dc29a1715547` (READ, 148's landing notes).
 3. `uv run --locked --no-dev --project attest-action python -I -m pypi_attestations verify pypi --repository https://github.com/ClayGendron/wasi-python pypi:wasi_python-0.1.1-py3-none-any.whl`: the signature check, through Sigstore's trust root.
+4. The build's files through the local action; `mkdir dist && mv release-assets/*.whl dist/`; a stand-in `dist/<wheel>.publish.attestation` holding `{}`; the staging check of Decision 1 exactly; and `uv publish --no-config --trusted-publishing never --dry-run -vv dist/*`, whose log must hold "Found attestation for distribution". A dry run reads the wheel's own metadata, so it runs on the build's real wheel, not a placeholder (EXECUTED: a renamed foreign wheel is refused, "does not start with the normalized package name"); with no token it exits 0 (EXECUTED, the author and round two).
 
-That exercises everything but the signature and the upload. The release pull request of 0.1.4 runs it before the tag is pushed. A weekly run makes a handful of requests to PyPI and Sigstore, once.
+That exercises everything but the signature and the token exchange. The release pull request of 0.1.4 runs it before the tag is pushed. A weekly run makes a handful of requests to PyPI and Sigstore, once.
 
 ### 5. `pypi-verify` reads PyPI back, and fails closed
 
-A new job, `pypi-verify`, after `pypi`, with the same `if:`, `contents: read` alone, and `timeout-minutes: 15`. It checks out as `pypi` does, checks out the action's tree into `attest-action/`, sets up uv as `pypi` does, and reads the build's files through the action. Then two steps, each `set -eu`, and neither holds `||` or `set +e`:
+A new job, `pypi-verify`, after `pypi`, needing `build` and `pypi` (it reads the build's outputs through the local action), with the same `if:`, `contents: read` alone, and `timeout-minutes: 15`. `pypi` itself gains `timeout-minutes: 20`, since it holds `id-token` while the action runs. It checks out as `pypi` does, checks out the action's tree into `attest-action/`, sets up uv as `pypi` does, and reads the build's files through the action. Then two steps, each `set -eu`, and neither holds `||` or `set +e`:
 
 1. `python3 -I release/pypi_readback.py check --sums release-assets/SHA256SUMS --repository "$GITHUB_REPOSITORY"`, the version from `GITHUB_REF_NAME`. The script, standard library only, with a 30-second timeout on every request:
    - finds the one wheel in `SHA256SUMS`;
    - reads PyPI's JSON API for the version, and requires that file with that SHA-256;
    - reads the Integrity API's provenance for the file, and requires at least one attestation bundle whose publisher is `{kind: GitHub, repository: <repository>, workflow: release.yml, environment: pypi}` (the review's Low 7: the CLI prints OK on a provenance with no bundles, and does not check the workflow);
-   - tries up to six times, thirty seconds apart, while PyPI answers 404 or the file is not listed yet, and exits 1 with one line naming what is missing after the sixth. Anything else (a wrong digest, a wrong publisher) fails at once.
+   - requires the Simple API (`/simple/wasi-python/`, JSON form) to list the file, since the signature check below finds the file there, behind its own cache (round two's N2);
+   - tries up to six times, thirty seconds apart, while an answer says something is not there yet (a 404, a file not listed, no connection), and exits 1 with one line naming what is missing after the sixth. An answer that is there and wrong (a digest, a publisher, a matching bundle with no attestation) fails at once.
 2. `uv run --locked --no-dev --project attest-action python -I -m pypi_attestations verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "pypi:$wheel"`: the signature over PyPI's own bytes, through Sigstore's trust root, the wheel's name read from `release-assets/`.
+
+The six tries wait for PyPI to show our own upload, once per release. They are not retries against a host that is down, which the project's rule on third-party hosts forbids on a timer: they end after three minutes and the run is red (round two's N4).
 
 A miss fails the job, and `ci-status` with it, so the tag's run is red (the review's Medium 3). The same script on 0.1.3 exits 1: no provenance (EXECUTED once built, criterion 2). That is how 0.1.2's loss would have been seen on its day.
 
@@ -137,10 +141,10 @@ A new rule 21, `pypi_readback_errors`:
 
 - `pypi-verify` exists, its `if:` is `PYPI_IF`, it needs `pypi`, its permissions are `contents: read`, and it has a `timeout-minutes:`.
 - It runs exactly the two commands of Decision 5, as scan constants, and no step of it holds `||` or `set +e`.
-- `pypi-rehearsal` exists, needs the plan, its `if:` is `needs.plan.outputs.rebuild == 'true'`, its permissions are `contents: read`, and it runs the three commands of Decision 4.
+- `pypi-rehearsal` exists, needs the plan and `build`, its `if:` is `needs.plan.outputs.rebuild == 'true'`, its permissions are `contents: read`, it has a `timeout-minutes:`, and it runs exactly the commands of Decision 4, as scan constants. The attestation scan requires `attest` to need it.
 - Both check out `astral-sh/attest-action` at `ATTEST_ACTION_SHA` into `attest-action` with `persist-credentials: false`, and set up uv as `pypi` does.
 
-Changed elsewhere: `JOB_PERMISSIONS` gains the two jobs (rule 14). The checkout scan admits the action's checkout at `ATTEST_ACTION_SHA`, in those two jobs alone, as the one checkout not at `HEAD_REF`. `TAG_JOBS` gains `pypi-verify`, which only a pushed tag reaches. `ci-status` already needs every other job.
+Changed elsewhere: `JOB_PERMISSIONS` gains the two jobs (rule 14). The checkout scan admits the action's checkout at `ATTEST_ACTION_SHA`, in those two jobs alone, as the one checkout not at `HEAD_REF`. `TAG_JOBS` gains `pypi-verify`, which only a pushed tag reaches. `ci-status` already needs every other job. `pypi-rehearsal` is not among the jobs `accept-record` may leave out, so `accept-record` needs it: the release pull request's acceptance waits on a green rehearsal, which is wanted, since a release whose PyPI path fails should not be accepted (round two's N5). On a merge into `dev` the rehearsal is skipped and holds nothing up. `test_rules.py`'s list of the jobs a tag runs gains it.
 
 `tests/unit/test_scan.py`: the good fixture gains the new `pypi` and both jobs, plus one binding row per clause, each naming its rule. `tests/unit/test_pypi_readback.py`: the script's verdicts on recorded answers (a good wheel, a wrong digest, no file, no provenance, a provenance with no bundles, another repository, another workflow, another environment, a 404 that turns into a pass on the third try, six 404s), with the fetch replaced and no network. Each is seen failing first.
 
@@ -161,6 +165,10 @@ Rules 20 and 21 hold the letter of it for PyPI. The `AGENTS.md` rule holds its s
 
 The owner reads the project's Publishing page on PyPI once, and removes any trusted publisher, or pending publisher, that is not this repository's `release.yml` in the environment `pypi`. 148's history records five attempts at 0.1.1's publisher. The review's Medium 4 asked for this when the signer was meant to run outside the environment. With the signer inside `pypi` it is no longer this design's premise, but a stray publisher with no environment would let any job of the workflow with `id-token` upload. The owner's reading goes in the landing notes.
 
+## Design
+
+Files: `.github/workflows/release.yml` (`pypi`, `pypi-verify`, `pypi-rehearsal`, `attest`'s needs, `accept-record`'s and `ci-status`'s needs); `release/pypi_readback.py` (new, standard library only); `tests/harness/scan.py` (`ATTEST_*`, `PYPI_STAGE_*`, `READBACK_*`, `REHEARSAL_*`; `pypi_upload_errors`, rule 20; `pypi_readback_errors`, rule 21; `JOB_PERMISSIONS`, `TAG_JOBS`, `checkout_ref_errors`, `release_attestation_errors`); `tests/unit/test_scan.py` (the fixtures and the rows); `tests/unit/test_pypi_readback.py` (new); `tests/checks/test_rules.py` (`TAG_RUN`); `docs/how-to/verify-a-download.md`; `docs/contributing/release-process.md`; `AGENTS.md`; `context/decisions.md`; `context/upstream/35-attest-action-uv-range/`.
+
 ## Intent
 
 Every wheel this project puts on PyPI carries PyPI provenance that names this repository, `release.yml` and the `pypi` environment. The path is rehearsed on every release-shaped run before a tag. A tag whose wheel lands on PyPI without provenance that verifies is red the same day.
@@ -179,4 +187,10 @@ In: `pypi`'s signature, staging and upload; `pypi-verify`; `pypi-rehearsal`; `re
 
 ## Landing notes
 
-Not built. The fast tier on `dev` at `7ed71049`, in this container, before any change: 4 failed, all from running as root (`modes refuse nothing to root`, and `test_the_walk_judges_links`), which GitHub's runners do not; recorded so the build's run is read against it.
+Built 2026-11-05 on `spec/185-the-wheel-on-pypi-carries-its-provenance`, from `dev` at `7ed71049`, after both pre-build rounds (`../reviews/185-the-wheel-on-pypi-carries-its-provenance-spec-2026-11-05.md`). Not landed.
+
+- **Base state.** The fast tier on `dev` at `7ed71049`, in this container: 4 failed, 3,764 passed, all four from running as root (`modes refuse nothing to root`, and `test_the_walk_judges_links`), which GitHub's runners do not. After the build: the same 4 failed, 3,811 passed; `tests/lint` 14 passed; `ruff check` and `ruff format --check` clean (EXECUTED).
+- **Seen failing first.** `tests/unit/test_pypi_readback.py` errored on collection with no script (EXECUTED). `tests/unit/test_scan.py`, run in a copy of `dev`'s tree with only the new constants added to its `scan.py` (constants change no rule): 97 rows failed, the new good fixture among them, red on rules 14 and 20 (EXECUTED). The real workflow, before the scan changed, was red on rule 14 (two jobs), rule 20 (`pypi`'s setup-uv, `pypi uses astral-sh/attest-action@…`), the checkout scan (two jobs) and the plan gate (EXECUTED).
+- **The read-back on the real PyPI** (criterion 2). `pypi_readback.py rehearse`: "ok: wasi_python-0.1.1-py3-none-any.whl on PyPI has the release's SHA-256 and provenance from ClayGendron/wasi-python", exit 0. `check` on 0.1.3's wheel with PyPI's own digest: "FAIL: after 6 tries, the Integrity API answered 404", exit 1 (EXECUTED). The lock with uv 0.13.5 imports `pypi_attestations` 0.0.30 and `sigstore` 4.5.1; uv 0.9.22 to 0.12.5 refuse it (EXECUTED). `verify pypi` on 0.1.3 from the lock exits 1, "Provenance for file … was not found" (EXECUTED).
+- **The upload's files.** uv 0.13.5 `uv publish --dry-run -vv`: "Found attestation for distribution" with `dist/*`, nothing with `dist/*.whl`; with `--trusted-publishing never` and the build's kind of wheel it exits 0 offline; a foreign wheel renamed is refused for its metadata (EXECUTED).
+- **Still to read.** The pull request's run; the 0.1.4 release pull request's `pypi-rehearsal` (criterion 4); the tag's `pypi` and `pypi-verify` and PyPI's Integrity API (criterion 5); the owner's reading of PyPI's Publishing page (Decision 9).
