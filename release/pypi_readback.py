@@ -13,9 +13,10 @@ The command-line verifier prints OK for a provenance with no attestation and doe
 workflow, so this check comes first and the signature check after it.
 
 PyPI's APIs can lag an upload by a few seconds, so an answer that says something is not there
-yet is asked again, TRIES times in all, WAIT seconds apart: a bounded read of this project's own
-upload, once per release, not a retry against a host that is down. An answer that is there and wrong
-(another digest, another publisher) fails at once. Every request times out after TIMEOUT seconds.
+yet (a 404, or a file not listed) is asked again, TRIES times in all, WAIT seconds apart: a bounded
+read of this project's own upload, once per release. Anything else fails at once: an answer that
+is there and wrong (another digest, another publisher), and a host that is down or will not
+answer, which is never retried on a timer. Every request times out after TIMEOUT seconds.
 
 `rehearse` runs the same check on a wheel already released with provenance, so a run that never
 uploads still proves that the read-back works before a tag needs it. Standard library only; it
@@ -88,8 +89,12 @@ def one_wheel(sums: str) -> tuple[str, str]:
 
 
 def _json(status: int, body: bytes, what: str) -> dict:
+    # Only a 404 means "not there yet". A host that is down, or answers anything else, fails at
+    # once: the read is not retried against an outage, and pypi-verify is re-run alone later.
+    if status == 404:
+        raise Missing(f"{what} answered 404")
     if status != 200:
-        raise Missing(f"{what} answered {status or 'no connection'}")
+        raise Wrong(f"{what} answered {status or 'no connection'}")
     try:
         return json.loads(body)
     except ValueError as error:

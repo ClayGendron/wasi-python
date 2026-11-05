@@ -104,14 +104,12 @@ def test_a_wrong_answer_fails_at_once(answers) -> None:
         {JSON_URL: [_files(name="wasi_python-0.1.4.tar.gz")], PROV_URL: [_prov(PUBLISHER)]},
         {JSON_URL: [_files()], PROV_URL: [NOT_FOUND]},
         {JSON_URL: [_files()], PROV_URL: [_prov(None)]},
-        {JSON_URL: [_files()], PROV_URL: [(503, b"")]},
     ],
     ids=[
         "no version",
         "no such file",
         "no provenance",
         "a provenance with no bundles",
-        "PyPI unavailable",
     ],  # fmt: skip
 )
 def test_what_is_missing_after_six_tries_fails(answers) -> None:
@@ -162,3 +160,18 @@ def test_the_rehearsal_reads_a_released_wheel() -> None:
         f"{rb.REHEARSAL_WHEEL}/provenance",
         "https://pypi.org/simple/wasi-python/",
     ]
+
+
+@pytest.mark.parametrize(
+    "answers",
+    [
+        {JSON_URL: [_files()], PROV_URL: [(503, b"")]},
+        {JSON_URL: [(503, b"")], PROV_URL: [_prov(PUBLISHER)]},
+        {JSON_URL: [(0, b"")], PROV_URL: [_prov(PUBLISHER)]},
+    ],
+    ids=["the Integrity API down", "the JSON API down", "no connection"],
+)
+def test_a_host_that_is_down_fails_at_once_and_is_not_retried(answers) -> None:
+    code, fetched, waits = _run(answers)
+    assert (code, waits) == (1, [])
+    assert fetched.count(JSON_URL) == 1

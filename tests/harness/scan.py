@@ -1748,6 +1748,31 @@ def _attest_uv_errors(name: str, job_steps: list) -> list[str]:
     return errors
 
 
+# pypi's steps, each by what it is, in the one order the release runs them.
+PYPI_STEPS = ["checkout", "setup-uv", "assets", "to-dist", "sign", "stage", "upload"]
+PYPI_TO_DIST = "mkdir dist && mv release-assets/*.whl dist/"
+
+
+def _pypi_step_kind(f: dict) -> str:
+    """What one step of pypi is, by its uses: or its run:; "other" for anything else."""
+    uses, run = f.get("uses", ""), str(f.get("run", ""))
+    if uses.startswith("actions/checkout@"):
+        return "checkout" if f.get("with", {}).get("repository") is None else "other"
+    if uses.startswith("astral-sh/setup-uv@"):
+        return "setup-uv"
+    if uses == ASSETS_ACTION:
+        return "assets"
+    if uses == f"{ATTEST_ACTION}@{ATTEST_ACTION_SHA}":
+        return "sign"
+    if run.strip() == PYPI_TO_DIST:
+        return "to-dist"
+    if f.get("name") == PYPI_STAGE_STEP and run == PYPI_STAGE_CHECK:
+        return "stage"
+    if UV_WORD.search(run) and "publish" in run.split():
+        return "upload"
+    return "other"
+
+
 def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> list[str]:
     """Rule 20: PyPI's signature and upload. pypi uses only the checkout (of this commit, with
     release/), setup-uv at ATTEST_UV_VERSION by its checksum with no cache, the local action, and
@@ -1790,13 +1815,17 @@ def pypi_upload_errors(jobs: dict[str, list[str]], steps: dict[str, list]) -> li
     words = uploads[0][1].replace("\\\n", " ").split() if len(uploads) == 1 else []
     if "publish" not in words:
         return [*errors, "rule 20: pypi does not run uv publish in exactly one step"]
-    order = [action, signs[0] if len(signs) == 1 else None, stage[0] if stage else None,
-             uploads[0][0]]  # fmt: skip
-    if len(stage) != 1 or None in order or order != sorted(order):
+    # The job is exactly its seven steps, in order, none of them conditional: a step that may be
+    # skipped, or any step between the staging check and the upload, could send the wheel alone.
+    kinds = [_pypi_step_kind(f) for _, f in pypi]
+    if kinds != PYPI_STEPS:
         errors.append(
-            "rule 20: pypi does not check the build's files, sign, hold dist/ to the wheel and its "
-            "attestation, and upload, in that order"
+            "rule 20: pypi's steps are not checkout, setup-uv, the build's files, the wheel to "
+            "dist/, the signature, the staging check and the upload, exactly and in that order"
         )
+    if any({"if", "continue-on-error"} & set(f) for _, f in pypi):
+        errors.append("rule 20: a step of pypi has if: or continue-on-error:")
+    del action, stage
     at = next((k for k, w in enumerate(words) if UV_WORD.fullmatch(w)), None)
     if at is None:  # `/usr/bin/uv`: a path that may name any binary, so the scan names it
         return [*errors, "rule 20: pypi runs uv by a path, not as the word uv"]
@@ -2082,6 +2111,9 @@ def release_binding_errors(text: str, action: str) -> list[str]:
     errors += token_scope_errors(jobs, steps)
     errors += pypi_upload_errors(jobs, steps)
     errors += pypi_readback_errors(jobs, steps)
+    # uv reads this variable as --no-attestations, wherever the workflow sets it.
+    if "UV_PUBLISH_NO_ATTESTATIONS" in text:
+        errors.append("rule 20: the workflow names UV_PUBLISH_NO_ATTESTATIONS")
     return errors
 
 

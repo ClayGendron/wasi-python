@@ -1368,6 +1368,54 @@ BAD_BINDINGS = [
         ),
         {20},
     ),
+    # Nothing between the staging check and the upload, and no step of pypi may be skipped: either
+    # would let the wheel go to PyPI alone.
+    (
+        (
+            "pypi",
+            "          paths: dist/*.whl\n",
+            "          paths: dist/*.whl\n        if: false\n",
+        ),
+        {20},
+    ),
+    (
+        (
+            "pypi",
+            f"      - name: {scan.PYPI_STAGE_STEP}\n",
+            f"      - name: {scan.PYPI_STAGE_STEP}\n        if: false\n",
+        ),
+        {20},
+    ),
+    (
+        ("pypi", UPLOAD, "      - name: Tidy\n        run: rm -f dist/*.attestation\n" + UPLOAD),
+        {20},
+    ),
+    (
+        (
+            "pypi",
+            UPLOAD,
+            f"      - uses: actions/checkout@{PIN}\n        with:\n          repository: x/y\n"
+            + UPLOAD,
+        ),
+        {20},
+    ),
+    (
+        (
+            "pypi",
+            UPLOAD_RUN.rstrip("\n"),
+            UPLOAD_RUN + "      - name: After\n        run: echo done",
+        ),
+        {20},
+    ),
+    # uv reads this variable as --no-attestations, wherever the workflow sets it.
+    (
+        (
+            "verify",
+            "    needs: build\n",
+            '    needs: build\n    env:\n      UV_PUBLISH_NO_ATTESTATIONS: "1"\n',
+        ),
+        {20},
+    ),
     # uv run by a path: named, never a scan that stops on it.
     (("pypi", "run: uv publish --no-config", "run: /usr/bin/uv publish --no-config"), {20}),
     # PyPI read back after the upload, fail-closed, and rehearsed before a tag.
