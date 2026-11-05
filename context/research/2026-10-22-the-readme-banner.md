@@ -14,7 +14,7 @@ Three SVG files under `docs/assets/`, each the text "WASI-PYTHON" in IBM Plex Sa
 
 | file | fill |
 |---|---|
-| `wasi-python.svg` | follows the viewer's colour scheme through a media query inside the SVG |
+| `wasi-python.svg` | dark text, the fallback (until 2026-11-05 it followed the viewer's colour scheme through a media query; see below) |
 | `wasi-python-light.svg` | dark text for a light page |
 | `wasi-python-dark.svg` | light text for a dark page |
 
@@ -32,6 +32,10 @@ uv run --no-project --with fonttools --with uharfbuzz python -I make_banner.py \
 (size 160 px, 20 font units of tracking). The light and dark variants were made from it by editing the one `fill` rule and dropping the media query.
 
 The font files came from the owner's machine (`~/Library/Fonts`). IBM Plex is published under the SIL Open Font License 1.1 (READ: the licence text shipped with the font), which licenses the font software; an outline drawn from it into an image carries no font and is not covered by the Reserved Font Name clause. No font file is in the repository.
+
+## The fallback is dark text (2026-11-05)
+
+The owner asked for the fallback to be dark text, for a white page, when the scheme cannot be read. An SVG shown through `<img>` reads `prefers-color-scheme` from the browser or the system, never from the page behind it, so on PyPI's white page with the system in dark mode the media query drew near-white text on white (EXECUTED: headless Chromium, dark scheme, the image on `#fff`, the opaque pixels' mean red 240). The media query is gone from `wasi-python.svg`, which now fills `#1f2328` alone, as `wasi-python-light.svg` does (EXECUTED: the same render gives a mean red of 31). GitHub still picks `wasi-python-dark.svg` for its dark theme through the `<picture>` source. The README's URLs name `main`, so the change reaches PyPI's pages when `main` next moves, at 0.1.5.
 
 ## Checked
 
