@@ -4,7 +4,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 
 ## 0.1.4 — 2026-11-05
 
-0.1.4 restores the wheel's provenance on PyPI: its page names the repository, workflow and commit that published it, as 0.1.1's did. The runtime, the packages and the API are those of 0.1.3, so there is nothing to change when you upgrade. Each release now reads PyPI back after the upload and is red unless the wheel carries its provenance. It is published on GitHub and on PyPI.
+0.1.4 restores the wheel's provenance on PyPI: its page names the repository, workflow and commit that published it, as 0.1.1's did. The runtime, the packages and the API are those of 0.1.3, so there is nothing to change when you upgrade. Each release now reads PyPI back after the upload and fails unless the wheel carries its provenance. It is published on GitHub and on PyPI.
 
 ### Security
 
