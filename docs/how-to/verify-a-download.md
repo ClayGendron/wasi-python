@@ -32,7 +32,14 @@ The command fails if any check does not hold. When it passes, it has shown that:
 
 The first alpha, `0.1.0a1`, has no attestation. Every release after it carries one.
 
-From 0.1.2 the wheel on PyPI carries no PyPI provenance. It is the same file as the release's wheel, so check a wheel you installed from PyPI with the command above.
+From 0.1.4 the wheel on PyPI also carries PyPI provenance: PyPI shows it on the file's page, and this checks it.
+
+```sh
+uvx pypi-attestations verify pypi --repository https://github.com/ClayGendron/wasi-python \
+  pypi:wasi_python-<version>-py3-none-any.whl
+```
+
+The wheels of 0.1.2 and 0.1.3 on PyPI carry no PyPI provenance, and files on PyPI cannot be changed. Each is the same file as its release's wheel, so check it with `gh attestation verify` above.
 
 The repository was named `wasi_python` until after 0.1.0, and an attestation names the repository it was signed in. For 0.1.0 and the alphas before it, write `ClayGendron/wasi_python` in place of `ClayGendron/wasi-python` in both options.
 

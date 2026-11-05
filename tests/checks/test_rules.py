@@ -1386,6 +1386,7 @@ TAG_RUN = {
     "judged",
     "attest",
     "publish",
+    "pypi-rehearsal",
     "ci-status",
 }
 

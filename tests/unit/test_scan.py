@@ -609,7 +609,7 @@ jobs:
     needs: build
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, judged]
+    needs: [build, verify, judged, pypi-rehearsal]
     permissions:
       id-token: write
       attestations: write
@@ -640,12 +640,15 @@ BAD_WORKFLOWS = [
     (("  attest:\n", "  other:\n"), "no attest job"),
     ((ATTEST_IF, "  attest:\n    if: always()\n"), "attest's or publish's if:"),
     (
-        ("    needs: [build, verify, judged]\n", "    needs: [build]\n"),
+        ("    needs: [build, verify, judged, pypi-rehearsal]\n", "    needs: [build]\n"),
         "attest does not need build,",
     ),
     (
-        ("    needs: [build, verify, judged]\n", "    needs: [build, verify]\n"),
-        "attest does not need build, verify and judged",
+        (
+            "    needs: [build, verify, judged, pypi-rehearsal]\n",
+            "    needs: [build, verify, judged]\n",
+        ),
+        "attest does not need build, verify, judged and pypi-rehearsal",
     ),
     (("      contents: read\n", "      contents: write\n"), "attest's permissions are not"),
     (
@@ -683,13 +686,16 @@ BAD_WORKFLOWS = [
         "no actions/attest step pinned by a 40-hex commit",
     ),
     (
-        ("    needs: [build, verify, judged]\n", "    needs: [build]  # verify, judged\n"),
+        (
+            "    needs: [build, verify, judged, pypi-rehearsal]\n",
+            "    needs: [build]  # verify, judged\n",
+        ),
         "attest does not need build,",
     ),
     (
         (
-            "    needs: [build, verify, judged]\n",
-            "    needs: [build, verify, judged]\n    continue-on-error: true\n",
+            "    needs: [build, verify, judged, pypi-rehearsal]\n",
+            "    needs: [build, verify, judged, pypi-rehearsal]\n    continue-on-error: true\n",
         ),
         "attest has a job-level continue-on-error:",
     ),
@@ -824,6 +830,39 @@ SETUP_UV = f"""      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
           version: ${{{{ env.UV_VERSION }}}}
           enable-cache: false
 """
+CHECKOUT_RELEASE = f"""      - uses: actions/checkout@{PIN} # v7.0.1
+        with:
+          ref: {HEAD_REF}
+          sparse-checkout: |
+            .github/actions
+            release
+          persist-credentials: false
+"""
+CHECKOUT_ATTEST = f"""      - uses: actions/checkout@{PIN} # v7.0.1
+        with:
+          repository: {scan.ATTEST_ACTION}
+          ref: {scan.ATTEST_ACTION_SHA}
+          path: attest-action
+          persist-credentials: false
+"""
+SETUP_ATTEST_UV = f"""      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
+        with:
+          version: {scan.ATTEST_UV_VERSION}
+          checksum: {scan.ATTEST_UV_SHA256}
+          enable-cache: false
+"""
+
+
+DRY_RUN_STEP = "      - name: uv selects the wheel and its attestation, without a token"
+UPLOAD_STEP = "      - name: Upload the wheel and its attestation through trusted publishing\n"
+UPLOAD_RUN = "        run: uv publish --no-config --trusted-publishing always dist/*\n"
+
+
+def _block(script: str) -> str:
+    """A `run: |` script indented as a step's block."""
+    return "".join(f"          {line}\n" if line else "\n" for line in script.splitlines())
+
+
 # The local action the scans read beside the workflow: the real one.
 ACTION = (paths.REPO / scan.ASSETS_ACTION_FILE).read_text()
 
@@ -975,7 +1014,7 @@ jobs:
           gh issue create --title "$title" --body "$body"
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, judged]
+    needs: [build, verify, same-bytes, judged, pypi-rehearsal]
     permissions:
       id-token: write
       attestations: write
@@ -1016,14 +1055,60 @@ jobs:
       id-token: write
     steps:
 """
-    + CHECKOUT
-    + SETUP_UV
+    + CHECKOUT_RELEASE
+    + SETUP_ATTEST_UV
     + USE_ACTION
-    + """      - name: Only the wheel goes to PyPI
+    + f"""      - name: Only the wheel goes to PyPI
         run: mkdir dist && mv release-assets/*.whl dist/
-      - name: Upload the wheel through trusted publishing
-        run: uv publish --no-config --trusted-publishing always dist/*.whl
+      - uses: {scan.ATTEST_ACTION}@{scan.ATTEST_ACTION_SHA} # v0.0.7
+        with:
+          paths: dist/*.whl
+      - name: {scan.PYPI_STAGE_STEP}
+        run: |
+{_block(scan.PYPI_STAGE_CHECK)}{UPLOAD_STEP}{UPLOAD_RUN}  pypi-verify:
+    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+    needs: [build, pypi]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
 """
+    + CHECKOUT_RELEASE
+    + CHECKOUT_ATTEST
+    + SETUP_ATTEST_UV
+    + USE_ACTION
+    + f"""      - name: PyPI serves the release's wheel with its provenance
+        run: |
+{_block(scan.READBACK_CHECK)}      - name: PyPI's provenance verifies against this repository
+        run: |
+{_block(scan.READBACK_VERIFY)}  pypi-rehearsal:
+    needs: [plan, build]
+    if: needs.plan.outputs.rebuild == 'true'
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+"""
+    + CHECKOUT_RELEASE
+    + CHECKOUT_ATTEST
+    + SETUP_ATTEST_UV
+    + f"""      - name: The signer's locked tree installs
+        run: {scan.REHEARSAL_RUNS[0]}
+      - name: The read-back passes on a released wheel
+        run: {scan.REHEARSAL_RUNS[1]}
+      - name: The signature check passes on a released wheel
+        run: |
+{_block(scan.REHEARSAL_RUNS[2])}"""
+    + USE_ACTION
+    + f"""      - name: Only the wheel goes to PyPI
+        run: {scan.REHEARSAL_RUNS[3]}
+      - name: A stand-in for the signature
+        run: |
+{_block(scan.REHEARSAL_RUNS[4])}      - name: {scan.PYPI_STAGE_STEP}
+        run: |
+{_block(scan.REHEARSAL_RUNS[5])}{DRY_RUN_STEP}
+        run: |
+{_block(scan.REHEARSAL_RUNS[6])}"""
 )
 
 
@@ -1055,7 +1140,9 @@ REBUILD_GUARD_LOOP = '"$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86
 ARM_SUMS = "artifact-ids: ${{ needs.rebuild-macos-arm64.outputs.sums-id }}"
 FIRST_REBUILD_PATH = "          path: rebuilds/macos-15\n"
 
-UPLOAD = "      - name: Upload the wheel through trusted publishing\n"
+UPLOAD = UPLOAD_STEP
+SIGN = f"      - uses: {scan.ATTEST_ACTION}@{scan.ATTEST_ACTION_SHA} # v0.0.7\n"
+SIGN_STEP = SIGN + "        with:\n          paths: dist/*.whl\n"
 
 # (job, old, new) -> the rules named, one variant per rule and per mutation of the reviews.
 BAD_BINDINGS = [
@@ -1221,12 +1308,15 @@ BAD_BINDINGS = [
         {19},
     ),
     (("red-run-issue", "gh issue create", "python3 -c pass; gh issue create"), {19}),
-    # PyPI's upload: the pinned uv, trusted publishing alone, no container, no env.
+    # PyPI's signature and upload: the action at its pin, the signer's uv by checksum, the wheel
+    # and its attestation alone, trusted publishing alone, no container, no env.
     (
         (
-            "pypi",
-            UPLOAD + "        run: uv publish --no-config --trusted-publishing always dist/*.whl\n",
-            f"      - uses: pypa/gh-action-pypi-publish@{PIN} # v1.14.2\n",
+            (
+                "pypi",
+                UPLOAD + UPLOAD_RUN.rstrip("\n"),
+                f"      - uses: pypa/gh-action-pypi-publish@{PIN} # v1",
+            )
         ),
         {20},
     ),
@@ -1241,16 +1331,144 @@ BAD_BINDINGS = [
     ),
     (("pypi", "--trusted-publishing always", "--trusted-publishing automatic"), {20}),
     (("pypi", "uv publish --no-config ", "uv publish "), {20}),
-    (("pypi", "always dist/*.whl", "always --token x dist/*.whl"), {20}),
+    (("pypi", "always dist/*", "always --token x dist/*"), {20}),
+    (("pypi", "always dist/*", "always --no-attestations dist/*"), {20}),
+    # The wheel alone: uv then uploads no attestation, the loss this rule exists to stop.
+    (("pypi", "always dist/*", "always dist/*.whl"), {20}),
+    (("pypi", "always dist/*", "always release-assets/*"), {20}),
     (
         ("pypi", UPLOAD, UPLOAD + "        env:\n          UV_PUBLISH_URL: https://example.org/\n"),
         {20},
     ),
     (("pypi", UPLOAD, UPLOAD + "        env:\n          UV_CONFIG_FILE: x.toml\n"), {20}),
-    (("pypi", "version: ${{ env.UV_VERSION }}", "version: 0.9.22"), {20}),
-    (("pypi", "always dist/*.whl", "always release-assets/*"), {20}),
+    (("pypi", f"version: {scan.ATTEST_UV_VERSION}", "version: ${{ env.UV_VERSION }}"), {20}),
+    (("pypi", f"          checksum: {scan.ATTEST_UV_SHA256}\n", ""), {20}),
+    (("pypi", "            release\n", ""), {20}),
+    (("pypi", SIGN_STEP, ""), {20}),
+    (("pypi", scan.ATTEST_ACTION_SHA, PIN), {20}),
+    (("pypi", "          paths: dist/*.whl\n", "          paths: dist/*\n"), {20}),
+    (
+        (
+            "pypi",
+            "          paths: dist/*.whl\n",
+            "          paths: dist/*.whl\n          overwrite: true\n",
+        ),
+        {20},
+    ),
+    (("pypi", f"      - name: {scan.PYPI_STAGE_STEP}\n", "      - name: Look\n"), {20}),
+    (("pypi", "            exit 1\n", "            true\n"), {20}),
+    # The signature before the build's files are checked.
+    (
+        (
+            "pypi",
+            USE_ACTION + "      - name: Only the wheel goes to PyPI\n"
+            "        run: mkdir dist && mv release-assets/*.whl dist/\n" + SIGN_STEP,
+            SIGN_STEP + USE_ACTION + "      - name: Only the wheel goes to PyPI\n"
+            "        run: mkdir dist && mv release-assets/*.whl dist/\n",
+        ),
+        {20},
+    ),
+    # Nothing between the staging check and the upload, and no step of pypi may be skipped: either
+    # would let the wheel go to PyPI alone.
+    (
+        (
+            "pypi",
+            "          paths: dist/*.whl\n",
+            "          paths: dist/*.whl\n        if: false\n",
+        ),
+        {20},
+    ),
+    (
+        (
+            "pypi",
+            f"      - name: {scan.PYPI_STAGE_STEP}\n",
+            f"      - name: {scan.PYPI_STAGE_STEP}\n        if: false\n",
+        ),
+        {20},
+    ),
+    (
+        ("pypi", UPLOAD, "      - name: Tidy\n        run: rm -f dist/*.attestation\n" + UPLOAD),
+        {20},
+    ),
+    (
+        (
+            "pypi",
+            UPLOAD,
+            f"      - uses: actions/checkout@{PIN}\n        with:\n          repository: x/y\n"
+            + UPLOAD,
+        ),
+        {20},
+    ),
+    (
+        (
+            "pypi",
+            UPLOAD_RUN.rstrip("\n"),
+            UPLOAD_RUN + "      - name: After\n        run: echo done",
+        ),
+        {20},
+    ),
+    # uv reads this variable as --no-attestations, wherever the workflow sets it.
+    (
+        (
+            "verify",
+            "    needs: build\n",
+            '    needs: build\n    env:\n      UV_PUBLISH_NO_ATTESTATIONS: "1"\n',
+        ),
+        {20},
+    ),
     # uv run by a path: named, never a scan that stops on it.
     (("pypi", "run: uv publish --no-config", "run: /usr/bin/uv publish --no-config"), {20}),
+    # PyPI read back after the upload, fail-closed, and rehearsed before a tag.
+    (("pypi-verify", "    timeout-minutes: 15\n", ""), {21}),
+    (("pypi-verify", "    needs: [build, pypi]\n", "    needs: [build]\n"), {21}),
+    (("pypi-verify", "    if: github.event_name", "    if: always() && github.event_name"), {21}),
+    (
+        ("pypi-verify", "      contents: read\n", "      contents: read\n      id-token: write\n"),
+        {14},
+    ),
+    (
+        (
+            "pypi-verify",
+            '--version "${GITHUB_REF_NAME#v}"',
+            '--version "${GITHUB_REF_NAME#v}" || true',
+        ),
+        {21},
+    ),
+    (("pypi-verify", '--repository "$GITHUB_REPOSITORY"', "--repository someone/else"), {21}),
+    (("pypi-verify", "verify pypi --repository", "--help; true verify pypi --repository"), {21}),
+    (
+        (
+            "pypi-verify",
+            "      - name: PyPI's provenance",
+            "      - continue-on-error: true\n        name: PyPI's provenance",
+        ),
+        {17, 21},
+    ),
+    (("pypi-verify", "          set -eu\n", "          set +e\n"), {21}),
+    (
+        ("pypi-verify", f"          ref: {scan.ATTEST_ACTION_SHA}\n", f"          ref: {PIN}\n"),
+        {21},
+    ),
+    (("pypi-verify", "            release\n", ""), {21}),
+    (
+        (
+            "pypi-rehearsal",
+            "    if: needs.plan.outputs.rebuild == 'true'\n",
+            "    if: needs.plan.outputs.build == 'true'\n",
+        ),
+        {21},
+    ),
+    (("pypi-rehearsal", "pypi_readback.py rehearse", "pypi_readback.py rehearse || true"), {21}),
+    (
+        ("pypi-rehearsal", f"version: {scan.ATTEST_UV_VERSION}", "version: ${{ env.UV_VERSION }}"),
+        {21},
+    ),
+    (("pypi-rehearsal", "    timeout-minutes: 20\n", ""), {21}),
+    (
+        ("pypi-rehearsal", "--trusted-publishing never --dry-run", "--trusted-publishing never"),
+        {21},
+    ),
+    (("pypi-rehearsal", "    needs: [plan, build]\n", "    needs: plan\n"), {6, 21}),
     # The token named inline in a run: text, and a path to the release scripts beside gh.
     (
         (
@@ -1572,7 +1790,7 @@ BAD_REBUILDS = [
     (
         (
             "attest",
-            "    needs: [build, verify, same-bytes, judged]\n",
+            "    needs: [build, verify, same-bytes, judged, pypi-rehearsal]\n",
             "    needs: [build, verify, judged]\n",
         ),
         "attest does not need same-bytes",
@@ -2556,7 +2774,7 @@ BAD_SHARDS = [
         "    timeout-minutes: 30\n    outputs:\n      own-rest-id: x\n",
         "rule 5: judge-linux hands on outputs",
     ),
-    ("attest", "same-bytes, judged]", "same-bytes]", "rule 8: attest"),
+    ("attest", "judged, pypi-rehearsal]", "pypi-rehearsal]", "rule 8: attest"),
     (
         "gather",
         "artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.record-id }}",
@@ -3536,7 +3754,7 @@ def test_the_tier_is_decided_by_the_runners_own_variables(event, ref, input_, ti
 BAD_CI_STATUS = [
     ("ci-status", "    if: always()\n", "", "ci-status is not named ci-status"),
     ("ci-status", "    name: ci-status\n", "    name: status\n", "ci-status is not named"),
-    ("ci-status", ", attest, publish, pypi]", ", attest, publish]", "ci-status does not need"),
+    ("ci-status", ", pypi, pypi-verify, pypi-rehearsal]", ", pypi]", "ci-status does not need"),
     (
         "ci-status",
         'os.environ.get("REFUSALS") != "[]"',
@@ -3617,7 +3835,7 @@ BAD_TAG_RUN = [
      "judged does not run"),
     ("judged", TAG_PROOF_RUN, "uv run python tests/harness/gather.py --prove-set --tree-only",
      "judged does not run"),
-    ("attest", "same-bytes, judged]", "same-bytes]", "attest does not need judged"),
+    ("attest", "judged, pypi-rehearsal]", "pypi-rehearsal]", "attest does not need judged"),
     ("publish", "attest, judged]", "attest]", "publish does not need judged"),
     # The wheel's limit: read from another condition than pypi's, from no variable, or skipped.
     ("judged", "TO_PYPI: ${{ vars.PYPI_PUBLISH == 'true' }}", "TO_PYPI: ${{ vars.PYPI_PUBLISH }}",
