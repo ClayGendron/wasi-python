@@ -1,22 +1,25 @@
 """What PyPI serves for a release's wheel, read back after the upload.
 
     python3 -I release/pypi_readback.py check --sums release-assets/SHA256SUMS \
-        --repository <owner>/<repo> --version <version>
-    python3 -I release/pypi_readback.py rehearse
+        --repository <owner>/<repo> --version <version> --url-out <file>
+    python3 -I release/pypi_readback.py rehearse --url-out <file>
 
-`check` finds the one wheel SHA256SUMS names and requires three answers from PyPI: the JSON API
-lists that file with that SHA-256, the Integrity API holds its provenance with at least one
-attestation whose publisher is this repository's release.yml in the pypi environment, and the
-Simple API, which the signature check reads, lists the file. A file
-uploaded without its attestation has no provenance, and PyPI's page then warns that it was lost.
-The command-line verifier prints OK for a provenance with no attestation and does not check the
+`check` finds the one wheel SHA256SUMS names and requires two answers from PyPI: the JSON API
+lists that file alone for the version, with that SHA-256, at an address on files.pythonhosted.org,
+and the Integrity API holds its provenance with at least one attestation whose publisher is this
+repository's release.yml in the pypi environment. A file uploaded without its attestation has no
+provenance, and PyPI's page then warns that it was lost. Another file under the version, beside
+the wheel or in its place, is never "not there yet": it fails. On success it writes the wheel's
+address on PyPI to the --url-out file, and the signature check that follows verifies the bytes at
+that address, so it never looks the file up again in a page that can lag the JSON API. The
+command-line verifier prints OK for a provenance with no attestation and does not check the
 workflow, so this check comes first and the signature check after it.
 
 PyPI's APIs can lag an upload by a few seconds, so an answer that says something is not there
-yet (a 404, or a file not listed) is asked again, TRIES times in all, WAIT seconds apart: a bounded
+yet (a 404, or no file listed) is asked again, TRIES times in all, WAIT seconds apart: a bounded
 read of this project's own upload, once per release. Anything else fails at once: an answer that
-is there and wrong (another digest, another publisher), and a host that is down or will not
-answer, which is never retried on a timer. Every request times out after TIMEOUT seconds.
+is there and wrong (another digest, another file, another publisher), and a host that is down or
+will not answer, which is never retried on a timer. Every request times out after TIMEOUT seconds.
 
 `rehearse` runs the same check on a wheel already released with provenance, so a run that never
 uploads still proves that the read-back works before a tag needs it. Standard library only; it
@@ -40,7 +43,7 @@ TRIES = 6
 WAIT = 30
 TIMEOUT = 30
 INTEGRITY_ACCEPT = "application/vnd.pypi.integrity.v1+json, application/json"
-SIMPLE_ACCEPT = "application/vnd.pypi.simple.v1+json"
+FILES_HOST = "https://files.pythonhosted.org/packages/"
 # A released wheel whose provenance names this repository, release.yml and the pypi environment.
 REHEARSAL_VERSION = "0.1.1"
 REHEARSAL_WHEEL = "wasi_python-0.1.1-py3-none-any.whl"
@@ -63,7 +66,7 @@ def fetch_url(url: str) -> tuple[int, bytes]:
     request = Request(
         url,
         headers={
-            "Accept": SIMPLE_ACCEPT if "/simple/" in url else INTEGRITY_ACCEPT,
+            "Accept": INTEGRITY_ACCEPT,
             "User-Agent": "wasi-python-release-readback",
         },
     )
@@ -105,15 +108,39 @@ def _same(a: object, b: str) -> bool:
     return isinstance(a, str) and a.casefold() == b.casefold()
 
 
-def judge_once(fetch: Fetch, version: str, wheel: str, sha256: str, repository: str) -> str:
-    """One reading of both APIs: a line saying what holds, or Missing, or Wrong."""
+def _address(entry: dict, wheel: str) -> str:
+    """The wheel's address on PyPI's file host, as the JSON API gives it, or Wrong."""
+    url = entry.get("url")
+    if (
+        not isinstance(url, str)
+        or not url.startswith(FILES_HOST)
+        or not url.endswith(f"/{wheel}")
+        or any(c in url for c in "?#%\\ ")
+        or ".." in url
+    ):
+        raise Wrong(f"PyPI gives {wheel} the address {url!r}, not one on files.pythonhosted.org")
+    return url
+
+
+def judge_once(
+    fetch: Fetch, version: str, wheel: str, sha256: str, repository: str
+) -> tuple[str, str]:
+    """One reading of both APIs: (a line saying what holds, the wheel's address), or Missing, or
+    Wrong."""
     files = _json(*fetch(f"https://pypi.org/pypi/{PROJECT}/{version}/json"), "the JSON API")
-    listed = [f for f in files.get("urls", []) if f.get("filename") == wheel]
-    if not listed:
-        raise Missing(f"PyPI lists no {wheel} for {version}")
-    served = str(listed[0].get("digests", {}).get("sha256", "")).lower()
+    names = [str(f.get("filename")) for f in files.get("urls", [])]
+    if not names:
+        raise Missing(f"PyPI lists no file for {version}")
+    others = sorted(n for n in names if n != wheel)
+    if others:
+        raise Wrong(f"PyPI lists {', '.join(others)} for {version}, beside or in place of {wheel}")
+    if len(names) != 1:
+        raise Wrong(f"PyPI lists {wheel} {len(names)} times for {version}")
+    entry = files["urls"][0]
+    served = str(entry.get("digests", {}).get("sha256", "")).lower()
     if served != sha256:
         raise Wrong(f"PyPI serves {wheel} with SHA-256 {served}, not the release's {sha256}")
+    address = _address(entry, wheel)
     url = f"https://pypi.org/integrity/{PROJECT}/{version}/{wheel}/provenance"
     provenance = _json(*fetch(url), "the Integrity API")
     bundles = provenance.get("attestation_bundles") or []
@@ -128,15 +155,11 @@ def judge_once(fetch: Fetch, version: str, wheel: str, sha256: str, repository: 
             and _same(publisher.get("environment"), ENVIRONMENT)
             and bundle.get("attestations")
         ):
-            # The signature check that follows finds the file through the Simple API, whose
-            # cached page can lag the other two.
-            simple = _json(*fetch(f"https://pypi.org/simple/{PROJECT}/"), "the Simple API")
-            if wheel not in [f.get("filename") for f in simple.get("files", [])]:
-                raise Missing(f"the Simple API lists no {wheel} yet")
-            return f"ok: {wheel} on PyPI has the release's SHA-256 and provenance from {repository}"
-    names = [bundle.get("publisher") for bundle in bundles]
+            line = f"ok: {wheel} on PyPI has the release's SHA-256 and provenance from {repository}"
+            return line, address
+    publishers = [bundle.get("publisher") for bundle in bundles]
     raise Wrong(
-        f"{wheel}'s provenance names {names}, not {repository} {WORKFLOW} in {ENVIRONMENT} "
+        f"{wheel}'s provenance names {publishers}, not {repository} {WORKFLOW} in {ENVIRONMENT} "
         "with an attestation"
     )
 
@@ -149,8 +172,10 @@ def check(
     fetch: Fetch = fetch_url,
     sleep: Callable[[float], object] = time.sleep,
     out: Callable[[str], object] = print,
+    keep: Callable[[str], object] = lambda _: None,
 ) -> int:
-    """0 when PyPI serves the release's wheel with its provenance, else 1, with one line."""
+    """0 when PyPI serves the release's wheel alone with its provenance, else 1, with one line.
+    On 0, `keep` is given the wheel's address on PyPI's file host."""
     try:
         wheel, sha256 = one_wheel(sums)
     except Wrong as error:
@@ -158,7 +183,9 @@ def check(
         return 1
     for attempt in range(1, TRIES + 1):
         try:
-            out(judge_once(fetch, version, wheel, sha256, repository))
+            line, address = judge_once(fetch, version, wheel, sha256, repository)
+            keep(address)
+            out(line)
             return 0
         except Wrong as error:
             out(f"FAIL: {error}")
@@ -177,10 +204,21 @@ def rehearse(
     fetch: Fetch = fetch_url,
     sleep: Callable[[float], object] = time.sleep,
     out: Callable[[str], object] = print,
+    keep: Callable[[str], object] = lambda _: None,
 ) -> int:
     """The check on a released wheel that carries provenance."""
     sums = f"{REHEARSAL_SHA256}  {REHEARSAL_WHEEL}\n"
-    return check(sums, REHEARSAL_REPOSITORY, REHEARSAL_VERSION, fetch=fetch, sleep=sleep, out=out)
+    return check(
+        sums, REHEARSAL_REPOSITORY, REHEARSAL_VERSION, fetch=fetch, sleep=sleep, out=out, keep=keep
+    )
+
+
+def _writer(path: str) -> Callable[[str], object]:
+    def keep(address: str) -> None:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(address + "\n")
+
+    return keep
 
 
 def main(argv: list[str]) -> int:
@@ -190,13 +228,16 @@ def main(argv: list[str]) -> int:
     one.add_argument("--sums", required=True)
     one.add_argument("--repository", required=True)
     one.add_argument("--version", required=True)
-    sub.add_parser("rehearse")
+    one.add_argument("--url-out", required=True)
+    again = sub.add_parser("rehearse")
+    again.add_argument("--url-out", required=True)
     args = parser.parse_args(argv)
+    keep = _writer(args.url_out)
     if args.command == "rehearse":
-        return rehearse()
+        return rehearse(keep=keep)
     with open(args.sums, encoding="utf-8") as handle:
         sums = handle.read()
-    return check(sums, args.repository, args.version)
+    return check(sums, args.repository, args.version, keep=keep)
 
 
 if __name__ == "__main__":

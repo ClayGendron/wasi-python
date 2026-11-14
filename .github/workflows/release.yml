@@ -1748,12 +1748,13 @@ jobs:
 
   pypi-verify:
     name: read the wheel and its provenance back from PyPI
-    # After the upload, PyPI must serve the release's own wheel, by SHA-256, with provenance that
-    # names this repository's release.yml in the pypi environment, and that provenance must verify
-    # through Sigstore's trust root. A miss fails this job and ci-status with it, so a tag whose
-    # wheel reached PyPI without its provenance is red the same day. The verifier is attest-action's
-    # locked tree at the commit pypi signs with. It uploads nothing, so a read that timed out is
-    # re-run alone.
+    # After the upload, PyPI must serve the release's own wheel, by SHA-256, as the version's only
+    # file, with provenance that names this repository's release.yml in the pypi environment, and
+    # that provenance must verify through Sigstore's trust root over the bytes at the address the
+    # read-back judged (a pypi: name would look the file up again in the Simple API, whose page can
+    # lag). A miss fails this job and ci-status with it, so a tag whose wheel reached PyPI without
+    # its provenance is red the same day. The verifier is attest-action's locked tree at the commit
+    # pypi signs with. It uploads nothing, so a read that timed out is re-run alone.
     if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: [build, pypi]
     runs-on: ubuntu-24.04
@@ -1784,17 +1785,17 @@ jobs:
         with:
           assets-id: ${{ needs.build.outputs.assets-id }}
           sums-sha256: ${{ needs.build.outputs.sums-sha256 }}
-      - name: PyPI serves the release's wheel with its provenance
+      - name: PyPI serves the release's wheel alone, with its provenance
         run: |
           set -eu
           python3 -I release/pypi_readback.py check --sums release-assets/SHA256SUMS \
-            --repository "$GITHUB_REPOSITORY" --version "${GITHUB_REF_NAME#v}"
+            --repository "$GITHUB_REPOSITORY" --version "${GITHUB_REF_NAME#v}" --url-out pypi-wheel-url
       - name: PyPI's provenance verifies against this repository
         run: |
           set -eu
-          wheel=$(cd release-assets && ls -- *.whl)
+          url=$(cat pypi-wheel-url)
           uv run --locked --no-dev --project attest-action python -I -m pypi_attestations \
-            verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "pypi:$wheel"
+            verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "$url"
 
   pypi-rehearsal:
     name: rehearse PyPI's signer and read-back
@@ -1832,13 +1833,13 @@ jobs:
       - name: The signer's locked tree installs under the release's settings
         run: uv run --locked --no-dev --project attest-action python -I -c "import pypi_attestations, sigstore"
       - name: The read-back passes on a released wheel
-        run: python3 -I release/pypi_readback.py rehearse
+        run: python3 -I release/pypi_readback.py rehearse --url-out pypi-wheel-url
       - name: The signature check passes on a released wheel
         run: |
           set -eu
+          url=$(cat pypi-wheel-url)
           uv run --locked --no-dev --project attest-action python -I -m pypi_attestations \
-            verify pypi --repository https://github.com/ClayGendron/wasi-python \
-            pypi:wasi_python-0.1.1-py3-none-any.whl
+            verify pypi --repository https://github.com/ClayGendron/wasi-python "$url"
       - name: The build's files
         uses: ./.github/actions/verify-artifact
         with:
