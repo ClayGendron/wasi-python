@@ -55,6 +55,7 @@ RUNNER_FILES = (
     "_snapshot.py",
     "_call.py",
     "_sessions.py",
+    "_entry.py",
     "runner.py",
     "_snapshot_make.py",
 )

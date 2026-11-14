@@ -1691,10 +1691,9 @@ LONG_FUNCTIONS_FIX = (
 LONG_FUNCTIONS = {
     # The two entry points and the session's opening each validate every argument before any
     # work; a shared argument object would carry the checks out of them.
-    "runner.py:run": 182,
-    "runner.py:run_async": 217,
+    "runner.py:run": 183,
+    "runner.py:run_async": 197,
     "runner.py:Session.__init__": 187,
-    "runner.py:Session.run_async": 102,
     "_sessions.py:_open_session": 140,
     # The engine instance's assembly: the linker, the store and the imports, one builder each.
     "_call.py:_instance": 146,

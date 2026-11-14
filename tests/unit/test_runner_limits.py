@@ -11,7 +11,7 @@ from fractions import Fraction
 
 import pytest
 
-from wasi_python import _artifacts, _call, _limits, runner
+from wasi_python import _artifacts, _call, _entry, _limits, runner
 
 TOP = 2**63 - 1
 
@@ -119,7 +119,10 @@ def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
     unset = _limits._UNSET
 
     def checked(**kw) -> _call._CheckedCall:
-        return runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None, **kw)
+        read = wasi_python.defaults()
+        return _entry._checked(
+            ["-c", "pass"], None, None, None, unset, unset, unset, None, limits=read, **kw
+        )
 
     assert checked().open_files == 1024
     assert checked(max_open_files=5).open_files == 5

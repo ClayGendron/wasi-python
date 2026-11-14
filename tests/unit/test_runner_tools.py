@@ -25,6 +25,7 @@ from wasi_python import (
     Artifacts,
     ArtifactsMissing,
     _call,
+    _entry,
     _home,
     _limits,
     _places,
@@ -173,13 +174,16 @@ def test_the_tool_call_limit_has_a_default() -> None:
 
 
 def test_the_tools_are_checked_into_plain_tools() -> None:
-    c = runner._check_tools(None, iter([lookup, plain]), None, _limits._UNSET)
+    import wasi_python
+
+    read = wasi_python.defaults()
+    c = _entry._check_tools(None, iter([lookup, plain]), None, _limits._UNSET, read)
     assert [type(t) for t in c.tools] == [T.Tool, T.Tool]
     assert [t.name for t in c.tools] == ["lookup", "plain"]
     assert (c.gate, c.tool_calls) == (None, 1000)
-    assert runner._check_tools(None, [], None, None).tool_calls is None  # None: no limit
-    none = runner._check_tools(lambda f: f, None, None, _limits._UNSET)
-    assert none == runner._ToolArgs(None, None, None, None)
+    assert _entry._check_tools(None, [], None, None, read).tool_calls is None  # None: no limit
+    none = _entry._check_tools(lambda f: f, None, None, _limits._UNSET, read)
+    assert none == _entry._ToolArgs(None, None, None, None)
 
 
 def _artifacts(folder: Path, manifest: str) -> Artifacts:
@@ -851,8 +855,19 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
     unset = _limits._UNSET
 
     def checked(**kw: Any) -> _call._CheckedCall:
-        return runner._checked(
-            ["-c", "pass"], None, None, None, unset, unset, unset, None, tools=[lookup], **kw
+        read = wasi_python.defaults()
+        return _entry._checked(
+            ["-c", "pass"],
+            None,
+            None,
+            None,
+            unset,
+            unset,
+            unset,
+            None,
+            tools=[lookup],
+            limits=read,
+            **kw,
         )
 
     assert checked().tool_request_bytes == 16 << 20

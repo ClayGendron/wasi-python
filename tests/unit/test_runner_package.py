@@ -41,6 +41,7 @@ ORDER = (
     "_results",
     "_call",
     "_sessions",
+    "_entry",
     "runner",
     "_snapshot_make",
 )
@@ -61,7 +62,7 @@ LATE_ANYWHERE = ("_wasmtime_ffi",)  # the seam's form: `from . import _wasmtime_
 
 # The late imports allowed, (file, function, module); any other is a finding.
 LATE = (
-    ("runner.py", "_check_tools", "tools"),
+    ("_entry.py", "_check_tools", "tools"),
     ("_call.py", "_instance", "_fs_table"),
     ("_call.py", "_mount_linker", "_fs_memory"),
     ("_call.py", "_counted_linker", "_fs_memory"),
