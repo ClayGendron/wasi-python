@@ -4,8 +4,8 @@
 - **Date:** 2026-11-14
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (the build recipe, a new toolchain and two new download hosts, the bytes of both binaries and the zip, MANIFEST's lines, the licence notices), **a judge change** (new checks, a golden job, orjson's suite and its shard rows, the rules), one carried patch (orjson's crate type). Not structural: nothing under `src/` changes. Reviewed before it is built (constitution §5.6), by a fresh agent that did not write it.
-- **Depends on:** nothing unbuilt. It stands on 157 (the clocks and entropy pinned while an image is prepared), 166 (the line's pins), 169 to 174 (how a compiled package is added) and 063 (every package runs its own tests). Before it is built, the owner approves the licences of Decision 12 (constitution §4.12); MPL-2.0 for orjson's compiled code is approved already.
-- **Research it stands on:** `../research/2026-10-31-orjson-on-pyo3-as-a-builtin.md` (orjson built, linked and run in `python.wasm`, panic=abort, Rust 1.99.1); the two spikes of 2026-11-14, whose records are the session's working notes ("Ask 3", the pydantic-core spike; "Ask 4", the unwinding-panics spike) and its scope document, "wasi-python 0.1.5: proposed scope", neither in the repository; and what this author read on 2026-11-14 from the Rust 1.97.0 toolchain those spikes installed and from the prior-art clones `orjson`, `pyo3` and `pydantic`.
+- **Depends on:** nothing unbuilt. It stands on 157 (the clocks and entropy pinned while an image is prepared), 166 (the line's pins), 169 to 174 (how a compiled package is added) and 063 (every package runs its own tests). The licences of Decision 12 are approved (constitution §4.12, amended 2026-11-14; `../decisions.md`, "The Rust crates' licences").
+- **Research it stands on:** `../research/2026-10-31-orjson-on-pyo3-as-a-builtin.md` (orjson built, linked and run in `python.wasm`, panic=abort, Rust 1.99.1); the two spikes of 2026-11-14, whose records are the session's working notes ("Ask 3", the pydantic-core spike; "Ask 4", the unwinding-panics spike) and its scope document, "wasi-python 0.1.5: proposed scope", neither in the repository; what this author read on 2026-11-14 from the Rust 1.97.0 toolchain those spikes installed and from the prior-art clones `orjson`, `pyo3` and `pydantic`; and Rust's stable channel manifest of 2026-11-12, read once on 2026-11-14 (Decision 1).
 
 Labels: EXECUTED, run and seen; READ, read from a file, cited; INFERRED, reasoned. A label from a spike's record is that record's own label, kept.
 
@@ -40,42 +40,43 @@ Nothing was linked into `python.wasm` or run in the guest on 2026-11-14: the con
 
 What this author read on 2026-11-14 (READ):
 
-- The toolchain the spikes used reports `rustc 1.97.0 (2d8144b78 2026-07-07)` and `cargo 1.97.0 (c980f4866 2026-06-30)`. Its channel manifest, dated 2026-07-09, gives every component's URL on static.rust-lang.org and its SHA-256 (Decision 1).
-- `rust-src` 1.97.0 carries the standard library's 30 dependency crates under `library/vendor/` (hashbrown, libc, wasip1, cfg-if, memchr, miniz_oxide, adler2, rustc-demangle, addr2line, gimli, object and others).
+- The toolchain the spikes used reports `rustc 1.97.0 (2d8144b78 2026-07-07)` and `cargo 1.97.0 (c980f4866 2026-06-30)`. The October spike used 1.99.1 (its memo).
+- Rust's stable channel manifest, `https://static.rust-lang.org/dist/channel-rust-stable.toml`, read once on 2026-11-14, is dated 2026-11-12 and names `rustc 1.100.0 (0ef1bc386 2026-11-09)`, commit `0ef1bc386059596dada8fb65b50425aab2ea637a`. It gives every component's URL and SHA-256 (Decision 1).
+- `rust-src` 1.97.0 carries the standard library's 30 dependency crates under `library/vendor/` (hashbrown, libc, wasip1, cfg-if, memchr, miniz_oxide, adler2, rustc-demangle, addr2line, gimli, object and others). The 1.100.0 manifest's `rust-src` entry gives only the archive's URL, SHA-256 and commit, not its contents, so that 1.100.0's archive still has the folder is INFERRED; the 1.100.0 archive was not downloaded.
 - `pyo3-ffi` 0.29.3 and 0.30.1 each declare `links = "python"`, and cargo admits one package per `links` key in a build. orjson 3.13.0 requires `pyo3-ffi` 0.29; pydantic-core in pydantic's repository requires `pyo3` 0.30.1. So the umbrella holds one PyO3 version.
 - orjson 3.13.0's `Cargo.toml` declares `crate-type = ["cdylib"]` and a release profile with `panic = "abort"`, `lto = "fat"` and `codegen-units = 1`. Its source has no `catch_unwind`; its entry points are plain `extern "C"` functions. So a panic inside orjson aborts under either strategy, as it does natively (INFERRED from the probe's `extern "C"` result). `PanicException` can be seen only through PyO3's own function wrappers, which orjson does not use.
 - orjson's sdist vendors its crates (`cargo vendor include/cargo` in its release workflow); its git tag holds the `data/` fixtures its tests read, which the sdist leaves out.
 
 ## Decisions
 
-### 1. The toolchain: Rust 1.97.0 from Rust's dist server
+### 1. The toolchain: Rust 1.100.0 from Rust's dist server
 
-The owner chose stable 1.97, the toolchain both spikes built with. Ten pins, each `get` line literal, from the channel manifest of 2026-07-09 (READ):
+The owner chose the pinned stable compiler. Stable is 1.100.0, released 2026-11-12. Both spikes of 2026-11-14 ran on 1.97 (the container's toolchain, which reads 1.97.0) and the October spike on 1.99.1. So what 1.100.0 does here is INFERRED until the build session runs it: that `-Zbuild-std=std,panic_unwind` under `RUSTC_BOOTSTRAP=1` still builds for `wasm32-wasip1` without a compiler crash, that the object keeps the standard exception form, and that the `random_get` names Decision 7 finds still demangle as before. If 1.100.0 fails where 1.97 built, the builder records it and asks the owner; it does not fall back on its own. Ten pins, each `get` line literal, from the channel manifest of 2026-11-12 (READ):
 
 | Pin | Fetched on | SHA-256 |
 |---|---|---|
-| `rustc-1.97.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `53e339f16382bb348566f648d01775797e038fdd6bfc6ddd8859c5a0eac09f68` |
-| `cargo-1.97.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `ca46bbef082ff751c06807b29872b59c05296c3acd4da1a98fac6367bb8bb2c5` |
-| `rust-std-1.97.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `df26b872f1bbcc5cd700eacb76231d6ba97aeda76ccd44f5b7de3db3757a38ee` |
-| `rustc-1.97.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `06a71688ee297515ebc6a815e42c779735c09423b0bed056e0896c80c7295399` |
-| `cargo-1.97.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `71f0457abe8fdf9fc048009f867acc27b21e25c8e06a1a3e9a12c637833b6aab` |
-| `rust-std-1.97.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `b6a90dab26527f17e7e395e24b2d79976e30432c41feb073fe920d3b26b709a0` |
-| `rustc-1.97.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `0a8787303c88b018af61b5c53a0c7024d516d175e623eeab35a35eab11dbcad0` |
-| `cargo-1.97.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `5c5bc94af02797b699bb7d4e85b356192eab9fb50376053a1e6edf509fcf7129` |
-| `rust-std-1.97.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `0c43618128a7a6b96b0b04c04cf7b28dd52fb0991a74c9615fbd1a684ff88712` |
-| `rust-src-1.97.0.tar.xz` | every host | `f2530acd6b4da25a21151e3560d908b31f082edd6968f96d2682c8c2c15c66b7` |
+| `rustc-1.100.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `3fcd7f1709f62dda58bf4db2dcfd630a451e750aadaaa551a21cc4a627a37b4c` |
+| `cargo-1.100.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `7e18265d2d2cda8dec6cac4d0faa3bbafe927b401e5185350abc7d669f9adafb` |
+| `rust-std-1.100.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `9345645b6f56eea28bf8cc2c0f628a61d507a688f91c1bec5ae6bfad216a16c7` |
+| `rustc-1.100.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `fcbfa5b8a0cb28f0c4edfb6dda6910ee910993db31f05258613f5cd5b851263a` |
+| `cargo-1.100.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `d07ee80eb6ba3c5845c554ac88086e1ff5d63f83d99c3c09cb32504cbedd6844` |
+| `rust-std-1.100.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `c73f62fbe5d837f9807ed9e0076575dd8d3475c79af2b30e3570d328e6713f8f` |
+| `rustc-1.100.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `f1d0b1dec81dab6f523cd098507763487b0d4bd7fd2c87582f154128719be03b` |
+| `cargo-1.100.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `7e29ce07d7c6e92d1826870575ba27d57fff6cb3e754aa57d99099cb88fab35d` |
+| `rust-std-1.100.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `4591b6486594ded52ecd6135db95bf9355bbd3ca7a380888b141528bbcf9a5d4` |
+| `rust-src-1.100.0.tar.xz` | every host | `107afa7819b500c573b21a160b08f1a20bc2dfd99550717e1ffbbdb09da7ec6e` |
 
-Each URL is `https://static.rust-lang.org/dist/2026-07-09/<pin>`, as the manifest writes it. The build session's first download checks each file against these values, as every pin is checked.
+Each URL is `https://static.rust-lang.org/dist/2026-11-12/<pin>`, as the manifest writes it. The build session's first download checks each file against these values, as every pin is checked.
 
-The host's `rust-std` is there for build scripts and PyO3's macros, which run on the build host. No `rust-std-1.97.0-wasm32-wasip1` is pinned: both panic strategies rebuild the standard library from `rust-src` (Decision 8), so the shipped wasip1 library is never used. If cargo or rustc asks for it all the same, the offline build fails and the builder adds that one host-neutral pin (`7ea59c6531d6086bb8f260456025de5f097a7603ccd2d80210008654165ae393`, READ from the same manifest).
+The host's `rust-std` is there for build scripts and PyO3's macros, which run on the build host. No `rust-std-1.100.0-wasm32-wasip1` is pinned: both panic strategies rebuild the standard library from `rust-src` (Decision 8), so the shipped wasip1 library is never used. If cargo or rustc asks for it all the same, the offline build fails and the builder adds that one host-neutral pin (`7a506aa6fcc8ed4308780fc412ba5713eb1c97bf5b1e940eaa2cf1f70299c777`, READ from the same manifest).
 
-`scripts/line.conf` gains `RUST_VERSION=1.97.0`, `RUST_PANIC=unwind` (Decision 8) and, per host key, `RUSTC_ARCHIVE`, `CARGO_ARCHIVE` and `RUST_STD_ARCHIVE`. `line.sh`, `line.py` and the host table's rule (`tests/harness/scan.py`, `HOST_NAMES`) learn the three names. Step 10 unpacks the four tarballs' component folders (each tarball's `components` file names them) into `build/tools/rust/`. It runs no `install.sh`, since that is a script from a download. Then it stops unless `rustc -V` and `cargo -V` print the two lines above. No rustup and no `sh.rustup.rs`: the build fetches files, never an installer.
+`scripts/line.conf` gains `RUST_VERSION=1.100.0`, `RUST_PANIC=unwind` (Decision 8) and, per host key, `RUSTC_ARCHIVE`, `CARGO_ARCHIVE` and `RUST_STD_ARCHIVE`. `line.sh`, `line.py` and the host table's rule (`tests/harness/scan.py`, `HOST_NAMES`) learn the three names. Step 10 unpacks the four tarballs' component folders (each tarball's `components` file names them) into `build/tools/rust/`. It runs no `install.sh`, since that is a script from a download. Then it stops unless `rustc -V` prints `rustc 1.100.0 (0ef1bc386 2026-11-09)` and `cargo -V` prints `cargo 1.100.0 (3acc79c0c 2026-11-05)`. The cargo line is INFERRED from the manifest's `0.101.0 (3acc79c0c 2026-11-05)`, since cargo prints the toolchain's version; the build session writes the line it reads. No rustup and no `sh.rustup.rs`: the build fetches files, never an installer.
 
-Build scripts and proc macros are host programs, so cargo links them with the host's C compiler driver, `cc`. That is the build's one unpinned host input already (`scripts/steps/20_cpython.sh`), and the preflight already checks `cc` (READ). What they print feeds the compile and does not depend on the host's linker (INFERRED). The preflight's free-space floor rises from 2.5 GiB by the toolchain's 556 MiB and the target folder, to 3.5 GiB.
+Build scripts and proc macros are host programs, so cargo links them with the host's C compiler driver, `cc`. That is the build's one unpinned host input already (`scripts/steps/20_cpython.sh`), and the preflight already checks `cc` (READ). What they print feeds the compile and does not depend on the host's linker (INFERRED). The preflight's free-space floor rises from 2.5 GiB by the toolchain (556 MiB unpacked for 1.97.0) and the target folder, to 3.5 GiB.
 
 ### 2. Every crate is a pin from crates.io
 
-Rust's standard library takes its dependencies from `rust-src`'s `library/vendor/` (READ), so they are pinned by `rust-src`'s SHA-256. Cargo 1.97 reading that folder offline is INFERRED; the build is `--frozen --offline` with an empty cargo home, so a miss fails rather than fetches. If it misses, the builder pins `library/Cargo.lock`'s 30 crates the way every other crate is pinned below.
+Rust's standard library takes its dependencies from `rust-src`'s `library/vendor/` (READ), so they are pinned by `rust-src`'s SHA-256. Cargo 1.100 reading that folder offline is INFERRED; the build is `--frozen --offline` with an empty cargo home, so a miss fails rather than fetches. If it misses, the builder pins `library/Cargo.lock`'s 30 crates the way every other crate is pinned below.
 
 Every other crate is a file from crates.io: one pin per package in `recipes/rust/Cargo.lock` that is not a path crate, named `<name>-<version>.crate`, fetched from `https://static.crates.io/crates/<name>/<name>-<version>.crate`, its SHA-256 the lock's `checksum`. orjson's own vendored copies in its sdist are not used, so there is one source of crates and one rule. The bytes are the same either way: a vendored crate is the `.crate` file unpacked.
 
@@ -141,9 +142,11 @@ For orjson alone the list may be empty: the October spike's archive needed only 
 
 **The gate before it ships.** The pull request's run (with `ci:full`, so the release tier runs) links the unwinding build into both binaries, runs orjson's suite in the sandbox, and runs Decision 9's panic checks on Linux and Windows. That is the CI run the owner asked for. If it fails on the unwinding, the builder records why in the landing notes, tries once more (two strikes), then sets `RUST_PANIC=abort` in a commit of its own. That commit turns `test_a_rust_panic_raises_panicexception` into a known gap closing with the specification that brings unwinding back, and says on the limitations page that a Rust panic ends the run. The owner is told in the pull request.
 
-MANIFEST gains `x-rust 1.97.0 panic=<strategy>`, so a reader and the checks know which build they hold.
+MANIFEST gains `x-rust 1.100.0 panic=<strategy>`, so a reader and the checks know which build they hold.
 
 ### 9. A probe module, for the panic checks
+
+The owner's decision, 2026-11-14, in the project chat, answering whether every `python.wasm` should carry a tiny private Rust module that panics on purpose, for the panic tests and not part of the public API: "And yes, we can ship a private rust module that panics" (`../decisions.md`, "The Rust crates' licences").
 
 orjson cannot show `PanicException`: its entry points are raw `extern "C"`, so its panics abort under either strategy. The checks need a PyO3 function. `recipes/rust/modules/probe/` is a crate of ours, `rust_probe`, on `pyo3` 0.29.3 with its macros (the same `pyo3-ffi` as orjson). It makes the builtin module `_rust_probe` with two functions:
 
@@ -174,11 +177,11 @@ Step 70 takes `build/orjson-3.13.0/pysrc/orjson/` (`__init__.py`, `__init__.pyi`
 
 ### 12. The licences
 
-The owner approved MPL-2.0 for orjson's compiled code. Constitution §4.12 asks approval for every licence linked in, so the build waits on the owner's yes to this list. Where a crate offers a choice, the set takes MIT, one notice form. A notice the build's sweep finds beyond these is asked again.
+Approved by the owner on 2026-11-14 (`../decisions.md`, "The Rust crates' licences"; constitution §4.12, amended that day): MPL-2.0 for orjson's compiled code, approved earlier that day, and then "Yes to both" to the crate licence sweep. That sweep ran `cargo metadata` for `wasm32-wasip1` over normal dependencies, proc macros excluded, across orjson 3.13.0's crates, pydantic-core 2.50.4's 67 crates and Rust's standard library with its vendored crates (the session's working notes, "Crate licence sweep"). Where a crate offers a choice, the set takes MIT, one notice form: PyO3, Rust's standard library, adler2, miniz_oxide, wasip1, memchr, jiff-core and every other dual- or multi-licensed crate below. xxhash-rust is BSL-1.0. pydantic-core's own additions are approved too, Unicode-3.0 for its 15 ICU4X crates and Zlib for foldhash, and ship with pydantic-core's specification, not this one. A notice the build's sweep finds beyond these is asked again before it ships.
 
 - **orjson** (`MPL-2.0 AND (Apache-2.0 OR MIT)`): `LICENSE-MPL-2.0` and `LICENSE-MIT` from the sdist, and a first paragraph naming the unmodified sdist's URL and SHA-256 and the carried patch (MPL-2.0 §3.2, where the source form is available). yyjson (MIT), compiled in, its notice from its folder.
 - **orjson's linked crates** (READ in the October memo): associative-cache, bytecount, libc, once_cell, pyo3-ffi, simdutf8 (`MIT OR Apache-2.0`); itoap, zmij (MIT); jiff-core (`Unlicense OR MIT`); xxhash-rust (BSL-1.0, with Boost.Math as precedent).
-- **Rust's standard library** (`MIT OR Apache-2.0`, READ in `library/std/Cargo.toml`) and the vendored crates compiled with it: hashbrown, libc, cfg-if, rustc-demangle, addr2line, gimli, object (`MIT OR Apache-2.0`); wasip1 (`Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`); memchr (`Unlicense OR MIT`); miniz_oxide (`MIT OR Zlib OR Apache-2.0`); adler2 (`0BSD OR MIT OR Apache-2.0`) (READ, each `Cargo.toml` in `rust-src`).
+- **Rust's standard library** (`MIT OR Apache-2.0`, READ in `library/std/Cargo.toml`) and the vendored crates compiled with it: hashbrown, libc, cfg-if, rustc-demangle, addr2line, gimli, object (`MIT OR Apache-2.0`); wasip1 (`Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`); memchr (`Unlicense OR MIT`); miniz_oxide (`MIT OR Zlib OR Apache-2.0`); adler2 (`0BSD OR MIT OR Apache-2.0`) (READ, each `Cargo.toml` in `rust-src` 1.97.0; the build's sweep reads 1.100.0's, and a crate or licence it adds is asked again).
 - **PyO3** (`MIT OR Apache-2.0`), linked through the probe. Its macro crates (pyo3-macros, pyo3-macros-backend, heck, syn, quote, proc-macro2, unicode-ident) and the build tools (cc, shlex, find-msvc-tools, pyo3-build-config, target-lexicon) run on the host and ship nothing.
 
 The notices are `LICENSES/orjson.txt`, `LICENSES/rust.txt` (the standard library and its crates) and `LICENSES/pyo3.txt`. Each crate's own licence file is read from its pin, and Rust's from `rust-src`'s top folder (its `LICENSE-MIT` and `COPYRIGHT`, INFERRED from the installer's layout). A crate with no licence file of its own gets the SPDX text, from the pinned commit the set already uses, and its copyright line from its manifest. The list of crates whose notice ships is the build graph cargo resolves for `wasm32-wasip1` (`cargo tree -e normal --target wasm32-wasip1`, with the standard library's), not what survives LTO, since LTO's result cannot be read back crate by crate. `tests/harness/paths.py`'s `LICENCE_COMPONENTS` gains `orjson`, `rust` and `pyo3`, with their `licence_source` rows.
@@ -209,7 +212,7 @@ The notices are `LICENSES/orjson.txt`, `LICENSES/rust.txt` (the standard library
 
 Every host builds the same bytes. Rust's flags for that:
 
-- `--remap-path-prefix=$HERE=/wasi-python-build`, then `--remap-path-prefix=$HERE/build/tools/rust/lib/rustlib/src/rust=/rustc/<commit>`, the commit read from `rustc -vV`, as Rust's own release builds name the standard library's sources. The more specific prefix comes last, since rustc applies the last that matches (INFERRED from rustc's documentation, not read here). The cargo home and the vendor folder lie under `$HERE` and take the first.
+- `--remap-path-prefix=$HERE=/wasi-python-build`, then `--remap-path-prefix=$HERE/build/tools/rust/lib/rustlib/src/rust=/rustc/<commit>`, the commit read from `rustc -vV` (`0ef1bc386059596dada8fb65b50425aab2ea637a` for 1.100.0), as Rust's own release builds name the standard library's sources. The more specific prefix comes last, since rustc applies the last that matches (INFERRED from rustc's documentation, not read here). The cargo home and the vendor folder lie under `$HERE` and take the first.
 - C through the `cc` crate: `-ffile-prefix-map=$HERE=/wasi-python-build` and the wrapper's `-ffp-contract=off`, as every C file in the build.
 - `SOURCE_DATE_EPOCH` from `build.sh`; `debug = false`; `llvm-ar rcsD` for the kept archive; the workspace root at `build/` (Decision 4).
 
@@ -224,7 +227,7 @@ Expected, INFERRED from the spikes: about 0.32 MB for orjson on panic=abort, rou
 - `docs/reference/packages.md`: the orjson row comes through the news file's package rows; the page's sentences that name the compiled packages gain orjson in the same pull request. `_rust_probe` gets one line: a builtin the build's own checks use, not an API.
 - `docs/reference/limitations.md`: what a Rust panic does. A panic in a PyO3 function raises `PanicException`, and the run goes on. A panic in orjson ends the run, as natively. Under the abort switch, the second sentence is the only one.
 - `docs/contributing/building.md`: the Rust toolchain among the pinned inputs, step 52 among the steps, and Rust's flags in "The same bytes from any build host". `docs/contributing/adding-a-package.md`: a Rust package is a dependency of the umbrella, a line of `modules.txt`, its crate pins, and one PyO3 version for all.
-- `context/changes/187-a-rust-build-pipeline-with-orjson-first.md`. Changelog: under New, "**orjson is built in**: fast JSON from Rust, `import orjson`, with native orjson's bytes", linking the packages page; under For contributors, "**The build compiles Rust**: Rust 1.97.0 from Rust's own servers and crates from crates.io, each pinned by SHA-256", linking the building page. Package rows: `| orjson | 3.13.0 | Built in, compiled from Rust: dumps and loads with every option, dataclasses, datetimes, UUIDs, enums and numpy arrays, with native orjson's bytes. A panic inside orjson ends the run, as natively. |`. Claims: the new checks, files and units, orjson's groups under `passes`, both binaries and the zip under `grows` with the reason, and the judge files with theirs. The release group's claim also goes in `context/release-claims/187-a-rust-build-pipeline-with-orjson-first.toml`.
+- `context/changes/187-a-rust-build-pipeline-with-orjson-first.md`. Changelog: under New, "**orjson is built in**: fast JSON from Rust, `import orjson`, with native orjson's bytes", linking the packages page; under For contributors, "**The build compiles Rust**: Rust 1.100.0 from Rust's own servers and crates from crates.io, each pinned by SHA-256", linking the building page. Package rows: `| orjson | 3.13.0 | Built in, compiled from Rust: dumps and loads with every option, dataclasses, datetimes, UUIDs, enums and numpy arrays, with native orjson's bytes. A panic inside orjson ends the run, as natively. |`. Claims: the new checks, files and units, orjson's groups under `passes`, both binaries and the zip under `grows` with the reason, and the judge files with theirs. The release group's claim also goes in `context/release-claims/187-a-rust-build-pipeline-with-orjson-first.toml`.
 - `.github/workflows/release.yml`: the tree count rises by orjson's tree; nothing else moves.
 
 ### 18. The prior-art rows
@@ -243,7 +246,7 @@ Changed: `scripts/00_download.sh` and `downloads/SHA256SUMS` (the ten toolchain 
 
 ## Scope
 
-In: Decisions 1 to 18. Out: pydantic-core, pydantic, annotated-types and typing-inspection (the next specification, after the owner approves the crates' licence sweep, and after orjson and pydantic-core agree on one PyO3); rpds-py and python-calamine; the runner reporting a Rust abort as an error of its own rather than a trap; a nightly compiler; moving `RUST_VERSION`; orjson's benchmarks.
+In: Decisions 1 to 18. Out: pydantic-core, pydantic, annotated-types and typing-inspection (the next specification, its crates' licences approved on 2026-11-14, once orjson and pydantic-core agree on one PyO3); rpds-py and python-calamine; the runner reporting a Rust abort as an error of its own rather than a trap; a nightly compiler; moving `RUST_VERSION`; orjson's benchmarks.
 
 ## Acceptance criteria
 
