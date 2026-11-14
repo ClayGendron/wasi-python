@@ -1,0 +1,261 @@
+# 187: A Rust build pipeline, with orjson first
+
+- **Status:** drafted 2026-11-14, not built; asked for by the owner on 2026-11-14. The owner's decisions of that day are `../decisions.md`, "0.1.5's scope", and `../roadmap.md`, "0.1.5" (both recorded by pull request #105, commit `654f3d52`, not yet on `dev`).
+- **Date:** 2026-11-14
+- **Owner:** Clay Gendron
+- **Kind:** **build-class** (the build recipe, a new toolchain and two new download hosts, the bytes of both binaries and the zip, MANIFEST's lines, the licence notices), **a judge change** (new checks, a golden job, orjson's suite and its shard rows, the rules), one carried patch (orjson's crate type). Not structural: nothing under `src/` changes. Reviewed before it is built (constitution §5.6), by a fresh agent that did not write it.
+- **Depends on:** nothing unbuilt. It stands on 157 (the clocks and entropy pinned while an image is prepared), 166 (the line's pins), 169 to 174 (how a compiled package is added) and 063 (every package runs its own tests). Before it is built, the owner approves the licences of Decision 12 (constitution §4.12); MPL-2.0 for orjson's compiled code is approved already.
+- **Research it stands on:** `../research/2026-10-31-orjson-on-pyo3-as-a-builtin.md` (orjson built, linked and run in `python.wasm`, panic=abort, Rust 1.99.1); the two spikes of 2026-11-14, whose records are the session's working notes ("Ask 3", the pydantic-core spike; "Ask 4", the unwinding-panics spike) and its scope document, "wasi-python 0.1.5: proposed scope", neither in the repository; and what this author read on 2026-11-14 from the Rust 1.97.0 toolchain those spikes installed and from the prior-art clones `orjson`, `pyo3` and `pydantic`.
+
+Labels: EXECUTED, run and seen; READ, read from a file, cited; INFERRED, reasoned. A label from a spike's record is that record's own label, kept.
+
+## The problem
+
+The owner wants Rust packages in the set: orjson now, pydantic-core next, then rpds-py and python-calamine. Each is a PyO3 module: Rust code that speaks CPython's C API. The build has no Rust today. It compiles C, C++ and Cython with wasi-sdk's clang and links every module into `python.wasm` as a builtin, through CPython's inittab.
+
+Rust brings five hazards the C path does not have. The spikes found each one.
+
+1. **Two Rust libraries cannot share one binary.** Each Rust static library carries its own copy of Rust's standard library, so two collide on `rust_eh_personality` and `std::panicking::EMPTY_PANIC` (EXECUTED, 2026-10-31). Every Rust module must go into one library.
+2. **A Rust library carries its own math.** Rust's static library holds 263 objects of Rust's `compiler_builtins` and 35 of compiler-rt's C. Linked as cargo writes it, its weak `round`, `sqrt`, `fma`, `cbrt` and the 128-bit float helpers replace wasi-libc's for the whole interpreter, with no warning (EXECUTED, 2026-10-31; the pydantic-core spike found `round` the same way, its record's "checked"). The weak-duplicate gate does not see it: it compares the packages' archives with each other, not with the SDK's runtime.
+3. **Rust reads entropy past the build's wrap.** The reactor's link wraps `__wasi_random_get`, so entropy is pinned while a starting image is prepared (`recipes/reactor_main.c`, "pinned"). Rust's standard library and the `getrandom` crate import `wasi_snapshot_preview1.random_get` directly and skip the wrap (pydantic-core spike, "checked"). Their clock reads go through wasi-libc's `clock_gettime`, which is wrapped (same record, "checked").
+4. **A Rust panic ends the run.** Rust's shipped standard library for `wasm32-wasip1` only aborts, so a panic is the trap `unreachable` (EXECUTED, 2026-10-31). Natively, PyO3 turns a panic into `PanicException`, a Python exception a program can catch.
+5. **New inputs.** A Rust toolchain and crates are build inputs from two hosts the build has never fetched from.
+
+## What the spikes showed
+
+Nothing was linked into `python.wasm` or run in the guest on 2026-11-14: the container's network refused CPython's source at www.python.org, and the spikes did not route around it. The October spike did link and run orjson in the guest, on panic=abort.
+
+| Fact | Label and source |
+|---|---|
+| orjson 3.13.0 builds for `wasm32-wasip1` as a static library, links into `python.wasm`, imports and round-trips; imports, tags, constructors and target features unchanged; the binary grew by 316,962 bytes | EXECUTED, 2026-10-31 memo (Rust 1.99.1, panic=abort) |
+| Kept to orjson's object and yyjson's, the archive is clean: `cbrt` from `libc.a`, `__multf3` from `libclang_rt.builtins.a` | EXECUTED, 2026-10-31 memo |
+| One umbrella crate holding two Rust modules links, and runs both | EXECUTED, 2026-10-31 memo |
+| pydantic-core 2.50.4 builds on stable Rust 1.97 with `RUSTC_BOOTSTRAP=1`, `rust-src` and `-Zbuild-std=std,panic_unwind -Cpanic=unwind` in 98 seconds; without rebuilding the standard library neither stable nor nightly can unwind on wasip1 | built, Ask 4 |
+| The unwinding object uses the standard exception form (`try_table`, `throw_ref`), imports `_Unwind_RaiseException`, `_Unwind_DeleteException` and the `__cpp_exception` tag, and links with wasi-sysroot's `lib/wasm32-wasip1/eh/libunwind.a` | checked, Ask 4 |
+| A probe that panics 1,000 times inside `catch_unwind` catches all 1,000 and returns, under the wasmtime CLI and under wasmtime-py 50 with fuel; a panic that escapes an `extern "C"` function aborts and traps | run, Ask 4 |
+| wasmtime 50 has exceptions on by default, in its CLI and in wasmtime-py's `Config`, which the runner uses as it is | run, Ask 4 |
+| Unwinding costs about 0.8 MB on pydantic-core's 4.5 MB (5,331,840 bytes against 4,521,038, standalone, stripped) and 3 to 6 % on an allocating probe | measured, Ask 4 |
+| A small C shim defining the two mangled `random_get` symbols to call `__wasi_random_get` removes the direct import; the mangled names differ between toolchains | checked, Asks 3 and 4 |
+| Two unwinding builds from two folders, with the source, cargo home and sysroot remapped, give the same library; the stable route and other hosts are inferred | built twice, Ask 4 |
+
+What this author read on 2026-11-14 (READ):
+
+- The toolchain the spikes used reports `rustc 1.97.0 (2d8144b78 2026-07-07)` and `cargo 1.97.0 (c980f4866 2026-06-30)`. Its channel manifest, dated 2026-07-09, gives every component's URL on static.rust-lang.org and its SHA-256 (Decision 1).
+- `rust-src` 1.97.0 carries the standard library's 30 dependency crates under `library/vendor/` (hashbrown, libc, wasip1, cfg-if, memchr, miniz_oxide, adler2, rustc-demangle, addr2line, gimli, object and others).
+- `pyo3-ffi` 0.29.3 and 0.30.1 each declare `links = "python"`, and cargo admits one package per `links` key in a build. orjson 3.13.0 requires `pyo3-ffi` 0.29; pydantic-core in pydantic's repository requires `pyo3` 0.30.1. So the umbrella holds one PyO3 version.
+- orjson 3.13.0's `Cargo.toml` declares `crate-type = ["cdylib"]` and a release profile with `panic = "abort"`, `lto = "fat"` and `codegen-units = 1`. Its source has no `catch_unwind`; its entry points are plain `extern "C"` functions. So a panic inside orjson aborts under either strategy, as it does natively (INFERRED from the probe's `extern "C"` result). `PanicException` can be seen only through PyO3's own function wrappers, which orjson does not use.
+- orjson's sdist vendors its crates (`cargo vendor include/cargo` in its release workflow); its git tag holds the `data/` fixtures its tests read, which the sdist leaves out.
+
+## Decisions
+
+### 1. The toolchain: Rust 1.97.0 from Rust's dist server
+
+The owner chose stable 1.97, the toolchain both spikes built with. Ten pins, each `get` line literal, from the channel manifest of 2026-07-09 (READ):
+
+| Pin | Fetched on | SHA-256 |
+|---|---|---|
+| `rustc-1.97.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `53e339f16382bb348566f648d01775797e038fdd6bfc6ddd8859c5a0eac09f68` |
+| `cargo-1.97.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `ca46bbef082ff751c06807b29872b59c05296c3acd4da1a98fac6367bb8bb2c5` |
+| `rust-std-1.97.0-aarch64-apple-darwin.tar.xz` | MACOS_ARM64 | `df26b872f1bbcc5cd700eacb76231d6ba97aeda76ccd44f5b7de3db3757a38ee` |
+| `rustc-1.97.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `06a71688ee297515ebc6a815e42c779735c09423b0bed056e0896c80c7295399` |
+| `cargo-1.97.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `71f0457abe8fdf9fc048009f867acc27b21e25c8e06a1a3e9a12c637833b6aab` |
+| `rust-std-1.97.0-aarch64-unknown-linux-gnu.tar.xz` | LINUX_AARCH64 | `b6a90dab26527f17e7e395e24b2d79976e30432c41feb073fe920d3b26b709a0` |
+| `rustc-1.97.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `0a8787303c88b018af61b5c53a0c7024d516d175e623eeab35a35eab11dbcad0` |
+| `cargo-1.97.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `5c5bc94af02797b699bb7d4e85b356192eab9fb50376053a1e6edf509fcf7129` |
+| `rust-std-1.97.0-x86_64-unknown-linux-gnu.tar.xz` | LINUX_X86_64 | `0c43618128a7a6b96b0b04c04cf7b28dd52fb0991a74c9615fbd1a684ff88712` |
+| `rust-src-1.97.0.tar.xz` | every host | `f2530acd6b4da25a21151e3560d908b31f082edd6968f96d2682c8c2c15c66b7` |
+
+Each URL is `https://static.rust-lang.org/dist/2026-07-09/<pin>`, as the manifest writes it. The build session's first download checks each file against these values, as every pin is checked.
+
+The host's `rust-std` is there for build scripts and PyO3's macros, which run on the build host. No `rust-std-1.97.0-wasm32-wasip1` is pinned: both panic strategies rebuild the standard library from `rust-src` (Decision 8), so the shipped wasip1 library is never used. If cargo or rustc asks for it all the same, the offline build fails and the builder adds that one host-neutral pin (`7ea59c6531d6086bb8f260456025de5f097a7603ccd2d80210008654165ae393`, READ from the same manifest).
+
+`scripts/line.conf` gains `RUST_VERSION=1.97.0`, `RUST_PANIC=unwind` (Decision 8) and, per host key, `RUSTC_ARCHIVE`, `CARGO_ARCHIVE` and `RUST_STD_ARCHIVE`. `line.sh`, `line.py` and the host table's rule (`tests/harness/scan.py`, `HOST_NAMES`) learn the three names. Step 10 unpacks the four tarballs' component folders (each tarball's `components` file names them) into `build/tools/rust/`. It runs no `install.sh`, since that is a script from a download. Then it stops unless `rustc -V` and `cargo -V` print the two lines above. No rustup and no `sh.rustup.rs`: the build fetches files, never an installer.
+
+Build scripts and proc macros are host programs, so cargo links them with the host's C compiler driver, `cc`. That is the build's one unpinned host input already (`scripts/steps/20_cpython.sh`), and the preflight already checks `cc` (READ). What they print feeds the compile and does not depend on the host's linker (INFERRED). The preflight's free-space floor rises from 2.5 GiB by the toolchain's 556 MiB and the target folder, to 3.5 GiB.
+
+### 2. Every crate is a pin from crates.io
+
+Rust's standard library takes its dependencies from `rust-src`'s `library/vendor/` (READ), so they are pinned by `rust-src`'s SHA-256. Cargo 1.97 reading that folder offline is INFERRED; the build is `--frozen --offline` with an empty cargo home, so a miss fails rather than fetches. If it misses, the builder pins `library/Cargo.lock`'s 30 crates the way every other crate is pinned below.
+
+Every other crate is a file from crates.io: one pin per package in `recipes/rust/Cargo.lock` that is not a path crate, named `<name>-<version>.crate`, fetched from `https://static.crates.io/crates/<name>/<name>-<version>.crate`, its SHA-256 the lock's `checksum`. orjson's own vendored copies in its sdist are not used, so there is one source of crates and one rule. The bytes are the same either way: a vendored crate is the `.crate` file unpacked.
+
+The lock is written once by the build session, with network, from orjson's own `Cargo.lock` plus the probe's additions (Decision 9). Every crate orjson's lock names keeps orjson's version; a rule (Decision 14) holds that. The crate pins are `TBD` until then: about 22 of orjson's and 5 of PyO3's macros.
+
+Step 52 unpacks each crate pin into `build/rust/vendor/<name>-<version>/` with a `.cargo-checksum.json` of `{"files": {}, "package": "<sha256>"}`, and `build/.cargo/config.toml` replaces crates-io with that folder. Cargo checks each package's checksum against the lock (INFERRED from cargo's directory-source rules; the build's `--frozen` holds it).
+
+Rust's dist server and crates.io are new download hosts, as the owner decided. The rule on third-party hosts holds for both: no retry on a timer, and an outage is the owner's to hear about.
+
+### 3. orjson 3.13.0, from its sdist, with one carried patch
+
+orjson 3.13.0 is its current release (READ: the clone's default branch is at its tag, 2026-10-07). Its sdist is the pin (`orjson-3.13.0.tar.gz`, from files.pythonhosted.org; its URL and SHA-256 `TBD`, read from PyPI's JSON by the build session). Step 52 unpacks it to `build/orjson-3.13.0`, where the judge's tree check reads it (`tests/harness/pins.py`, `SOURCE_PATTERNS` gains `orjson`).
+
+The patch: `recipes/patches/orjson-3.13.0/0001-the-library-is-also-an-rlib.patch` changes `crate-type = ["cdylib"]` to `["cdylib", "rlib"]`. A crate depended on as a library must offer an rlib, and cargo has no way to change a dependency's crate type from outside (the 2026-10-31 spike made this exact change, EXECUTED in its scratch). Its facts sheet is `context/upstream/patches/orjson-3.13.0/0001-the-library-is-also-an-rlib.md`, for the owner to send: a static CPython, like a wasm one or an embedded one, links orjson as a library. The patch is named in the CHANGELOG through the news file.
+
+orjson's release profile is not read when orjson is a dependency; the workspace's profile governs (Decision 4).
+
+### 4. One workspace, one umbrella library
+
+One workspace, its manifest at `build/Cargo.toml`, copied from `recipes/rust/Cargo.toml` with its lock. It has one member that matters, the umbrella `recipes/rust/modules/` (package `wasi_python_rust`, `crate-type = ["staticlib"]`). Its `src/lib.rs` links each module crate, `extern crate orjson as _;` and `extern crate rust_probe as _;`, and holds nothing else. It is our code. The workspace's release profile is `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`, `debug = false` and `incremental = false`, orjson's own, and it sets no `panic` (Decision 8).
+
+**Why the workspace root is `build/`.** Cargo hashes a path crate into its symbol names by its path relative to the workspace root, and by its absolute path when it lies outside it (INFERRED from cargo's source, not read here). orjson's tree must sit at `build/orjson-3.13.0` for the judge. With the root at `build/`, every path crate is inside it, so the symbols do not depend on where the repository is checked out.
+
+`recipes/rust/modules.txt` lists each module: its dotted import name and its init function, `orjson.orjson PyInit_orjson` and `_rust_probe PyInit__rust_probe`. A later Rust package adds a dependency, a line here and its pins, and nothing else.
+
+**One PyO3.** cargo admits one `pyo3-ffi`, so every module in the umbrella uses the same PyO3 line: 0.29 while orjson 3.13.0 is on it. pydantic-core needs 0.30.1, so its specification brings orjson onto 0.30 by an orjson release, or by a carried patch, before the two can share the umbrella.
+
+### 5. Step 52 builds the library
+
+`scripts/steps/52_rust.sh`, after step 50 and before step 53 in `scripts/build.sh`'s `ALL`. Needs steps 10 and 20. In order:
+
+1. Unpack orjson's sdist to `build/orjson-3.13.0`, apply its patch (`patch_tree`), and stop unless `PKG-INFO` says 3.13.0.
+2. Unpack every crate pin of `recipes/rust/Cargo.lock` into `build/rust/vendor/`, each checked against its pin and its lock checksum (`pinned`), and write the checksum files.
+3. Copy `recipes/rust/` to `build/` (`Cargo.toml`, `Cargo.lock`) and `build/rust/modules/`; write `build/.cargo/config.toml` (the source replacement) and PyO3's config file `build/rust/pyo3.cfg` from the line: `implementation=CPython`, `version=$PYTHON_MM`, `shared=false`, `abi3=false`, `lib_name=python$PYTHON_MM`, `pointer_width=32`, `build_flags=`, `suppress_build_script_link_lines=true` (the October spike's eight lines, EXECUTED there).
+4. Build, with `CARGO_HOME=build/rust/cargo-home` (empty), `CARGO_TARGET_DIR=build/rust/target`, `RUSTC` and `CARGO` from `build/tools/rust/bin`, `RUSTC_BOOTSTRAP=1`, `PYO3_CONFIG_FILE`, `CARGO_PROFILE_RELEASE_PANIC=$RUST_PANIC`, `CC_wasm32_wasip1=scripts/wasi-cc` (which carries `-ffp-contract=off`), `AR_wasm32_wasip1` the SDK's `llvm-ar`, `CFLAGS_wasm32_wasip1="-O2 -DNDEBUG -ffile-prefix-map=$HERE=/wasi-python-build"`, and `CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS` as Decisions 8 and 15 give them: `cargo build --release --frozen --offline --target wasm32-wasip1 -Zbuild-std=std,panic_$RUST_PANIC --manifest-path build/Cargo.toml -p wasi_python_rust`. The log is `build/rust/cargo.log`; a failure prints its last 20 lines.
+5. Keep only the crates' own objects (Decision 6), into `build/rust/lib/librust_modules.a`.
+6. Find the direct WASI imports and write the entropy shim (Decision 7); compile it with `scripts/wasi-cc` and add its object to the archive.
+7. The archive gates of Decision 10: its init functions, and no definition the SDK's runtime makes.
+
+The step's line: `rust: wasi_python_rust (orjson 3.13.0, _rust_probe), panic=<strategy>, <kept> objects kept, <dropped> dropped, <n> entropy imports shimmed, <bytes> bytes`.
+
+### 6. Only each crate's own objects are kept
+
+With fat LTO the static library holds one object for all the Rust code (named after the umbrella crate), the C objects that module crates compile through the `cc` crate (yyjson's), and `compiler_builtins`' objects, which LTO never merges: its Rust objects and the compiler-rt C files its build script compiles (EXECUTED, 2026-10-31: 1 + 1 + 263 + 35 members).
+
+`scripts/rust_objects.py keep` writes the new archive with the umbrella's object and each object found under a module crate's own `build/*/out/` folder, by `llvm-ar rcsD` (no timestamps). It stops on any dropped member that is not `compiler_builtins`': a Rust object of that crate, or an object under its `out/` folder. So nothing else is dropped without a word. `round`, `sqrt` and their kin then come from wasi-libc and the 128-bit helpers from `libclang_rt.builtins.a`, as for every C module (EXECUTED, both spikes).
+
+### 7. The entropy shim
+
+`scripts/rust_objects.py imports` lists the kept objects' undefined names (`llvm-nm -u`) and drops each one defined by the link's other inputs: CPython's `libpython$PYTHON_MM.a`, wasi-sysroot's `libc.a`, `eh/libc++abi.a`, `eh/libunwind.a`, `libsetjmp.a` and `libwasi-emulated-mman.a`, and `libclang_rt.builtins.a` (`llvm-nm -g --defined-only`). It also drops the names wasm-ld defines itself: `__stack_pointer`, `__indirect_function_table`, `__memory_base`, `__table_base`, `__cpp_exception` and `__c_longjmp`. What is left is what would become an import of its own.
+
+Each such name whose demangled form (`llvm-cxxfilt`, which reads Rust's v0 mangling) ends in `::random_get` gets one definition in `build/rust/entropy_shim.c`, by its mangled name (`__asm__`), calling `__wasi_random_get` with its two arguments. The reactor's link wraps that call, so Rust's entropy is pinned while an image is prepared, as C's is. The spike's two names were `getrandom::backends::wasi_p1::random_get` and `wasip1::lib_generated::wasi_snapshot_preview1::random_get` (checked, Ask 3). Any other name left fails the step: "a direct WASI import the shim does not route: <mangled> (<demangled>)". A new direct `clock_time_get` or `poll_oneoff` is then reviewed before it ships, not found later.
+
+For orjson alone the list may be empty: the October spike's archive needed only wasi-libc's names (READ, the memo's list). PyO3's runtime in the probe may bring std's `random_get` through a hash map (INFERRED). The shim file is written either way, and the step's line counts it.
+
+`RandomState`'s and `ahash`'s keys are drawn once and kept in a static. A session checkpoint taken after they are drawn carries them into every resume, the same class as CPython's own hash secret (INFERRED in Ask 3). This specification changes none of that.
+
+### 8. Panics unwind, with one switch to abort
+
+`RUST_PANIC=unwind`, the owner's decision. The standard library is rebuilt with `-Zbuild-std=std,panic_unwind` on the pinned stable compiler, which `RUSTC_BOOTSTRAP=1` lets take that flag. The target flags are `-Cpanic=unwind -Ctarget-feature=+exception-handling -Cllvm-args=-wasm-use-legacy-eh=false`, which match `python.wasm`'s own `-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false`, so Rust throws in the standard form with C++'s tag. The flags are written out rather than left to the compiler's defaults (the spike's object already had the standard form, checked). Nothing new on the C side: `python.wasm` already links `-lunwind -lc++abi` from the `eh` sysroot and the snapshot step already runs with exceptions on (READ, `scripts/steps/60_link.sh`, `80_snapshot.sh`).
+
+`RUST_PANIC=abort` is the fallback the owner accepts. It is one line in `line.conf`: the build passes `-Zbuild-std=std,panic_abort`, `CARGO_PROFILE_RELEASE_PANIC=abort` and no exception flags. Every input stays the same. A rule holds that `RUST_PANIC` is `unwind` or `abort`, and that nothing else under `recipes/rust/` or `scripts/` sets a panic strategy.
+
+**The gate before it ships.** The pull request's run (with `ci:full`, so the release tier runs) links the unwinding build into both binaries, runs orjson's suite in the sandbox, and runs Decision 9's panic checks on Linux and Windows. That is the CI run the owner asked for. If it fails on the unwinding, the builder records why in the landing notes, tries once more (two strikes), then sets `RUST_PANIC=abort` in a commit of its own. That commit turns `test_a_rust_panic_raises_panicexception` into a known gap closing with the specification that brings unwinding back, and says on the limitations page that a Rust panic ends the run. The owner is told in the pull request.
+
+MANIFEST gains `x-rust 1.97.0 panic=<strategy>`, so a reader and the checks know which build they hold.
+
+### 9. A probe module, for the panic checks
+
+orjson cannot show `PanicException`: its entry points are raw `extern "C"`, so its panics abort under either strategy. The checks need a PyO3 function. `recipes/rust/modules/probe/` is a crate of ours, `rust_probe`, on `pyo3` 0.29.3 with its macros (the same `pyo3-ffi` as orjson). It makes the builtin module `_rust_probe` with two functions:
+
+- `panic(message)`, a `#[pyfunction]` that panics with the message. PyO3 catches the unwind at its boundary and raises `PanicException`.
+- `panic_in_c(message)`, a raw `extern "C"` method registered through `pyo3::ffi`, as orjson's are, which panics. It aborts under both strategies, as orjson's code would.
+
+It ships in both binaries, a few kilobytes. It adds no import and no power: it panics or it aborts the guest's own run. Its name starts with an underscore and the packages page calls it the build's own check, not an API. It also proves PyO3's macros, which pydantic-core uses, before pydantic-core arrives. Its licence is the project's.
+
+### 10. Step 60 links it, and the link-map gate
+
+- `scripts/gen_inittab.py` takes `--rust <dotted>=<init>` entries, one per line of `recipes/rust/modules.txt`. Each is registered with the package context, as every entry is, and the `--against` check covers its name. `orjson.orjson` and `_rust_probe` become builtins.
+- `build/rust/lib/librust_modules.a` joins the `_host` line's archives, before `-lc++ -lc++abi -lunwind`, and the weak-duplicate gate's list.
+
+The gates, each one line in the step's log, each failing the build:
+
+1. **Init functions** (step 52): the archive defines exactly the `PyInit_*` names `modules.txt` lists.
+2. **No runtime definition** (step 52, `rust_objects.py foreign`): the archive defines no global name that `libc.a`, `libc++abi.a`, `libunwind.a`, `libsetjmp.a`, `libwasi-emulated-mman.a` or `libclang_rt.builtins.a` also define, weak or strong. This is the hazard of 2026-10-31 stated as a rule: a Rust object brings in nothing that should have come from wasi-libc or compiler-rt.
+3. **Direct imports** (step 52): Decision 7.
+4. **The runtime names, after the link** (`rust_objects.py link-map`): in `build/link/python.map`, each of `cbrt ceil copysign fabs floor fma fmax fmin fmod rint round sqrt trunc` with their `f` forms comes from `libc.a`, and each of `__addtf3 __multf3 __divtf3 __multi3 __udivti3 __modti3 __ashlti3 __lshrti3 __powidf2 __muldc3 __divdc3 __mulsc3 __divsc3` from `libclang_rt.builtins.a`, whenever the map names it. `round`, `sqrt`, `fma`, `__multf3` and `__multi3` must be named, so the check cannot pass empty.
+5. **The import list** (`tests/harness/import_list.py`, run by step 60 as `harness.constructors` is): `python.wasm`'s imports, module and field, equal `recipes/guest-imports.txt` exactly. That file is written from `dev`'s `python.wasm` before this change (the October build had 43). An import beyond it fails, and so does one it lists that the binary lacks, so the list never outlives the binary.
+6. **The neutral runtime**: the existing check gains `libunwind.a`, which must be the `eh` sysroot's, `lib/wasm32-wasip1/eh/libunwind.a`, equal to its member of the pinned sysroot tarball.
+
+The existing checks hold too: the constructors and target features (`harness.constructors`), the standard exception form, an even tag count, the exports, the snapshot.
+
+### 11. The zip and MANIFEST
+
+Step 70 takes `build/orjson-3.13.0/pysrc/orjson/` (`__init__.py`, `__init__.pyi`, `py.typed`), as orjson's wheel lays it out, with its METADATA from the sdist's `PKG-INFO` and a `top_level.txt` of `orjson`. `recipes/snapshot-packages.txt` gains `orjson: orjson`. MANIFEST gains the `x-rust` line; its pins, recipes and patches lines pick up the new files as they do every file.
+
+### 12. The licences
+
+The owner approved MPL-2.0 for orjson's compiled code. Constitution §4.12 asks approval for every licence linked in, so the build waits on the owner's yes to this list. Where a crate offers a choice, the set takes MIT, one notice form. A notice the build's sweep finds beyond these is asked again.
+
+- **orjson** (`MPL-2.0 AND (Apache-2.0 OR MIT)`): `LICENSE-MPL-2.0` and `LICENSE-MIT` from the sdist, and a first paragraph naming the unmodified sdist's URL and SHA-256 and the carried patch (MPL-2.0 §3.2, where the source form is available). yyjson (MIT), compiled in, its notice from its folder.
+- **orjson's linked crates** (READ in the October memo): associative-cache, bytecount, libc, once_cell, pyo3-ffi, simdutf8 (`MIT OR Apache-2.0`); itoap, zmij (MIT); jiff-core (`Unlicense OR MIT`); xxhash-rust (BSL-1.0, with Boost.Math as precedent).
+- **Rust's standard library** (`MIT OR Apache-2.0`, READ in `library/std/Cargo.toml`) and the vendored crates compiled with it: hashbrown, libc, cfg-if, rustc-demangle, addr2line, gimli, object (`MIT OR Apache-2.0`); wasip1 (`Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT`); memchr (`Unlicense OR MIT`); miniz_oxide (`MIT OR Zlib OR Apache-2.0`); adler2 (`0BSD OR MIT OR Apache-2.0`) (READ, each `Cargo.toml` in `rust-src`).
+- **PyO3** (`MIT OR Apache-2.0`), linked through the probe. Its macro crates (pyo3-macros, pyo3-macros-backend, heck, syn, quote, proc-macro2, unicode-ident) and the build tools (cc, shlex, find-msvc-tools, pyo3-build-config, target-lexicon) run on the host and ship nothing.
+
+The notices are `LICENSES/orjson.txt`, `LICENSES/rust.txt` (the standard library and its crates) and `LICENSES/pyo3.txt`. Each crate's own licence file is read from its pin, and Rust's from `rust-src`'s top folder (its `LICENSE-MIT` and `COPYRIGHT`, INFERRED from the installer's layout). A crate with no licence file of its own gets the SPDX text, from the pinned commit the set already uses, and its copyright line from its manifest. The list of crates whose notice ships is the build graph cargo resolves for `wasm32-wasip1` (`cargo tree -e normal --target wasm32-wasip1`, with the standard library's), not what survives LTO, since LTO's result cannot be read back crate by crate. `tests/harness/paths.py`'s `LICENCE_COMPONENTS` gains `orjson`, `rust` and `pyo3`, with their `licence_source` rows.
+
+### 13. orjson's tests, the golden job and the checks
+
+- **Its own suite** (spec 063). `tests/upstream/orjson.toml` and `orjson.ini`, driver `package`, test source `orjson-3.13.0-tag.tar.gz` (`https://github.com/ijl/orjson/archive/refs/tags/3.13.0.tar.gz`, a `tests` pin, SHA-256 `TBD`), staging `test/` and `data/`. A smoke group, about a fifth of the files chosen by measured fuel, in the normal tier, and the rest in the release tier, each test in exactly one. Expected classes are found by the run and reasoned: `test_fake.py` needs Faker, which joins the set later in 0.1.5; psutil and pendulum are absent and those tests skip themselves (READ, `test/util.py`, `test_memory.py`). `tests/release_shards.toml`: the smoke group in `upstream-pure-smoke-a`, the release group beside regex's in `upstream-plot-b`, each by its measured fuel. `tests/upstream/packages.toml`: `orjson` a suite; `rust-std` via `orjson`; `pyo3` `later`, its reason that PyO3's own tests run under cargo on a host and pydantic-core's suite reaches its macros in the guest, closing with the roadmap's 0.1.5.
+- **A golden job**, `tests/jobs/orjson_json.py`: `dumps` with `OPT_SORT_KEYS | OPT_INDENT_2`, `OPT_NON_STR_KEYS`, `OPT_SERIALIZE_NUMPY` and `OPT_PASSTHROUGH_DATETIME` over dicts with datetimes, UUIDs, dataclasses, enums, 2⁶⁰ integers and non-ASCII text, numpy arrays, `loads` of the same, `orjson.Fragment`, both depth limits and both error types. It prints each result's bytes and SHA-256; native orjson 3.13.0 in the oracle's lock (`tests/jobs/oracle/pyproject.toml`) gives the expected file. Exact bytes: both sides run the same code.
+- **`tests/checks/test_v1_3_rust.py`** (normal tier, three systems):
+  - `test_orjson_is_built_in`: `orjson.orjson` and `_rust_probe` are in `sys.builtin_module_names`, and `orjson.__file__` is in the zip.
+  - `test_a_rust_panic_raises_panicexception`: `_rust_probe.panic("probe")` raises `pyo3_runtime.PanicException` with the message; the same run then serialises with orjson; 1,000 panics in a loop are each caught and the run exits 0; a `Session` panics in one turn and runs the next. Under `x-rust … panic=abort` it is a known gap (Decision 8).
+  - `test_a_panic_in_c_ends_the_run_with_its_message`: `_rust_probe.panic_in_c("probe")` ends the call as the trap `unreachable`, its stderr holds the message, and a new run starts clean. It holds under both strategies, and it is what an orjson panic does.
+  - `test_rust_reads_entropy_through_the_wrap`: two images prepared with `import _rust_probe` and a hash map made in Rust are byte-equal (the probe gains a third function, `hashed(keys)`, that builds a `std` `HashMap` and returns its iteration order). Without the shim, Rust's keys would differ between the two images. Seen failing first with the shim's object left out.
+
+### 14. The rules
+
+`tests/checks/test_rules.py`, each rule in `tests/harness/scan.py` with its unit rows in `tests/unit/test_scan.py`, each seen failing first:
+
+- **Crate pins**: every non-path package of `recipes/rust/Cargo.lock` has exactly one pin `<name>-<version>.crate` fetched from `https://static.crates.io/crates/<name>/<name>-<version>.crate`, whose SHA-256 is the lock's checksum; no crate pin lacks a lock package.
+- **The toolchain**: each host's three Rust names and `rust-src` are at `RUST_VERSION`, pinned and fetched from `https://static.rust-lang.org/dist/` in their host's branch (the host table's rule, widened).
+- **The panic switch**: `RUST_PANIC` is `unwind` or `abort`, and no `panic` key or `-Cpanic` flag appears elsewhere in `recipes/rust/` or `scripts/`.
+- **Offline**: step 52's cargo command carries `--frozen --offline`, and `CARGO_HOME` is under `build/`.
+- **orjson's versions**: the lock gives each crate orjson's own `Cargo.lock` names the same version; read from the sdist, so it runs where the downloads are (`needs.need("downloads")`).
+- **The gates run**: step 60 runs `rust_objects.py link-map` and `harness.import_list`, and step 52 the `keep`, `imports` and `foreign` modes, each failing the step.
+- **The set key** names the new recipe folder, `scripts/rust_objects.py` and `tests/harness/import_list.py` (`test_the_set_key_names_every_build_input` finds them as it finds the others).
+
+### 15. Same bytes
+
+Every host builds the same bytes. Rust's flags for that:
+
+- `--remap-path-prefix=$HERE=/wasi-python-build`, then `--remap-path-prefix=$HERE/build/tools/rust/lib/rustlib/src/rust=/rustc/<commit>`, the commit read from `rustc -vV`, as Rust's own release builds name the standard library's sources. The more specific prefix comes last, since rustc applies the last that matches (INFERRED from rustc's documentation, not read here). The cargo home and the vendor folder lie under `$HERE` and take the first.
+- C through the `cc` crate: `-ffile-prefix-map=$HERE=/wasi-python-build` and the wrapper's `-ffp-contract=off`, as every C file in the build.
+- `SOURCE_DATE_EPOCH` from `build.sh`; `debug = false`; `llvm-ar rcsD` for the kept archive; the workspace root at `build/` (Decision 4).
+
+Evidence: two unwinding builds from two folders gave one library on one host (Ask 4, nightly), and two orjson builds from two folders did on one host (EXECUTED, 2026-10-31). Across hosts it is INFERRED: Rust's wasm code does not depend on the host. The builder rebuilds the archive once from a second checkout folder and compares, and the pull request's `same-bytes` run across hosts is the proof.
+
+### 16. Size and fuel
+
+Expected, INFERRED from the spikes: about 0.32 MB for orjson on panic=abort, roughly a fifth more with unwinding (the pydantic-core ratio, 18 %), and some tens of kilobytes for PyO3's runtime and the probe. So `python.wasm` and the snapshot each grow by about 0.35 to 0.6 MB, and the zip by orjson's three files. A plain start should cost the same fuel: nothing new runs until `import orjson`. The builder records every artifact's bytes, the fuel of a plain start, of `import orjson` and of the October spike's 20,000-record `dumps` (91 M on panic=abort, EXECUTED there), and claims each growth in the news file. The wheel stays far under PyPI's limit (`PYPI_FILE_LIMIT`).
+
+### 17. The pages and the news file
+
+- `docs/reference/packages.md`: the orjson row comes through the news file's package rows; the page's sentences that name the compiled packages gain orjson in the same pull request. `_rust_probe` gets one line: a builtin the build's own checks use, not an API.
+- `docs/reference/limitations.md`: what a Rust panic does. A panic in a PyO3 function raises `PanicException`, and the run goes on. A panic in orjson ends the run, as natively. Under the abort switch, the second sentence is the only one.
+- `docs/contributing/building.md`: the Rust toolchain among the pinned inputs, step 52 among the steps, and Rust's flags in "The same bytes from any build host". `docs/contributing/adding-a-package.md`: a Rust package is a dependency of the umbrella, a line of `modules.txt`, its crate pins, and one PyO3 version for all.
+- `context/changes/187-a-rust-build-pipeline-with-orjson-first.md`. Changelog: under New, "**orjson is built in**: fast JSON from Rust, `import orjson`, with native orjson's bytes", linking the packages page; under For contributors, "**The build compiles Rust**: Rust 1.97.0 from Rust's own servers and crates from crates.io, each pinned by SHA-256", linking the building page. Package rows: `| orjson | 3.13.0 | Built in, compiled from Rust: dumps and loads with every option, dataclasses, datetimes, UUIDs, enums and numpy arrays, with native orjson's bytes. A panic inside orjson ends the run, as natively. |`. Claims: the new checks, files and units, orjson's groups under `passes`, both binaries and the zip under `grows` with the reason, and the judge files with theirs. The release group's claim also goes in `context/release-claims/187-a-rust-build-pipeline-with-orjson-first.toml`.
+- `.github/workflows/release.yml`: the tree count rises by orjson's tree; nothing else moves.
+
+### 18. The prior-art rows
+
+The spikes cloned `orjson`, `pydantic`, `pydantic-core` and `pyo3` under `context/prior_art/`, so `test_every_prior_art_clone_has_its_licence_recorded` fails on a machine that holds them. Their rows are added with this specification, before it is built: what each is studied for, its licence read from its own files, and its commit.
+
+## Intent
+
+A program in the guest imports orjson and gets native orjson's bytes. A Rust panic behind PyO3 raises `PanicException` and the run goes on. The build compiles Rust from pinned files alone, with one umbrella library, no runtime code of Rust's own in the link, no entropy read past the wrap, and no new import. The next Rust package is a dependency and a few pins.
+
+## Design
+
+Added: `scripts/steps/52_rust.sh`; `scripts/rust_objects.py`; `recipes/rust/Cargo.toml`, `Cargo.lock`, `modules.txt`, `modules/Cargo.toml`, `modules/src/lib.rs`, `modules/probe/Cargo.toml`, `modules/probe/src/lib.rs`; `recipes/guest-imports.txt`; `recipes/patches/orjson-3.13.0/0001-the-library-is-also-an-rlib.patch`; `context/upstream/patches/orjson-3.13.0/0001-the-library-is-also-an-rlib.md`; `tests/harness/import_list.py`; `tests/checks/test_v1_3_rust.py`; `tests/jobs/orjson_json.py` and its expected file; `tests/upstream/orjson.toml` and `orjson.ini`; `context/changes/187-a-rust-build-pipeline-with-orjson-first.md`; `context/release-claims/187-a-rust-build-pipeline-with-orjson-first.toml`.
+
+Changed: `scripts/00_download.sh` and `downloads/SHA256SUMS` (the ten toolchain pins, orjson's sdist and tag archive, the crate pins); `scripts/line.conf`, `line.sh`, `line.py`; `scripts/build.sh` (`ALL`); `scripts/steps/10_tools.sh` (the toolchain), `60_link.sh` (the archive and the gates), `70_zip.sh` (orjson's package); `scripts/steps/progress.sh` (the free-space floor); `scripts/gen_inittab.py` (`--rust`); `scripts/assemble_artifacts.py` (the notices, `x-rust`); `recipes/snapshot-packages.txt`; `tests/harness/paths.py`, `pins.py`, `needs.py`, `scan.py`; `tests/checks/test_rules.py`; `tests/unit/test_scan.py`; `tests/upstream/packages.toml`; `tests/release_shards.toml`; `tests/jobs/oracle/pyproject.toml` and `uv.lock`; `docs/reference/packages.md`, `limitations.md`; `docs/contributing/building.md`, `adding-a-package.md`; `.github/workflows/release.yml` (the tree count); `context/prior_art/README.md` (Decision 18, with this draft).
+
+## Scope
+
+In: Decisions 1 to 18. Out: pydantic-core, pydantic, annotated-types and typing-inspection (the next specification, after the owner approves the crates' licence sweep, and after orjson and pydantic-core agree on one PyO3); rpds-py and python-calamine; the runner reporting a Rust abort as an error of its own rather than a trap; a nightly compiler; moving `RUST_VERSION`; orjson's benchmarks.
+
+## Acceptance criteria
+
+1. The ten toolchain files and every new pin match their SHA-256 on first fetch, and `rustc -V` and `cargo -V` print Decision 1's lines on each host (EXECUTED).
+2. Step 52 builds offline from an empty cargo home on each host; its line names the kept and dropped objects and the shimmed imports; each of its three archive gates is seen refusing once, with a planted member, a planted definition of `round` and a planted direct `clock_time_get` import (EXECUTED).
+3. Step 60's link-map gate and import-list gate are seen refusing once each, with the whole static library linked and with a planted import; with the kept archive the link map names wasi-libc's `round` and compiler-rt's `__multf3` (EXECUTED).
+4. Imports equal `recipes/guest-imports.txt`, there are two exception tags, and constructors, target features and the exception form are unchanged, on both binaries (EXECUTED).
+5. The pull request's run with `ci:full` is green on Linux and Windows: orjson's smoke and release groups, every expected class reasoned; the golden job with exact bytes; the four checks of Decision 13, each seen failing first, with `test_a_rust_panic_raises_panicexception` passing on `panic=unwind`, or the switch thrown as Decision 8 says and recorded (READ from that run).
+6. Two builds of the archive from two folders give one SHA-256, and the run's `same-bytes` is green across hosts (EXECUTED; READ).
+7. Decision 16's bytes and fuel are recorded and claimed; the licence sweep finds nothing beyond Decision 12, or the owner is asked again (EXECUTED).
+8. `test_every_prior_art_clone_has_its_licence_recorded` passes where the four clones are; the fast tier, `tests/lint`, `ci-status` and `review` are green; the news file is present.
+
+## Landing notes
+
+Not built.
