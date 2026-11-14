@@ -57,6 +57,23 @@ Judged sound (no finding): one umbrella with the workspace at `build/`; keeping 
 - §7: nothing tripped yet. Finding 1 would trip the first bullet if built as written.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
+The round's fix commit follows `56acdc1f`; it changes the specification only.
+
+1. **Waits on the owner.** Asked on 2026-11-14, not yet answered: whether the patch may stand, re-checked at each orjson version, or the crate type becomes `["rlib"]` alone. The specification's Status and Decision 3 carry an "Open for the owner" note; nothing is written in `decisions.md` until the answer.
+2. **Fixed.** Decision 8 and criterion 5 call 187's run the first half of the owner's gate; pydantic-core's specification runs both suites on `panic=unwind`, and the abort switch stays open until then.
+3. **Fixed.** Decision 8 builds with `-Cpanic=unwind` alone, as Ask 4 did, the binary's checks gating the form; the explicit flags are tried once beside it only if wanted, and recorded.
+4. **Fixed.** Decisions 2 and 5: step 52 copies `rust-src`'s `library/vendor/*` into the same directory source, a name and version in both must hold identical bytes, and the crate rule (Decision 14) reads `recipes/rust/Cargo.lock` only.
+5. **Fixed, first route.** Decision 1 pins `rust-std-1.100.0-wasm32-wasip1` from the start (eleven pins); the `["rlib"]` route waits on the owner's answer to finding 1, and drops this pin if chosen.
+6. **Fixed.** Decision 5: the source replacement in `$CARGO_HOME/config.toml`, flags by `CARGO_ENCODED_RUSTFLAGS`, the host's Rust settings unset, cargo run from `build/`, an ancestor `.cargo/config*` refused; Decision 14 gains a rule over all of it.
+7. **(a), (b) wait on the owner** (Decision 12's "Open for the owner" note, asked 2026-11-14). **(c) fixed:** Rust's notices are read from the rustc component's `share/doc/rust/`, from each host and checked equal; yyjson's notice is `include/yyjson/yyjson.h`'s header comment.
+8. **Fixed.** Decision 2: each `.cargo-checksum.json` holds every file's SHA-256 from the verified `.crate`, and the crate trees join `SOURCE_PATTERNS`.
+9. **Fixed.** Decision 7 reads the import entries with `harness.wasm`, fails on any non-`env` import but `random_get`, matches the shim count, drops `__cpp_exception` from wasm-ld's list, and says this gate alone sees a wrap bypassed; Decision 10's gate 5 names both binaries and a new field.
+10. **Fixed.** Decision 6 states both layouts.
+11. **Fixed.** Decision 14's panic rule allows step 52's one `-Cpanic=$RUST_PANIC`.
+12. **Fixed.** Decision 13: if there is no shim to leave out, the check is seen failing by linking without `--wrap=__wasi_random_get`, in scratch.
+13. **Fixed.** Decision 9 lists `hashed(keys)`; the probe has three functions.
+14. **Fixed.** Decision 14's harness rows (`PACKAGES` twice, `pyo3`'s `later` with pydantic-core's number reserved when built); Decision 13 names `own-guest-c` and the `pytz` skips; Depends names #105.
+15. **Fixed.** Decision 1 records the manifest's SHA-256; Decision 2 names `index.crates.io` for the one online resolution; Decision 8 says `RUSTC_BOOTSTRAP=1` reaches every crate's build probes on every host alike.
 
 ## Verdict
 Not to be built as written: first the owner's answer on the orjson patch, which can never go upstream (High), and the licence notices (Medium 7), then Mediums 2 to 6 and 8 written into the specification.
