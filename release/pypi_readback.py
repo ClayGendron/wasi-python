@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -109,15 +110,11 @@ def _same(a: object, b: str) -> bool:
 
 
 def _address(entry: dict, wheel: str) -> str:
-    """The wheel's address on PyPI's file host, as the JSON API gives it, or Wrong."""
+    """The wheel's address on PyPI's file host, as the JSON API gives it, or Wrong. Only PyPI's
+    own shape is taken: two, two and sixty hex digits of the file's hash, then its name."""
     url = entry.get("url")
-    if (
-        not isinstance(url, str)
-        or not url.startswith(FILES_HOST)
-        or not url.endswith(f"/{wheel}")
-        or any(c in url for c in "?#%\\ ")
-        or ".." in url
-    ):
+    shape = rf"{re.escape(FILES_HOST)}[0-9a-f]{{2}}/[0-9a-f]{{2}}/[0-9a-f]{{60}}/{re.escape(wheel)}"
+    if not isinstance(url, str) or not re.fullmatch(shape, url):
         raise Wrong(f"PyPI gives {wheel} the address {url!r}, not one on files.pythonhosted.org")
     return url
 

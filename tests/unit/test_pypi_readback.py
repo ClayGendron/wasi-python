@@ -30,7 +30,8 @@ SUMS = f"{'cd' * 32}  wasi-python-0.1.4-artifacts.tar.xz\n{SHA}  {WHEEL}\n"
 JSON_URL = f"https://pypi.org/pypi/wasi-python/{VERSION}/json"
 PROV_URL = f"https://pypi.org/integrity/wasi-python/{VERSION}/{WHEEL}/provenance"
 WHEEL_URL = (
-    f"https://files.pythonhosted.org/packages/40/25/5e30f96b898fc799b2c577a7990100e7/{WHEEL}"
+    "https://files.pythonhosted.org/packages/ce/3f/"
+    f"e60287fc2e8c2b8ec9152fc750c069e82a7ef1b8ebb846e42d4ad26212db/{WHEEL}"
 )
 SDIST = "wasi_python-0.1.4.tar.gz"
 LINUX_WHEEL = "wasi_python-0.1.4-py3-none-manylinux_2_17_x86_64.whl"
@@ -105,8 +106,14 @@ def test_another_file_beside_the_wheel_fails_at_once_and_is_named() -> None:
         {JSON_URL: [_listing(_entry(), _entry())], PROV_URL: [_prov(PUBLISHER)]},
         {JSON_URL: [_files(url=f"https://example.org/{WHEEL}")], PROV_URL: [_prov(PUBLISHER)]},
         {JSON_URL: [_files(url=WHEEL_URL + "?x=1")], PROV_URL: [_prov(PUBLISHER)]},
-        {JSON_URL: [_files(url=WHEEL_URL.replace("/40/", "/../"))], PROV_URL: [_prov(PUBLISHER)]},
+        {JSON_URL: [_files(url=WHEEL_URL.replace("/ce/", "/../"))], PROV_URL: [_prov(PUBLISHER)]},
         {JSON_URL: [_files(url=WHEEL_URL[:-4] + ".tar.gz")], PROV_URL: [_prov(PUBLISHER)]},
+        {JSON_URL: [_files(url=WHEEL_URL + "\n")], PROV_URL: [_prov(PUBLISHER)]},
+        {JSON_URL: [_files(url=WHEEL_URL.replace("/ce/", "/c@/"))], PROV_URL: [_prov(PUBLISHER)]},
+        {
+            JSON_URL: [_files(url=WHEEL_URL.replace("/ce/3f/", "/ce/"))],
+            PROV_URL: [_prov(PUBLISHER)],
+        },
     ],
     ids=[
         "another digest",
@@ -122,6 +129,9 @@ def test_another_file_beside_the_wheel_fails_at_once_and_is_named() -> None:
         "an address with a query",
         "an address that climbs",
         "an address of another file",
+        "an address with a newline",
+        "an address with an at sign",
+        "an address not in PyPI's hash shape",
     ],  # fmt: skip
 )
 def test_a_wrong_answer_fails_at_once(answers) -> None:
