@@ -1,0 +1,23 @@
+diff --git a/folium/features.py b/folium/features.py
+index 8f7e523..4170177 100644
+--- a/folium/features.py
++++ b/folium/features.py
+@@ -21,7 +21,6 @@ from typing import (
+ )
+ 
+ import numpy as np
+-import requests
+ from branca.colormap import ColorMap, LinearColormap, StepColormap
+ from branca.element import (
+     Div,
+@@ -780,6 +779,10 @@ class GeoJson(Layer):
+             )
+ 
+     def get_geojson_from_web(self, url: str) -> dict:
++        # requests is imported here, where a URL is fetched, so folium imports
++        # without it.
++        import requests
++
+         return requests.get(url).json()
+ 
+     def convert_to_feature_collection(self) -> None:

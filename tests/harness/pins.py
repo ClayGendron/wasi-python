@@ -80,6 +80,9 @@ SOURCE_PATTERNS = {
     "cairosvg": re.compile(r"cairosvg-[\w.]+\.tar\.gz"),
     # plotly from its sdist, so its carried patch has a tree
     "plotly": re.compile(r"plotly-[\w.]+\.tar\.gz"),
+    # folium and branca from their sdists, so each carried patch has a tree
+    "folium": re.compile(r"folium-[\w.]+\.tar\.gz"),
+    "branca": re.compile(r"branca-[\w.]+\.tar\.gz"),
     # The pure-Python packages' test sources: each package's sdist, or, where the sdist carries no
     # tests, its release tag's archive (named `-tag.tar.gz`, so no pattern meets an sdist), and
     # pypdf's sample files at the commit its release tag records. They are data the judge stages,

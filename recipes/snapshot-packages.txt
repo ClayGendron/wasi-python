@@ -90,3 +90,12 @@ tinycss2: tinycss2
 cssselect2: cssselect2
 imageio: imageio imageio.v2 imageio.v3
 plotly: plotly plotly.graph_objects plotly.express
+pytz: pytz
+rich: rich rich.console rich.table rich.markdown rich.syntax
+markdown-it-py: markdown_it
+mdurl: mdurl
+pygments: pygments pygments.lexers pygments.formatters
+faker: faker
+folium: folium folium.plugins
+branca: branca branca.colormap branca.element
+xyzservices: xyzservices xyzservices.providers

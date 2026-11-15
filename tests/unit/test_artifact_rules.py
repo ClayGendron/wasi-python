@@ -106,6 +106,15 @@ PIN_FILES = {
     "cssselect2-0.10.1-py3-none-any.whl": b"cssselect2 pin",
     "imageio-2.38.1-py3-none-any.whl": b"imageio pin",
     "plotly-7.1.0.tar.gz": b"plotly pin",
+    "pytz-2026.6-py2.py3-none-any.whl": b"pytz pin",
+    "rich-15.0.0-py3-none-any.whl": b"rich pin",
+    "markdown_it_py-4.3.0-py3-none-any.whl": b"markdown-it-py pin",
+    "mdurl-0.1.2-py3-none-any.whl": b"mdurl pin",
+    "pygments-2.21.0-py3-none-any.whl": b"pygments pin",
+    "faker-40.54.0-py3-none-any.whl": b"faker pin",
+    "folium-0.20.0.tar.gz": b"folium pin",
+    "branca-0.8.2.tar.gz": b"branca pin",
+    "xyzservices-2026.9.1-py3-none-any.whl": b"xyzservices pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -196,6 +205,15 @@ PACKAGES = {
     "cssselect2": "0.10.1",
     "imageio": "2.38.1",
     "plotly": "7.1.0",
+    "pytz": "2026.6",
+    "rich": "15.0.0",
+    "markdown-it-py": "4.3.0",
+    "mdurl": "0.1.2",
+    "pygments": "2.21.0",
+    "faker": "40.54.0",
+    "folium": "0.20.0",
+    "branca": "0.8.2",
+    "xyzservices": "2026.9.1",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

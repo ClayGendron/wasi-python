@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tomllib
 import zipfile
 from pathlib import Path
@@ -131,6 +132,17 @@ PACKAGES = {
     # plotly from its sdist with its carried patch; plotly.js and the code it bundles under its
     # notice
     "plotly": "7.1.0",
+    # pytz; rich with markdown-it-py, mdurl and Pygments; Faker; xyzservices: their pure wheels.
+    # folium and branca from their sdists, each with its carried patch
+    "pytz": "2026.6",
+    "rich": "15.0.0",
+    "markdown-it-py": "4.3.0",
+    "mdurl": "0.1.2",
+    "pygments": "2.21.0",
+    "faker": "40.54.0",
+    "folium": "0.20.0",
+    "branca": "0.8.2",
+    "xyzservices": "2026.9.1",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -181,6 +193,14 @@ WHEELS = {
     "tinycss2": "tinycss2-1.5.1-py3-none-any.whl",
     "cssselect2": "cssselect2-0.10.1-py3-none-any.whl",
     "imageio": "imageio-2.38.1-py3-none-any.whl",
+    # each with more notices below
+    "pytz": "pytz-2026.6-py2.py3-none-any.whl",
+    "rich": "rich-15.0.0-py3-none-any.whl",
+    "markdown-it-py": "markdown_it_py-4.3.0-py3-none-any.whl",
+    "mdurl": "mdurl-0.1.2-py3-none-any.whl",
+    "pygments": "pygments-2.21.0-py3-none-any.whl",
+    "faker": "faker-40.54.0-py3-none-any.whl",
+    "xyzservices": "xyzservices-2026.9.1-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -459,6 +479,70 @@ PDFMINER_NOTICES = (
 # notices of the code it adapts (from dask, pandas, NumPy, seaborn, scikit-learn, anytree and
 # Python) and of its HTML view's icons (IcoMoon's, CC BY 4.0).
 XARRAY_TOP = "xarray-2026.9.0"
+# The notices of the pure packages packed from wheels beyond each wheel's licence files: lines
+# of the wheel's own members (member, first and last line counted from 1, words the lines must
+# hold), read once the wheel matches its pin, then the pinned texts those lines name.
+PURE_NOTICES = {
+    "rich": (
+        ("rich/_spinners.py", 2, 19, ("cli-spinners", "Sindre Sorhus", "Permission is hereby")),
+        ("rich/_unicode_data/unicode17-0-0.py", 1, 2, ("Data from wcwidth project",)),
+        ("rich/filesize.py", 1, 1, ("Borrowed from", "pyfilesystem2")),
+        ("rich/progress.py", 808, 808, ("Based on", "tqdm")),
+        ("rich/syntax.py", 62, 63, ("based on", "pygments")),
+    ),
+    "markdown-it-py": (
+        ("markdown_it/_punycode.py", 1, 21, ("Mathias Bynens", "Permission is hereby granted")),
+    ),
+    "pygments": (
+        ("pygments/lexers/robotframework.py", 11, 23, ("Nokia Siemens Networks", "Apache")),
+        ("pygments/styles/solarized.py", 5, 8, ("Solarized", "licensed under MIT")),
+    ),
+    "faker": (
+        ("faker/providers/geo/__init__.py", 13, 13, ("geonames.org", "Attribution 3.0")),
+        ("faker/providers/address/it_IT/__init__.py", 11, 11, ("geonames.org",)),
+        ("faker/providers/address/mk_MK/__init__.py", 84, 84, ("OpenStreetMap",)),
+        ("faker/providers/color/color.py", 6, 8, ("randomColor", "CC0", "randomcolor-py")),
+        ("faker/providers/person/hu_HU/__init__.py", 6, 18, ("public domain",)),
+        ("faker/providers/date_time/th_TH/__init__.py", 8, 12, ("Public Domain or CC0",)),
+    ),
+    "xyzservices": (
+        ("xyzservices-2026.9.1.dist-info/METADATA", 102, 108, ("leaflet-providers", "BSD")),
+    ),
+}
+# rich takes tables from wcwidth and code from PyFilesystem2, each MIT, whose licences its wheel
+# does not carry: each is read from that project's pinned wheel, which is not packed.
+RICH_TAKEN = {
+    "wcwidth": "wcwidth-0.9.4-py3-none-any.whl",
+    "PyFilesystem2": "fs-2.4.16-py2.py3-none-any.whl",
+}
+TEXT_UNIDECODE = "text-unidecode-1.3.tar.gz"
+TEXT_UNIDECODE_LICENSE = "text-unidecode-1.3/LICENSE"
+BSD_2_TEXT = "spdx-31ba1a50-BSD-2-Clause.txt"
+FAKER_DATA = """Faker's third-party data, with the terms its files state:
+- faker/decode/codes.py, the table faker/decode/__init__.py transliterates with, equals
+  text-unidecode 1.3's, which is offered under the Artistic License or the GPL; it is used here
+  under the Artistic License, the text of which text-unidecode's LICENSE, below, holds.
+- faker/providers/geo/ and faker/providers/address/it_IT/: data from GeoNames (geonames.org),
+  under the Creative Commons Attribution 3.0 License
+  (https://creativecommons.org/licenses/by/3.0/).
+- faker/providers/address/mk_MK/: street names from OpenStreetMap. Contains information from
+  OpenStreetMap (© OpenStreetMap contributors), which is made available under the Open Database
+  License (https://opendatacommons.org/licenses/odbl/).
+- faker/providers/color/color.py: adapted from randomColor (CC0) and randomcolor-py (MIT, whose
+  text follows).
+- faker/providers/person/hu_HU/: the Government of Hungary's records, in the public domain.
+- faker/providers/date_time/th_TH/: thai_strftime, adapted from code in the public domain or
+  under CC0 1.0.
+"""
+# folium's notice: its licence, and the line of the plugin adapted from Leaflet.encoded.
+FOLIUM_TOP = "folium-0.20.0"
+FOLIUM_NOTICES = (("folium/plugins/encoded.py", 67, 67, ("Adapted from", "Leaflet.encoded")),)
+BRANCA_TOP = "branca-0.8.2"
+BRANCA_DATA = """branca's colour schemes (branca/_schemes.json, read by branca/utilities.py's
+color_brewer and branca/colormap.py) are ColorBrewer's, by Cynthia Brewer, Mark Harrower and The
+Pennsylvania State University, under the Apache License 2.0, whose text follows; viridis among
+them is matplotlib's, by Nathaniel J. Smith, Stefan van der Walt and Eric Firing, under CC0 1.0.
+"""
 # plotly's notice: its MIT licence; the notices in its colour modules' docstrings (CARTOColors
 # under CC BY 3.0 US, cmocean under MIT, whose text is pinned, colorbrewer under the Apache licence,
 # whose text follows) and vendored pypng's (MIT); plotly.js's head comment and the bundled
@@ -945,8 +1029,7 @@ def statsmodels_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
         "The data files of these thirteen are not in this release, since their stated terms are\n"
         "not approved (their modules stay, and their loaders raise FileNotFoundError), and\n"
         "neither is any datasets/*/src/ folder, nor sandbox/rlsdata.txt (a table with no stated\n"
-        "terms):\n\n"
-        + "".join(left)
+        "terms):\n\n" + "".join(left)
     )
     parts.append(("statsmodels' bundled datasets: their terms", data.encode()))
     return parts
@@ -1014,6 +1097,109 @@ def modified_notice(root: Path, top: str) -> bytes:
     if not lines:
         raise SystemExit(f"recipes/patches/{top}: no carried patch, so no modification notice")
     return "".join(lines).encode()
+
+
+def member_lines(z: zipfile.ZipFile, member: str, first: int, last: int, words: tuple[str, ...]):
+    """Lines first to last (counted from 1) of a wheel's member, which must hold every one of
+    `words`."""
+    lines = z.read(member).decode("utf-8").splitlines()[first - 1 : last]
+    text = "\n".join(lines) + "\n"
+    if len(lines) != last - first + 1 or not all(w in text for w in words):
+        raise SystemExit(f"{member}: lines {first}-{last} no longer hold the notice {words[0]!r}")
+    return text.encode()
+
+
+def pure_notice_parts(d: Path, pkg: str) -> list[tuple[str, bytes]]:
+    """A pure package's notices beyond its wheel's licence files, from its pinned wheel."""
+    wheel = WHEELS[pkg]
+    with zipfile.ZipFile(io.BytesIO(pinned_bytes(d, wheel))) as z:
+        return [
+            (f"{wheel}: {m}, lines {a}-{b}", member_lines(z, m, a, b, words))
+            for m, a, b, words in PURE_NOTICES[pkg]
+        ]
+
+
+def rich_parts(d: Path) -> list[tuple[str, bytes]]:
+    """rich's notices beyond its licence: its lines naming what it takes, the licences of
+    wcwidth and PyFilesystem2, and tqdm's."""
+    parts = pure_notice_parts(d, "rich")
+    for project, wheel in RICH_TAKEN.items():
+        parts += [
+            (f"{project}'s licence, {label}", data) for label, data in wheel_licences(d / wheel)
+        ]
+    parts += [(f"tqdm's licence, {label}", data) for label, data in wheel_licences(d / TQDM_WHEEL)]
+    return parts
+
+
+def faker_parts(d: Path) -> list[tuple[str, bytes]]:
+    """Faker's notices beyond its licence: its data's terms, the lines that state them, and the
+    texts they name."""
+    with tarfile.open(fileobj=io.BytesIO(pinned_bytes(d, TEXT_UNIDECODE))) as tar:
+        member = tar.extractfile(TEXT_UNIDECODE_LICENSE)
+        if member is None:
+            raise SystemExit(f"{TEXT_UNIDECODE}: no {TEXT_UNIDECODE_LICENSE}")
+        unidecode = member.read()
+    if b"Artistic License" not in unidecode:
+        raise SystemExit(f"{TEXT_UNIDECODE_LICENSE} no longer holds the Artistic License")
+    return [
+        ("Faker's third-party data: its terms", FAKER_DATA.encode()),
+        *pure_notice_parts(d, "faker"),
+        (f"text-unidecode's licence ({TEXT_UNIDECODE}: {TEXT_UNIDECODE_LICENSE})", unidecode),
+        (f"The MIT licence, for randomcolor-py ({MIT_TEXT})", pinned_bytes(d, MIT_TEXT)),
+    ]
+
+
+def pygments_parts(d: Path) -> list[tuple[str, bytes]]:
+    """Pygments' notices beyond its licence: its AUTHORS, which its licence names, the Robot
+    Framework lexer's Apache-2.0 notice with that licence's text, and the Solarized style's."""
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    wheel = WHEELS["pygments"]
+    with zipfile.ZipFile(io.BytesIO(pinned_bytes(d, wheel))) as z:
+        authors = z.read("pygments-2.21.0.dist-info/licenses/AUTHORS")
+    return [
+        (f"{wheel}: pygments-2.21.0.dist-info/licenses/AUTHORS", authors),
+        *pure_notice_parts(d, "pygments"),
+        (
+            f"Apache License 2.0, the full text, for pygments/lexers/robotframework.py ({apache})",
+            pinned_bytes(d, apache),
+        ),
+        (f"The MIT licence, for the Solarized style ({MIT_TEXT})", pinned_bytes(d, MIT_TEXT)),
+    ]
+
+
+def folium_parts(b: Path) -> list[tuple[str, bytes]]:
+    """folium's notice from its sdist's tree: its licence and the adapted plugin's line."""
+    tree = b / FOLIUM_TOP
+    return [("folium LICENSE.txt", (tree / "LICENSE.txt").read_bytes())] + [
+        (f"folium {n}, lines {a}-{c}", lines_notice(tree / n, a, c, words))
+        for n, a, c, words in FOLIUM_NOTICES
+    ]
+
+
+def branca_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """branca's notice from its sdist's tree: its licence, its colour schemes' sources, and the
+    Apache-2.0 text ColorBrewer's terms name."""
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    return [
+        ("branca LICENSE.txt", (b / BRANCA_TOP / "LICENSE.txt").read_bytes()),
+        ("branca's colour schemes: their sources and terms", BRANCA_DATA.encode()),
+        (
+            f"Apache License 2.0, the full text, for ColorBrewer's colour schemes ({apache})",
+            pinned_bytes(d, apache),
+        ),
+    ]
+
+
+def xyzservices_parts(d: Path) -> list[tuple[str, bytes]]:
+    """xyzservices' notice beyond its licence: its README's lines on leaflet-providers' data, and
+    the BSD-2-Clause text they name."""
+    return [
+        *pure_notice_parts(d, "xyzservices"),
+        (
+            f"BSD 2-Clause License, the full text, for leaflet-providers ({BSD_2_TEXT})",
+            pinned_bytes(d, BSD_2_TEXT),
+        ),
+    ]
 
 
 def main() -> None:
@@ -1161,6 +1347,9 @@ def main() -> None:
         ],
         "pdfminer-six": pdfminer_parts(b / PDFMINER_TOP, d),
         "plotly": plotly_parts(b / PLOTLY_TOP, d),
+        # folium and branca from their sdists, each its notices from its tree
+        "folium": folium_parts(b),
+        "branca": branca_parts(b, d),
         "xarray": [("xarray LICENSE", (b / XARRAY_TOP / "LICENSE").read_bytes())]
         + [
             (f"xarray licenses/{p.name}", p.read_bytes())
@@ -1190,6 +1379,11 @@ def main() -> None:
     with zipfile.ZipFile(io.BytesIO(pinned_bytes(d, SYMPY_WHEEL))) as z:
         licences["sympy"].append((f"{SYMPY_WHEEL}: {SYMPY_NESTED}", z.read(SYMPY_NESTED)))
     licences["reportlab"] += reportlab_parts(d)
+    licences["rich"] += rich_parts(d)
+    licences["markdown-it-py"] += pure_notice_parts(d, "markdown-it-py")
+    licences["pygments"] += pygments_parts(d)
+    licences["faker"] += faker_parts(d)
+    licences["xyzservices"] += xyzservices_parts(d)
     for component, parts in licences.items():
         if not parts:
             raise SystemExit(f"no licence text found for {component}")
