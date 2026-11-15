@@ -444,7 +444,6 @@ tests https://files.pythonhosted.org/packages/f3/cd/69e4ac55b6dafdd2b5f320752368
 tests https://github.com/imageio/test_images/archive/f676c96b1af7e04bb1eed1e4551e058eb2f14acd.tar.gz imageio-test-images-f676c96b-tag.tar.gz
 # plotly's release tag: its sdist holds no tests
 tests https://github.com/plotly/plotly.py/archive/refs/tags/v7.1.0.tar.gz plotly-7.1.0-tag.tar.gz
-tests https://github.com/ijl/orjson/archive/refs/tags/3.13.0.tar.gz orjson-3.13.0-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

@@ -48,8 +48,7 @@ COMPILED_SUITES = (
     "scikit-learn",
     "statsmodels",
 )
-# The pure-Python packages' own suites, from their test sources (harness.packages), one family each;
-# orjson's too, whose compiled half is built in and whose tests come from its release tag.
+# The pure-Python packages' own suites, from their test sources (harness.packages), one family each.
 PURE_SUITES = (
     "fonttools", "pyparsing", "cycler", "packaging", "python-dateutil", "six", "tzdata",
     "openpyxl", "et-xmlfile", "xlsxwriter", "xlrd", "pypdf", "beautifulsoup4", "soupsieve",
@@ -61,7 +60,6 @@ PURE_SUITES = (
     "pdfplumber", "pdfminer-six", "xarray",
     "tinycss2", "cssselect2", "imageio", "cairocffi", "cairosvg",
     "plotly",
-    "orjson",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"

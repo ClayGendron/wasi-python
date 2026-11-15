@@ -30,13 +30,12 @@ growth = "orjson, compiled from Rust with its standard library and PyO3, is link
 units = 35
 [claim.judge]
 "tests/harness/scan.py" = "the host table learns the three Rust names of each host, and the Rust build's rules"
-"tests/harness/pins.py" = "orjson's sdist is a source tree the tree check reads, and its release tag's archive is a test source"
+"tests/harness/pins.py" = "orjson's sdist is a source tree the tree check reads"
 "tests/harness/needs.py" = "orjson joins the built source components"
 "tests/harness/paths.py" = "orjson, Rust's standard library and PyO3 join the packages and the licence components"
 "tests/harness/import_list.py" = "a new gate: each binary's imports are exactly recipes/guest-imports.txt"
-"tests/upstream/packages.toml" = "orjson is a suite; Rust's standard library and PyO3 are reached through it"
-"tests/upstream/orjson.toml" = "orjson's own suite: a smoke group in the normal tier; its release group waits for measured fuel"
-"tests/release_shards.toml" = "orjson's smoke group and the Rust check file join existing shards"
+"tests/upstream/packages.toml" = "orjson's suite is later, until a run measures its groups' fuel; Rust's standard library and PyO3 are reached through it"
+"tests/release_shards.toml" = "the Rust check file joins an existing shard"
 "tests/checks/test_rules.py" = "the patch rule's docstring counts eight inputs, and the Rust build's rules: crate pins, the toolchain, the panic switch, offline cargo, the gates and the package rows"
 "tests/harness/jobs.py" = "the golden job orjson_json joins the jobs"
 ```

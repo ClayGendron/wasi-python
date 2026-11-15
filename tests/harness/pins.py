@@ -122,8 +122,6 @@ SOURCE_PATTERNS = {
     "imageio-test-images": re.compile(r"imageio-test-images-[0-9a-f]+-tag\.tar\.gz"),
     # plotly's release tag: its sdist holds no tests
     "plotly-tests": re.compile(r"plotly-[\w.]+-tag\.tar\.gz"),
-    # orjson's release tag: its sdist holds no tests
-    "orjson-tests": re.compile(r"orjson-[\w.]+-tag\.tar\.gz"),
     "python-dateutil": re.compile(r"python\-dateutil-[\w.]+\.tar\.gz"),
     "reportlab": re.compile(r"reportlab-[\w.]+\.tar\.gz"),
     "six": re.compile(r"six-[\w.]+\.tar\.gz"),

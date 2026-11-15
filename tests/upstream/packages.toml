@@ -497,9 +497,11 @@ closes_with = "spec 193"
 # orjson and the Rust it brings, built by step 52 into the umbrella library.
 
 [package.orjson]
-# its own suite from its release tag's archive (its sdist holds no tests), groups in
-# tests/upstream/orjson.toml: a smoke group in the normal tier, the rest in the release tier
-kind = "suite"
+# its own suite runs from its sdist, which carries test/ (the tests that read data/ skip
+# themselves); its groups join once a run of the set has measured their fuel
+kind = "later"
+reason = "orjson's own tests are in its sdist, but a group needs its measured fuel, and no run of the set has measured it yet"
+closes_with = "spec 187"
 
 [package.rust-std]
 # Rust's standard library, rebuilt from rust-src for wasm32-wasip1: its own tests run under cargo
