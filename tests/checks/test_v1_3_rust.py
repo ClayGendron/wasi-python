@@ -13,9 +13,23 @@ import json
 
 import pytest
 
+from harness import jobs
+
 pytestmark = pytest.mark.goal("v1.3")
 
 BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
+
+
+@pytest.mark.slow
+def test_orjson_json_job_matches_native(guest) -> None:
+    """orjson's dumps with its sorting, indenting, non-string-key, numpy and passthrough options,
+    over datetimes, UUIDs, dataclasses, enums, 64-bit integers and text from several scripts, its
+    loads, a Fragment, both depth limits and both error types give native orjson 3.13.0's bytes,
+    each result's length and SHA-256."""
+    job = "orjson_json"
+    why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.run_in_guest(guest, job))
+    assert why is None, f"{job}: {why}"
+
 
 BUILT_IN = """
 import json, sys, orjson

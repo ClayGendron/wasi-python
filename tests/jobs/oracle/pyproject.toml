@@ -117,6 +117,8 @@ dependencies = [
     "folium==0.20.0",
     "branca==0.8.2",
     "xyzservices==2026.9.1",
+    # orjson at the guest's pin, its stock cp315 wheel: the guest compiles the same sdist's Rust.
+    "orjson==3.13.0",
 ]
 
 [tool.uv.sources]
