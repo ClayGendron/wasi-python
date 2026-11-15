@@ -758,7 +758,7 @@ def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
     )
     if not found:
         return [
-            "a pull request that is not documentation only has no review file "
+            f"a pull request that is not documentation only {NO_REVIEW_YET} "
             "context/reviews/NNN-<slug>-pr-YYYY-MM-DD.md among its changed paths for its news "
             "file " + (", ".join(stems) or "(none)")
         ]
@@ -779,7 +779,7 @@ def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
         code = [p for p in c.paths if "docs" not in classify(p)]
         if code:
             out.append(
-                f"{path}: the review is followed by {c.sha[:12]}, which changes {code[0]}; the "
+                f"{path}: {REVIEW_BEHIND} {c.sha[:12]}, which changes {code[0]}; the "
                 "review is committed after the last code, and read again after a fix"
             )
             break
@@ -806,8 +806,35 @@ def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
                     f"sub-agent of it says so ('a fresh {SUB_AGENT} {url}; not the author')"
                 )
     if not _verdict(text).startswith("Lands"):
-        out.append(f'{path}: the first line of its ## Verdict does not begin "Lands"')
+        out.append(f"{path}: {NOT_LANDED_YET}")
     return out
+
+
+# The review's three refusals that wait on a reviewer, not on a mistake: no review yet, a review
+# that a later code commit left behind, and a verdict that does not land yet. Each still refuses
+# the pull request. When they are all a run is refused, its review job and ci-status stay red and
+# block the merge, but neither fails the run (their continue-on-error reads `waiting`), so the
+# author gets no failure mail for a state every pull request passes through.
+NO_REVIEW_YET = "has no review file"
+REVIEW_BEHIND = "the review is followed by"
+NOT_LANDED_YET = 'the first line of its ## Verdict does not begin "Lands"'
+# Each wait matched whole, from its start: a refusal that only quotes one of the phrases (a
+# reviewer's name, a path) is no wait. A review's path and a news file's stem hold no space.
+_PATH = r"context/reviews/\d{3}-[a-z0-9-]+-pr-\d{4}-\d{2}-\d{2}\.md"
+WAITING = (
+    re.compile(
+        rf"a pull request that is not documentation only {NO_REVIEW_YET} "
+        r"context/reviews/NNN-<slug>-pr-YYYY-MM-DD\.md among its changed paths for its news "
+        r"file (\(none\)|\d{3}-[a-z0-9-]+(, \d{3}-[a-z0-9-]+)*)"
+    ),
+    re.compile(rf"{_PATH}: {REVIEW_BEHIND} [0-9a-f]{{12}}, which changes .+", re.S),
+    re.compile(rf"{_PATH}: {re.escape(NOT_LANDED_YET)}"),
+)
+
+
+def only_waiting(refused: list[str]) -> bool:
+    """Whether a run is refused, and only for a review not yet written or signed (WAITING)."""
+    return bool(refused) and all(any(w.fullmatch(r) for w in WAITING) for r in refused)
 
 
 def _bool(value: bool) -> str:
@@ -840,6 +867,8 @@ def outputs(
         selected=_json(sel["selected"]),
         refusals=_json(refused),
         review_refusals=_json(list(review_refused)),
+        review_waiting=_bool(only_waiting(list(review_refused))),
+        waiting=_bool(only_waiting(refused)),
     )
     for system in (*OWN_SYSTEMS, "release"):
         out[system] = _json(sel[system])
@@ -1265,6 +1294,8 @@ def summary(d: Decision, sel: dict, refused: list[str], changed: list[str] | Non
     lines += [f"Changed paths: {count}."]
     lines += [f"Selected: {len(sel['selected'])} (system, shard) pairs; verify on {sel['verify']}."]
     lines += [f"Refused: {r}" for r in refused]
+    if only_waiting(refused):
+        lines += ["Waiting for the review: its checks are red, and the run is not failed."]
     return "\n".join(lines) + "\n"
 
 

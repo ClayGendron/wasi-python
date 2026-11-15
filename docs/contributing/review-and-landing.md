@@ -53,6 +53,8 @@ There is one review per pull request, one fix commit per review round, and one s
 
 The `review` check holds the review, and `ci-status` holds it too. Each is red unless the branch carries a review file, named after its news file, committed after the last code, whose reviewer is not the author and whose verdict begins "Lands". The author is the one the pull request's description names, and the session on each code commit. A reviewer that the author's session started fresh, given only the specification and the diff, says so on its reviewer line. This guards the process, not identity: it holds that nothing merges without a review signed after the last code.
 
+Until the review is written, both checks are red, so the pull request cannot merge, but the run is not failed, so nobody is mailed for a state every pull request passes through. The same holds while a later code commit has left the review behind, and while its verdict does not land yet. A review that is wrong, signed by its author or by no one, fails the run.
+
 The review file's own push runs only the `quick` job and the `review` check. Every other job's result is the run of the head it follows, which is re-used, since nothing but documentation changed. A run that is red only in `review` and `ci-status` counts as green for that re-use.
 
 ## Some changes are reviewed before they are built

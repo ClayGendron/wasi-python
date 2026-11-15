@@ -70,7 +70,7 @@ A change starts with a check, before the code, on a branch made from `dev`, the 
 1. Write the check for the new behaviour, or a known gap that names what will close it.
 2. Make the change.
 3. Run the fast tier again, and run any slow check you changed alone by its node id.
-4. Keep `ruff check`, `ruff format --check` and `pytest` green on `src/` and `tests/`.
+4. Keep `ruff check`, `ruff format --check` and `pytest` green on `src/` and `tests/`. Before you push, run `uv run python release/precheck.py`: it runs the pull request's `quick` check on your machine and says what the check would refuse. `--install` runs it before every `git push`.
 5. Open a pull request into `dev`. Its check runs what your files need, a fresh reviewer reviews it, and it merges when both say so. The full test run happens after the merge, on three systems.
 
 Never weaken a check, a golden output or a known gap to turn a run green. Changing what the tests judge is its own change, with its own reason.

@@ -1741,3 +1741,77 @@ def test_a_run_of_another_pull_request_on_the_same_branch_and_head_is_never_reus
                                  _listed(7, "ClayGendron/wasi-python")]}  # fmt: skip
     assert ci_plan.runs_of(payload, "ClayGendron/wasi-python", 7) == [KEPT]
     assert ci_plan.green_runs({"GH_TOKEN": "x", "GITHUB_REPOSITORY": "o/r"}, "b") is None
+
+
+# A review that waits on its reviewer keeps the pull request refused and its run not failed.
+
+
+def _waiting(changed, pr) -> tuple[bool, bool]:
+    out = _plan_outputs(list(changed), PR_DEV, pr)
+    assert json.loads(out["refusals"])  # still refused: the checks stay red and block the merge
+    return out["review_waiting"] == "true", out["waiting"] == "true"
+
+
+def test_a_pull_request_with_no_review_yet_waits() -> None:
+    assert _waiting(("src/x.py", NEWS), _pr()) == (True, True)
+
+
+def test_a_review_a_later_code_commit_left_behind_waits() -> None:
+    code = ci_plan.Commit("a" * 40, ("src/x.py", NEWS), (AUTHOR,))
+    review = ci_plan.Commit("b" * 40, (REVIEW,), (OTHER,))
+    fix = ci_plan.Commit("c" * 40, ("src/x.py",), (AUTHOR,))
+    assert _waiting(("src/x.py", NEWS, REVIEW), _pr(commits=[code, review, fix])) == (True, True)
+
+
+def test_a_verdict_that_does_not_land_yet_waits() -> None:
+    pr = _pr(_review(verdict="Does not land yet: Medium 1."))
+    assert _waiting(("src/x.py", NEWS, REVIEW), pr) == (True, True)
+
+
+@pytest.mark.parametrize(
+    "pr",
+    [
+        _pr(_review(reviewer=AUTHOR)),
+        _pr(_review(reviewer="")),
+    ],
+    ids=["the author signs", "no reviewer"],
+)
+def test_a_review_written_wrong_does_not_wait(pr) -> None:
+    """A review that names the author or no one is a mistake, not a wait: its run fails."""
+    assert _waiting(("src/x.py", NEWS, REVIEW), pr) == (False, False)
+
+
+def test_a_missing_news_file_fails_the_run_while_the_review_waits() -> None:
+    """The review job waits, and ci-status fails: a missing news file is the author's to add."""
+    assert _waiting(("src/x.py",), _pr()) == (True, False)
+
+
+def test_a_waiting_review_beside_a_mistake_does_not_wait() -> None:
+    assert not ci_plan.only_waiting(
+        [
+            "a pull request that is not documentation only has no review file …",
+            "x: its Reviewer: line names the author (me)",
+        ]
+    )
+
+
+def test_a_run_refused_nothing_does_not_wait() -> None:
+    out = _plan_outputs(["src/x.py", NEWS, REVIEW], PR_DEV, _pr())
+    assert json.loads(out["refusals"]) == []
+    assert (out["review_waiting"], out["waiting"]) == ("false", "false")
+
+
+def test_a_push_never_waits() -> None:
+    out = _plan_outputs(["src/x.py"], ci_plan.Event("push", "refs/heads/dev"), None)
+    assert (out["review_waiting"], out["waiting"]) == ("false", "false")
+
+
+def test_a_refusal_that_only_quotes_a_waiting_phrase_is_no_wait() -> None:
+    """A reviewer's name or a path is the branch's own text: a mistake that quotes a wait's words
+    in it still fails the run."""
+    named = "me, who has no review file"
+    body = f"- **Author:** {named}\n"
+    pr = _pr(_review(reviewer=named), body=body)
+    (refusal,) = _review_refusals(pr)
+    assert ci_plan.NO_REVIEW_YET in refusal
+    assert _waiting(("src/x.py", NEWS, REVIEW), pr) == (False, False)
