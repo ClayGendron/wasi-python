@@ -128,5 +128,20 @@ The round's fix commit follows `c2567df0`. It changes only the specification and
    - Decision 9: rich, markdown-it-py and mdurl join `kit-extra.txt` when rich is not yet in the set. pygments is already in `kit.txt` (READ), so it is not added.
    - Decision 3's A now reads "on the terms the owner sets for 0001".
 
+## Reviewer's confirmation (round one, on 0f7b30a2)
+Same reviewer. I read `0f7b30a2` whole with `git show --word-diff` (READ). It changes the specification and this file's Disposition only.
+
+1. **Confirmed.** Decision 5 is now an owner question. A, the default, is patch 0003, which drops orjson's allocator. B keeps the contract break. The decision states the regex-automata case, malloc's 16, std's split and the `alloc_zeroed` write, each with its label. It says 0003 rides on 0001's terms and has no natural end. The search is now a command, with each hit classed heap, static or stack. Decision 10's patch count follows the answers.
+2. **Confirmed.** Decision 3 now gives the whole tree. Under 0001 kept, A and B both need 0001, and B with no release leaves the gate unrun. Under 0001 refused, orjson is out and pydantic-core goes in alone, with no Decision 5. 0002's natural end is named. The new question in Decision 8 covers a gate that never runs, with abort first.
+3. **Confirmed.** Decision 7 says the keys are drawn when any schema is built, and that they are zero entropy's keys, the same in every embedder's image. A's sentence on the limitations page says so. Criterion 3 holds the builder's count of entropy reads during `make_package_snapshot()`.
+4. **Confirmed, as written.** The Status names the four questions and 187's two, for the orchestrating session to ask together with AskUserQuestion. It records that none had been asked, and it records no default as the owner's. Asking them is the orchestrator's next step.
+5. **Confirmed.** Criterion 2 names the kept members as they are under fat LTO.
+6. **Confirmed.** Decision 4 says about 90 versions and names the other-target crates.
+7. **Confirmed.** Decision 4 names zmij's move and the shipped crates that move. The golden job covers the six floats.
+8. **Confirmed.** It is folded into Decision 5, and A removes it.
+9. **Confirmed.** Each write-in is in. pygments is in `tests/upstream/kit.txt` (READ, line 5), so leaving it out of `kit-extra.txt` is right.
+
+One write-in, Low, which needs no round. The Status says "Not to be built" until the answers come. Criterion 8 says the answers come "before the pull request is built past its draft". That is the same rule in two wordings. When the answers are recorded, criterion 8 can say simply "before it is built".
+
 ## Verdict
-May be built on the draft branch, stacked on 187's reviewed tip, once findings 1–3 are written in and the owner has been asked Decisions 3, 5 and 7 with 187's two questions; it lands only after `decisions.md` records those answers.
+The specification is ready to build as it stands at `0f7b30a2`: every finding is fixed. Building waits on the owner's answers to Decisions 3, 5, 7 and 8 and to 187's two questions, which are not yet asked. Once `decisions.md` records them, it may be built stacked on 187's reviewed tip, on the branch of Decision 3's tree that the answers pick.
