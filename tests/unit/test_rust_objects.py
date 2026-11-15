@@ -206,3 +206,124 @@ def test_a_modules_list_line_must_name_an_init_function(tmp_path) -> None:
     bad.write_text("orjson.orjson init_orjson\n", encoding="utf-8")
     with pytest.raises(ValueError, match="bad.txt:1"):
         rust_objects.read_modules(bad)
+
+
+NM, CXXFILT = "/sdk/bin/llvm-nm", "/sdk/bin/llvm-cxxfilt"
+
+
+def _tools(monkeypatch, names: dict[tuple[str, str], list[str]], demangled=None) -> None:
+    """llvm-nm and llvm-cxxfilt stood in: `names` maps (path, flags) to the names llvm-nm would
+    print for that path, and `demangled` maps a mangled name to its demangled form."""
+    demangled = demangled or {}
+
+    def run(cmd, input=None, **_):
+        if cmd[0] == CXXFILT:
+            out = "\n".join(demangled.get(n, n) for n in input.splitlines())
+        else:
+            assert cmd[:2] == [NM, "-j"], cmd
+            out = "\n".join(names.get((cmd[-1], " ".join(cmd[2:-1])), []))
+        return rust_objects.subprocess.CompletedProcess(cmd, 0, out + "\n", "")
+
+    monkeypatch.setattr(rust_objects.subprocess, "run", run)
+
+
+def _modules(tmp_path):
+    path = tmp_path / "modules.txt"
+    path.write_text("orjson PyInit_orjson\n_rust_probe PyInit__rust_probe\n", encoding="utf-8")
+    return str(path)
+
+
+def test_inits_pass_when_the_archive_defines_exactly_the_listed_ones(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    defined = ["PyInit_orjson", "PyInit__rust_probe", "orjson_dumps"]
+    _tools(monkeypatch, {(RUST, "-g --defined-only"): defined})
+    assert rust_objects.inits_main([NM, RUST, _modules(tmp_path)]) == 0
+    assert "defines exactly PyInit__rust_probe, PyInit_orjson" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("defined", "error"),
+    [
+        (
+            ["PyInit_orjson", "PyInit__rust_probe", "PyInit_stray"],
+            "defines PyInit_stray, which modules.txt does not list",
+        ),
+        (["PyInit_orjson"], "does not define PyInit__rust_probe, which modules.txt lists"),
+    ],
+    ids=["an init not listed", "a listed init missing"],
+)
+def test_inits_stop_the_step_on_an_init_the_list_does_not_match(
+    monkeypatch, tmp_path, capsys, defined, error
+) -> None:
+    _tools(monkeypatch, {(RUST, "-g --defined-only"): defined})
+    assert rust_objects.inits_main([NM, RUST, _modules(tmp_path)]) == 1
+    assert capsys.readouterr().out == f"ERROR: the Rust archive {error}\n"
+
+
+def test_foreign_passes_when_no_runtime_library_defines_a_rust_name(monkeypatch, capsys) -> None:
+    _tools(
+        monkeypatch,
+        {(RUST, "-g --defined-only"): ["PyInit_orjson"], (LIBC, "-g --defined-only"): ["round"]},
+    )
+    assert rust_objects.foreign_main([NM, RUST, LIBC, BUILTINS]) == 0
+    assert "none of the 2 runtime libraries' names" in capsys.readouterr().out
+
+
+def test_foreign_names_a_rust_definition_a_runtime_library_also_makes(monkeypatch, capsys) -> None:
+    _tools(
+        monkeypatch,
+        {
+            (RUST, "-g --defined-only"): ["PyInit_orjson", "round", "__multi3"],
+            (LIBC, "-g --defined-only"): ["round", "sqrt"],
+            (BUILTINS, "-g --defined-only"): ["__multi3"],
+        },
+    )
+    assert rust_objects.foreign_main([NM, RUST, LIBC, BUILTINS]) == 1
+    assert capsys.readouterr().out.splitlines() == [
+        "ERROR: the Rust archive defines round, which libc.a defines too",
+        "ERROR: the Rust archive defines __multi3, which libclang_rt.builtins.a defines too",
+    ]
+
+
+MANGLED = "_RNvNtNtCs0_6wasip113lib_generated22wasi_snapshot_preview110random_get"
+DEMANGLED = "wasip1::lib_generated::wasi_snapshot_preview1::random_get"
+
+
+def _imports(monkeypatch, tmp_path, undefined: list[str]) -> tuple[int, str]:
+    """imports_main over an archive whose one object imports random_get, with llvm-nm naming
+    `undefined` as the archive's undefined names; (its exit, the shim written or "")."""
+    archive = tmp_path / "librust_modules.a"
+    archive.write_bytes(_ar([("rust_modules-1.o", _object(RANDOM_GET))]))
+    shim = tmp_path / "shim.c"
+    _tools(monkeypatch, {(str(archive), "-u"): undefined}, {MANGLED: DEMANGLED})
+    code = rust_objects.imports_main([NM, CXXFILT, str(archive), str(shim), LIBC])
+    return code, shim.read_text(encoding="utf-8") if shim.exists() else ""
+
+
+def test_each_random_get_import_is_shimmed(monkeypatch, tmp_path, capsys) -> None:
+    code, shim = _imports(monkeypatch, tmp_path, [MANGLED])
+    assert code == 0 and f'__asm__("{MANGLED}");' in shim
+    assert capsys.readouterr().out.endswith(
+        "imports: 1 entropy imports shimmed, nothing else imported\n"
+    )
+
+
+def test_a_random_get_import_the_shim_would_miss_stops_the_step(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    """An import entry with no undefined name to define: the shim would leave that draw reading the
+    host's entropy directly, so the step stops and writes no shim."""
+    assert _imports(monkeypatch, tmp_path, []) == (1, "")
+    assert capsys.readouterr().out == (
+        "ERROR: 0 random_get names to shim, but 1 random_get import entries\n"
+    )
+
+
+def test_an_undefined_name_that_is_not_random_get_stops_the_step(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    assert _imports(monkeypatch, tmp_path, [MANGLED, "clock_time_get"]) == (1, "")
+    assert capsys.readouterr().out == (
+        "ERROR: a direct WASI import the shim does not route: clock_time_get (clock_time_get)\n"
+    )

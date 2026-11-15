@@ -156,4 +156,4 @@ shimmed=$(sed -n 's/^imports: \([0-9]*\) entropy.*/\1/p' "$R/imports.log")
 "$HOSTPY" -I "$OBJS" foreign "$SDK/bin/llvm-nm" "$A" $RUNTIME > "$R/foreign.log" 2>&1 \
   || { head -n 20 "$R/foreign.log"; die "the Rust library defines a name the SDK's runtime defines (build/rust/foreign.log)"; }
 cat "$R/keep.log" "$R/imports.log" "$R/inits.log" "$R/foreign.log" | grep -v '^shimmed:' || :
-echo "rust: wasi_python_rust (orjson $ORJSON_VERSION, _rust_probe), panic=$RUST_PANIC, $kept objects kept, $dropped dropped, $shimmed entropy imports shimmed, $(wc -c < "$A" | tr -d ' ') bytes"
+echo "rust: orjson $ORJSON_VERSION, _rust_probe, panic=$RUST_PANIC, $kept kept, $dropped dropped, $shimmed shimmed, $(wc -c < "$A" | tr -d ' ') bytes"

@@ -40,7 +40,7 @@ Each step prints `ok <step>: <what it made> [<time>]`, or `FAILED <step>` and an
 
 The zip step records the names each package puts on the import path, in its `.dist-info/top_level.txt`. A wheel's names are what it packs. A package staged as a folder names its own in step 70: `--metadata <its PKG-INFO>=<name>,<name>`, such as `scipy-1.18.1/PKG-INFO=scipy`. The step stops on a name no package claims and on a name two packages claim.
 
-A package written in Rust with PyO3 joins one umbrella library rather than getting a step of its own. Add it as a dependency of `recipes/rust/modules/Cargo.toml`, a line `<module>=PyInit_<name>` in `recipes/rust/modules.txt`, and a pin for each crate the lock adds, named `<name>-<version>.crate` with the lock's checksum. Every Rust module shares one PyO3 version, since cargo admits one `pyo3-ffi`, so a package on another PyO3 line waits until the two agree.
+A package written in Rust with PyO3 joins one umbrella library rather than getting a step of its own. Add it as a dependency of `recipes/rust/modules/Cargo.toml`, a line `<dotted name> PyInit_<name>` in `recipes/rust/modules.txt`, and a pin for each crate the lock adds, named `<name>-<version>.crate` with the lock's checksum. Every Rust module shares one PyO3 version, since cargo admits one `pyo3-ffi`, so a package on another PyO3 line waits until the two agree.
 
 Then check what differs from native. Write each difference down for users on the limitations page, with one sentence of reason. For scipy, `scipy.odr` is not in the build (it needs ODRPACK, which is Fortran), and `workers=` other than 1 does not start threads or processes.
 

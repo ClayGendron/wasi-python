@@ -498,10 +498,10 @@ closes_with = "spec 193"
 
 [package.orjson]
 # its own suite runs from its sdist, which carries test/ (the tests that read data/ skip
-# themselves); its groups join once a run of the set has measured their fuel
+# themselves); its groups join, with their measured fuel, by the reserved specification
 kind = "later"
 reason = "orjson's own tests are in its sdist, but a group needs its measured fuel, and no run of the set has measured it yet"
-closes_with = "spec 187"
+closes_with = "spec 192"
 
 [package.rust-std]
 # Rust's standard library, rebuilt from rust-src for wasm32-wasip1: its own tests run under cargo
