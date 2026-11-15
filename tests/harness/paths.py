@@ -220,6 +220,11 @@ LICENCE_COMPONENTS = (
     "folium",
     "branca",
     "xyzservices",
+    # orjson with yyjson and its linked crates, MPL-2.0's source paragraph first; Rust's standard
+    # library with its own crates; PyO3, linked through the build's probe module
+    "orjson",
+    "rust",
+    "pyo3",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -317,6 +322,9 @@ PACKAGES = (
     "folium",
     "branca",
     "xyzservices",
+    "orjson",
+    "rust-std",
+    "pyo3",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
@@ -688,7 +696,7 @@ def is_version_of(file: str, pkg: str, version: str) -> bool:
     if not name.startswith(prefix):
         return False
     rest = name[len(prefix) :]
-    return rest == "" or rest.startswith(("-", ".tar", ".tgz", ".zip", ".whl"))
+    return rest == "" or rest.startswith(("-", ".tar", ".tgz", ".zip", ".whl", ".crate"))
 
 
 def _pin_for(pkg: str, pins: dict[str, str]) -> str | None:
@@ -747,7 +755,15 @@ def manifest_recipe_errors(m: Manifest, tree: dict[str, str]) -> list[str]:
 # otherwise. zstd is BSD-3-Clause or GPLv2 at the user's choice, and its tarball lists COPYING
 # (GPLv2) before LICENSE (BSD-3-Clause). The set takes BSD-3-Clause and does not ship GPLv2's
 # text, which would suggest the set is under GPLv2.
-TOP_LICENCE = {"zstd": "LICENSE"}
+# orjson's sdist offers LICENSE-MPL-2.0 for its own code and the MIT side of LICENSE-APACHE or
+# LICENSE-MIT for the rest; Rust's standard library and PyO3 are MIT or Apache-2.0, and the set
+# takes MIT (constitution 4.12).
+TOP_LICENCE = {
+    "zstd": "LICENSE",
+    "orjson": "LICENSE-MPL-2.0",
+    "rust": "LICENSE-MIT",
+    "pyo3": "LICENSE-MIT",
+}
 
 
 def _top_level_licence(archive: Path, component: str | None = None) -> bytes | None:
@@ -786,6 +802,8 @@ MORE_LICENCE = {
     "libxslt": "Copyright",
     "qhull": "COPYING.txt",
     "libjpeg-turbo": "README.ijg",
+    "orjson": "LICENSE-MIT",
+    "rust": "COPYRIGHT",
 }
 # A notice a component's file must hold that ships in another component's pinned archive, named
 # here so it stays if that component's own list changes: contourpy's
@@ -846,7 +864,9 @@ def licence_source(component: str, m: Manifest | None) -> Path | None:
     if component == "cpython":
         names = [cpython_pin_name(m.python)] if m.python else []
     else:
-        package = "sqlite-autoconf" if component == "sqlite" else component  # as its pin names it
+        # as its pin names it; Rust's notice is its standard library's, whose package line is
+        # rust-std
+        package = {"sqlite": "sqlite-autoconf", "rust": "rust-std"}.get(component, component)
         version = m.packages.get(package)
         # A source tarball before a wheel of the same version: numpy's host wheel (f2py's)
         # is a build tool, and numpy's notices are its sdist's.

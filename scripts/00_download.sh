@@ -376,6 +376,9 @@ get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a30
 # The full GPL-3.0 text CairoSVG's LGPL-3.0 builds on, which CairoSVG's own LICENSE does not
 # carry; from the same SPDX commit
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/GPL-3.0-only.txt spdx-31ba1a50-GPL-3.0-only.txt
+# The MIT text for the wasip1 crate compiled into Rust's standard library, which ships no licence
+# file of its own; from the same SPDX commit
+get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt spdx-31ba1a50-MIT.txt
 # The notices of three projects scikit-learn adapts code from with no full notice of their own:
 # numpydoc's docscrape, django's slugify and pytest's lines in
 # sklearn/utils/_testing.py, each at the last commit that touched the file

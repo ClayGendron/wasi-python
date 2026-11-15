@@ -115,6 +115,9 @@ PIN_FILES = {
     "folium-0.20.0.tar.gz": b"folium pin",
     "branca-0.8.2.tar.gz": b"branca pin",
     "xyzservices-2026.9.1-py3-none-any.whl": b"xyzservices pin",
+    "orjson-3.13.0.tar.gz": b"orjson pin",
+    "rust-std-1.100.0-aarch64-apple-darwin.tar.xz": b"rust-std pin",
+    "pyo3-0.29.3.crate": b"pyo3 pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -214,6 +217,9 @@ PACKAGES = {
     "folium": "0.20.0",
     "branca": "0.8.2",
     "xyzservices": "2026.9.1",
+    "orjson": "3.13.0",
+    "rust-std": "1.100.0",
+    "pyo3": "0.29.3",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

@@ -143,6 +143,11 @@ PACKAGES = {
     "folium": "0.20.0",
     "branca": "0.8.2",
     "xyzservices": "2026.9.1",
+    # orjson, compiled from Rust into the one Rust library with Rust's standard library and the
+    # crates it links; PyO3 through the build's own probe module, _rust_probe.
+    "orjson": "3.13.0",
+    "rust-std": "1.100.0",
+    "pyo3": "0.29.3",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -1087,6 +1092,128 @@ def cairosvg_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
     ]
 
 
+# The crates the Rust library links, each with its licence file in its pinned .crate, the MIT side
+# where a crate offers a choice (xxhash-rust is BSL-1.0, itoap and zmij MIT alone). Step 52
+# writes the build graph cargo resolves for wasm32-wasip1 (build/rust/linked-crates.txt); a crate
+# there and not here, or here and not there, stops the build, so no notice is missed or stale.
+ORJSON_CRATES = (
+    ("associative-cache", "3.0.1", "LICENSE-MIT"),
+    ("bytecount", "0.6.9", "LICENSE.MIT"),
+    ("itoap", "1.0.1", "LICENSE"),
+    ("jiff-core", "0.1.1", "LICENSE-MIT"),
+    ("libc", "0.2.190", "LICENSE-MIT"),
+    ("once_cell", "1.21.4", "LICENSE-MIT"),
+    ("pyo3-ffi", "0.29.3", "LICENSE-MIT"),
+    ("simdutf8", "0.1.5", "LICENSE-MIT"),
+    ("xxhash-rust", "0.8.19", "LICENSE"),
+    ("zmij", "1.0.23", "LICENSE-MIT"),
+)
+PYO3_CRATES = (("pyo3", "0.29.3", "LICENSE-MIT"),)
+# The standard library's own crates for wasm32-wasip1, read from rust-src's vendor folder (pinned
+# by rust-src's SHA-256). wasip1 ships no licence file: it is offered under MIT among others, and
+# its notice is SPDX's MIT text with the crate's repository named.
+STD_CRATES = (
+    ("cfg-if", "1.0.4", "LICENSE-MIT"),
+    ("hashbrown", "0.17.1", "LICENSE-MIT"),
+    ("libc", "0.2.189", "LICENSE-MIT"),
+    ("rustc-demangle", "0.1.28", "LICENSE-MIT"),
+    ("wasip1", "1.0.0", None),
+)
+SPDX_MIT = "spdx-31ba1a50-MIT.txt"
+ORJSON_SDIST = "orjson-3.13.0.tar.gz"
+ORJSON_URL = (
+    "https://files.pythonhosted.org/packages/f2/72/"
+    "380b97dc45bd162d23afe5194721ef678d9eac7cfaa549fe2873f7f0a518/" + ORJSON_SDIST
+)
+ORJSON_PATCH = "recipes/patches/orjson-3.13.0/0001-the-library-is-also-an-rlib.patch"
+RUST_STD_WASIP1 = "rust-std-1.100.0-wasm32-wasip1.tar.xz"
+# yyjson, compiled into orjson: its folder has no licence file, and its MIT notice is the header
+# comment of yyjson.h.
+YYJSON_MIT = (
+    "YaoYuan",
+    "Permission is hereby granted, free of charge",
+    'THE SOFTWARE IS PROVIDED "AS IS"',
+)
+
+
+def crate_file(d: Path, name: str, version: str, member: str) -> bytes:
+    """One file of a pinned crate, read from its bytes once they match the pin."""
+    with tarfile.open(fileobj=io.BytesIO(pinned_bytes(d, f"{name}-{version}.crate"))) as t:
+        f = t.extractfile(f"{name}-{version}/{member}")
+        if f is None:
+            raise SystemExit(f"{name}-{version}.crate holds no {member}")
+        return f.read()
+
+
+def linked_crates(b: Path) -> set[tuple[str, str]]:
+    """(name, version) of each crate step 52's build graph names."""
+    path = b / "rust" / "linked-crates.txt"
+    if not path.is_file():
+        raise SystemExit("build/rust/linked-crates.txt is missing: run step 52")
+    return {tuple(line.split()) for line in path.read_text().splitlines() if line.strip()}
+
+
+def orjson_source_part(d: Path) -> bytes:
+    """Where orjson's source is, the Source Code Form of section 3.2 of MPL-2.0: the sdist and the one patch."""
+    sha = hashlib.sha256(pinned_bytes(d, ORJSON_SDIST)).hexdigest()
+    return (
+        "orjson is MPL-2.0 AND (Apache-2.0 OR MIT); the set takes MIT for the second part.\n"
+        "Its compiled code is in python.wasm and python-snapshot.wasm, built from the unmodified\n"
+        "sdist\n"
+        f"  {ORJSON_URL}\n"
+        f"  SHA-256 {sha} (MANIFEST's pin line for {ORJSON_SDIST})\n"
+        f"with one carried patch, {ORJSON_PATCH} (MANIFEST's recipe line),\n"
+        "which declares the library an rlib as well as a cdylib and changes no code.\n"
+    ).encode()
+
+
+def rust_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """Rust's standard library: its licence and copyright files, its own crates' notices."""
+    with tarfile.open(fileobj=io.BytesIO(pinned_bytes(d, RUST_STD_WASIP1))) as t:
+        top = RUST_STD_WASIP1.removesuffix(".tar.xz")
+        parts = [
+            (f"{RUST_STD_WASIP1}: {n}", t.extractfile(f"{top}/{n}").read())
+            for n in ("LICENSE-MIT", "COPYRIGHT")
+        ]
+    doc = b / "tools" / "rust" / "share" / "doc" / "rust" / "COPYRIGHT-library.html"
+    parts.append(("Rust's share/doc/rust/COPYRIGHT-library.html", doc.read_bytes()))
+    vendor = b / "tools" / "rust" / "lib" / "rustlib" / "src" / "rust" / "library" / "vendor"
+    for name, version, member in STD_CRATES:
+        if member is None:
+            line = f"{name} {version}, which ships no licence file, under MIT:\n"
+            parts.append(
+                (f"{name} {version} (SPDX's MIT text)", line.encode() + pinned_bytes(d, SPDX_MIT))
+            )
+        else:
+            parts.append(
+                (f"{name} {version} {member}", (vendor / f"{name}-{version}" / member).read_bytes())
+            )
+    return parts
+
+
+def orjson_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    tree = b / "orjson-3.13.0"
+    parts = [
+        ("orjson, as this build compiles it", orjson_source_part(d)),
+        ("orjson LICENSE-MPL-2.0", (tree / "LICENSE-MPL-2.0").read_bytes()),
+        ("orjson LICENSE-MIT", (tree / "LICENSE-MIT").read_bytes()),
+        (
+            "yyjson include/yyjson/yyjson.h, its head comment",
+            head_notice(tree / "include" / "yyjson" / "yyjson.h", YYJSON_MIT),
+        ),
+    ]
+    return parts + [(f"{n} {v} {m}", crate_file(d, n, v, m)) for n, v, m in ORJSON_CRATES]
+
+
+def crate_notice_errors(b: Path) -> list[str]:
+    """The notice tables against step 52's build graph: one name each way."""
+    ours = {(n, v) for n, v, _ in ORJSON_CRATES + PYO3_CRATES + STD_CRATES}
+    graph = linked_crates(b)
+    out = [f"{n} {v} is linked and has no notice" for n, v in sorted(graph - ours)]
+    out += [f"{n} {v} has a notice and is not linked" for n, v in sorted(ours - graph)]
+    return out
+
+
 def modified_notice(root: Path, top: str) -> bytes:
     """One line per carried patch of a tree: the files it changes, read from the patch itself,
     the patch's path and what it does; then that the rest is compiled as released."""
@@ -1377,9 +1504,15 @@ def main() -> None:
         ],
         "cairocffi": [("cairocffi LICENSE", (b / "cairocffi-1.7.1" / "LICENSE").read_bytes())],
         "cairosvg": cairosvg_parts(b, d),
+        "orjson": orjson_parts(b, d),
+        "rust": rust_parts(b, d),
+        "pyo3": [(f"{n} {v} {m}", crate_file(d, n, v, m)) for n, v, m in PYO3_CRATES],
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
         "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],
     }
+    crate_errors = crate_notice_errors(b)
+    if crate_errors:
+        raise SystemExit("the Rust library's crates and their notices: " + "; ".join(crate_errors))
     tqdm_source = pinned_bytes(d, TQDM_WHEEL)
     (new / "LICENSES" / TQDM_SOURCE).write_bytes(tqdm_source)
     licences["tqdm"] += [
@@ -1421,6 +1554,7 @@ def main() -> None:
         # builds the same bytes, so MANIFEST is the same file from any of them.
         "x-pins every-supported-build-host",
         f"x-wizer {wizer}",
+        f"x-rust {LINE['RUST_VERSION']} panic={LINE['RUST_PANIC']}",
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",
         f"x-preimport {preimport_list((root / PREIMPORT_RECIPE).read_text())}",
         *snapshot_package_lines(
