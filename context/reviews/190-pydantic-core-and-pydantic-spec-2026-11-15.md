@@ -98,7 +98,35 @@ Judged sound (no finding):
 - §7: nothing tripped yet. The open owner questions are provisional defaults on a draft, on 187's terms: no "Lands" until `decisions.md` records them.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
-1. —
+The round's fix commit follows `c2567df0`. It changes only the specification and this section.
+
+1. **Fixed; waits on the owner.** Decision 5 is now an owner question. Its recommended default A is a third carried orjson patch, `0003-no-global-allocator.patch`, so that std's `System` serves every crate; B keeps orjson's allocator and the contract break.
+   - The decision states regex-automata's 64-aligned `CacheLine`, wasi-libc's 16, std's `malloc`/`posix_memalign` split (READ, from this review), and the `alloc_zeroed` write at address 0 (finding 8).
+   - It says the fallback rides on the terms set for 0001 and has no natural end. It is asked only when 0001 is kept.
+   - The search is a command: `cargo tree` over the `wasm32-wasip1` normal graph, then `grep` for `align(N)` and `Layout::from_size_align` above 16, each hit classed heap, static or stack. It names 187's static and stack hits for 187's pull-request review.
+   - Decision 10's patch count follows the answers.
+2. **Fixed; waits on the owner.** Decision 3 spells out the whole tree:
+   - 0001 kept, A: patch 0002, which orjson's own move to PyO3 0.30 deletes.
+   - 0001 kept, B: wait for an orjson release; if none comes before the cut, pydantic-core leaves 0.1.5 and the gate never runs.
+   - 0001 refused: orjson out, pydantic-core alone on 0.30.1, no orjson patch, and no Decision 5.
+
+   The new Decision 8 question covers a gate that never runs. Its recommended default A is `panic=abort` unless the gate ran on `panic=unwind`; B ships `panic=unwind` on 187's half of the gate alone.
+3. **Fixed; waits on the owner.** Decision 7 now says the following:
+   - The keys are drawn when any schema is built, citing the census.
+   - Under pinning they are the keys of zero entropy: the same in every embedder's image, and computable by anyone with the set.
+   - A's limitations sentence says this.
+   - The builder counts `__wasi_random_get` calls while `make_package_snapshot()` prepares its default list (criterion 3).
+4. **Waits on the orchestrating session.** The author is a sub-agent and cannot ask the owner. The Status says the four questions and 187's two are to be asked together with AskUserQuestion, each with its default first and Decision 3's tree beside them, and that none had been asked when it was written. It also says the specification is not to be built until they are answered. It records no answer and no default as the owner's.
+5. **Fixed.** Criterion 2 names pydantic-core among the modules. The kept members are the umbrella's object, yyjson's objects and the shim's.
+6. **Fixed.** Decision 4 says about 90 crate versions. It names the other-target crates that are pinned and fetched but never compiled, and says the sweep leaves them out.
+7. **Fixed.** Decision 4 names zmij's move and the other shipped crates that move, and the landing notes are to name them. The golden job's `model_dump_json` covers the six floats.
+8. **Fixed.** This is in Decision 5, beside alignment; option A removes both problems.
+9. **Fixed.**
+   - Decision 8: under abort, the new check becomes a known gap.
+   - Criterion 1: Decision 10's rules are seen failing first.
+   - Criterion 8 names 187's two questions and Decision 8.
+   - Decision 9: rich, markdown-it-py and mdurl join `kit-extra.txt` when rich is not yet in the set. pygments is already in `kit.txt` (READ), so it is not added.
+   - Decision 3's A now reads "on the terms the owner sets for 0001".
 
 ## Verdict
 May be built on the draft branch, stacked on 187's reviewed tip, once findings 1–3 are written in and the owner has been asked Decisions 3, 5 and 7 with 187's two questions; it lands only after `decisions.md` records those answers.
