@@ -1,0 +1,5 @@
+# Spec 187: orjson's release group, new in the release tier.
+
+[[claim]]
+spec = "187"
+new = ["tests/upstream/orjson.toml"]

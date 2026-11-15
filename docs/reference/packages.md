@@ -29,7 +29,9 @@ CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, 
 | regex | 2026.9.29 | Fuzzy matching, full Unicode properties, graphemes, variable-length lookbehind, `captures()`, with native regex's answers. |
 | cairocffi | 1.7.1 | Built in, over cairo 1.18.6 with pixman 0.46.4 and libpng 1.6.59, and cffi 2.1.1's C backend: image, PDF and SVG surfaces, PNG in and out, text in matplotlib's DejaVu fonts. No PostScript. |
 
-A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml and regex each have golden jobs, and each gives native's answers.
+A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml, regex and orjson each have golden jobs, and each gives native's answers.
+
+`_rust_probe` is a builtin module too: the build's own checks use it to panic on purpose and to test Rust's entropy. It is not an API; do not import it.
 
 ## Pure-Python packages
 
@@ -143,4 +145,4 @@ The list is the runtime's. A package a grant adds through `import_path=` is not 
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG, imageio and plotly in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml, regex and orjson compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG, imageio and plotly in the zip, each at one pinned version.

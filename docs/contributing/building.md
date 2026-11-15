@@ -8,7 +8,7 @@ The build runs on arm64 macOS, arm64 Linux and x86_64 Linux. All three give the 
 
 - A checkout of the repository.
 - The host tools the build checks for on `PATH`: `cc`, `make`, `shasum`, `tar`, `gzip`, `xz`, `sed`, `uv`, `git`, `stty` and `df`.
-- At least 2.5 GiB free under `build/` for a first build.
+- At least 3.5 GiB free under `build/` for a first build.
 
 You do not need a Python of your own. The build fetches a pinned host Python and uses only that one.
 
@@ -65,11 +65,11 @@ Ctrl-C stops the running step at once and exits with code 130. A `kill -TERM` or
 
 The steps live in [`scripts/steps/`](https://github.com/ClayGendron/wasi-python/tree/main/scripts/steps). In order, they:
 
-1. Unpack the toolchain and the pinned host Python, and install the build tools from hashed wheels, offline.
+1. Unpack the toolchain, the pinned Rust toolchain and the pinned host Python, and install the build tools from hashed wheels, offline.
 2. Build CPython with its own `Platforms/WASI` driver.
 3. Build zlib and the C libraries behind `bz2`, `lzma` and `sqlite3`.
 4. Build libxml2 and libxslt, the plotting libraries, and OpenBLAS's C LAPACK.
-5. Cross-compile numpy, pandas, regex, lxml, matplotlib, scipy, scikit-learn and statsmodels.
+5. Cross-compile numpy, pandas, regex, lxml, matplotlib, scipy, scikit-learn and statsmodels, and build the Rust modules (orjson, and the build's own probe) into one static library with cargo, offline, from pinned crates (step 52).
 6. Link everything into one interpreter as builtin modules, and relink it as a WASI reactor.
 7. Build the bytecode-only, deterministic stdlib zip.
 8. Snapshot the reactor with the pinned wasmtime's own `wasmtime wizer`. The snapshot pre-imports the stdlib's bootstrap modules and no package.
@@ -89,6 +89,7 @@ Each supported build host compiles with its own pinned wasi-sdk clang, yet all o
 - The build sorts in the C locale.
 - The snapshot sees a directory's size and link count as constants.
 - The stdlib zip's `_sysconfigdata` and numpy's `__config__.py` say nothing about the build machine. Inside the guest, the build machine is named `build`.
+- Rust code is compiled with the host's own Rust settings unset (`RUSTFLAGS`, `RUSTC_WRAPPER`, `CARGO_BUILD_*`, `CARGO_PROFILE_*`), its flags passed only through `CARGO_ENCODED_RUSTFLAGS`, and both the checkout and Rust's standard-library sources remapped to fixed paths (`--remap-path-prefix`), so no folder name reaches the bytes.
 
 Every compile also carries `-ffp-contract=off`, written into the toolchain's own configuration files rather than on a command line. Without it, two builds of the same clang ordered one floating-point expression's stack slots differently, and the x86_64 binary differed by 21 bytes. WebAssembly has no fused multiply-add, so the flag does not change run-time arithmetic. Do not add the flag, or any option that overrides it, to a command line.
 
@@ -96,7 +97,7 @@ One host input is not pinned: the native C compiler and `make` that CPython's dr
 
 ## Pins and recipe files
 
-Every input is pinned: its URL in `scripts/00_download.sh` and its SHA-256 in `downloads/SHA256SUMS`, verified before use. `MANIFEST` names every supported build host's pins, not only the ones your build used, so it is the same file from every host.
+Every input is pinned: its URL in `scripts/00_download.sh` and its SHA-256 in `downloads/SHA256SUMS`, verified before use. Rust is pinned the same way: Rust 1.100.0's compiler, cargo, standard library and `rust-src` from `static.rust-lang.org`, and every crate from `static.crates.io`, each by its SHA-256. No rustup runs and no crate is fetched by cargo: step 52 builds with `--frozen --offline` from a directory of the pinned crates. `MANIFEST` names every supported build host's pins, not only the ones your build used, so it is the same file from every host.
 
 A *recipe file* is an adaptation the project writes instead of changing upstream source. The files under [`recipes/`](https://github.com/ClayGendron/wasi-python/tree/main/recipes) include:
 
