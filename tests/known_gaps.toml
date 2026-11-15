@@ -1552,6 +1552,12 @@ reason = "WASI has no signal.alarm (README)"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[soupsieve-r-no-threads]"
+match = "5 finding(s), digest 61cf3b317d0f"
+reason = "the guest cannot start a thread (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[sympy-r-doc-1-sympy-doctest]"
 match = "1 finding(s), digest 07d0c4175c27"
 reason = "a docstring or doc-file example whose output differs in the guest under sympy's own doctest runner and checker with upstream's flags, or one sympy's runner skips when a dependency it names is absent (its doctest_depends_on mark: flint, matchpy, f2py and others the product lacks), a mark the stdlib's doctest finder does not read (README)"

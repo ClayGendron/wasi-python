@@ -6,7 +6,7 @@ package = "soupsieve"
 driver = "package"
 grant = "/upstream-soupsieve"
 test_source = true
-wheel = "soupsieve-3.0.4-py3-none-any.whl"
+wheel = "soupsieve-4.1.1-py3-none-any.whl"
 budget = 303_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
@@ -34,3 +34,10 @@ match = "has no attribute 'alarm'"
 reason = "WASI has no signal.alarm (README)"
 closes_with = "docs/reference/limitations.md"
 
+[[expected]]
+id = "no-threads"
+group = "soupsieve-r"
+outcome = "failed"
+match = "can't start new thread"
+reason = "the guest cannot start a thread (README)"
+closes_with = "docs/reference/limitations.md"
