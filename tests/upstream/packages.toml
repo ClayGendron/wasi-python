@@ -445,3 +445,51 @@ kind = "suite"
 # its own suite from its test source, groups in tests/upstream/plotly.toml: a smoke
 # group in the normal tier, the whole suite in the release tier
 kind = "suite"
+
+# The pure packages added with rich and folium. Each suite waits for a built set: a smoke group's
+# fuel is measured before it joins the normal tier, so none is in a shard yet.
+
+[package.pytz]
+kind = "later"
+reason = "its suite, from its sdist's pytz/tests, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.rich]
+kind = "later"
+reason = "its suite, from its release tag's archive (its sdist holds no tests), joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.markdown-it-py]
+kind = "later"
+reason = "its suite, from its sdist's tests/, with its testing extra's plugins, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.mdurl]
+kind = "later"
+reason = "its suite, from its release tag's archive (its sdist holds no tests), joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.pygments]
+kind = "later"
+reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.faker]
+kind = "later"
+reason = "its suite, from its sdist's tests/, with freezegun, validators and python-stdnum, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.folium]
+kind = "later"
+reason = "its suite, from its release tag's archive (its sdist holds no tests), joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.branca]
+kind = "later"
+reason = "its suite, from its release tag's archive (its sdist holds no tests), joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"
+
+[package.xyzservices]
+kind = "later"
+reason = "its suite, from its sdist's xyzservices/tests, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 193"

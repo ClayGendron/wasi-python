@@ -232,6 +232,64 @@ def test_threadpoolctl_finds_no_native_pools(guest, which) -> None:
     assert json.loads(r.text) == want
 
 
+FOLIUM_LACKS = """
+import json, sys
+import folium
+out = {"requests": "requests" in sys.modules}
+try:
+    folium.GeoJson("https://example.invalid/a.json")
+    out["url"] = None
+except ModuleNotFoundError as e:
+    out["url"] = [type(e).__name__, e.name]
+print(json.dumps(out))
+"""
+
+
+def test_folium_names_what_the_set_lacks(guest) -> None:
+    """folium imports without requests, which the set lacks: its carried patch imports requests
+    only where a URL is fetched, so a `GeoJson` given a URL raises ModuleNotFoundError naming it,
+    and the guest has no network either."""
+    r = guest("plain", ["-c", FOLIUM_LACKS])
+    assert r.exit_code == 0, r.describe()
+    assert json.loads(r.text) == {"requests": False, "url": ["ModuleNotFoundError", "requests"]}
+
+
+RICH_THREADS = """
+import io, json
+from rich.console import Console
+from rich.progress import Progress, track
+out = {}
+try:
+    for _ in track(range(3)):
+        pass
+    out["track"] = None
+except RuntimeError as e:
+    out["track"] = [type(e).__name__, "thread" in str(e)]
+console = Console(file=io.StringIO(), width=60)
+with Progress(console=console, auto_refresh=False) as progress:
+    task = progress.add_task("work", total=3)
+    for _ in range(3):
+        progress.advance(task)
+out["finished"] = progress.finished
+out["rendered"] = "work" in console.file.getvalue()
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_rich_refreshes_without_a_thread(guest, which) -> None:
+    """rich's live displays refresh themselves from a thread, which the guest cannot start, so
+    `track` raises RuntimeError naming the thread; a `Progress` that does not refresh itself
+    advances to the end and renders, as natively."""
+    r = guest(which, ["-c", RICH_THREADS])
+    assert r.exit_code == 0, r.describe()
+    assert json.loads(r.text) == {
+        "track": ["RuntimeError", True],
+        "finished": True,
+        "rendered": True,
+    }
+
+
 def _findings(guest, which: str, program: str, **kw) -> list[str]:
     r = guest(which, ["-c", program], **kw)
     assert r.exit_code == 0, r.describe()

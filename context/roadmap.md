@@ -83,6 +83,8 @@ Decided by the owner on 2026-11-14 (`decisions.md`, "0.1.5's scope"), from a sco
 
 **Packages,** in this order, cut from the bottom if the release slips: jsonschema with referencing and rpds-py, altair, pytz (its cost re-measured first), rich with markdown-it-py and mdurl, Faker, folium with branca, python-calamine, wordcloud. Each licence approved before it is built.
 
+Reserved: 193 (the nine suites of 191's packages judged, pytz, rich, markdown-it-py, mdurl, Pygments, Faker, folium, branca and xyzservices, each with its `tests/upstream/<name>.toml` and `.ini`, a smoke group in the normal tier, its whole suite in the release tier, a release shard and its name in `PURE_SUITES`, as 191's Decision 8 lists them; the test sources of rich, mdurl, folium and branca from their release tags' archives, which 191's build could not fetch (the proxy answered 403), and the other five from their sdists, each pinned by SHA-256; the kit extras' versions read at build; each group's fuel measured on a built set first and `SMOKE_TOTAL_BOUND` raised from that measurement, as 191's Decision 8 says; its `packages.toml` entries become `suite`).
+
 **Out of 0.1.5.** wasmtime 51 (to 0.1.6); cryptography, Shapely and geopandas, scikit-image, tiktoken, pyarrow, polars and duckdb.
 
 **The release.** As 0.1.3's: a fresh agent writes the structural review and another the security review, the preparation pull request carries them with `bump --to 0.1.5` and `date`, the release pull request from `dev` to `main` runs the whole workflow, and the owner moves `main` and tags `v0.1.5`.
