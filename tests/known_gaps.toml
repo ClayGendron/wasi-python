@@ -1745,7 +1745,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-asyncio-loop-error]"
-match = "10 finding(s), digest 5e4afad71ed0"
+match = "12 finding(s), digest ba273df75009"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
@@ -1763,13 +1763,13 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads-error]"
-match = "98 finding(s), digest 77e1b0dfaea7"
+match = "99 finding(s), digest a1fb56cd7644"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[tqdm-smoke-no-threads]"
-match = "116 finding(s), digest 53093d631048"
+match = "116 finding(s), digest c2531945eb68"
 reason = "no threads: the guest cannot start one (README), so tqdm's monitor and write locks are absent too"
 closes_with = "docs/reference/limitations.md"
 

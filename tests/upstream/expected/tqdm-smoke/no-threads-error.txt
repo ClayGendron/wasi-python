@@ -23,6 +23,7 @@ tests/tests_perf.py::test_iter_overhead_hard
 tests/tests_perf.py::test_manual_basic_overhead
 tests/tests_perf.py::test_manual_overhead_hard
 tests/tests_perf.py::test_manual_overhead_simplebar_hard
+tests/tests_rich.py::test_rich_no_total
 tests/tests_synchronisation.py::test_monitoring_and_cleanup
 tests/tests_synchronisation.py::test_monitoring_multi
 tests/tests_tqdm.py::test_SI_unit

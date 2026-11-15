@@ -11,7 +11,7 @@
 
 ### Upgrading
 
-- **A `pytz` on the import path is no longer reached.** The runtime now carries pytz, and its own modules come first, so a pytz shipped through `import_path=` is not imported, and `import pandas` loads the runtime's. Remove it, or name your module apart. [The import path](https://claygendron.github.io/wasi-python/reference/guest-filesystem/#the-import-path)
+- **Your own pytz, rich, Pygments, Faker or folium is no longer reached.** The runtime now carries them, and its own modules come first, so one shipped through `import_path=` is not imported, and `import pandas` loads the runtime's pytz. Remove yours, or name your module apart. [The import path](https://claygendron.github.io/wasi-python/reference/guest-filesystem/#the-import-path)
 
 ### For contributors
 
@@ -49,4 +49,11 @@ growth = "pytz 2026.6, rich 15.0.0, markdown-it-py 4.3.0, mdurl 0.1.2, Pygments 
 units = 1
 [claim.judge]
 "tests/upstream/packages.toml" = "the nine new components name their suites as later, closing with the reserved 193: no group's fuel can be measured before a built set, so none joins a shard"
+"context/release-claims/191-pytz-rich-faker-and-folium.toml" = "the release groups' passes and growth move with the nine packages in the zip: pandas' release groups gain pytz's zone cases, tqdm's gains tqdm.rich's, and every release group's start reads a longer directory"
+"tests/checks/test_v1_3_the_zips_directory.py" = "PANDAS_FOLDERS gains pytz, since import pandas imports it whenever it is there, as natively; test_import_pandas_loads_exactly_its_packages passes in the guest with it (run 43772062248)"
+"tests/checks/test_v1_4_embedding.py" = "test_the_import_path_comes_after_the_runtime stubs pyarrow, which import pandas still looks for and the set lacks, in place of pytz, whose stub the runtime's own pytz now shadows; it counts one HIT pyarrow on both binaries and passes in the guest (run 43772062248)"
+"tests/upstream/expected/tqdm-smoke/no-threads.txt" = "tests_rich.py::test_rich_no_total joins: with rich in the zip it runs instead of skipping, and tqdm.rich's Progress refreshes itself on a thread the guest cannot start; tests_synchronisation.py::test_threadpool leaves, since it now errors at setup and never runs (no-asyncio-loop-error)"
+"tests/upstream/expected/tqdm-smoke/no-threads-error.txt" = "tests_rich.py::test_rich_no_total joins: the tqdm instance its failed refresh leaves is still in existence at teardown"
+"tests/upstream/expected/tqdm-smoke/no-asyncio-loop-error.txt" = "tests_contrib.py::test_map[tqdm_kwargs0] (at teardown) and tests_synchronisation.py::test_threadpool (at setup) join: the set's allocations moved with this change, so the collector frees an earlier asyncio test's stray event loop during them, and its deallocator's unsupported socket close is reported; test_map[tqdm_kwargs0] still fails for want of threads"
+"tests/known_gaps.toml" = "tqdm-smoke's three changed classes: no-asyncio-loop-error 12 finding(s), digest ba273df75009; no-threads-error 99, a1fb56cd7644; no-threads 116, c2531945eb68; each computed with scan.digest from its list file, whose additions and removal reproduce run 43772062248's digests c291c93d15f3, d27b32c593cc and ef521d75a97b exactly"
 ```
