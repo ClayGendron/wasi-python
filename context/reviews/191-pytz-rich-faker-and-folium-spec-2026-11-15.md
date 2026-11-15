@@ -67,7 +67,44 @@ Confirmed:
 - §7: nothing tripped.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
-1. —
+The round's fix commit follows `d67f2659`. It changes only the specification and this section.
+
+1. **Fixed; waits on the owner.** Decision 4 lists Faker's data: text-unidecode's table, GeoNames (CC BY 3.0), the OpenStreetMap extract (ODbL), randomcolor-py, and the 227 modules with a provenance line for the sweep to classify. It is now The owner's choices, 2, and Faker is not built until it is answered.
+   - A, recommended: approve with notices, text-unidecode's table under Artistic-1.0-Perl, its text pinned as a file.
+   - B: no table. This was checked as feasible: its one reader is `_to_ascii` (`providers/internet/__init__.py:221-226`), but `import faker` imports that provider, so it takes a carried patch that folds with `unicodedata`. Non-Latin e-mails then differ from native.
+   - C: Faker out of 0.1.5.
+   - Choice 1 now covers the other eight alone.
+2. **Fixed.** Decision 4: `_refresh` seeds `faker.generator.random` when `faker.generator` is loaded, with its reason in words. `test_the_refresh_reseeds_what_the_image_froze` gains `faker` and is seen failing first on an image with Faker. Kind and Design name `recipes/reactor_bootstrap.py`, which is frozen into both binaries.
+3. **Fixed.** Decision 2 names both checks and how they change, each under `[claim.judge]`:
+   - `PANDAS_FOLDERS` gains `pytz`.
+   - The embedding check's stub moves to a name pandas still looks for and the set lacks (`pyarrow` is the candidate), its count read from a run before the edit.
+   - Scope includes both.
+4. **Fixed.** Decision 2 makes the pandas groups' and the smoke groups' growth a normal-tier cost of the pytz pull request: named, claimed, classified, with no cap raised but by the 1.5 rule. Decision 3 does the same for rich. Criterion 4 holds it.
+5. **Fixed.** The fixed 1.4 T is gone, and so is the owner's choice. Decision 8 has each pull request raise the bound to its measured sum plus 17 G, rounded up to 10 G, under `[claim.judge]`. The bound is never raised ahead of measurement, and no group's `measured` rises to use the room. This is criterion 9.
+6. **Fixed; waits on the owner.** Decision 8 has each pull request dispatch `release.yml` with `release-tier: true` after the owner's yes, as 188 does. The run's id, fuel, passes and classes go in the landing notes; without the yes, the gap is stated there. This is The owner's choices, 5.
+7. **Fixed.**
+   - The sweep's pattern is widened as asked.
+   - Decision 6 adds to rich: wcwidth (MIT), pyfilesystem2 (`filesize.py:1`), and tqdm's notice for `progress.py:808`.
+   - It adds to branca ColorBrewer (Apache-2.0) with viridis, and to folium `plugins/encoded.py:67`.
+   - Facts lists (rich's palette, Pygments' keyword lists) are named in the sweep's notes.
+8. **Fixed.** Decision 9 has `pydict(value_types=[str, int, float])` and `Console(..., _environ={})`, and the oracle drops the four variables.
+9. **Fixed.** Decision 8's table names markdown-it-py's flit_core and pytest-timeout, says its two plugins are staged for that family alone, and lists pytz's `keep_classes` and doctest keys.
+10. **Fixed.** Decision 7: the package driver writes `M faker` when `faker` is loaded outside Faker's family. Criterion 8 reads its absence.
+11. **Fixed.** Every pointer and count is corrected:
+   - the zone check's name and file;
+   - the wheel counts 127, 104 and 56;
+   - xyzservices' 6 members;
+   - `top_level.txt` as step 70's own;
+   - the lightweight tags, and mdurl's tag peeling to `596bf1c8`;
+   - Pygments' 457 folders.
+12. **Fixed.** The owner's choices say:
+   - Pygments and xyzservices are outside the ranked eight;
+   - requests' alternative uses charset-normalizer;
+   - folium's METADATA keeps `Requires-Dist: requests`.
+   
+   Decision 5 says branca's `PackageLoader` is served from the zip.
+
+The owner's answers are not recorded here or in the specification. The orchestrating session asks the five choices together with AskUserQuestion.
 
 ## Verdict
 Does not land yet: Findings 1 and 2 (Faker's licences, and Faker's generator frozen by a package snapshot) and Mediums 3 to 7 stand, so the specification is not yet fit to build.
