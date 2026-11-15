@@ -1,0 +1,17 @@
+# The umbrella: one static library that holds every Rust module built into the interpreter, so
+# Rust's standard library is linked once. A Rust package is a dependency here, a line of
+# ../modules.txt and its crate pins.
+[package]
+name = "wasi_python_rust"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+orjson = { path = "../../orjson-3.13.0" }
+rust_probe = { path = "probe" }

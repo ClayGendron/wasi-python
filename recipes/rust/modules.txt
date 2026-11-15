@@ -1,0 +1,2 @@
+orjson.orjson PyInit_orjson
+_rust_probe PyInit__rust_probe

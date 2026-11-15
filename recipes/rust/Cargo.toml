@@ -1,0 +1,16 @@
+# The Rust workspace of the build. Step 52 copies this file and Cargo.lock to build/, so the
+# workspace's root is build/ and every path crate lies inside it: cargo hashes a path crate's place
+# relative to the root into its symbol names, so the bytes do not depend on where the checkout is.
+# orjson's tree sits at build/orjson-3.13.0, where the source-tree check reads it.
+[workspace]
+resolver = "3"
+members = ["rust/modules", "rust/modules/probe"]
+
+# orjson's own release profile, which cargo does not read for a dependency. No panic strategy is
+# set here: step 52 passes the one the line names.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = false
+incremental = false
