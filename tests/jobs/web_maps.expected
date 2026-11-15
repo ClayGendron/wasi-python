@@ -1,0 +1,6 @@
+versions folium=0.20.0 branca=0.8.2 xyzservices=2026.9.1 0.8.2
+page 45237 4e78a81fe65cf61b ids 16
+view 58377 bf3ed75395a28522 ids 16
+scale #7fc000ff #ff7f00ff 5
+brewer ['#ffffcc', '#d9f0a3', '#addd8e', '#78c679', '#31a354', '#006837']
+tiles https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png 937

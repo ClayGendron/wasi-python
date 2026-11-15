@@ -154,6 +154,39 @@ def test_plotly_figures_job_matches_native(guest) -> None:
 
 
 @pytest.mark.slow
+def test_time_zones_job_matches_native(guest) -> None:
+    """pytz localizes and normalizes times across three zones' changes, Lord Howe's half hour
+    among them, refuses a time in a gap and one in an overlap, lists its zones, pickles a time,
+    and gives pandas a zone, as native pytz does, reading each zone from the zip."""
+    _job(guest, "time_zones")
+
+
+@pytest.mark.slow
+def test_terminal_text_job_matches_native(guest) -> None:
+    """rich records a table, a panel, a tree, Markdown, highlighted code and a pretty value and
+    exports them as text, HTML and SVG; markdown-it-py, mdurl and Pygments each do their own part,
+    as natively."""
+    _job(guest, "terminal_text")
+
+
+@pytest.mark.slow
+def test_fake_data_job_matches_native(guest) -> None:
+    """Faker, seeded, makes the names, addresses, e-mails, dictionaries and dates native Faker
+    makes for five locales, transliterating through its table, and finds every locale and
+    provider its package holds in the zip."""
+    _job(guest, "fake_data")
+
+
+@pytest.mark.slow
+def test_web_maps_job_matches_native(guest) -> None:
+    """folium renders a map's page and notebook view with markers, GeoJSON, a choropleth, a
+    branca colour scale, a layer control and a marker cluster; branca and xyzservices read their
+    tables from the zip, as native folium does with the files on disk. Equal output shows the
+    patches change no result on these calls."""
+    _job(guest, "web_maps")
+
+
+@pytest.mark.slow
 def test_labelled_arrays_job_matches_native(guest) -> None:
     """xarray aligns two arrays on their labels, groups, rolls, resamples and interpolates through
     scipy, round-trips a DataFrame and netCDF3 bytes, and draws its HTML view from the package's

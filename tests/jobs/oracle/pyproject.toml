@@ -103,6 +103,20 @@ dependencies = [
     # files); the guest's carries one patch, which changes where its data is read from, not what is
     # read, so equal output shows the patch changes no result.
     "plotly==7.1.0",
+    # pytz, rich with markdown-it-py, mdurl and Pygments, Faker, and folium with branca and
+    # xyzservices at the guest's pins, their stock wheels (folium's and branca's sdists, the
+    # guest's, hold the same package files; each carries one patch, which changes where requests
+    # is imported or where a table is read from, not what is computed). Natively folium also
+    # brings requests, which no job reaches.
+    "pytz==2026.6",
+    "rich==15.0.0",
+    "markdown-it-py==4.3.0",
+    "mdurl==0.1.2",
+    "pygments==2.21.0",
+    "faker==40.54.0",
+    "folium==0.20.0",
+    "branca==0.8.2",
+    "xyzservices==2026.9.1",
 ]
 
 [tool.uv.sources]

@@ -80,6 +80,12 @@ JOBS = (
     "svg_to_png",
     # plotly's figures, HTML and JSON
     "plotly_figures",
+    # pytz's zones; rich's terminal text with markdown-it-py, mdurl and Pygments; Faker's data;
+    # folium's maps with branca and xyzservices
+    "time_zones",
+    "terminal_text",
+    "fake_data",
+    "web_maps",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -256,6 +262,10 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
         UV_PYTHON_PREFERENCE="only-system",
     )
     env.pop("VIRTUAL_ENV", None)
+    # What the jobs' packages read from the environment and the guest is never given: rich's
+    # colour switches and pytz's zone folder and its check that a zone file exists.
+    for name in ("NO_COLOR", "FORCE_COLOR", "PYTZ_TZDATADIR", "PYTZ_SKIPEXISTSCHECK"):
+        env.pop(name, None)
     env["PYTHONPATH"] = str(oracle_pure())  # pyyaml's pure tree, as the guest has it
     # matplotlib uses its own fonts only, as the guest does: natively it
     # would otherwise list every font of the machine.
