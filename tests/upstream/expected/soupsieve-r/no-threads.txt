@@ -1,0 +1,5 @@
+tests/test_threads.py::TestThreads::test_compile_and_purge
+tests/test_threads.py::TestThreads::test_lazy_pattern
+tests/test_threads.py::TestThreads::test_lazy_pseudo_selectors
+tests/test_threads.py::TestThreads::test_parse
+tests/test_threads.py::TestThreads::test_select

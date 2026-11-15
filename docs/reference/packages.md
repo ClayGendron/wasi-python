@@ -51,7 +51,7 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | pdfplumber 0.11.10, pdfminer.six 20260107 | text, words with their positions, and tables from PDF pages |
 | documents | python-docx 1.2.0 | read and write Word `.docx` |
 | | python-pptx 1.0.2 | read and write PowerPoint `.pptx`, charts included |
-| HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.4 | parse messy HTML, CSS selectors |
+| HTML and XML | beautifulsoup4 4.15.0, soupsieve 4.1.1 | parse messy HTML, CSS selectors |
 | | html5lib 1.1, webencodings 0.6.1 | a browser's HTML parsing; bs4's `html5lib` parser |
 | | defusedxml 0.7.1 | parse untrusted XML, refusing entity tricks |
 | | xmltodict 1.0.4 | XML to dicts and back |

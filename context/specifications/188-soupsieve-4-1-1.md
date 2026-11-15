@@ -1,6 +1,6 @@
 # 188: soupsieve 4.1.1
 
-- **Status:** written 2026-11-14; pre-build review (`../reviews/188-soupsieve-4-1-1-spec-2026-11-14.md`, constitution §5.6: it changes the artifact set and the build recipe) round 1 written in 2026-11-14, waiting on the reviewer's confirmation. Asked for on 2026-11-14 by the owner ("Yes, bump Soup Sieve", to the question whether soupsieve moves from 3.0.4 to 4.1.1 in 0.1.5).
+- **Status:** built 2026-11-15, in review. Pre-build review `../reviews/188-soupsieve-4-1-1-spec-2026-11-14.md` lands it at round 1 (constitution §5.6: it changes the artifact set and the build recipe). Asked for on 2026-11-14 by the owner ("Yes, bump Soup Sieve", to the question whether soupsieve moves from 3.0.4 to 4.1.1 in 0.1.5).
 - **Date:** 2026-11-14
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** and **a judge change**, not structural: nothing under `src/` changes. Recipe: `scripts/00_download.sh`, `downloads/SHA256SUMS`, `scripts/assemble_artifacts.py`, `scripts/steps/70_zip.sh`. Judge: `tests/upstream/soupsieve.toml`, the oracle (`tests/jobs/oracle/pyproject.toml` and its `uv.lock`), the markup job's golden (`tests/jobs/markup.expected`), the new class's list file and its gap in `tests/known_gaps.toml`, the release ledger's file. Documents: `docs/reference/packages.md`, the news file.
@@ -83,4 +83,10 @@ The files in Decision 3; `tests/upstream/soupsieve.toml`'s one new row and its m
 
 ## Landing notes
 
-Not built yet.
+Built 2026-11-15 on `spec/188-soupsieve-4-1-1`, rebased onto `dev` at `338ed06d` (after #105, #106 and #107 merged), by the session https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC.
+
+- **The pins** (criterion 1). The wheel and the sdist were downloaded from the addresses PyPI's JSON API gives and match its SHA-256 (EXECUTED). `git grep` finds no `soupsieve-3.0.4` or `soupsieve==3.0.4` outside `context/` (EXECUTED); `soupsieve.toml`'s smoke note keeps its history line about 3.0.4's `test_api.py`, which is not a pin.
+- **The oracle** (Decision 3, the review's Low 6). `uv lock --upgrade-package soupsieve` with uv 0.9.22 and the line's pinned Python 3.15.2: "Updated soupsieve v3.0.4 -> v4.1.1", and the lock's diff is soupsieve's four lines (EXECUTED). `regen.py --online --job markup` rewrote the golden; its diff is line 1, the versions line, and `regen.py --check --job markup` reproduces (EXECUTED).
+- **The class** (Decision 4, the review's Medium 1, Lows 3 and 7). `tests/upstream/expected/soupsieve-r/no-threads.txt` names the five node ids, sorted; `scan.report` of them gives `5 finding(s), digest 61cf3b317d0f`, the gap's `match`, as the review computed (EXECUTED).
+- **The fuel.** `fuel` and `measured` are as they were; the guest's figures come from the run (this container cannot build a set: no `www.python.org`). The smoke group, the markup job and the artifacts' sizes are read from the pull request's run; `soupsieve-r` waits on the owner's yes to the dispatch of Decision 4, or 0.1.5's release pull request.
+- **Local runs.** `ruff check` and `ruff format --check`: clean. `tests/lint` and `tests/checks/test_rules.py`: 157 passed, 5 skipped for this container's needs (git history, artifact dir, prior-art clones), as on `dev`'s tip. `tests/unit`: 3,631 passed, 104 skipped, 1 failed, `test_the_walk_judges_links`, from running as root, as on `dev` (EXECUTED).
