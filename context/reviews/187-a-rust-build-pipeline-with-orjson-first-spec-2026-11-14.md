@@ -75,5 +75,41 @@ The round's fix commit follows `56acdc1f`; it changes the specification only.
 14. **Fixed.** Decision 14's harness rows (`PACKAGES` twice, `pyo3`'s `later` with pydantic-core's number reserved when built); Decision 13 names `own-guest-c` and the `pytz` skips; Depends names #105.
 15. **Fixed.** Decision 1 records the manifest's SHA-256; Decision 2 names `index.crates.io` for the one online resolution; Decision 8 says `RUSTC_BOOTSTRAP=1` reaches every crate's build probes on every host alike.
 
+## Reviewer's confirmation (round one, on 75eb824a)
+Same reviewer. `9d54f3e5` and `75eb824a` were read against the findings, and `git diff 338ed06d..HEAD` was read whole (READ).
+
+1. **Answered provisionally: acceptable to build, not to land.** Decision 3 and the Status carry the default and say it awaits the owner (READ). The judgment is below.
+2. **Confirmed.** Decision 8 and criterion 5 now say "the first half of the owner's gate" (READ).
+3. **Confirmed.** The build uses `-Cpanic=unwind` alone, the flag the spike's fingerprints showed (READ; EXECUTED in round 0).
+4. **Confirmed.** `library/vendor` joins the directory source, and a crate in both must hold identical bytes or the build stops (READ).
+5. **Confirmed for the first route.** There are eleven pins, with the wasip1 rust-std (READ). If the owner picks `["rlib"]`, the pin goes and Decision 1's count changes. That change is local and reversible (INFERRED).
+6. **Confirmed.** The fix has four parts and a Decision 14 rule over them (READ):
+   - flags by `CARGO_ENCODED_RUSTFLAGS`;
+   - the host's Rust settings unset;
+   - cargo run from `build/`;
+   - an ancestor `.cargo/config*` refused.
+7. **(c) confirmed** (READ). **(a) and (b) are provisional, and one part is unfixed.**
+   - Decision 12 says neither default is the owner's answer yet (READ).
+   - §4.12 on the branch still reads "orjson 3.13.0 (… AND MIT) with yyjson (MIT)" as approved on 2026-11-14 (READ). `235d913c` wrote it, before this review.
+   - The constitution changes only on the owner's recorded decision, and `decisions.md` does not name yyjson.
+   - Fix, before the build commits anything else: drop "with yyjson (MIT)" from §4.12 until the owner answers, or mark it "asked 2026-11-14, awaiting the owner". When the answer comes, put core's Unicode tables in the same sentence.
+8. **Confirmed.** Each `.cargo-checksum.json` holds per-file checksums from the verified `.crate`, and the crate trees join `SOURCE_PATTERNS` (READ).
+9. **Confirmed.** Decision 7 reads the import entries themselves (READ).
+10. **Confirmed.** Decision 6 states both layouts (READ).
+11. **Confirmed.** The panic rule allows step 52's one `-Cpanic=$RUST_PANIC` (READ).
+12. **Confirmed.** Decision 13's fallback links without `--wrap=__wasi_random_get` (READ).
+13. **Confirmed.** Decision 9 lists `hashed(keys)` (READ).
+14. **Confirmed.** Decision 14 names both `PACKAGES` rows and `pyo3`'s `later` row (READ). #105, which Depends names, is on dev as `8d85302a` (EXECUTED, `git log`).
+15. **Confirmed.** Decision 1 records the manifest's SHA-256 (`3051e859…`), which matches the hash from round 0 (READ; the hash EXECUTED in round 0).
+
+**Building on a provisional answer to the High.** It is acceptable, on two conditions.
+- **§5.6.** It asks for review before a change lands, with each finding "fixed or answered in writing before the landing". It does not forbid building while a finding waits on the owner, and the owner asked for the work to go on. The answer is due at the landing, and the specification puts it there (READ, INFERRED).
+- **§4.1 and §7.** They govern what is carried and shipped, and a patch on a draft branch that cannot merge ships nothing. The default is still not an answer: silence is not the owner's yes, and the specification says so (READ).
+- **The cost if the owner declines.** It is small. The pipeline, PyO3 and `_rust_probe` survive; only orjson's patch and its notice change (INFERRED).
+- **Condition (i): a mechanical block, not prose alone.**
+  - The pull request stays a draft, and its description names both questions.
+  - The post-build review gives no verdict that begins "Lands" until `decisions.md` records both answers.
+- **Condition (ii): §4.12 corrected first.** Correct the text named in finding 7 before anything else, so that nothing on the branch claims an approval the owner has not given.
+
 ## Verdict
-Not to be built as written: first the owner's answer on the orjson patch, which can never go upstream (High), and the licence notices (Medium 7), then Mediums 2 to 6 and 8 written into the specification.
+May be built on the draft branch once §4.12 stops naming yyjson as approved, and lands only after `decisions.md` records the owner's answers on the orjson patch (High) and on yyjson and core's Unicode tables (Medium 7(a)(b)).
