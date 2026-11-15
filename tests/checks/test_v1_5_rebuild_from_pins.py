@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import re
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -162,15 +164,37 @@ def test_source_tree_matches_its_tarball(component) -> None:
     assert not drift, scan.report(drift)
 
 
-def test_the_rust_lock_keeps_orjsons_versions() -> None:
-    """Each crate recipes/rust/Cargo.lock shares with orjson's own Cargo.lock is at orjson's
-    version, read from orjson's tree as its pinned sdist unpacks it."""
-    needs.need("source tree orjson")
-    _, tree = pins.source_pair("orjson")
-    errors = scan.orjson_version_errors(
-        (paths.REPO / "recipes" / "rust" / "Cargo.lock").read_text(),
-        (tree / "Cargo.lock").read_text(),
+def test_the_rust_lock_keeps_the_packages_versions() -> None:
+    """Each crate recipes/rust/Cargo.lock shares with a Rust package's own Cargo.lock is at that
+    package's version or a higher compatible one (the higher where orjson's and pydantic-core's
+    locks differ), and PyO3 is one version, read from each tree as its pinned sdist unpacks it."""
+    needs.need("source tree orjson", "source tree pydantic-core")
+    locks = {
+        c: (pins.source_pair(c)[1] / "Cargo.lock").read_text() for c in ("orjson", "pydantic-core")
+    }
+    errors = scan.package_version_errors(
+        (paths.REPO / "recipes" / "rust" / "Cargo.lock").read_text(), locks
     )
+    assert not errors, scan.report(errors)
+
+
+PYDANTIC_WHEEL = "pydantic-2.14.3-py3-none-any.whl"
+
+
+def test_the_pinned_pydantic_requires_the_pinned_core() -> None:
+    """The pinned pydantic wheel's METADATA requires exactly the pinned pydantic-core, read from
+    the wheel once its bytes match its pin, beside pydantic-core's tree."""
+    needs.need("source tree pydantic-core")
+    tarball, _ = pins.source_pair("pydantic-core")
+    core = tarball.name.removeprefix("pydantic_core-").removesuffix(".tar.gz")
+    wheel = paths.DOWNLOADS / PYDANTIC_WHEEL
+    pinned = paths.read_pin_list(paths.DOWNLOADS / "SHA256SUMS")
+    assert PYDANTIC_WHEEL in pinned, f"{PYDANTIC_WHEEL} is not pinned"
+    data = wheel.read_bytes()
+    assert hashlib.sha256(data).hexdigest() == pinned[PYDANTIC_WHEEL], f"{wheel} is not its pin"
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        metadata = z.read(PYDANTIC_WHEEL.split("-py3")[0] + ".dist-info/METADATA").decode()
+    errors = scan.pydantic_pair_errors(metadata, core)
     assert not errors, scan.report(errors)
 
 

@@ -225,6 +225,12 @@ LICENCE_COMPONENTS = (
     "orjson",
     "rust",
     "pyo3",
+    # pydantic-core with each crate it links beyond orjson's and PyO3's; pydantic and the two
+    # packages beside it, each its wheel's licence
+    "pydantic-core",
+    "annotated-types",
+    "typing-inspection",
+    "pydantic",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -325,6 +331,10 @@ PACKAGES = (
     "orjson",
     "rust-std",
     "pyo3",
+    "pydantic-core",
+    "annotated-types",
+    "typing-inspection",
+    "pydantic",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

@@ -85,6 +85,8 @@ SOURCE_PATTERNS = {
     "branca": re.compile(r"branca-[\w.]+\.tar\.gz"),
     # orjson from its sdist, built by step 52 with its carried patch
     "orjson": re.compile(r"orjson-[\w.]+\.tar\.gz"),
+    # pydantic-core from its sdist, built by step 52; the same tree is its suite's test source
+    "pydantic-core": re.compile(r"pydantic_core-[\w.]+\.tar\.gz"),
     # The pure-Python packages' test sources: each package's sdist, or, where the sdist carries no
     # tests, its release tag's archive (named `-tag.tar.gz`, so no pattern meets an sdist), and
     # pypdf's sample files at the commit its release tag records. They are data the judge stages,

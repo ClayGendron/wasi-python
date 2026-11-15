@@ -6441,34 +6441,136 @@ def rust_step_errors(texts: dict[str, str | None]) -> list[str]:
     return errors
 
 
-def orjson_version_errors(lock: str, orjson_lock: str) -> list[str]:
-    """Each crate of orjson's own Cargo.lock that recipes/rust/Cargo.lock names is there at
-    orjson's version too: the umbrella builds orjson against what orjson was released with. A
-    second version the umbrella's own crates bring (PyO3's macros' syn 2) may stand beside it."""
+# The PyO3 crates, which share one version: the graph holds one PyO3, since each pyo3-ffi links
+# CPython and cargo admits one package per linked library.
+PYO3_FAMILY = ("pyo3", "pyo3-build-config", "pyo3-ffi", "pyo3-macros", "pyo3-macros-backend")
+PYO3_VERSION = "0.30.1"
+SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)")
+
+
+def _semver(version: str) -> tuple[int, int, int]:
+    m = SEMVER.match(version)
+    if m is None:
+        raise ValueError(f"not a version: {version}")
+    return int(m[1]), int(m[2]), int(m[3])
+
+
+def _semver_line(version: str) -> tuple[int, ...]:
+    """The versions cargo treats as compatible with this one share this tuple: the major part,
+    or below 1.0 the minor part, or below 0.1 the patch."""
+    major, minor, patch = _semver(version)
+    return (major,) if major else (0, minor) if minor else (0, 0, patch)
+
+
+def package_version_errors(lock: str, package_locks: dict[str, str]) -> list[str]:
+    """Each crate a Rust package's own Cargo.lock names (`package_locks`: package -> its lock), and
+    recipes/rust/Cargo.lock names too, is there at a version of the same semver line and no lower
+    than the package's: the umbrella builds each package against what it was released with, or
+    against the higher version where two packages' locks name two compatible ones, or one the
+    umbrella's own crates bring. The PyO3 family is PYO3_VERSION alone, whatever a package's lock
+    names."""
     ours: dict[str, set[str]] = {}
     for p in lock_packages(lock):
-        ours.setdefault(p["name"], set()).add(p["version"])
+        if p.get("source") == CRATES_IO:
+            ours.setdefault(p["name"], set()).add(p["version"])
     errors = []
-    for p in lock_packages(orjson_lock):
-        if p.get("source") != CRATES_IO or p["name"] not in ours:
-            continue
-        if p["version"] not in ours[p["name"]]:
+    for name in PYO3_FAMILY:
+        if name in ours and ours[name] != {PYO3_VERSION}:
+            have = ", ".join(sorted(ours[name], key=_semver))
             errors.append(
-                f"{p['name']}: orjson's Cargo.lock names {p['version']}, "
-                f"recipes/rust/Cargo.lock {', '.join(sorted(ours[p['name']]))}"
+                f"{name}: recipes/rust/Cargo.lock holds {have}, not PyO3 {PYO3_VERSION} alone"
             )
+    for package, text in package_locks.items():
+        for p in lock_packages(text):
+            name, version = p["name"], p["version"]
+            if p.get("source") != CRATES_IO or name not in ours or name in PYO3_FAMILY:
+                continue
+            same = [v for v in ours[name] if _semver_line(v) == _semver_line(version)]
+            if not same or _semver(max(same, key=_semver)) < _semver(version):
+                have = ", ".join(sorted(same or ours[name], key=_semver))
+                errors.append(
+                    f"{name}: {package}'s Cargo.lock names {version}, "
+                    f"recipes/rust/Cargo.lock {have}"
+                )
     return errors
+
+
+# The MANIFEST packages the Rust library brings, each in both package tables, or step 90's
+# snapshot rows and the licence notices have no package to name: orjson, Rust's standard library
+# and PyO3, then pydantic-core and the three pure wheels pydantic needs beside it.
+RUST_PACKAGE_ROWS = (
+    "orjson",
+    "rust-std",
+    "pyo3",
+    "pydantic-core",
+    "annotated-types",
+    "typing-inspection",
+    "pydantic",
+)
 
 
 def rust_package_row_errors(
     assemble_packages: Iterable[str], harness_packages: Iterable[str]
 ) -> list[str]:
-    """orjson, rust-std and pyo3 are MANIFEST packages in both tables, or step 90's snapshot rows
-    and the licence notices have no package to name."""
+    """Each of RUST_PACKAGE_ROWS is a MANIFEST package in both tables."""
     a, h = set(assemble_packages), set(harness_packages)
     return [
         f"{name}: not in {where}'s PACKAGES"
-        for name in ("orjson", "rust-std", "pyo3")
         for where, have in (("scripts/assemble_artifacts.py", a), ("tests/harness/paths.py", h))
+        for name in RUST_PACKAGE_ROWS
         if name not in have
+    ]
+
+
+REQUIRES_CORE = re.compile(r"^Requires-Dist:\s*pydantic[-_]core\s*([^;\n]*?)\s*(;.*)?$", re.M)
+
+
+def pydantic_pair_errors(metadata: str, core_version: str) -> list[str]:
+    """The pinned pydantic's METADATA requires exactly the pinned pydantic-core, with no marker:
+    pydantic is released for one pydantic-core, so the two pins move together or not at all."""
+    found = REQUIRES_CORE.findall(metadata)
+    if not found:
+        return ["pydantic's METADATA requires no pydantic-core"]
+    return [
+        f"pydantic's METADATA requires pydantic-core{spec}{marker}, not the pinned {core_version}"
+        for spec, marker in found
+        if spec.replace(" ", "") != f"=={core_version}" or marker
+    ]
+
+
+# Each Rust package's builtin module, as recipes/rust/modules.txt lists it: the module's dotted
+# name, then its init function, which step 52's inits gate finds in the archive.
+RUST_MODULE_LINES = (
+    "orjson.orjson PyInit_orjson",
+    "pydantic_core._pydantic_core PyInit__pydantic_core",
+    "_rust_probe PyInit__rust_probe",
+)
+
+
+def rust_module_errors(modules_txt: str) -> list[str]:
+    """recipes/rust/modules.txt lists each of RUST_MODULE_LINES."""
+    lines = {" ".join(line.split()) for line in modules_txt.splitlines()}
+    return [
+        f"recipes/rust/modules.txt: no line {want}"
+        for want in RUST_MODULE_LINES
+        if want not in lines
+    ]
+
+
+# The carried patches the owner chose for orjson 3.13.0: the rlib, kept on 2026-11-15, and PyO3
+# 0.30 and no global allocator, both chosen that day, before pydantic-core joined the library.
+ORJSON_PATCHES = (
+    "0001-the-library-is-also-an-rlib.patch",
+    "0002-pyo3-0-30.patch",
+    "0003-no-global-allocator.patch",
+)
+
+
+def orjson_patch_errors(names: Iterable[str]) -> list[str]:
+    """recipes/patches/orjson-3.13.0/ holds exactly ORJSON_PATCHES."""
+    have = set(names)
+    errors = [f"recipes/patches/orjson-3.13.0: no {n}" for n in ORJSON_PATCHES if n not in have]
+    return errors + [
+        f"recipes/patches/orjson-3.13.0: {n} is not one the owner chose"
+        for n in sorted(have - set(ORJSON_PATCHES))
     ]

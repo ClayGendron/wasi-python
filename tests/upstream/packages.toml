@@ -510,8 +510,31 @@ kind = "via"
 via = "orjson"
 
 [package.pyo3]
-# PyO3's own tests run under cargo on a host, so in the guest orjson's suite reaches its macros
-# and its FFI; pydantic-core's suite will reach more of it. A `later` row needs a written or
-# reserved specification, and pydantic-core's has no number yet.
+# PyO3's own tests run under cargo on a host, so in the guest pydantic-core's suite reaches its
+# macros, its function wrappers and its FFI, which orjson's reaches only through pyo3-ffi
 kind = "via"
-via = "orjson"
+via = "pydantic-core"
+
+# pydantic and its Rust half, built by step 52 into the umbrella library, and the two pure packages
+# pydantic imports beside typing-extensions. Each suite waits for a built set: a smoke group's fuel
+# is measured before it joins the normal tier, so none is in a shard yet.
+
+[package.pydantic-core]
+kind = "later"
+reason = "its suite, from its sdist's tests/, with dirty-equals, inline-snapshot, pytest-mock and hypothesis, joins the tiers on panic=unwind once a built set measures its groups' fuel"
+closes_with = "spec 194"
+
+[package.pydantic]
+kind = "later"
+reason = "its suite, from its sdist's tests/ (mypy, plugin, benchmark and docs tests left out), with dirty-equals, pytest-mock and pytz, joins the tiers on panic=unwind once a built set measures its groups' fuel"
+closes_with = "spec 194"
+
+[package.annotated-types]
+kind = "later"
+reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 194"
+
+[package.typing-inspection]
+kind = "later"
+reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 194"

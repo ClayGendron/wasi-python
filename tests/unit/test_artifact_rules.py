@@ -117,7 +117,11 @@ PIN_FILES = {
     "xyzservices-2026.9.1-py3-none-any.whl": b"xyzservices pin",
     "orjson-3.13.0.tar.gz": b"orjson pin",
     "rust-std-1.100.0-aarch64-apple-darwin.tar.xz": b"rust-std pin",
-    "pyo3-0.29.3.crate": b"pyo3 pin",
+    "pyo3-0.30.1.crate": b"pyo3 pin",
+    "pydantic_core-2.50.4.tar.gz": b"pydantic-core pin",
+    "annotated_types-0.8.0-py3-none-any.whl": b"annotated-types pin",
+    "typing_inspection-0.4.5-py3-none-any.whl": b"typing-inspection pin",
+    "pydantic-2.14.3-py3-none-any.whl": b"pydantic pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -219,7 +223,11 @@ PACKAGES = {
     "xyzservices": "2026.9.1",
     "orjson": "3.13.0",
     "rust-std": "1.100.0",
-    "pyo3": "0.29.3",
+    "pyo3": "0.30.1",
+    "pydantic-core": "2.50.4",
+    "annotated-types": "0.8.0",
+    "typing-inspection": "0.4.5",
+    "pydantic": "2.14.3",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
