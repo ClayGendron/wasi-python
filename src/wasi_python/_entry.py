@@ -20,19 +20,19 @@ import threading
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _limits, _outputs, _places, _results, _snapshot
-from ._call import _CheckedCall
-from ._limits import _UNSET
-from ._process import process
+from wasi_python import _limits, _outputs, _places, _results, _snapshot
+from wasi_python._call import _CheckedCall
+from wasi_python._limits import _UNSET
+from wasi_python._process import process
 
 if TYPE_CHECKING:
     import asyncio
     import concurrent.futures
 
-    from ._call import Completed
-    from ._outputs import OutputChunk
-    from .runner import Defaults
-    from .tools import Tool, ToolCall
+    from wasi_python._call import Completed
+    from wasi_python._outputs import OutputChunk
+    from wasi_python.runner import Defaults
+    from wasi_python.tools import Tool, ToolCall
 
 
 def _check_executor(executor: Any) -> None:
@@ -380,7 +380,7 @@ def _check_tools(
         return _ToolArgs(None, None, None, None)
     if host is not None:
         raise TypeError("pass host= for the raw door or tools= for the tool protocol, not both")
-    from .tools import Tool, _is_async_generator, tool
+    from wasi_python.tools import Tool, _is_async_generator, tool
 
     if (
         isinstance(tools, (str, bytes, bytearray, Mapping, Tool))

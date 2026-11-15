@@ -10,9 +10,9 @@ import zipfile
 from dataclasses import dataclass
 from zipfile import ZipFile
 
-from . import _artifacts
-from ._artifacts import Artifacts, ArtifactsMissing
-from ._process import process
+from wasi_python import _artifacts
+from wasi_python._artifacts import Artifacts, ArtifactsMissing
+from wasi_python._process import process
 
 # The most a member of a `.dist-info` folder may hold: the bound the guest's own zip reader
 # keeps, so an unchecked set cannot make the host read without end.

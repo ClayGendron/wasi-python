@@ -14,11 +14,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _artifacts, _platform
-from ._artifacts import ArtifactsMissing
-from ._limits import TICK_S
-from ._platform import _WASM_STACK
-from ._process import process
+from wasi_python import _artifacts, _platform
+from wasi_python._artifacts import ArtifactsMissing
+from wasi_python._limits import TICK_S
+from wasi_python._platform import _WASM_STACK
+from wasi_python._process import process
 
 if TYPE_CHECKING:
     import wasmtime
@@ -37,7 +37,7 @@ def _wasmtime() -> Any:
             "wasi_python.run needs wasmtime-py (wasmtime>=50,<51), which installs with "
             "wasi-python; reinstall it or install wasmtime directly"
         ) from e
-    from . import _wasmtime_ffi  # noqa: F401  (its own ImportError names what moved)
+    from wasi_python import _wasmtime_ffi  # noqa: F401  (its own ImportError names what moved)
 
     return wt
 
@@ -136,7 +136,7 @@ def _engine(metered: bool) -> wasmtime.Engine:
     is set first, through the seam."""
     import wasmtime as wt
 
-    from . import _wasmtime_ffi as ffi
+    from wasi_python import _wasmtime_ffi as ffi
 
     p = process()
     with p.cache_lock:
@@ -210,7 +210,7 @@ def _module_miss(
     try:
         folder = None if cache is None else _platform.PLATFORM.cache_folder(cache, lstat=lstat)
         if folder is not None:
-            from . import _wasmtime_ffi as ffi
+            from wasi_python import _wasmtime_ffi as ffi
 
             cwasm = folder / f"{digest[:32]}-wasmtime{ffi.version()}-{flavor}.cwasm"
     except OSError as e:

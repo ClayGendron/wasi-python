@@ -52,13 +52,13 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
-from . import _limits, _platform
-from ._process import process
+from wasi_python import _limits, _platform
+from wasi_python._process import process
 
 if TYPE_CHECKING:
     import asyncio
 
-    from ._home import _Home
+    from wasi_python._home import _Home
 
 READ_BYTES = 65536  # one read takes a pipe's whole buffer on macOS and Linux
 SETTLE, STOP = b"s", b"x"  # what the wake pipe carries to the reader
@@ -659,7 +659,7 @@ class _CallbackCapture:
         self.keys = (0, 0)
 
     def open(self, wasi: Any) -> None:
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         p = process()
         with p.outputs_lock:

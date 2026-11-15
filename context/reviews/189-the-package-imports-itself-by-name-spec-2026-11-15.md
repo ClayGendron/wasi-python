@@ -102,7 +102,13 @@ The stand-in's retarget keeps its strength. `pyproject.toml` gains a rule and lo
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. to 7. Lows with fix text, and a note; they need no round.
+1. Fixed in the specification: Decision 1 counts 13 aliased seam imports and the bare one at `_engines.py:40`, which the conversion kept with its `# noqa: F401`.
+2. Fixed: criterion 2 asks for the line-free digests, and the landing notes record them, equal on `dev` and the branch (172 entries, `1a63838b8eb3dabd`; 146 entries, `374106e8ac35f120`).
+3. Fixed: Decision 5 says the twin keeps the original's line and the new check walks every depth; the code does both (`ast.copy_location`, `ast.walk`), and the planted late `import wasi_python.runner` is named at its line.
+4. Fixed: the news file's `[claim.judge]` names `tests/unit/test_wasmtime_ffi.py`.
+5. Fixed: the news bullet ends with a link to the principles page.
+6. Fixed: the news bullet says ruff refuses a relative import anywhere it lints, the guest package excepted.
+7. A note; nothing to do. No `importlib.import_module` of the package was added.
 
 ## Verdict
 

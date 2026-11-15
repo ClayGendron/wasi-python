@@ -11,14 +11,14 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
-from . import _platform
-from ._engines import _epoch_ticker
-from ._limits import CANCEL_TICKS, TICK_S
-from ._platform import _HOST_ROOM, _THREAD_STACK, _WASM_STACK
-from ._process import process
+from wasi_python import _platform
+from wasi_python._engines import _epoch_ticker
+from wasi_python._limits import CANCEL_TICKS, TICK_S
+from wasi_python._platform import _HOST_ROOM, _THREAD_STACK, _WASM_STACK
+from wasi_python._process import process
 
 if TYPE_CHECKING:
-    from ._call import _Call
+    from wasi_python._call import _Call
 
 
 def _stack() -> list[_Call]:

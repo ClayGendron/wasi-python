@@ -55,13 +55,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from . import _platform_common
-from ._platform_common import Identity as Identity
-from ._platform_common import _Opened
-from ._platform_common import _Walked as _Walked
-from ._platform_posix import _Darwin, _Linux, _Posix
-from ._platform_windows import _Windows
-from ._process import process
+from wasi_python import _platform_common
+from wasi_python._platform_common import Identity as Identity
+from wasi_python._platform_common import _Opened
+from wasi_python._platform_common import _Walked as _Walked
+from wasi_python._platform_posix import _Darwin, _Linux, _Posix
+from wasi_python._platform_windows import _Windows
+from wasi_python._process import process
 
 
 def _same_file(fd: int, path: str) -> bool:

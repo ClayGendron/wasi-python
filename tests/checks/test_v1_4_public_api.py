@@ -153,10 +153,12 @@ def test_private_names_carry_an_underscore() -> None:
 def test_nothing_private_is_re_exported(tmp_path) -> None:
     errors = api.reexport_errors()
     assert not errors, scan.report(errors)
-    # Stand-in: `from .runner import _UNSET as UNSET`, exported, is the one finding.
+    # Stand-in: `from wasi_python.runner import _UNSET as UNSET`, exported, is the one finding.
     copy = _copy(tmp_path)
     init = copy / "__init__.py"
-    init.write_text(init.read_text(encoding="utf-8") + "from .runner import _UNSET as UNSET\n")
+    init.write_text(
+        init.read_text(encoding="utf-8") + "from wasi_python.runner import _UNSET as UNSET\n"
+    )
     _edit(init, "__all__ = [\n", '__all__ = [\n    "UNSET",\n')
     assert api.reexport_errors(copy) == ["wasi_python.UNSET is _UNSET"]
 

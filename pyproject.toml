@@ -112,7 +112,17 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "TID252"]
+
+# The package imports its own modules by name, `from wasi_python.x import y`, everywhere ruff
+# lints. The guest package is the one exception: the guest imports it as `host`, from the zip,
+# and the unit checks load the same files under a private name of their own, so its imports of
+# one another stay relative, resolved against whichever name loaded it.
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+"recipes/guest/host/*.py" = ["TID252"]
 
 [tool.mypy]
 python_version = "3.11"           # the floor requires-python names; one target on every host

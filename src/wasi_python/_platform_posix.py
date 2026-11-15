@@ -23,9 +23,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from . import _platform_common
-from ._platform_common import _REMOVE_BATCH, Identity, _Opened, _Removal, _Walked
-from ._process import process
+from wasi_python import _platform_common
+from wasi_python._platform_common import _REMOVE_BATCH, Identity, _Opened, _Removal, _Walked
+from wasi_python._process import process
 
 # Opened for search only where the system allows (Linux O_PATH, macOS O_SEARCH): wasmtime opens a
 # grant below a folder this user may search but not list, so the walk must pass through it too.
@@ -869,7 +869,7 @@ def _wasmtime_base() -> int | None:
     """The load base of wasmtime-py's own library, read once, from one of its symbols."""
     handlers = process().handlers
     if "wasmtime" not in handlers:
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         handlers["wasmtime"] = _load_base(ffi.engine_symbol_address())
     base: int | None = handlers["wasmtime"]

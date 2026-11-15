@@ -47,8 +47,8 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import _tool_schema
-from ._tool_schema import _Json, _KeySets
+from wasi_python import _tool_schema
+from wasi_python._tool_schema import _Json, _KeySets
 
 PROTOCOL = 1
 _KINDS = (

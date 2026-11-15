@@ -32,14 +32,14 @@ the promise each release keeps.
 
 from __future__ import annotations
 
-from . import _process
-from . import runner as _runner
-from ._artifacts import Artifacts, ArtifactsMissing, artifact_dir, artifacts
-from ._packages import Package, packages
-from ._results import Display
-from ._snapshot import Snapshot, SnapshotFailed, SnapshotMismatch, SnapshotOrigin
-from ._snapshot_make import make_package_snapshot, make_snapshot
-from .mounts import (
+from wasi_python import _process
+from wasi_python import runner as _runner
+from wasi_python._artifacts import Artifacts, ArtifactsMissing, artifact_dir, artifacts
+from wasi_python._packages import Package, packages
+from wasi_python._results import Display
+from wasi_python._snapshot import Snapshot, SnapshotFailed, SnapshotMismatch, SnapshotOrigin
+from wasi_python._snapshot_make import make_package_snapshot, make_snapshot
+from wasi_python.mounts import (
     Errno,
     FileFault,
     FileProvider,
@@ -49,7 +49,7 @@ from .mounts import (
     Stat,
     WritableFileProvider,
 )
-from .runner import (
+from wasi_python.runner import (
     Completed,
     Defaults,
     Grant,

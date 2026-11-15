@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._outputs import _Stream
-    from ._tool_host import _ToolHost
+    from wasi_python._outputs import _Stream
+    from wasi_python._tool_host import _ToolHost
 
 MIME_TYPES = (
     "text/plain",
@@ -136,8 +136,8 @@ class _ResultHost:
         streams: tuple[_Stream, _Stream],
         settle: Callable[[], None],
     ) -> None:
-        from . import _tool_host  # the frame rules, loaded only when results are asked
-        from .tools import PROTOCOL
+        from wasi_python import _tool_host  # the frame rules, loaded only when results are asked
+        from wasi_python.tools import PROTOCOL
 
         self._wire, self._version = _tool_host, PROTOCOL
         self._tools, self._room = tools, room

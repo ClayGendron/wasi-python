@@ -39,7 +39,7 @@ import threading
 from collections.abc import Sequence
 from typing import Any
 
-from . import _packages
+from wasi_python import _packages
 
 USAGE = "wasi-python run [OPTIONS] [--] ARG..."
 PACKAGES_USAGE = "wasi-python packages [--json]"
@@ -212,7 +212,7 @@ def _packages_main(args: list[str]) -> int:
 def _grants(items: list[tuple[str, str]], parser: argparse.ArgumentParser) -> list[Any]:
     """GUEST=HOST, split at the first `=`: a host path may hold `=` or `C:\\`, a guest path
     starts with `/`. Whatever parses goes to `run()`, which judges it."""
-    from .runner import Grant
+    from wasi_python.runner import Grant
 
     grants = []
     for mode, value in items:
@@ -370,7 +370,7 @@ def _main(args: list[str]) -> int:
             else:
                 with open(ns.stdin, "rb") as f:
                     given["stdin"] = f.read()
-        from . import runner
+        from wasi_python import runner
 
         done = runner.run(guest, **given)
     except Exception as e:

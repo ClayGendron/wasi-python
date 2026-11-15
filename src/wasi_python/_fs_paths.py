@@ -10,7 +10,7 @@ import struct
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from ._fs_memory import (
+from wasi_python._fs_memory import (
     APPEND,
     ATIM,
     ATIM_NOW,
@@ -59,10 +59,10 @@ from ._fs_memory import (
     _rights,
     _text,
 )
-from .mounts import _Mounted, _Open
+from wasi_python.mounts import _Mounted, _Open
 
 if TYPE_CHECKING:
-    from ._fs_table import _Files
+    from wasi_python._fs_table import _Files
 
 
 def _resolve(base: _Open, text: str) -> tuple[str, bool] | int:

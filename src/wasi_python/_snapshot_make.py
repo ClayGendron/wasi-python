@@ -15,15 +15,15 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from . import _artifacts, _limits, _snapshot, runner
-from ._artifacts import Artifacts, ArtifactsMissing
-from ._limits import _UNSET
-from ._places import Grant
-from ._process import process
-from ._snapshot import Snapshot, SnapshotFailed
+from wasi_python import _artifacts, _limits, _snapshot, runner
+from wasi_python._artifacts import Artifacts, ArtifactsMissing
+from wasi_python._limits import _UNSET
+from wasi_python._places import Grant
+from wasi_python._process import process
+from wasi_python._snapshot import Snapshot, SnapshotFailed
 
 if TYPE_CHECKING:
-    from .mounts import Mount
+    from wasi_python.mounts import Mount
 
 DEADLINE_S = 600.0  # a making is a setup step, run once: the image of every package takes ~30 s
 PACKAGE_LINE = "x-snapshot-package"  # MANIFEST: a distribution, then the names it imports

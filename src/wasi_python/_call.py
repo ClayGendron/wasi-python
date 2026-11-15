@@ -18,31 +18,40 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
-from . import _artifacts, _engines, _home, _outputs, _places, _platform, _private_dirs, _zip
-from . import _results as _results  # each on its own line: the line above is full
-from . import _snapshot as _snapshot
-from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
-from ._engines import _epoch_ticker
-from ._fs_memory import STAGING_CEILING, _aligned
-from ._home import _Home, _Stopped
-from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
-from ._outputs import _Stream
-from ._places import ZIP_GUEST, Grant, _Preopen
-from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
-from ._private_dirs import _Private
-from ._process import process
-from ._results import Display
-from ._zip import MPL_DATA_GUEST
-from .mounts import FileRecord, Mount
+from wasi_python import (
+    _artifacts,
+    _engines,
+    _home,
+    _outputs,
+    _places,
+    _platform,
+    _private_dirs,
+    _zip,
+)
+from wasi_python import _results as _results  # each on its own line: the line above is full
+from wasi_python import _snapshot as _snapshot
+from wasi_python._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
+from wasi_python._engines import _epoch_ticker
+from wasi_python._fs_memory import STAGING_CEILING, _aligned
+from wasi_python._home import _Home, _Stopped
+from wasi_python._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
+from wasi_python._outputs import _Stream
+from wasi_python._places import ZIP_GUEST, Grant, _Preopen
+from wasi_python._platform import _TRAP_HANDLERS_REPLACED, _Walked
+from wasi_python._private_dirs import _Private
+from wasi_python._process import process
+from wasi_python._results import Display
+from wasi_python._zip import MPL_DATA_GUEST
+from wasi_python.mounts import FileRecord, Mount
 
 if TYPE_CHECKING:
     import asyncio
 
     import wasmtime
 
-    from ._fs_table import _Files
-    from ._tool_host import _ToolHost
-    from .tools import Tool, ToolCall, ToolRecord
+    from wasi_python._fs_table import _Files
+    from wasi_python._tool_host import _ToolHost
+    from wasi_python.tools import Tool, ToolCall, ToolRecord
 
 ARGV0 = "/usr/local/bin/python.wasm"
 NO_HOST = -1
@@ -499,7 +508,7 @@ def _instance(
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _linker(wt, engine)  # held for the whole call: clearing the cache cannot free it
-        from ._fs_table import _Files
+        from wasi_python._fs_table import _Files
 
         staging = STAGING_CEILING if memory_bytes is None else memory_bytes
         others = [p.guest for p in preopens]
@@ -725,7 +734,7 @@ class _Call:
         table: _Files,
         home: _Home | None = None,
     ) -> None:
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         self.context = ffi.context_address(store)
         self.origin_ns = origin_ns  # its waits count from here
@@ -756,7 +765,7 @@ class _Call:
         context, traps it at its next function entry, with nothing raised through wasmtime-py."""
         if self.stopped is None:
             self.stopped = cause
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         ffi.set_epoch_deadline(caller, 0)
 
@@ -769,7 +778,7 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
 
     import wasmtime as wt
 
-    from . import _wasmtime_ffi as ffi
+    from wasi_python import _wasmtime_ffi as ffi
 
     wasmtime_errors = (wt.Trap, wt.WasmtimeError)
 
@@ -828,7 +837,7 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
 def _epoch_now(caller: Any) -> None:
     """An epoch deadline of 0 for the caller's store: its guest stops, or meets its epoch
     callback, at its next function entry."""
-    from . import _wasmtime_ffi as ffi
+    from wasi_python import _wasmtime_ffi as ffi
 
     ffi.set_epoch_deadline(caller, 0)
 
@@ -945,7 +954,7 @@ def _stop_error(delta: Any) -> int:
     """A new wasmtime error, which wasmtime owns once returned. If none can be made, continue for
     one tick, never 0, so the next callback tries again."""
     try:
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         address = ffi.new_error(b"stopped by wasi_python")
         if address:
@@ -966,7 +975,7 @@ def _on_epoch(context: Any, data: Any, delta: Any, kind: Any) -> int:
 def _watch(store: Any) -> None:
     """Give a store the epoch callback, with a NULL finalizer: no per-call ctypes object exists,
     and the callback finds its call through the thread's stack."""
-    from . import _wasmtime_ffi as ffi
+    from wasi_python import _wasmtime_ffi as ffi
 
     p = process()
     with p.epoch_callback_lock:  # one object for the process: a store must never outlive its own
@@ -1004,7 +1013,7 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     today's, plus a shadow over each of the 29 calls in `_fs_memory.SHADOWED`, each in the shared
     form, answering EBADF to a caller that is not its call's store and EIO once its call has
     stopped. Defined once per engine, like the first."""
-    from ._fs_memory import SIGNATURES
+    from wasi_python._fs_memory import SIGNATURES
 
     p = process()
     with p.cache_lock:
@@ -1026,7 +1035,7 @@ def _counted_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     fd_renumber, which the table forwards and counts against the call's cap on open files), in
     the shared form, as the mount linker's. Every other call stays wasmtime's own. Defined once
     per engine, like the others."""
-    from ._fs_memory import COUNTED, SIGNATURES
+    from wasi_python._fs_memory import COUNTED, SIGNATURES
 
     p = process()
     with p.cache_lock:
@@ -1044,7 +1053,7 @@ def _counted_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
     """The forwarders, compiled once per engine and instantiated per call."""
-    from ._fs_memory import trampoline_wat
+    from wasi_python._fs_memory import trampoline_wat
 
     p = process()
     with p.cache_lock:
@@ -1378,7 +1387,7 @@ def _tool_host(
     is answered, as a `_Call` without a home runs its door."""
     if c.tools is None:
         return None
-    from ._tool_host import _Bounded, _ToolHost, _ToolLoop
+    from wasi_python._tool_host import _Bounded, _ToolHost, _ToolLoop
 
     bound = _Bounded(
         tick_s=TICK_S,
