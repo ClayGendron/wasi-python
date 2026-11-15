@@ -1,6 +1,6 @@
 # 191: pytz, rich, Faker and folium
 
-- **Status:** drafted 2026-11-15; answered 2026-11-15, being built on `spec/191-pure-python-packages`. Reviewed before it was built (constitution §5.6: it changes the artifact set, the build recipe and the binaries' per-call refresh, and carries two patches): `../reviews/191-pytz-rich-faker-and-folium-spec-2026-11-15.md`, which lands it at round 1. The owner answered The owner's choices 1 to 4 on 2026-11-15 ("Go with your picks", `../decisions.md`, "pytz, rich, Faker and folium: their licences and three choices"); choice 5 was not asked, and its gap is stated (Decision 8). The owner chose the packages on 2026-11-14 (`../decisions.md`, "0.1.5's scope": "all eight ranked packages, cut from the bottom if the release slips"; `../roadmap.md`, "0.1.5").
+- **Status:** drafted 2026-11-15; answered 2026-11-15; built 2026-11-15 on `spec/191-pure-python-packages`, its suites waiting for 193 (the landing notes). Reviewed before it was built (constitution §5.6: it changes the artifact set, the build recipe and the binaries' per-call refresh, and carries two patches): `../reviews/191-pytz-rich-faker-and-folium-spec-2026-11-15.md`, which lands it at round 1. The owner answered The owner's choices 1 to 4 on 2026-11-15 ("Go with your picks", `../decisions.md`, "pytz, rich, Faker and folium: their licences and three choices"); choice 5 was not asked, and its gap is stated (Decision 8). The owner chose the packages on 2026-11-14 (`../decisions.md`, "0.1.5's scope": "all eight ranked packages, cut from the bottom if the release slips"; `../roadmap.md`, "0.1.5").
 - **The owner's choices:** five, each written below with its default first. Choices 1 to 4 were asked together in the project chat on 2026-11-15, each with the orchestrating session's pick, and the owner answered "Go with your picks" (12:10 UTC): 1, the eight distributions' licences, approved; 2, Faker's data, option A, approved; 3, folium's `requests`, the carried patch; 4, pytz's line, the four bounds. 5, a release-tier dispatch per pull request, was not asked: the session's GitHub integration cannot dispatch workflows (403), so its gap is stated.
 - **Date:** 2026-11-15
 - **Owner:** Clay Gendron
@@ -265,4 +265,47 @@ In: Decisions 1 to 10, in the four pull requests of Design, the two existing che
 
 ## Landing notes
 
-Not built.
+Built 2026-11-15 on `spec/191-pure-python-packages`, one branch for all nine (the orchestrating session's brief), in a container that could build no set: `www.python.org`, `sh.rustup.rs` and the OSV API were refused by its proxy, and GitHub's tag archives answered 403. Nothing was retried by another route. So no guest check, fuel figure or upstream group was run here; every number below that says EXECUTED was run natively in scratch.
+
+**What was built.**
+
+- The nine pins with PyPI's SHA-256 (`downloads/SHA256SUMS`, `scripts/00_download.sh`), and four more files the notices need: wcwidth 0.9.4's and fs 2.4.16's wheels (each only for its licence, which rich's lines name and its wheel lacks; neither is packed), text-unidecode 1.3's sdist (its `LICENSE`, which holds the Artistic License's text) and SPDX's BSD-2-Clause text at the commit the other SPDX texts use. The test-source sdists are not pinned: they belong to 193.
+- Step 70: seven `--wheel` lines; folium and branca unpacked from their sdists and patched, folium copied whole and branca staged with its `_version.py` stand-in; both sdists' `PKG-INFO` packed as metadata; `--drop folium/templates`. `release.yml` counts 43 zero-patch trees; README counts 35 carried patches.
+- The two carried patches and their upstream drafts (`../upstream/patches/folium-0.20.0/`, `../upstream/patches/branca-0.8.2/`), each with its native test evidence.
+- The notices (`scripts/assemble_artifacts.py`): Decision 6's list, each line read from the pinned file and checked for its words. Built natively from the pinned files (EXECUTED): rich 9 parts, markdown-it-py 3, Pygments 6, Faker 10, xyzservices 3, folium 2, branca 3, pytz 1, mdurl 1.
+- Faker's reseed in `_refresh`, and `test_the_refresh_reseeds_what_the_image_froze` widened with the frozen-state copy's next draw (the review's Low 13). Seen failing first natively only (EXECUTED, a scratch script that freezes and restores the generator's state as an image does): the old refresh gives the frozen state's next draw, the new one does not.
+- Decision 7: `-p no:faker` in both drivers (the package driver for every family but Faker's), the `M faker` line, and the guard's finding for a module with no file. The unit row and the guard row were seen failing first (EXECUTED). Natively, `-p no:faker` keeps Faker out of `sys.modules` and its absence lets it in (EXECUTED, pytest 9 on the line's 3.15.2).
+- The two checks of Decision 2: `PANDAS_FOLDERS` gains pytz (natively `import pandas` imports pytz when it is installed, EXECUTED); the import-path check stubs `pyarrow` and counts one lookup. That count was read natively, with pandas 3.1.0 on 3.15.2 and the stub first on `sys.path`, where the same method counts pytz twice, as the guest's check did (EXECUTED); not from a base-set guest run, which needs a built set.
+- Three new guest checks: `test_pytz_first_zone_is_bounded`, `test_folium_names_what_the_set_lacks`, `test_rich_refreshes_without_a_thread`. Each program was run natively (EXECUTED): folium's, on the patched tree without requests, prints the expected answer, and on the unpatched tree fails at `import folium`; rich's `Progress` part passes natively, where `track` has threads. None was seen failing on a set without its package, since none could be built.
+- The four golden jobs, written by the oracle under both hash seeds and reproduced with `--check` (EXECUTED, `tests/jobs/regen.py --online`, linux x86_64); the oracle gains the nine pins and requests with its three dependencies, locked with uv 0.9.22, and drops the four environment names. Natively, `web_maps` on the patched folium and branca trees, less `templates/`, prints the golden byte for byte (EXECUTED).
+- The docs (packages, limitations, the import path's example, troubleshooting), the news file and the release ledger's block.
+
+**Measured in scratch** (EXECUTED: each wheel's and tree's members as step 70 packs them, compiled under the line's 3.15.2 and deflated at level 9, with the `top_level.txt` step 70 writes; the zip's directory not counted):
+
+| distribution | members | bytes |
+|---|---|---|
+| pytz | 612 | 504,821 |
+| rich | 103 | 703,249 |
+| markdown-it-py | 71 | 161,480 |
+| mdurl | 9 | 11,923 |
+| Pygments | 346 | 2,041,380 |
+| Faker | 755 | 3,156,874 |
+| folium, less `templates/` | 51 | 178,436 |
+| branca | 13 | 45,572 |
+| xyzservices | 7 | 53,010 |
+| **all** | **1,967** | **6,856,745** |
+
+pytz's 504,821 bytes are under the 0.6 MB line. Its other three bounds (the first zone, `import pandas`, a snapshot start) and every fuel figure wait for a built set.
+
+**Deviations from the specification.**
+
+- One branch builds all nine, not four pull requests.
+- No family has its `.toml`, `.ini`, smoke group, release shard or `PURE_SUITES` entry: each is `later` in `packages.toml`, closing with 193, reserved in the roadmap, because no group's fuel could be measured, as 187's orjson suite waited. `SMOKE_TOTAL_BOUND` is unchanged, since no group joins. The four test trees that need a tag archive (rich, mdurl, folium, branca) could not be read either.
+- rich's notice also carries wcwidth's and PyFilesystem2's licences, each read from that project's pinned wheel, and tqdm's: rich names each project and its wheel carries none of their texts.
+- The guard names a bare `M` line "a module was loaded outside its family" rather than the zip finding it would otherwise fall into.
+
+**Not machine-checked here, and waiting for a built set.** Every guest check named above; the four jobs' guest runs; pytz's four bounds; the zip's, the wheel's and both binaries' bytes; the starts' fuel; the pandas, matplotlib and tqdm groups' new cases and fuel, against their fixed caps (Finding 4: a group past its cap goes to the owner). The Faker row of the refresh check compares the call's first draw with the prelude's too, as the other generators' rows do; the driver answers entropy alike in every run, so a built set shows whether the two reseeds land on the same seed.
+
+**The release tier.** Choice 5 was not asked (403), so the release groups are first judged by 0.1.5's release pull request or the weekly run on `dev` after the merge, where a red release group stops the tag before anything is signed.
+
+**The sweep** (Decision 6's pattern over every packed file, EXECUTED). Beyond Decision 6's list, these lines state terms or a source, and are listed here for the owner's yes before the merge (§4.12): Pygments' `formatters/terminal256.py:7`, adapted from xterm256-conv, which states no terms; Pygments' `lexers/configs.py:1130`, adapted from CPython's tomllib (the PSF licence, already in `LICENSES/cpython.txt`); rich's `syntax.py:62`, styles based on Pygments' (BSD-2-Clause, approved, and its line ships in rich's notice); Faker's `color.py:7`, randomColor (CC0), `person/hu_HU`, the Government of Hungary's records (public domain), and `date_time/th_TH`, code in the public domain or under CC0, each named in Faker's notice. Facts, named and not shipped as notices: rich's `_palettes.py:4` (Wikipedia's table of terminal colours) and Pygments' keyword lists taken from languages' manuals. wcwidth's licence also carries Markus Kuhn's permission notice, which ships with it.
