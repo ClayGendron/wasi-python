@@ -7,7 +7,7 @@ import copy
 import importlib.metadata
 import json
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -1676,6 +1676,23 @@ def test_a_pull_request_that_grows_a_check_past_its_cap_is_red_on_its_own_run(tm
     assert v.red == [], v.red
     said = [line for line in v.lines if line.startswith("budget: ")]
     assert any(f"specification {number}" in line for line in said), v.lines
+
+
+def test_a_new_familys_largest_fuel_is_reported_on_its_own_run(tmp_path) -> None:
+    """A check file no accepted check comes from has its family's largest fuel reported on the
+    pull request's own run, never red, so the cap that came with it can be set to twice that."""
+    case = PRCase(tmp_path)
+    file = PROBE.split("::", 1)[0]
+    accepted = case.accepted["checks"]
+    for node in [n for n in accepted if n.split("::", 1)[0] == file]:
+        del accepted[node]  # the probe's file is new: none of its checks is accepted
+    case.records[("linux", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 42}
+    _budgeted(case)
+    v = case.run()
+    assert v.red == [], v.red
+    family = PurePosixPath(file).stem
+    want = f"budget: linux/own-a: {family} is a new family: its largest fuel is 42, by {PROBE}"
+    assert want in v.lines, v.lines
 
 
 def test_a_claimed_growth_past_its_cap_is_still_red_after_a_merge(tmp_path) -> None:

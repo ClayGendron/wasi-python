@@ -11,7 +11,9 @@ is a finding too, so the list only shrinks.
 Fuel counts operations, so it is held where it is measured: the gather holds each shard record's
 own fuel, so the pull request that grows a check past its cap is the one that is red, and the
 acceptance from CI's record refuses to accept such a check. `lint` holds the accepted fuel too,
-the backstop for a cap or an entry edited by hand.
+the backstop for a cap or an entry edited by hand. A family none of whose checks is accepted yet
+has its largest fuel reported by the gather, never red, so the cap that comes with it is set from
+the pull request's own run.
 
 Time is reported, never failed on: a duration depends on the host that ran it, and a test counts
 operations. Each goal check the quick job's JUnit report says took longer than the file's
@@ -132,6 +134,30 @@ def run_fuel_over(
         elif fuel > cap:
             out.append(f"{node}: fuel {fuel:,} is past its family {name}'s cap {cap:,}")
     return out
+
+
+def new_family_fuel(
+    checks: dict, accepted: dict, family: Callable[[str], str], release: set[str]
+) -> list[str]:
+    """For each family none of whose checks is accepted yet, the largest fuel a passing
+    normal-tier check of one run's record used, so the cap that came with it can be set to twice
+    that from the pull request's own run: reported, never red."""
+    seen = {node.split("::", 1)[0] for node in accepted.get("checks", {})}
+    largest: dict[str, tuple[int, str]] = {}
+    for node, c in sorted(checks.items()):
+        metrics = c.get("metrics") or {}
+        fuel = metrics.get("fuel") if isinstance(metrics, dict) else None
+        if c.get("status") != "pass" or node in release or not isinstance(fuel, int):
+            continue
+        if node.split("::", 1)[0] in seen:
+            continue
+        name = family(node)
+        if name not in largest or fuel > largest[name][0]:
+            largest[name] = (fuel, node)
+    return [
+        f"{name} is a new family: its largest fuel is {fuel:,}, by {node}"
+        for name, (fuel, node) in sorted(largest.items())
+    ]
 
 
 def stale_caps(
