@@ -115,7 +115,7 @@ See [Defaults and limits](../reference/defaults-and-limits.md).
 
 **Why:** the package is not in the artifact set. The guest cannot install packages and loads no shared library.
 
-**Fix:** check the [packages](../reference/packages.md) page. A pure-Python package can come from a read-only grant named in `import_path=`. A compiled one cannot be added. Some modules are absent with the platform, such as `resource`. `pytz` is not carried: use `zoneinfo`. See the [limitations page](../reference/limitations.md).
+**Fix:** check the [packages](../reference/packages.md) page. A pure-Python package can come from a read-only grant named in `import_path=`. A compiled one cannot be added. Some modules are absent with the platform, such as `resource`. `pyarrow` is not carried, so there is no Parquet: use CSV, JSON or Excel. See the [limitations page](../reference/limitations.md).
 
 ## `RecursionError`, or `trapped` is `"stack overflow"`
 

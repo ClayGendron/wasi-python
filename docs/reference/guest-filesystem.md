@@ -99,7 +99,7 @@ done = run(
 
 - Entries go on `sys.path` after the stdlib zip, in the order given. Each is a folder or a zip file inside a read-only grant.
 - Because they come after the runtime, a module the runtime has (the stdlib's, numpy's, pandas', the tool protocol's `host`) is always the runtime's. Name your packages apart.
-- A module the runtime looks for and lacks is taken from an entry: C accelerators such as `_decimal`, other platforms' modules such as `fcntl`, and optional dependencies such as `pytz`. Ship such a name only on purpose.
+- A module the runtime looks for and lacks is taken from an entry: C accelerators such as `_decimal`, other platforms' modules such as `fcntl`, and optional dependencies such as `pyarrow`. Ship such a name only on purpose.
 - A missing entry, or a file that is not a zip, is skipped, as Python skips a bad `PYTHONPATH` entry.
 - No `.pyc` is ever written. A valid `.pyc` already in an entry, made for CPython 3.15, is used.
 

@@ -33,7 +33,7 @@ A *golden job* is a fixed program whose output the project compares with native 
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, imageio, and plotly:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, imageio, plotly, pytz, rich with markdown-it-py, mdurl and Pygments, Faker, and folium with branca and xyzservices:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -42,6 +42,8 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | xlrd 2.0.2 | read old `.xls` files |
 | plotting | seaborn 0.13.2 (beside matplotlib) | statistical plots over pandas frames |
 | | plotly 7.1.0 | interactive figures: JSON, and HTML pages with plotly.js inside or from its CDN |
+| maps | folium 0.20.0, branca 0.8.2 | Leaflet maps as HTML pages: markers, GeoJSON, choropleths, colour scales |
+| | xyzservices 2026.9.1 | tile providers' URLs and attributions |
 | drawing | drawsvg 2.4.2 | vector drawings and SMIL animations, saved as SVG, HTML, PNG or GIF |
 | | CairoSVG 2.9.1, tinycss2 1.5.1, cssselect2 0.10.1 | any SVG to PNG, PDF or SVG, drawn by cairo through cairocffi |
 | | imageio 2.38.1 | images and animated GIFs through Pillow |
@@ -56,6 +58,8 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | | defusedxml 0.7.1 | parse untrusted XML, refusing entity tricks |
 | | xmltodict 1.0.4 | XML to dicts and back |
 | text formats | pyyaml 6.0.3 | YAML |
+| terminal text | rich 15.0.0, markdown-it-py 4.3.0, mdurl 0.1.2 | tables, panels, trees, Markdown and pretty values, as text, HTML or SVG |
+| | Pygments 2.21.0 | syntax highlighting as HTML, terminal text and more |
 | | tomli-w 1.2.0 | write TOML (the stdlib's `tomllib` reads it) |
 | | jinja2 3.1.6, markupsafe 3.0.4 | templates, HTML escaping |
 | | tabulate 0.10.0 | text tables; `df.to_markdown()` |
@@ -63,6 +67,8 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | modelling | networkx 3.7 | graphs and their algorithms |
 | | patsy 1.0.3 | model formulas (`y ~ x + C(g)`) to design matrices |
 | symbolic | sympy 1.14.0, mpmath 1.3.0 | symbolic maths; arbitrary precision |
+| time zones | pytz 2026.6 | the tz database's zones, `localize` and `normalize`; pandas takes its zones |
+| test data | Faker 40.54.0 | fake names, addresses, e-mails and more, in 110 locales |
 | utilities | attrs 26.1.0, typing-extensions 4.16.0 | classes without boilerplate; typing backports |
 | | more-itertools 11.2.1, toolz 1.2.0 | iteration and functional helpers |
 | | tqdm 4.70.1 | progress bars |
@@ -80,7 +86,7 @@ Each family has a golden job whose output equals native Python's at the same pin
 
 These are not in the set, so each raises its `ImportError`, as it does natively without it:
 
-- `pytz`: use `zoneinfo`, which reads the stdlib zip's tzdata;
+- `requests`, for folium's `GeoJson` given a URL (the guest has no network either);
 - `cryptography`, which pypdf and pdfminer.six need for AES;
 - `pypdfium2`, for pdfplumber's page images;
 - `kaleido`, for plotly's static images, and `anywidget`, for its `FigureWidget`;
@@ -93,6 +99,10 @@ These are not in the set, so each raises its `ImportError`, as it does natively 
 pdfplumber's `page.to_image()` needs pypdfium2, which is not carried; it raises `ModuleNotFoundError`. pdfminer.six reads files encrypted with RC4, and raises `ModuleNotFoundError` naming `cryptography` for one encrypted with AES. xarray's other file engines (netCDF4, h5netcdf, zarr) and its tutorial data are not carried; netCDF3 works through scipy, a file by path with `open_dataset(path, mmap=False)`.
 
 plotly writes a figure's JSON and HTML: `write_html(..., include_plotlyjs=True)` makes a page that works offline, and `include_plotlyjs="cdn"` one that loads plotly.js from plotly's CDN. Static images (`to_image`, `write_image`) need kaleido, which drives a Chrome browser and cannot run here; they raise. `FigureWidget` needs anywidget and a notebook, and raises `ImportError`.
+
+rich writes plain text when nothing is a terminal, as it does natively when piped. Its live displays refresh themselves from a thread, which the guest cannot start: `track`, `Progress()` and `Console.status()` raise `RuntimeError`. `Progress(auto_refresh=False)` works; call `refresh()` yourself.
+
+folium writes a map's HTML page, which loads Leaflet, jQuery and Bootstrap from their CDNs when a browser opens it, as it does natively. A `GeoJson` given a URL raises `ModuleNotFoundError` naming `requests`; give it a dict or a file instead.
 
 reportlab's bitmap renderer needs rlPyCairo, which is not carried either; it raises `RenderPMError`. Draw reportlab charts to PDF or SVG instead.
 
