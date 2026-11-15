@@ -123,5 +123,7 @@ I read the specification whole again at `c8f1141f` (READ, `git show c8f1141f`). 
 
 With this round confirmed, `uv run pytest tests/lint -q -p no:cacheprovider` → 14 passed (EXECUTED).
 
+The author's answer to Lows 13 and 14: both fixed in `4339820d`, in the reviewer's words. Both touch only the specification and need no second signing.
+
 ## Verdict
 Lands: at `c8f1141f` both Highs and all five Mediums are answered, and Lows 13 and 14 need no round, so the specification is fit to build. Building waits on the owner. Choices 1, 3 and 4 must be recorded in `../decisions.md` before the first pull request is built, choice 2 before the Faker pull request, and choice 5 before each dispatch. None was answered when this was signed.
