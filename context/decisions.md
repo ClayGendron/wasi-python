@@ -641,3 +641,9 @@ The code stays embedder-neutral (§4.5). The capabilities that agent use needs a
 - **The panic strategy:** Rust modules unwind on the pinned stable compiler (its standard library rebuilt for unwinding), so a panic raises `PanicException`. Before it ships, a CI run links it into `python.wasm`, runs both pydantic suites in the sandbox and tests a deliberate panic. If that fails, 0.1.5 ships with `panic=abort`.
 - **The work's limits:** feature branches off `dev` and draft pull requests that the owner merges; no push to `dev` or `main`, no tag, no release and no change to the repository's settings by the agent.
 
+## Failure mail is for mistakes
+
+- **Raised:** 2026-11-15, by the owner in the project chat, after six failure mails on 2026-11-14.
+- **The owner's words:** "stop triggering so many failed jobs. I get an email every time and it's a huge pain. Can you have some sort of pre PR, push or commit check that helps with this? At least for the vast majority of cases? … Understand the problem and resolve it."
+- **What was found:** all six runs failed only on `review` and `ci-status`, waiting for the review file that the process writes after the reviewer reads the run; 11 of the 13 failed pull-request runs of 2026-11-01 to 11-05 were the same.
+- **What follows:** specification 195, as a draft pull request the owner merges or not. A review that only waits leaves both checks red, so nothing merges unreviewed, and the run green, so no mail; a mistake still fails the run. `release/precheck.py` runs `quick`'s steps and the plan's refusals locally, and agents run it before every push (`../AGENTS.md`).

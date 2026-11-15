@@ -3797,6 +3797,10 @@ BAD_CI_STATUS = [
     ("review", '[ "$REVIEW_REFUSALS" != "[]" ]', '[ -z "$REVIEW_REFUSALS" ]', "review's one step"),
     ("plan", "      review_refusals: ${{ steps.plan.outputs.review_refusals }}\n", "",
      "the plan hands on no review_refusals"),
+    ("plan", "      review_waiting: ${{ steps.plan.outputs.review_waiting }}\n", "",
+     "the plan hands on no review_waiting"),
+    ("plan", "      waiting: ${{ steps.plan.outputs.waiting }}\n", "",
+     "the plan hands on no waiting"),
 ]  # fmt: skip
 
 
@@ -4621,3 +4625,37 @@ def test_a_type_ignore_without_its_code_or_reason_is_named(work) -> None:
     p = write(work, "src/pkg/m.py", ESCAPES)
     named = scan.type_ignore_shape_errors([p], work)
     assert [line.split(":")[1] for line in named] == ["3", "4", "6"], named
+
+
+# Rule 17's one exception: the review job and ci-status, red while a review waits, nothing needing
+# either. Each mutant below lets a check carry on past a failure that stops something, or a
+# failure that is not a wait, and rule 17 names it.
+REVIEW_CONTINUE = f"    continue-on-error: {scan.WAITING_CONTINUE['review']}\n"
+STATUS_CONTINUE = f"    continue-on-error: {scan.WAITING_CONTINUE['ci-status']}\n"
+BAD_WAITING = [
+    ("review", REVIEW_CONTINUE, "    continue-on-error: true\n", "review's continue-on-error"),
+    ("ci-status", "!contains(needs.*.result, 'failure') && ", "", "ci-status's continue-on-error"),
+    ("ci-status", "needs.plan.outputs.waiting ==", "needs.plan.outputs.review_waiting ==",
+     "ci-status's continue-on-error"),
+    ("gather", "    needs: [", "    needs: [review, ", "gather needs review"),
+    ("quick", "    timeout-minutes: 30\n", "    timeout-minutes: 30\n" + REVIEW_CONTINUE,
+     "rule 17: the workflow has a continue-on-error"),
+]  # fmt: skip
+
+
+def _rule_17(text: str) -> list[str]:
+    return [e for e in _binding(text) if e.startswith("rule 17")]
+
+
+def test_the_real_workflows_waiting_checks_pass_rule_17() -> None:
+    assert REVIEW_CONTINUE in REAL_WORKFLOW and STATUS_CONTINUE in REAL_WORKFLOW
+    assert _rule_17(REAL_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_WAITING, ids=[b[3] for b in BAD_WAITING]
+)
+def test_rule_17_names_each_breach_of_its_one_exception(job, old, new, error) -> None:
+    mutant = _in_job(REAL_WORKFLOW, job, old, new)
+    assert mutant != REAL_WORKFLOW
+    assert any(e.startswith(error) or error in e for e in _rule_17(mutant)), _rule_17(mutant)

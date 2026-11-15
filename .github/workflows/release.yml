@@ -110,6 +110,8 @@ jobs:
       selected: ${{ steps.plan.outputs.selected }}
       refusals: ${{ steps.plan.outputs.refusals }}
       review_refusals: ${{ steps.plan.outputs.review_refusals }}
+      review_waiting: ${{ steps.plan.outputs.review_waiting }}
+      waiting: ${{ steps.plan.outputs.waiting }}
       macos: ${{ steps.plan.outputs.macos }}
       linux: ${{ steps.plan.outputs.linux }}
       windows: ${{ steps.plan.outputs.windows }}
@@ -196,9 +198,13 @@ jobs:
     # push still reads it. Red while the plan refuses the review file (none after the last code,
     # signed by the author, or a verdict that does not begin "Lands"); a documentation-only pull
     # request asks none. It runs whatever happened before it, so a plan that failed leaves it red,
-    # never skipped. ci-status reads the same refusals and does not wait for this job.
+    # never skipped. ci-status reads the same refusals and does not wait for this job. While the
+    # review only waits on its reviewer (none yet, one a later code commit left behind, or a
+    # verdict that does not land yet), the job is red and the run is not failed, so a state every
+    # pull request passes through sends its author no failure mail; nothing needs this job.
     needs: plan
     if: ${{ always() && github.event_name == 'pull_request' && github.base_ref == 'dev' }}
+    continue-on-error: ${{ needs.plan.outputs.review_waiting == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
@@ -1876,9 +1882,12 @@ jobs:
     # job is red here, and so is a run whose plan said it publishes (a pushed tag) when publish did
     # not run, so a tag that published nothing is never green. It does not need the review job,
     # whose verdict is the review file's and not the code's; it reads the same refusals, so no pull
-    # request merges unreviewed until the repository's ruleset requires the review job too.
+    # request merges unreviewed until the repository's ruleset requires the review job too. When
+    # every job passed and the plan's one refusal is a review that only waits on its reviewer, it
+    # is red as before and the run is not failed, as the review job is; nothing needs it.
     needs: [plan, quick, inputs, build, rebuild-linux-x86-64, rebuild-macos-arm64, same-bytes, judged, save-set, judge-macos, judge-linux, judge-windows, judge-release, gather, accept-record, accept-push, verify, red-run-issue, attest, publish, pypi, pypi-verify, pypi-rehearsal]
     if: always()
+    continue-on-error: ${{ needs.plan.outputs.waiting == 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

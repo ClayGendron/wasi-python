@@ -2105,8 +2105,14 @@ def release_binding_errors(text: str, action: str) -> list[str]:
                 f"rule 16: {name} holds the build's files but downloads something else too"
             )
     # Rule 17: nothing in the release may carry on past a failure: a failed judge, verify leg or
-    # check must stop what needs it.
-    if re.search(r"^\s*(- )?continue-on-error:", text, re.M):
+    # check must stop what needs it. The one exception is a check nothing needs, red while its
+    # review waits, which stops nothing (WAITING_CONTINUE); it keeps the run from failing alone.
+    errors += waiting_continue_errors(jobs)
+    rest = text
+    for name, want in WAITING_CONTINUE.items():
+        if _job_field(jobs.get(name, []), "continue-on-error") == want:
+            rest = rest.replace(f"\n    continue-on-error: {want}\n", "\n", 1)
+    if re.search(r"^\s*(- )?continue-on-error:", rest, re.M):
         errors.append("rule 17: the workflow has a continue-on-error:")
     # Rule 18: PyPI only after publish, and only for a pushed tag with the owner's switch on.
     pypi = jobs.get("pypi", [])
@@ -2723,6 +2729,17 @@ REVIEW_JOB = "review"
 REVIEW_IF = "${{ always() && github.event_name == 'pull_request' && github.base_ref == 'dev' }}"
 REVIEW_ENV = {"REVIEW_REFUSALS": "${{ needs.plan.outputs.review_refusals }}"}
 REVIEW_TEST = '[ "$REVIEW_REFUSALS" != "[]" ]'
+# The two checks a pull request into dev leaves red without failing its run, each only while the
+# plan's one refusal is a review that waits on its reviewer: the check still blocks the merge, and
+# the author gets no failure mail. ci-status takes it only when every job it needs passed too.
+# These are the workflow's only continue-on-error lines, and no job needs either check (rule 17).
+WAITING_CONTINUE = {
+    REVIEW_JOB: "${{ needs.plan.outputs.review_waiting == 'true' }}",
+    "ci-status": (
+        "${{ needs.plan.outputs.waiting == 'true' && !contains(needs.*.result, 'failure') "
+        "&& !contains(needs.*.result, 'cancelled') }}"
+    ),
+}
 CONCURRENCY = (
     "concurrency:\n"
     "  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', "
@@ -2812,6 +2829,23 @@ def ci_status_errors(text: str) -> list[str]:
     return errors + review_job_errors(jobs)
 
 
+def waiting_continue_errors(jobs: dict[str, list[str]]) -> list[str]:
+    """The review job and ci-status carry continue-on-error, if at all, exactly as
+    WAITING_CONTINUE has it, and then no job needs that one, so its red result while a review
+    waits stops nothing. Without it the job fails its run, which is stricter, never weaker."""
+    errors = []
+    for name, want in WAITING_CONTINUE.items():
+        got = _job_field(jobs.get(name, []), "continue-on-error")
+        if got is None:
+            continue
+        if got != want:
+            errors.append(f"rule 17: {name}'s continue-on-error: is not {want}")
+        needers = sorted(job for job, lines in jobs.items() if name in _needs(lines))
+        if needers:
+            errors.append(f"rule 17: {', '.join(needers)} needs {name}, red while a review waits")
+    return errors
+
+
 def review_job_errors(jobs: dict[str, list[str]]) -> list[str]:
     """The review job: named so, needing the plan alone, on the event alone (REVIEW_IF), with no
     permission, one step that fails unless the plan's review_refusals is the empty list; and the
@@ -2837,6 +2871,9 @@ def review_job_errors(jobs: dict[str, list[str]]) -> list[str]:
     outputs = _job_map(jobs.get("plan", []), "outputs")
     if outputs.get("review_refusals") != "${{ steps.plan.outputs.review_refusals }}":
         errors.append("the plan hands on no review_refusals")
+    for name in ("review_waiting", "waiting"):
+        if outputs.get(name) != f"${{{{ steps.plan.outputs.{name} }}}}":
+            errors.append(f"the plan hands on no {name}")
     return errors
 
 
