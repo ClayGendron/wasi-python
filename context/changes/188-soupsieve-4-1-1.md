@@ -26,8 +26,10 @@ passes = [
 grows = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-smoke]",
   "tests/checks/test_v1_3_default_profile.py::test_markup_job_matches_native",
+  "tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated",
+  "tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]",
 ]
-growth = "soupsieve 4.1.1 replaces 3.0.4: test_level1's files run 36% more Python calls natively (the pre-build review) and 4.x caches matches per element, so the smoke group's and the markup job's fuel move; the run's figures are in the specification's landing notes"
+growth = "soupsieve 4.1.1 replaces 3.0.4: test_level1's files run 36% more Python calls natively (the pre-build review) and 4.x caches matches per element, so the smoke group's and the markup job's fuel move; and its package is larger than 3.0.4's (155,400 to 197,263 bytes of source, a new bidi.py), so the stdlib zip and the snapshot, which imports soupsieve, grow. Fuel and bytes are compared on darwin-arm64 alone, so the figures come from the first run with the macOS legs (a ci:full run, or the acceptance after the merge) and go in the specification's landing notes"
 [claim.judge]
 "tests/upstream/soupsieve.toml" = "the wheel moves to soupsieve 4.1.1; soupsieve-r gains the no-threads row for 4.1's test_threads.py, matched on the guest's own message"
 "tests/upstream/expected/soupsieve-r/no-threads.txt" = "the five thread tests of soupsieve 4.1.1 that start a thread, which the guest cannot"

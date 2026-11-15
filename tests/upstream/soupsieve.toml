@@ -34,7 +34,6 @@ match = "has no attribute 'alarm'"
 reason = "WASI has no signal.alarm (README)"
 closes_with = "docs/reference/limitations.md"
 
-
 [[expected]]
 id = "no-threads"
 group = "soupsieve-r"

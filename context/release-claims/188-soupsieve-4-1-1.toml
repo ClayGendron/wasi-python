@@ -9,4 +9,4 @@ passes = [
 grows = [
   "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
 ]
-growth = "soupsieve 4.1.1 replaces 3.0.4: its suite adds about 266 native passes and three files (test_threads.py, test_extra/test_iframe.py, test_extra/test_template.py), and 4.x caches matches per element; the release tier's figures are in the specification's landing notes"
+growth = "soupsieve 4.1.1 replaces 3.0.4: its suite adds about 266 native passes and three files (test_threads.py, test_extra/test_iframe.py, test_extra/test_template.py), and 4.x caches matches per element; the release tier's figures come from the dispatch of the specification's Decision 4, on the owner's yes, or from 0.1.5's release pull request, and go in its landing notes"
