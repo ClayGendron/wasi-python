@@ -1804,3 +1804,14 @@ def test_a_run_refused_nothing_does_not_wait() -> None:
 def test_a_push_never_waits() -> None:
     out = _plan_outputs(["src/x.py"], ci_plan.Event("push", "refs/heads/dev"), None)
     assert (out["review_waiting"], out["waiting"]) == ("false", "false")
+
+
+def test_a_refusal_that_only_quotes_a_waiting_phrase_is_no_wait() -> None:
+    """A reviewer's name or a path is the branch's own text: a mistake that quotes a wait's words
+    in it still fails the run."""
+    named = "me, who has no review file"
+    body = f"- **Author:** {named}\n"
+    pr = _pr(_review(reviewer=named), body=body)
+    (refusal,) = _review_refusals(pr)
+    assert ci_plan.NO_REVIEW_YET in refusal
+    assert _waiting(("src/x.py", NEWS, REVIEW), pr) == (False, False)

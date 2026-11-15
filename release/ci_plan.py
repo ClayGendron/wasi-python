@@ -818,12 +818,23 @@ def review_refusals(changed: list[str], pr: PullRequest) -> list[str]:
 NO_REVIEW_YET = "has no review file"
 REVIEW_BEHIND = "the review is followed by"
 NOT_LANDED_YET = 'the first line of its ## Verdict does not begin "Lands"'
-WAITING = (NO_REVIEW_YET, REVIEW_BEHIND, NOT_LANDED_YET)
+# Each wait matched whole, from its start: a refusal that only quotes one of the phrases (a
+# reviewer's name, a path) is no wait. A review's path and a news file's stem hold no space.
+_PATH = r"context/reviews/\d{3}-[a-z0-9-]+-pr-\d{4}-\d{2}-\d{2}\.md"
+WAITING = (
+    re.compile(
+        rf"a pull request that is not documentation only {NO_REVIEW_YET} "
+        r"context/reviews/NNN-<slug>-pr-YYYY-MM-DD\.md among its changed paths for its news "
+        r"file (\(none\)|\d{3}-[a-z0-9-]+(, \d{3}-[a-z0-9-]+)*)"
+    ),
+    re.compile(rf"{_PATH}: {REVIEW_BEHIND} [0-9a-f]{{12}}, which changes .+", re.S),
+    re.compile(rf"{_PATH}: {re.escape(NOT_LANDED_YET)}"),
+)
 
 
 def only_waiting(refused: list[str]) -> bool:
     """Whether a run is refused, and only for a review not yet written or signed (WAITING)."""
-    return bool(refused) and all(any(w in r for w in WAITING) for r in refused)
+    return bool(refused) and all(any(w.fullmatch(r) for w in WAITING) for r in refused)
 
 
 def _bool(value: bool) -> str:

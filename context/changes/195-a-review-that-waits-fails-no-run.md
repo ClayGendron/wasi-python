@@ -15,7 +15,7 @@ None.
 ```toml
 [[claim]]
 spec = "195"
-units = 19
+units = 21
 [claim.judge]
 "tests/harness/scan.py" = "rule 17 allows continue-on-error on the review job and ci-status alone, each with its exact expression on the plan's review_waiting or waiting output and no job needing it, so a review that only waits leaves both checks red and its run unfailed; the review job's rules hold that the plan hands on both outputs"
 "tests/unit/test_ci_plan.py" = "a review not yet written, left behind by code, or not landing yet waits; a review signed by its author or no one does not; a missing news file fails ci-status beside a waiting review"

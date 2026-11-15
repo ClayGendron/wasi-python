@@ -43,3 +43,10 @@ def test_the_hook_runs_the_precheck_and_leaves_anothers_hook_alone(tmp_path, mon
     hook.write_text("#!/bin/sh\nmake check\n")
     assert precheck.install() == 1
     assert hook.read_text() == "#!/bin/sh\nmake check\n"
+
+
+def test_the_precheck_runs_quick_in_the_runners_shell_with_its_env() -> None:
+    env = precheck.quick_env(WORKFLOW)
+    assert env["PYTHONUTF8"] == "1" and env["UV_LOCKED"] == "1" and env["UV_PYTHON"]
+    assert not any("${{" in v for v in env.values())
+    assert precheck.SHELL[:5] == ["bash", "--noprofile", "--norc", "-eo", "pipefail"]

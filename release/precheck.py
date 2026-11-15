@@ -5,12 +5,14 @@
     uv run python release/precheck.py --install    # run it before every git push, from now on
 
 It runs the `run:` script of every step of the release workflow's quick job, read from the
-workflow itself, so this and CI cannot drift apart. Then it reads this branch as the decision job
+workflow itself, in the runner's shell and with the workflow's and the job's env:, so this and CI
+cannot drift apart. Then it reads this branch as the decision job
 would read it as a pull request into dev (against the merge base with origin/dev) and prints what
-ci-status and the review job would refuse. A refusal that is a mistake (no news file, a review
-signed by its author, a skip word in a commit message) fails here. A review that only waits on its
-reviewer (none yet, one a later code commit left behind, a verdict that does not land yet) is
-printed and does not fail: in CI it keeps the two checks red without failing the run.
+ci-status and the review job would refuse, through the decision job's own reading of a run. A
+refusal that is a mistake (no news file, a review signed by its author) fails here. A review
+that only waits on its reviewer (none yet, one a later code commit left behind, a verdict that
+does not land yet) is printed and does not fail: in CI it keeps the two checks red without
+failing the run.
 
 It reads no pull request description, which only GitHub has, so a skip word or an author named
 there alone is not seen here. It judges the commits at HEAD and quick's steps on the working
@@ -21,6 +23,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
+import re
 import subprocess
 import sys
 import time
@@ -41,11 +45,16 @@ def _module(name: str, path: Path):
     return module
 
 
-def quick_steps(text: str) -> list[tuple[str, str]]:
-    """The quick job's steps that run a script, each as its name and its script, in order."""
+def _scan():
     sys.path.insert(0, str(REPO / "tests"))
     from harness import scan
 
+    return scan
+
+
+def quick_steps(text: str) -> list[tuple[str, str]]:
+    """The quick job's steps that run a script, each as its name and its script, in order."""
+    scan = _scan()
     jobs = scan.workflow_jobs(scan.without_comments(text))
     out = []
     for step in scan.workflow_steps(jobs.get("quick", [])):
@@ -57,15 +66,52 @@ def quick_steps(text: str) -> list[tuple[str, str]]:
     return out
 
 
+def _plain(value: str) -> str | None:
+    """A YAML scalar's text, unquoted; None for an expression, which only a runner can read."""
+    value = value.strip()
+    if "${{" in value:
+        return None
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
+def quick_env(text: str) -> dict[str, str]:
+    """The workflow's top-level env: and quick's own, as quick's steps see them."""
+    scan = _scan()
+    body = scan.without_comments(text)
+    out: dict[str, str] = {}
+    inside = False
+    for line in body.splitlines():
+        if line.startswith("env:"):
+            inside = True
+            continue
+        if inside and line and not line.startswith(" "):
+            break
+        if inside and (m := re.fullmatch(r"  ([A-Za-z0-9_]+):\s*(.*)", line)):
+            if (v := _plain(m[2])) is not None:
+                out[m[1]] = v
+    for key, value in scan._job_map(scan.workflow_jobs(body).get("quick", []), "env").items():
+        if (v := _plain(value)) is not None:
+            out[key] = v
+    return out
+
+
+# The shell GitHub's runner uses for a run: step on Linux.
+SHELL = ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c"]
+
+
 def run_quick() -> list[str]:
-    """Each of quick's scripts in bash -e at the repository's root; the names of those that
-    failed."""
+    """Each of quick's scripts in the runner's shell at the repository's root, with quick's env;
+    the names of those that failed."""
     failed = []
     (REPO / "build" / "ci").mkdir(parents=True, exist_ok=True)
-    for name, script in quick_steps(WORKFLOW.read_text(encoding="utf-8")):
+    text = WORKFLOW.read_text(encoding="utf-8")
+    env = {**os.environ, **quick_env(text)}
+    for name, script in quick_steps(text):
         start = time.monotonic()
         print(f"precheck: {name} ...", flush=True)
-        r = subprocess.run(["bash", "-e", "-c", script], cwd=REPO)
+        r = subprocess.run([*SHELL, script], cwd=REPO, env=env)
         took = time.monotonic() - start
         print(f"precheck: {name}: {'ok' if r.returncode == 0 else 'FAILED'} ({took:.0f} s)")
         if r.returncode != 0:
@@ -81,19 +127,27 @@ def git(*args: str) -> str:
 
 def plan_refusals(base_ref: str = BASE) -> tuple[list[str], list[str]] | None:
     """What ci-status would refuse of this branch as a pull request into dev, split into the
-    mistakes and the review's waits; None when the base cannot be read."""
+    mistakes and the review's waits; None when the base cannot be read. The decision job's own
+    reading of a run does the work, given a pull request's variables and no token, so it reads
+    git alone and re-uses no run."""
     ci_plan = _module("ci_plan", REPO / "release" / "ci_plan.py")
     try:
-        base = git("merge-base", base_ref, "HEAD").strip()
+        base = git("rev-parse", "--verify", f"{base_ref}^{{commit}}").strip()
     except subprocess.CalledProcessError:
         return None
-    changed = git("diff", "--name-only", "--no-renames", base, "HEAD").split()
-    messages = git("log", "--format=%B%x00", f"{base}..HEAD").split("\0")
-    event = ci_plan.Event(
-        "pull_request", "refs/pull/0/merge", "dev", messages=tuple(m for m in messages if m.strip())
+    environ = {
+        "GITHUB_EVENT_NAME": "pull_request",
+        "GITHUB_REF": "refs/pull/0/merge",
+        "GITHUB_BASE_REF": "dev",
+        "PLAN_HEAD": git("rev-parse", "HEAD").strip(),
+        "PLAN_BASE": base,
+        "PLAN_HEAD_REF": git("rev-parse", "--abbrev-ref", "HEAD").strip(),
+        "PLAN_ACTION": "synchronize",
+    }
+    event, changed, moved, pr, reused, preparation, refused_preparation = ci_plan.from_runner(
+        environ
     )
-    pr = ci_plan.read_pull_request(REPO, base, "HEAD", "", changed)
-    d = ci_plan.decide(changed, event, ci_plan.key_moved(REPO, base))
+    d = ci_plan.decide(changed, event, moved, reused, preparation, refused_preparation)
     refused = ci_plan.refusals(d, event, changed, pr)
     waits = [r for r in refused if ci_plan.only_waiting([r])]
     return [r for r in refused if r not in waits], waits
