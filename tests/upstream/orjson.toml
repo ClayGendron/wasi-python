@@ -1,8 +1,9 @@
 # orjson's own tests in the guest, from its test source: its release tag's archive, since its sdist
 # holds no tests and the tag holds the data/ fixtures they read. A judge file: every edit is a judge
-# change. A smoke group in the normal tier and the rest in the release tier: each test in exactly
-# one tier. The fuel caps are first caps, set before any run; the pull request's run measures each
-# group, and its measured fuel and expected classes are written from that run.
+# change. The smoke group runs in the normal tier. Its cap is a first cap, set before any run: the
+# pull request's run measures the group, and its measured fuel and expected classes are written
+# from that run. The release group (every other test) joins once that run has measured the suite,
+# since the tier rule refuses a release group with no measured fuel.
 #
 # Faker, psutil, pendulum and pytz are not in the set; test_fake.py, test_memory.py,
 # test_datetime.py and test_non_str_keys.py guard each import and skip those tests themselves.
@@ -31,8 +32,3 @@ paths = [
 smoke = "the API, dicts, enums, fragments, indenting, sorted keys and UUIDs, the package from the zip"
 fuel = 20_000_000_000
 
-[groups.orjson-r]
-paths = ["test"]
-tier = "release"
-release_by = "path"
-fuel = 130_000_000_000

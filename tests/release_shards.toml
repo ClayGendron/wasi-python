@@ -1017,12 +1017,4 @@ groups = ["cairocffi-r", "imageio-r"]
 minutes = 2.1
 systems = ["release"]
 
-[shard.upstream-release-070]
-# orjson's release group, not yet measured: its cap of 130 G stands in for its fuel, its minutes
-# estimated from that cap at upstream-pure-r-113's rate (210.2 G in 1.52 min) until a run measures
-# it.
-groups = ["orjson-r"]
-minutes = 1.0
-systems = ["release"]
-
 # --- the pure-Python packages' own tests: end
