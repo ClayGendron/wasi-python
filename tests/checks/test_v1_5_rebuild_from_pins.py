@@ -162,6 +162,18 @@ def test_source_tree_matches_its_tarball(component) -> None:
     assert not drift, scan.report(drift)
 
 
+def test_the_rust_lock_keeps_orjsons_versions() -> None:
+    """Each crate recipes/rust/Cargo.lock shares with orjson's own Cargo.lock is at orjson's
+    version, read from orjson's tree as its pinned sdist unpacks it."""
+    needs.need("source tree orjson")
+    _, tree = pins.source_pair("orjson")
+    errors = scan.orjson_version_errors(
+        (paths.REPO / "recipes" / "rust" / "Cargo.lock").read_text(),
+        (tree / "Cargo.lock").read_text(),
+    )
+    assert not errors, scan.report(errors)
+
+
 OPENBLAS_PATCHES = (
     "0001-c-lapack-subroutines-return-void-1-of-2.patch",
     "0002-c-lapack-subroutines-return-void-2-of-2.patch",

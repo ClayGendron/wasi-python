@@ -6264,3 +6264,206 @@ def producer_reverify_errors(text: str) -> list[str]:
     if ZERO_PATCH_STEP not in names or names.index(ZERO_PATCH_STEP) > at:
         errors.append(f"{RELEASE_ASSETS_STEP!r} does not come after the zero-patch step")
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The Rust build: its pins, its toolchain, its panic switch, step 52's offline cargo and the gates
+# the steps run.
+
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
+CRATE_URL = "https://static.crates.io/crates/{n}/{n}-{v}.crate"
+RUST_DIST = "https://static.rust-lang.org/dist/"
+RUST_HOST_NAMES = ("RUSTC_ARCHIVE", "CARGO_ARCHIVE", "RUST_STD_ARCHIVE")
+LOCK_PACKAGE = re.compile(r"^\[\[package\]\]\n((?:[a-z]+ = .*\n?)+)", re.M)
+LOCK_FIELD = re.compile(r'^([a-z]+) = "([^"]*)"$', re.M)
+
+
+def lock_packages(text: str) -> list[dict[str, str]]:
+    """Each `[[package]]` of a Cargo.lock as its string fields (name, version, source,
+    checksum)."""
+    return [dict(LOCK_FIELD.findall(block)) for block in LOCK_PACKAGE.findall(text)]
+
+
+def _gets(download: str) -> dict[str, str]:
+    """file name -> URL of every `get` line of the download script, read a line at a time so a
+    line with no name does not take the next line's first word."""
+    found = (GET.match(line) for line in download.splitlines())
+    return {g[2] or g[1].rsplit("/", 1)[-1]: g[1] for g in found if g}
+
+
+def crate_pin_errors(lock: str, pins: dict[str, str], download: str) -> list[str]:
+    """Every crates.io package of recipes/rust/Cargo.lock has its pin `<name>-<version>.crate`,
+    whose SHA-256 is the lock's checksum, fetched from crates.io's own address for it; and every
+    crate pin is a package of the lock."""
+    errors, wanted = [], set()
+    gets = _gets(download)
+    for p in lock_packages(lock):
+        if p.get("source") != CRATES_IO:
+            continue
+        name, version = p["name"], p["version"]
+        file = f"{name}-{version}.crate"
+        wanted.add(file)
+        if file not in pins:
+            errors.append(f"{file}: a package of recipes/rust/Cargo.lock with no pin")
+        elif pins[file] != p.get("checksum"):
+            errors.append(f"{file}: its pin is not the lock's checksum")
+        url = CRATE_URL.format(n=name, v=version)
+        if gets.get(file) != url:
+            errors.append(f"{file}: not fetched from {url}")
+    for file in sorted(f for f in pins if f.endswith(".crate") and f not in wanted):
+        errors.append(f"{file}: a crate pin recipes/rust/Cargo.lock does not name")
+    return errors
+
+
+def rust_toolchain_errors(conf: str, download: str, pins: Iterable[str]) -> list[str]:
+    """Each host's three Rust archives, rust-src and the wasip1 rust-std are at RUST_VERSION,
+    pinned, and fetched from Rust's dist server. The host table's rule holds that each host's names
+    are fetched in its own branch."""
+    m = re.search(r"^RUST_VERSION=(\S+)$", conf, re.M)
+    if m is None:
+        return ["line.conf: no RUST_VERSION"]
+    version, pins, gets = m[1], set(pins), _gets(download)
+    files = [
+        (f"{key}_{name}", value)
+        for key, name, value in CONF_HOST_LINE.findall(conf)
+        if name in RUST_HOST_NAMES
+    ]
+    for name in ("RUST_SRC_ARCHIVE", "RUST_STD_WASIP1_ARCHIVE"):
+        found = re.search(rf"^{name}=(\S+)$", conf, re.M)
+        if found is None:
+            return [f"line.conf: no {name}"]
+        files.append((name, found[1]))
+    errors = []
+    for where, file in files:
+        if f"-{version}-" not in file and not file.endswith(f"-{version}.tar.xz"):
+            errors.append(f"{where}: {file} is not at RUST_VERSION {version}")
+        if file not in pins:
+            errors.append(f"{where}: {file} is not pinned")
+        if not gets.get(file, "").startswith(RUST_DIST):
+            errors.append(f"{where}: {file} is not fetched from {RUST_DIST}")
+    return errors
+
+
+PANIC_FLAG = re.compile(r"-C\s*panic\b")
+PANIC_KEY = re.compile(r"^\s*panic\s*=", re.M)
+STEP_52 = "scripts/steps/52_rust.sh"
+STEP_52_PANIC = "-Cpanic=$RUST_PANIC"
+
+
+def panic_switch_errors(conf: str, texts: dict[str, str]) -> list[str]:
+    """RUST_PANIC is unwind or abort, and the only panic setting under recipes/rust/ and scripts/
+    (`texts`: path -> text) is step 52's one `-Cpanic=$RUST_PANIC`."""
+    m = re.search(r"^RUST_PANIC=(\S*)$", conf, re.M)
+    errors = (
+        []
+        if m and m[1] in ("unwind", "abort")
+        else ["line.conf: RUST_PANIC is not unwind or abort"]
+    )
+    for rel, text in sorted(texts.items()):
+        code = text
+        if rel.endswith((".sh", ".toml")) or "/" not in rel:
+            code = "\n".join(
+                line for line in text.splitlines() if not line.lstrip().startswith("#")
+            )
+        flags = PANIC_FLAG.findall(code)
+        if rel == STEP_52:
+            if flags != ["-Cpanic"] or code.count(STEP_52_PANIC) != 1:
+                errors.append(f"{rel}: not exactly one {STEP_52_PANIC}")
+        elif flags:
+            errors.append(f"{rel}: sets -Cpanic; only step 52 passes RUST_PANIC")
+        if rel.endswith(".toml") and PANIC_KEY.search(code):
+            errors.append(f"{rel}: a panic key; only step 52 passes RUST_PANIC")
+    return errors
+
+
+# What step 52's code must hold, each with why.
+STEP_52_WORDS = {
+    "--frozen --offline": "its cargo build runs frozen and offline",
+    'CH="$R/cargo-home"': "its cargo home is under build/",
+    'CARGO_HOME="$CH"': "cargo runs with that cargo home",
+    'cat > "$CH/config.toml"': "the source replacement is the cargo home's config.toml",
+    'CARGO_ENCODED_RUSTFLAGS="$RUSTFLAGS_TARGET"': "its flags go by CARGO_ENCODED_RUSTFLAGS",
+    'cd "$B"': "cargo runs from build/",
+    '.cargo/config.toml"': "an ancestor's .cargo/config.toml stops the step",
+    "unset RUSTFLAGS RUSTC_WRAPPER RUSTC_WORKSPACE_WRAPPER": "the host's Rust settings are unset",
+    "CARGO_BUILD_": "every CARGO_BUILD_* is unset",
+    "CARGO_PROFILE_": "every CARGO_PROFILE_* is unset",
+    '"$OBJS" keep ': "the archive keeps only the crates' own objects",
+    '"$OBJS" imports ': "its direct WASI imports are routed through the shim",
+    '"$OBJS" inits ': "it defines exactly modules.txt's init functions",
+    '"$OBJS" foreign ': "it defines none of the runtime's names",
+}
+# Each cargo command step 52 runs: `"$RUST/bin/cargo" <command>`.
+CARGO_CALL = re.compile(r'/bin/cargo"\s+([a-z-]+)')
+# What steps 60 and 80 must run, each failing the step.
+GATE_WORDS = {
+    "scripts/steps/60_link.sh": ('"$HERE/scripts/rust_objects.py" link-map', "check_imports "),
+    "scripts/steps/80_snapshot.sh": ("check_imports ",),
+    "scripts/steps/constructors.sh": ("-m harness.import_list",),
+}
+
+
+def rust_step_errors(texts: dict[str, str | None]) -> list[str]:
+    """Step 52 builds offline with the host's Rust settings out and runs the archive's four gates;
+    step 60 runs the link-map gate and both binaries' import gate. A gate's line must fail the
+    step: it ends in `|| { … die …; }` or `|| … die`, or is a function whose failure exits."""
+    errors = []
+    s52 = texts.get(STEP_52)
+    if s52 is None:
+        return [f"{STEP_52} is missing"]
+    code = "\n".join(line for line in s52.splitlines() if not line.lstrip().startswith("#"))
+    for word, why in STEP_52_WORDS.items():
+        if word not in code:
+            errors.append(f"{STEP_52}: no {word!r}: {why}")
+    for line in code.splitlines():
+        call = CARGO_CALL.search(line)
+        if call and "--frozen --offline" not in line[call.end() :]:
+            errors.append(f"{STEP_52}: cargo {call[1]} does not run --frozen --offline")
+    for word in ('"$OBJS" keep ', '"$OBJS" imports ', '"$OBJS" inits ', '"$OBJS" foreign '):
+        at = code.find(word)
+        if (
+            at >= 0
+            and "die " not in code[at : code.find("\n\n", at) if "\n\n" in code[at:] else None]
+        ):
+            errors.append(f"{STEP_52}: {word.strip()} does not fail the step")
+    for rel, words in GATE_WORDS.items():
+        text = texts.get(rel)
+        if text is None:
+            errors.append(f"{rel} is missing")
+            continue
+        body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+        errors += [f"{rel}: does not run {w.strip()}" for w in words if w not in body]
+    return errors
+
+
+def orjson_version_errors(lock: str, orjson_lock: str) -> list[str]:
+    """Each crate of orjson's own Cargo.lock that recipes/rust/Cargo.lock names is there at
+    orjson's version too: the umbrella builds orjson against what orjson was released with. A
+    second version the umbrella's own crates bring (PyO3's macros' syn 2) may stand beside it."""
+    ours: dict[str, set[str]] = {}
+    for p in lock_packages(lock):
+        ours.setdefault(p["name"], set()).add(p["version"])
+    errors = []
+    for p in lock_packages(orjson_lock):
+        if p.get("source") != CRATES_IO or p["name"] not in ours:
+            continue
+        if p["version"] not in ours[p["name"]]:
+            errors.append(
+                f"{p['name']}: orjson's Cargo.lock names {p['version']}, "
+                f"recipes/rust/Cargo.lock {', '.join(sorted(ours[p['name']]))}"
+            )
+    return errors
+
+
+def rust_package_row_errors(
+    assemble_packages: Iterable[str], harness_packages: Iterable[str]
+) -> list[str]:
+    """orjson, rust-std and pyo3 are MANIFEST packages in both tables, or step 90's snapshot rows
+    and the licence notices have no package to name."""
+    a, h = set(assemble_packages), set(harness_packages)
+    return [
+        f"{name}: not in {where}'s PACKAGES"
+        for name in ("orjson", "rust-std", "pyo3")
+        for where, have in (("scripts/assemble_artifacts.py", a), ("tests/harness/paths.py", h))
+        if name not in have
+    ]
