@@ -1633,24 +1633,28 @@ if [ "$(ls dist)" != "$want" ]; then
   exit 1
 fi
 """
-# The read-back after the upload, and the rehearsal of it on every release-shaped run.
+# The read-back after the upload, and the rehearsal of it on every release-shaped run. The
+# read-back writes the wheel's address on PyPI's file host, from the JSON API it judged, and the
+# signature check verifies the bytes at that address: a `pypi:` name would send the verifier to
+# the Simple API, whose page can lag the JSON API after an upload (0.1.4's tag run).
 LOCKED_TREE = "uv run --locked --no-dev --project attest-action python -I"
-READBACK_CHECK = """set -eu
+READBACK_URL = "pypi-wheel-url"
+READBACK_CHECK = f"""set -eu
 python3 -I release/pypi_readback.py check --sums release-assets/SHA256SUMS \\
-  --repository "$GITHUB_REPOSITORY" --version "${GITHUB_REF_NAME#v}"
+  --repository "$GITHUB_REPOSITORY" --version "${{GITHUB_REF_NAME#v}}" --url-out {READBACK_URL}
 """
 READBACK_VERIFY = f"""set -eu
-wheel=$(cd release-assets && ls -- *.whl)
+url=$(cat {READBACK_URL})
 {LOCKED_TREE} -m pypi_attestations \\
-  verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "pypi:$wheel"
+  verify pypi --repository "https://github.com/$GITHUB_REPOSITORY" "$url"
 """
 REHEARSAL_RUNS = (
     f'{LOCKED_TREE} -c "import pypi_attestations, sigstore"',
-    "python3 -I release/pypi_readback.py rehearse",
+    f"python3 -I release/pypi_readback.py rehearse --url-out {READBACK_URL}",
     f"""set -eu
+url=$(cat {READBACK_URL})
 {LOCKED_TREE} -m pypi_attestations \\
-  verify pypi --repository https://github.com/ClayGendron/wasi-python \\
-  pypi:wasi_python-0.1.1-py3-none-any.whl
+  verify pypi --repository https://github.com/ClayGendron/wasi-python "$url"
 """,
     # The upload's staging and uv's choice of files, on the build's wheel with a stand-in
     # attestation, by a dry run with no token.
