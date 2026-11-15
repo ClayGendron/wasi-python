@@ -2551,7 +2551,7 @@ import asyncio, signal, sys, tempfile
 sys.path.insert(0, sys.argv[2])
 import wasi_python
 from harness.files import MemoryProvider
-from wasi_python import Mount, runner
+from wasi_python import Mount, _entry
 
 case = sys.argv[1]
 provider = MemoryProvider({})
@@ -2590,7 +2590,7 @@ elif case == "a Ctrl-C in the walk":
 else:  # the exit hook stops a run_async call, called directly as its check does
 
     def host(frame):
-        runner._stop_async_calls()
+        _entry._stop_async_calls()
         return b""
 
     code = dirty + "_host.call(b'x')\nwhile True:\n    pass\n"

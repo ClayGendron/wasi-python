@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pytest
 
 from harness import needs
-from wasi_python import _call, _home, _limits, _platform, runner
+from wasi_python import _call, _entry, _home, _limits, _platform, runner
 from wasi_python._process import process
 
 STOP = 77  # what the fake error maker returns
@@ -258,11 +258,11 @@ def test_a_replaced_pool_is_dropped_once_its_futures_are_done(monkeypatch) -> No
     try:
         for size in (1, 2, 3, 2):
             wasi_python.set_defaults(dataclasses.replace(before, async_workers=size))
-            assert runner._submit(None, abs, -size).result() == size
+            assert _entry._submit(None, runner._current_defaults, abs, -size).result() == size
             replaced.append(process().pool)
         for pool in replaced[:-1]:
             pool.shutdown(wait=True)  # its workers have run every callback
-        assert runner._submit(None, abs, -5).result() == 5  # the next submit, at the same size
+        assert _entry._submit(None, runner._current_defaults, abs, -5).result() == 5  # same size
     finally:
         wasi_python.set_defaults(before)
     assert list(process().pools) == [replaced[-1]]

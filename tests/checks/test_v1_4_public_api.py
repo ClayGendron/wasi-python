@@ -362,7 +362,7 @@ def _defaults_loads(path: Path) -> list[str]:
 
 def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     import wasi_python
-    from wasi_python import _artifacts, _limits, runner
+    from wasi_python import _artifacts, _entry, _limits, runner
     from wasi_python._process import process
 
     # The runner reads its defaults only through `_current_defaults`, so the count of its calls
@@ -393,7 +393,10 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
         lock.swap = None
         assert wasi_python.defaults() is new
         unset = _limits._UNSET
-        checked = runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None)
+        read = runner._current_defaults()
+        checked = _entry._checked(
+            ["-c", "pass"], None, None, None, unset, unset, unset, None, limits=read
+        )
         assert checked.memory_bytes == new.memory_bytes
         for wrong in (None, {}):
             with pytest.raises(TypeError):
