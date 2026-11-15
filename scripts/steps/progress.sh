@@ -192,7 +192,8 @@ progress_refuse() { # reason: the preflight's one ERROR line, then exit 1
 
 # Before any step, in a second: the host key (scripts/line.sh), the host tools on PATH (curl is
 # checked by the download step, where it fetches), and on a first build (no build/tools yet) at
-# least 2.5 GiB free under build/: its own folders took 1.77 GiB.
+# least 3.5 GiB free under build/: its own folders took 1.77 GiB, and Rust's toolchain and target
+# folder add about 1 GiB.
 progress_preflight() {
   _p_key=$( (. "$HERE/scripts/line.sh" && printf '%s' "$HOST_KEY") 2>&1 ) \
     || progress_refuse "$(printf '%s\n' "$_p_key" | tail -n 1 | sed 's/^ERROR: //')"
@@ -211,8 +212,8 @@ progress_preflight() {
   _p_kib=$(df -Pk "$_p_dir" 2> /dev/null | awk 'NR == 2 { print $4 }')
   case "$_p_kib" in ''|*[!0-9]*) progress_refuse "df -Pk gives no free space for $_p_dir";; esac
   _p_gib=$(awk -v k="$_p_kib" 'BEGIN { printf "%.1f", k / 1048576 }')
-  if [ ! -d "$HERE/build/tools" ] && [ "$_p_kib" -lt 2621440 ]; then
-    progress_refuse "$_p_gib GiB free under build/; a first build needs 2.5 GiB"
+  if [ ! -d "$HERE/build/tools" ] && [ "$_p_kib" -lt 3670016 ]; then
+    progress_refuse "$_p_gib GiB free under build/; a first build needs 3.5 GiB"
   fi
   progress_say "preflight: $_p_key; $_p_n tools; $_p_gib GiB free"
 }

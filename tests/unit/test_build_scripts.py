@@ -1070,6 +1070,27 @@ def test_the_inittab_registers_each_module_through_its_package_context(
     assert not [f for f in registered.values() if f.startswith("PyInit_")], text
 
 
+def test_the_inittab_registers_the_rust_modules_by_their_named_init(tmp_path, monkeypatch) -> None:
+    """A `--rust` entry has no archive to be found by: it is registered under its dotted name with
+    the init function it names, and its init function is covered by the clash check."""
+    import gen_inittab
+
+    out = tmp_path / "inittab.c"
+    argv = ["gen_inittab.py", "--rust", "orjson.orjson=PyInit_orjson", "--rust"]
+    argv += ["_rust_probe=PyInit__rust_probe", str(out)]
+    monkeypatch.setattr(sys, "argv", argv)
+    gen_inittab.main()
+    text = out.read_text()
+    assert 'PyImport_AppendInittab("orjson.orjson", ctx_0);' in text, text
+    assert 'PyImport_AppendInittab("_rust_probe", ctx_1);' in text, text
+    assert "extern PyObject *PyInit__rust_probe(void);" in text, text
+    clash = ["--rust", "a=PyInit_x", "--rust", "b=PyInit_x"]
+    for bad in (["--rust", "orjson.orjson=orjson"], clash):
+        monkeypatch.setattr(sys, "argv", ["gen_inittab.py", *bad, str(out)])
+        with pytest.raises(SystemExit):
+            gen_inittab.main()
+
+
 RECIPE_ONE = '#ifndef PREIMPORT\n#define PREIMPORT "import encodings, io, os"\n#endif\n'
 
 

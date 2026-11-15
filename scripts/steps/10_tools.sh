@@ -4,7 +4,7 @@
 # versioneer, pkgconf) from their pinned wheels: offline, with their hashes (pkgconf
 # for matplotlib), and the build host's numpy, for f2py alone. On x86_64 Linux, put
 # the arm64 Linux SDK's clang, under the pinned qemu-aarch64, behind the native SDK's clang, and
-# stop unless it is in place.
+# stop unless it is in place. Unpack Rust's toolchain from its five pinned tarballs.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -228,4 +228,28 @@ printf 'numpy==2.5.4 --hash=sha256:%s\n' "$sha" > "$B/f2py-requirements.txt"
 uv pip install --python "$HOSTPY" --target "$F2PY" --offline --no-index --find-links "$B/wheelhouse" --require-hashes -r "$B/f2py-requirements.txt"
 f2py_version=$(PYTHONPATH="$F2PY" "$HOSTPY" -s -c 'import numpy; print(numpy.__version__)')
 [ "$f2py_version" = 2.5.4 ] || die "build/tools/f2py-numpy holds numpy $f2py_version, not 2.5.4"
+# Rust (step 52): the compiler, cargo and the host's standard library for build scripts and proc
+# macros, rust-src for the standard library step 52 rebuilds, and the wasip1 standard library for
+# its self-contained crt and libc. Each tarball's `components` file names its component folders,
+# copied into build/tools/rust/. No install.sh is run: that is a script from a download.
+RUST="$T/rust"
+remove "$RUST" "$B/rust-unpack"
+mkdir -p "$RUST" "$B/rust-unpack"
+for archive in "$RUSTC_ARCHIVE" "$CARGO_ARCHIVE" "$RUST_STD_ARCHIVE" "$RUST_SRC_ARCHIVE" "$RUST_STD_WASIP1_ARCHIVE"; do
+  top="$B/rust-unpack/${archive%.tar.xz}"
+  tar -xJf "$(pinned "$archive")" -C "$B/rust-unpack"
+  [ -f "$top/components" ] || die "$archive did not unpack to build/rust-unpack/${archive%.tar.xz} with a components file"
+  for c in $(cat "$top/components"); do
+    case "$c" in *[!a-z0-9_.-]*) die "$archive names a component $c";; esac
+    [ -d "$top/$c" ] || die "$archive names a component $c it does not hold"
+    cp -R "$top/$c/." "$RUST/"
+  done
+done
+rm -f "$RUST/manifest.in"
+remove "$B/rust-unpack"
+rustc_v=$("$RUST/bin/rustc" -V)
+cargo_v=$("$RUST/bin/cargo" -V)
+[ "$rustc_v" = "rustc $RUST_VERSION (0ef1bc386 2026-11-09)" ] || die "build/tools/rust's rustc is $rustc_v"
+[ "$cargo_v" = "cargo $RUST_VERSION (3acc79c0c 2026-11-05)" ] || die "build/tools/rust's cargo is $cargo_v"
+echo "rust: $rustc_v, $cargo_v, $(du -sk "$RUST" | cut -f1) KiB"
 echo "tools: python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), meson $(meson --version), ninja $(ninja --version), cython $(cython --version 2>&1 | cut -d' ' -f3), pkgconf $("$PKGCONF" --version), f2py numpy $f2py_version"

@@ -2,7 +2,8 @@
 on CPython's inittab under its dotted import name, derived from the archive's path under its meson
 build directory.
 
-    gen_inittab.py [--against <CPython's Modules/config.c>] <out.c> <package>=<meson build dir> ...
+    gen_inittab.py [--against <CPython's Modules/config.c>] [--rust <dotted>=PyInit_<name>] ...
+        <out.c> <package>=<meson build dir> ...
 
 Builtin lookup compares the full dotted name (Python/import.c, is_builtin), so
 `numpy._core._multiarray_umath` resolves to a builtin from inside the numpy package. Test-only
@@ -30,6 +31,10 @@ module (regex's `_regex`) would keep its short name and pickle would look for a 
 Multi-phase modules return a definition and never read the context. The
 one internal function is declared here, as Include/internal/pycore_import.h declares it; step 60
 stops if the pinned header no longer does.
+
+`--rust` names one module of the Rust static library (one line of recipes/rust/modules.txt): its
+dotted import name and its init function, which has no archive of its own to be found by. It is
+registered as every entry is, and the clash and `--against` checks cover it.
 """
 
 import re
@@ -121,6 +126,14 @@ def modules(package: str, build_dir: Path) -> list[tuple[str, str]]:
     return found
 
 
+def rust_entry(arg: str) -> tuple[str, str]:
+    """(dotted name, the name after PyInit_) from `<dotted>=PyInit_<name>`."""
+    dotted, _, init = arg.partition("=")
+    if not dotted or not init.startswith("PyInit_") or len(init) == len("PyInit_"):
+        raise SystemExit(f"--rust {arg}: not <dotted>=PyInit_<name>")
+    return dotted, init[len("PyInit_") :]
+
+
 def builtin_inits(config_c: Path) -> set[str]:
     """The names after PyInit_ of the builtins CPython's own config.c registers."""
     return set(re.findall(r"\bPyInit_(\w+)\(", config_c.read_text()))
@@ -129,11 +142,14 @@ def builtin_inits(config_c: Path) -> set[str]:
 def main() -> None:
     args = sys.argv[1:]
     against: set[str] = set()
-    if args[:1] == ["--against"]:
-        against = builtin_inits(Path(args[1]))
+    entries = []
+    while args[:1] in (["--against"], ["--rust"]):
+        if args[0] == "--against":
+            against = builtin_inits(Path(args[1]))
+        else:
+            entries.append(rust_entry(args[1]))
         args = args[2:]
     out = Path(args[0])
-    entries = []
     for arg in args[1:]:
         package, _, build_dir = arg.partition("=")
         entries += modules(package, Path(build_dir))
