@@ -98,7 +98,7 @@ def test_a_panic_in_c_ends_the_run_with_its_message(guest, which) -> None:
     out of it: the call ends as the trap `unreachable` with the message on stderr, under either
     panic strategy, and a new run starts clean."""
     r = guest(which, ["-c", "import _rust_probe\n_rust_probe.panic_in_c('probe in c')"])
-    assert r.trapped is not None and "unreachable" in r.trapped, r.describe()
+    assert r.trapped is not None and "unreachable" in (r.trap_cause or ""), r.describe()
     assert b"probe in c" in r.stderr, r.describe()
     again = guest(which, ["-c", "import orjson\nprint(orjson.dumps(1).decode())"])
     assert (again.exit_code, again.trapped, again.text) == (0, None, "1\n"), again.describe()
