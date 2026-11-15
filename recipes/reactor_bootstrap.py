@@ -103,6 +103,9 @@ def _refresh(unbuffered):
     sympy_random = sys.modules.get("sympy.core.random")
     if sympy_random is not None:
         sympy_random.seed()  # its two module-level generators
+    fake = sys.modules.get("faker.generator")
+    if fake is not None:
+        fake.random.seed()  # the generator every Faker() not seeded by its own draws from
     recipes = sys.modules.get("more_itertools.recipes")
     if recipes is not None:
         recipes._private_randrange.__self__.seed()  # is_prime's private generator
@@ -348,6 +351,8 @@ def run(argv, environ):
 # Sessions (spec 055, Decision 3): one interpreter across turns.
 _turns = 0  # the turns run in this instance: each one's code is named <turn N>
 _quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
+
+
 def _setup(environ):
     """The first turn's setup, once and unnumbered: the environment, the import path from argv,
     argv as the interactive interpreter has it, exit() and quit() rebound, the reseed, and the
