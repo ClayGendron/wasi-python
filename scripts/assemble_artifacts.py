@@ -496,6 +496,8 @@ PURE_NOTICES = {
     "pygments": (
         ("pygments/lexers/robotframework.py", 11, 23, ("Nokia Siemens Networks", "Apache")),
         ("pygments/styles/solarized.py", 5, 8, ("Solarized", "licensed under MIT")),
+        ("pygments/formatters/terminal256.py", 7, 9, ("xterm256-conv", "Wolfgang Frisch")),
+        ("pygments/lexers/configs.py", 1130, 1130, ("adapted from CPython's tomllib",)),
     ),
     "faker": (
         ("faker/providers/geo/__init__.py", 13, 13, ("geonames.org", "Attribution 3.0")),
@@ -636,6 +638,12 @@ CFFI_CLOSURE_NOTICE = """\
 src/c/malloc_closure.h, compiled into cffi's C backend, is from CPython's Modules/_ctypes
 (malloc_closure.c), with edits, as its head comment says. It is under the Python Software
 Foundation License, whose text is in LICENSES/cpython.txt.
+"""
+# Pygments' TOML lexer adapts CPython's tomllib, which the PSF licence covers.
+PYGMENTS_TOMLLIB_NOTICE = """\
+pygments/lexers/configs.py's TOML patterns are adapted from CPython's tomllib, as the line above
+says. tomllib is under the Python Software Foundation License, whose text is in
+LICENSES/cpython.txt.
 """
 GPL_TEXT = "spdx-31ba1a50-GPL-3.0-only.txt"
 CAIROSVG_FACTS = """\
@@ -1151,7 +1159,8 @@ def faker_parts(d: Path) -> list[tuple[str, bytes]]:
 
 def pygments_parts(d: Path) -> list[tuple[str, bytes]]:
     """Pygments' notices beyond its licence: its AUTHORS, which its licence names, the Robot
-    Framework lexer's Apache-2.0 notice with that licence's text, and the Solarized style's."""
+    Framework lexer's Apache-2.0 notice with that licence's text, the Solarized style's, the
+    terminal formatter's line naming xterm256-conv, and the TOML lexer's tomllib, under PSF."""
     apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
     wheel = WHEELS["pygments"]
     with zipfile.ZipFile(io.BytesIO(pinned_bytes(d, wheel))) as z:
@@ -1159,6 +1168,7 @@ def pygments_parts(d: Path) -> list[tuple[str, bytes]]:
     return [
         (f"{wheel}: pygments-2.21.0.dist-info/licenses/AUTHORS", authors),
         *pure_notice_parts(d, "pygments"),
+        ("pygments/lexers/configs.py and CPython's tomllib", PYGMENTS_TOMLLIB_NOTICE.encode()),
         (
             f"Apache License 2.0, the full text, for pygments/lexers/robotframework.py ({apache})",
             pinned_bytes(d, apache),
