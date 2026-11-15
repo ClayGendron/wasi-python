@@ -20,4 +20,7 @@ FLAGS="-W exceptions=y,unknown-imports-trap=y -S cli=y,inherit-stdin=n,inherit-s
 echo "wasmtime wizer $FLAGS --dir <root with $ZIP>::/ -o python-snapshot.wasm python.wasm" \
   > "$OUT/wizer-command.txt"
 "$T/$WASMTIME_DIR/wasmtime" wizer $FLAGS --dir "$ROOT::/" -o "$OUT/python-snapshot.wasm" "$OUT/python.wasm"
+# The snapshot asks its host what the reactor asks: exactly recipes/guest-imports.txt.
+. "$HERE/scripts/steps/constructors.sh"
+check_imports "$OUT/python-snapshot.wasm" "$B/wizer-imports.log"
 echo "snapshot: $(wc -c < "$OUT/python-snapshot.wasm" | tr -d ' ') bytes, $(shasum -a 256 "$OUT/python-snapshot.wasm" | cut -c1-16)"

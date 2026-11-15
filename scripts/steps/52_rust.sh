@@ -104,6 +104,23 @@ RUSTFLAGS_TARGET="-Cpanic=$RUST_PANIC${US}-Clink-arg=--allow-undefined${US}--rem
     "$RUST/bin/cargo" build --release --frozen --offline --target wasm32-wasip1 \
     "-Zbuild-std=std,panic_$RUST_PANIC" -p wasi_python_rust
 ) > "$R/cargo.log" 2>&1 || { tail -n 20 "$R/cargo.log"; die "cargo build failed (build/rust/cargo.log)"; }
+# The crates whose code the library holds, for their notices (scripts/assemble_artifacts.py): the
+# build graph cargo resolves for wasm32-wasip1, ours and the standard library's, proc macros and
+# path crates left out. LTO's result cannot be read back crate by crate, so the graph is the list.
+tree_of() { # working folder, package, features...
+  (
+    cd "$1"
+    env CARGO_HOME="$CH" CARGO_TARGET_DIR="$TARGET" RUSTC="$RUST/bin/rustc" RUSTC_BOOTSTRAP=1 \
+      PYO3_CONFIG_FILE="$R/pyo3.cfg" "$RUST/bin/cargo" tree --frozen --offline -e normal,no-proc-macro \
+      --target wasm32-wasip1 --prefix none --format '{p}' -p "$2" ${3:+--features "$3"}
+  ) 2>> "$R/cargo.log" | sed -n 's/^\([A-Za-z0-9_-]*\) v\([^ ]*\)\( (\*)\)\{0,1\}$/\1 \2/p'
+}
+# std's panic-unwind feature is what -Zbuild-std=std,panic_unwind turns on; abort needs none.
+STD_FEATURES=""
+[ "$RUST_PANIC" = abort ] || STD_FEATURES=panic-unwind
+{ tree_of "$B" wasi_python_rust; tree_of "$RUST/lib/rustlib/src/rust/library" std "$STD_FEATURES"; } \
+  | sort -u > "$R/linked-crates.txt"
+[ -s "$R/linked-crates.txt" ] || die "cargo tree named no crate (build/rust/cargo.log)"
 LIB="$TARGET/wasm32-wasip1/release/libwasi_python_rust.a"
 [ -s "$LIB" ] || die "cargo wrote no target/wasm32-wasip1/release/libwasi_python_rust.a"
 
