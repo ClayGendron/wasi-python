@@ -736,11 +736,17 @@ A_WASMTIME_DIR=wt-a
 A_HOST_PYTHON_ARCHIVE=py-a.tar.gz
 A_CYTHON_WHEEL=cy-a.whl
 A_NINJA_WHEEL=ninja-a.whl
+A_RUSTC_ARCHIVE=rustc-a.tar.xz
+A_CARGO_ARCHIVE=cargo-a.tar.xz
+A_RUST_STD_ARCHIVE=std-a.tar.xz
 B_WASI_SDK_DIR=sdk-b
 B_WASMTIME_DIR=wt-b
 B_HOST_PYTHON_ARCHIVE=py-b.tar.gz
 B_CYTHON_WHEEL=cy-b.whl
 B_NINJA_WHEEL=ninja-b.whl
+B_RUSTC_ARCHIVE=rustc-b.tar.xz
+B_CARGO_ARCHIVE=cargo-b.tar.xz
+B_RUST_STD_ARCHIVE=std-b.tar.xz
 """
 HOST_DOWNLOAD = """get() { :; }
 case "$HOST_KEY" in
@@ -750,6 +756,9 @@ case "$HOST_KEY" in
     get https://x/py-a.tar.gz py-a.tar.gz
     get https://x/cy-a.whl cy-a.whl
     get https://x/ninja-a.whl ninja-a.whl
+    get https://x/rustc-a.tar.xz rustc-a.tar.xz
+    get https://x/cargo-a.tar.xz cargo-a.tar.xz
+    get https://x/std-a.tar.xz std-a.tar.xz
     ;;
   B)
     get https://x/sdk-b.tar.gz sdk-b.tar.gz
@@ -757,6 +766,9 @@ case "$HOST_KEY" in
     get https://x/py-b.tar.gz py-b.tar.gz
     get https://x/cy-b.whl cy-b.whl
     get https://x/ninja-b.whl ninja-b.whl
+    get https://x/rustc-b.tar.xz rustc-b.tar.xz
+    get https://x/cargo-b.tar.xz cargo-b.tar.xz
+    get https://x/std-b.tar.xz std-b.tar.xz
     ;;
 esac
 get https://x/meson.whl meson.whl
@@ -770,6 +782,9 @@ HOST_PINS = [
         ("py", ".tar.gz"),
         ("cy", ".whl"),
         ("ninja", ".whl"),
+        ("rustc", ".tar.xz"),
+        ("cargo", ".tar.xz"),
+        ("std", ".tar.xz"),
     )
 ]
 
@@ -779,7 +794,7 @@ def _host_table(conf=HOST_CONF, sh=("A", "B"), py=("A", "B"), download=HOST_DOWN
 
 
 def test_host_table_passes_a_whole_table() -> None:
-    assert scan.host_case_branches(HOST_DOWNLOAD)["B"][-1] == "ninja-b.whl"
+    assert scan.host_case_branches(HOST_DOWNLOAD)["B"][-1] == "std-b.tar.xz"
     assert _host_table() == []
 
 

@@ -1036,7 +1036,7 @@ def test_the_id_guard_refuses_a_missing_id(case, tmp_path) -> None:
 
 
 def test_every_build_host_has_its_whole_table() -> None:
-    """Each build host names its five inputs in scripts/line.conf; each is pinned and fetched in
+    """Each build host names its eight inputs in scripts/line.conf; each is pinned and fetched in
     that host's own branch of the download script; and the four files know the same hosts."""
     import importlib.util
 

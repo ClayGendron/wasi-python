@@ -705,7 +705,16 @@ def release_attestation_errors(text: str) -> list[str]:
 # ---------------------------------------------------------------------------------------------
 # The build hosts
 
-HOST_NAMES = ("WASI_SDK_DIR", "WASMTIME_DIR", "HOST_PYTHON_ARCHIVE", "CYTHON_WHEEL", "NINJA_WHEEL")
+HOST_NAMES = (
+    "WASI_SDK_DIR",
+    "WASMTIME_DIR",
+    "HOST_PYTHON_ARCHIVE",
+    "CYTHON_WHEEL",
+    "NINJA_WHEEL",
+    "RUSTC_ARCHIVE",
+    "CARGO_ARCHIVE",
+    "RUST_STD_ARCHIVE",
+)
 # The file in downloads/ each host name stands for: a directory name is its tarball's stem.
 HOST_FILE = {"WASI_SDK_DIR": "{}.tar.gz", "WASMTIME_DIR": "{}.tar.xz"}
 CONF_HOST_LINE = re.compile(rf"^([A-Z][A-Z0-9_]*?)_({'|'.join(HOST_NAMES)})=(\S+)$", re.M)
@@ -738,7 +747,7 @@ def host_case_branches(text: str) -> dict[str, list[str]]:
 def host_table_errors(
     conf: str, sh_keys: Iterable[str], py_keys: Iterable[str], download: str, pinned: Iterable[str]
 ) -> list[str]:
-    """Every build host has all five host names in `line.conf`; each names a pinned file that the
+    """Every build host has all its host names in `line.conf`; each names a pinned file that the
     download script fetches in that host's own `case` branch; and `line.conf`, `line.sh`,
     `line.py` and `00_download.sh` know the same hosts."""
     pinned = set(pinned)

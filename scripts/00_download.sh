@@ -112,6 +112,11 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/47/c0/d0b335a499a04b65f532c3f034346ef390f81299060f928492dabc1e0272/numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl
     # cffi for the build host, which writes cairocffi's bindings as C at build time
     get https://files.pythonhosted.org/packages/0c/75/2f5207ff6d1a613133b23a5203cc0c2a628313b5eb3974d7956ae3c57950/cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl
+    # Rust's compiler, cargo and the host's standard library, from Rust's dist server (the
+    # channel manifest of 2026-11-12)
+    get https://static.rust-lang.org/dist/2026-11-12/rustc-1.100.0-aarch64-apple-darwin.tar.xz rustc-1.100.0-aarch64-apple-darwin.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/cargo-1.100.0-aarch64-apple-darwin.tar.xz cargo-1.100.0-aarch64-apple-darwin.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-aarch64-apple-darwin.tar.xz rust-std-1.100.0-aarch64-apple-darwin.tar.xz
     ;;
   LINUX_AARCH64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-linux.tar.gz wasi-sdk-34.0-arm64-linux.tar.gz
@@ -123,6 +128,11 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/b3/02/5dad269b02166965a7b4ca14adaddd75dbee0de42435bfecf561b84ba5a6/numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
     # cffi for the build host, which writes cairocffi's bindings as C at build time
     get https://files.pythonhosted.org/packages/e2/31/9e1313b0a6e30e91b3b3d3fff51ae99c857c07738e3afcce1f7334e1b7ab/cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
+    # Rust's compiler, cargo and the host's standard library, from Rust's dist server (the
+    # channel manifest of 2026-11-12)
+    get https://static.rust-lang.org/dist/2026-11-12/rustc-1.100.0-aarch64-unknown-linux-gnu.tar.xz rustc-1.100.0-aarch64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/cargo-1.100.0-aarch64-unknown-linux-gnu.tar.xz cargo-1.100.0-aarch64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-aarch64-unknown-linux-gnu.tar.xz rust-std-1.100.0-aarch64-unknown-linux-gnu.tar.xz
     ;;
   LINUX_X86_64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz wasi-sdk-34.0-x86_64-linux.tar.gz
@@ -134,6 +144,11 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/93/3a/01360c8036822ed9f7aa32189a77d1476567ec1e8e1383522389e4faac45/numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
     # cffi for the build host, which writes cairocffi's bindings as C at build time
     get https://files.pythonhosted.org/packages/44/16/29e6d01b388bef055ecd6ca8244b3f4d336bd09e92d5d892187b9601084e/cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+    # Rust's compiler, cargo and the host's standard library, from Rust's dist server (the
+    # channel manifest of 2026-11-12)
+    get https://static.rust-lang.org/dist/2026-11-12/rustc-1.100.0-x86_64-unknown-linux-gnu.tar.xz rustc-1.100.0-x86_64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/cargo-1.100.0-x86_64-unknown-linux-gnu.tar.xz cargo-1.100.0-x86_64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-x86_64-unknown-linux-gnu.tar.xz rust-std-1.100.0-x86_64-unknown-linux-gnu.tar.xz
     # The fallback's compiler: the arm64 Linux
     # SDK's clang, under Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries
     # that clang loads, each a snapshot.debian.org URL, which does not change when Debian moves on.
@@ -152,6 +167,10 @@ esac
 # compiler-rt builtins, laid in place of the host tarball's own by step 10.
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sysroot-34.0.tar.gz wasi-sysroot-34.0.tar.gz
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libclang_rt-34.0.tar.gz libclang_rt-34.0.tar.gz
+# Rust's standard library's source, rebuilt for the guest, and the guest's shipped standard library,
+# the same bytes for each host (the channel manifest of 2026-11-12)
+get https://static.rust-lang.org/dist/2026-11-12/rust-src-1.100.0.tar.xz rust-src-1.100.0.tar.xz
+get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-wasm32-wasip1.tar.xz rust-std-1.100.0-wasm32-wasip1.tar.xz
 
 # Sources
 get https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz Python-3.15.2.tar.xz
@@ -165,6 +184,39 @@ get https://sqlite.org/2026/sqlite-autoconf-3540100.tar.gz sqlite-autoconf-35401
 get https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz zstd-1.5.7.tar.gz
 # regex: its sdist, whose two C files are compiled and whose package goes in the zip
 get https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz regex-2026.9.29.tar.gz
+# orjson: its sdist, whose Rust and vendored C (yyjson) step 52 compiles and whose package goes in
+# the zip
+get https://files.pythonhosted.org/packages/f2/72/380b97dc45bd162d23afe5194721ef678d9eac7cfaa549fe2873f7f0a518/orjson-3.13.0.tar.gz orjson-3.13.0.tar.gz
+# The Rust crates recipes/rust/Cargo.lock names, each the .crate file crates.io serves, its SHA-256
+# the lock's checksum
+get https://static.crates.io/crates/associative-cache/associative-cache-3.0.1.crate associative-cache-3.0.1.crate
+get https://static.crates.io/crates/bytecount/bytecount-0.6.9.crate bytecount-0.6.9.crate
+get https://static.crates.io/crates/cc/cc-1.6.0.crate cc-1.6.0.crate
+get https://static.crates.io/crates/find-msvc-tools/find-msvc-tools-0.1.14.crate find-msvc-tools-0.1.14.crate
+get https://static.crates.io/crates/gimli/gimli-0.34.0.crate gimli-0.34.0.crate
+get https://static.crates.io/crates/heck/heck-0.5.0.crate heck-0.5.0.crate
+get https://static.crates.io/crates/itoap/itoap-1.0.1.crate itoap-1.0.1.crate
+get https://static.crates.io/crates/jiff-core/jiff-core-0.1.1.crate jiff-core-0.1.1.crate
+get https://static.crates.io/crates/libc/libc-0.2.190.crate libc-0.2.190.crate
+get https://static.crates.io/crates/no-panic/no-panic-0.1.37.crate no-panic-0.1.37.crate
+get https://static.crates.io/crates/once_cell/once_cell-1.21.4.crate once_cell-1.21.4.crate
+get https://static.crates.io/crates/portable-atomic/portable-atomic-1.15.0.crate portable-atomic-1.15.0.crate
+get https://static.crates.io/crates/proc-macro2/proc-macro2-1.0.107.crate proc-macro2-1.0.107.crate
+get https://static.crates.io/crates/pyo3/pyo3-0.29.3.crate pyo3-0.29.3.crate
+get https://static.crates.io/crates/pyo3-build-config/pyo3-build-config-0.29.3.crate pyo3-build-config-0.29.3.crate
+get https://static.crates.io/crates/pyo3-ffi/pyo3-ffi-0.29.3.crate pyo3-ffi-0.29.3.crate
+get https://static.crates.io/crates/pyo3-macros/pyo3-macros-0.29.3.crate pyo3-macros-0.29.3.crate
+get https://static.crates.io/crates/pyo3-macros-backend/pyo3-macros-backend-0.29.3.crate pyo3-macros-backend-0.29.3.crate
+get https://static.crates.io/crates/quote/quote-1.0.47.crate quote-1.0.47.crate
+get https://static.crates.io/crates/shlex/shlex-2.0.1.crate shlex-2.0.1.crate
+get https://static.crates.io/crates/simdutf8/simdutf8-0.1.5.crate simdutf8-0.1.5.crate
+get https://static.crates.io/crates/syn/syn-2.0.119.crate syn-2.0.119.crate
+get https://static.crates.io/crates/syn/syn-3.0.6.crate syn-3.0.6.crate
+get https://static.crates.io/crates/target-lexicon/target-lexicon-0.13.5.crate target-lexicon-0.13.5.crate
+get https://static.crates.io/crates/unicode-ident/unicode-ident-1.0.26.crate unicode-ident-1.0.26.crate
+get https://static.crates.io/crates/unwinding/unwinding-0.2.10.crate unwinding-0.2.10.crate
+get https://static.crates.io/crates/xxhash-rust/xxhash-rust-0.8.19.crate xxhash-rust-0.8.19.crate
+get https://static.crates.io/crates/zmij/zmij-1.0.23.crate zmij-1.0.23.crate
 # matplotlib: the five C libraries at matplotlib 3.11.2's own wrap versions, which give
 # native pixel parity; qhull and SheenBidi saved under names that are their top folders (the
 # release workflow's tree check names a tree by its file)
@@ -389,6 +441,7 @@ tests https://files.pythonhosted.org/packages/f3/cd/69e4ac55b6dafdd2b5f320752368
 tests https://github.com/imageio/test_images/archive/f676c96b1af7e04bb1eed1e4551e058eb2f14acd.tar.gz imageio-test-images-f676c96b-tag.tar.gz
 # plotly's release tag: its sdist holds no tests
 tests https://github.com/plotly/plotly.py/archive/refs/tags/v7.1.0.tar.gz plotly-7.1.0-tag.tar.gz
+tests https://github.com/ijl/orjson/archive/refs/tags/3.13.0.tar.gz orjson-3.13.0-tag.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip
