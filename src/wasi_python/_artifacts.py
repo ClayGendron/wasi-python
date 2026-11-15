@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, NamedTuple
 
-from ._process import process
+from wasi_python._process import process
 
 _ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
 _ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"

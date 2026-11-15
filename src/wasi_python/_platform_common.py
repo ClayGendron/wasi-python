@@ -20,7 +20,7 @@ import stat
 from collections.abc import Callable
 from pathlib import Path
 
-from ._process import process
+from wasi_python._process import process
 
 Identity = tuple[int, int]
 

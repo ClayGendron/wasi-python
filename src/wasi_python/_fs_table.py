@@ -31,8 +31,8 @@ from array import array
 from collections.abc import Callable, Iterable
 from typing import Any, Literal, TypeVar, cast, overload
 
-from . import _fs_descriptors, _fs_paths
-from ._fs_memory import (
+from wasi_python import _fs_descriptors, _fs_paths
+from wasi_python._fs_memory import (
     DIRECTORY,
     DIRENT,
     EBADF,
@@ -53,7 +53,7 @@ from ._fs_memory import (
     SIGNATURES,
     _Forwards,
 )
-from .mounts import (
+from wasi_python.mounts import (
     Errno,
     FileFault,
     FileRecord,
@@ -227,7 +227,7 @@ class _Files:
         imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in SIGNATURES]
         imports.append(instance.exports(store)["memory"])
         exports = wt.Instance(store, module, imports).exports(store)
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         self.forwards = _Forwards({name: ffi.raw_func(exports[name]) for name in SIGNATURES})
 
@@ -250,7 +250,7 @@ class _Files:
         stop, for a call the runner makes on its own account rather than the guest's."""
         from wasmtime import Trap, WasmtimeError
 
-        from . import _wasmtime_ffi as ffi
+        from wasi_python import _wasmtime_ffi as ffi
 
         if self.forwards is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
@@ -294,7 +294,7 @@ class _Files:
         """Record `error` as the error that ends the run and, on a metered call, the guest's fuel
         now, which is the count the result reports; an unmetered call has no count to keep."""
         if self.metered:
-            from . import _wasmtime_ffi as ffi
+            from wasi_python import _wasmtime_ffi as ffi
 
             self.stop_fuel = (error, ffi.get_fuel(caller))
 

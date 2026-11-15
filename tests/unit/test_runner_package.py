@@ -1,9 +1,10 @@
 """The runner is a package of one module per concern.
 
-Four checks hold the package's shape: the modules import in one written order with no cycle,
+Five checks hold the package's shape: the modules import in one written order with no cycle,
 and the tool protocol's three in an order of their own beside it; a module imports by `from`
 only what never changes, so a patched seam, a re-made lock or a cleared cache is seen by every
-caller; and every runner name is defined in exactly one module.
+caller; every runner name is defined in exactly one module; and a module imports its siblings
+only by `from wasi_python…`, the one form the other checks read.
 The fork reset is the process state's owner's, and tests/unit/test_process.py holds it.
 """
 
@@ -18,6 +19,7 @@ from pathlib import Path
 from harness import paths, scan
 
 PACKAGE = paths.REPO / "src" / "wasi_python"
+NAME = "wasi_python"
 
 # The order: a module imports only modules before it. The process state's owner stands first,
 # since it imports nothing of the package.
@@ -58,7 +60,7 @@ BY_NAME_MODULES = (*RUNNER_MODULES, "_tool_schema", "_tool_host")  # the two for
 # The filesystem stands beside the list too: its modules import one another, in the chain the
 # rules checks hold, and no other package module at module level.
 FILESYSTEM = ("mounts", "_fs_memory", "_fs_descriptors", "_fs_paths", "_fs_table")
-LATE_ANYWHERE = ("_wasmtime_ffi",)  # the seam's form: `from . import _wasmtime_ffi as ffi` in a def
+LATE_ANYWHERE = ("_wasmtime_ffi",)  # the seam: `from wasi_python import _wasmtime_ffi` in a def
 
 # The late imports allowed, (file, function, module); any other is a finding.
 LATE = (
@@ -87,9 +89,22 @@ def _module_name(path: Path) -> str:
     return path.stem
 
 
+def _sibling(node: ast.ImportFrom) -> ast.ImportFrom | None:
+    """An import of the package's own modules, read as its relative twin, `from wasi_python.x
+    import y` as `from .x import y` and `from wasi_python import a` as `from . import a`, at the
+    original's line; a relative import as it is; None for an import of anything else."""
+    if node.level:
+        return node
+    module = node.module or ""
+    if module != NAME and not module.startswith(f"{NAME}."):
+        return None
+    twin = ast.ImportFrom(module=module[len(NAME) + 1 :] or None, names=node.names, level=1)
+    return ast.copy_location(twin, node)
+
+
 def _imports(tree: ast.Module) -> list[tuple[ast.ImportFrom, str | None, bool]]:
-    """Every relative import in a module: (node, the enclosing function's qualified name or None
-    at module level, under TYPE_CHECKING)."""
+    """Every import of the package's own modules, as its relative twin: (node, the enclosing
+    function's qualified name or None at module level, under TYPE_CHECKING)."""
     out: list[tuple[ast.ImportFrom, str | None, bool]] = []
 
     def walk(node: ast.AST, stack: list[str], typing_only: bool) -> None:
@@ -99,8 +114,8 @@ def _imports(tree: ast.Module) -> list[tuple[ast.ImportFrom, str | None, bool]]:
                 walk(child, stack, typing_only or guarded)
             elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 walk(child, stack + [child.name], typing_only)
-            elif isinstance(child, ast.ImportFrom) and child.level:
-                out.append((child, ".".join(stack) or None, typing_only))
+            elif isinstance(child, ast.ImportFrom) and (twin := _sibling(child)) is not None:
+                out.append((twin, ".".join(stack) or None, typing_only))
             else:
                 walk(child, stack, typing_only)
 
@@ -109,8 +124,9 @@ def _imports(tree: ast.Module) -> list[tuple[ast.ImportFrom, str | None, bool]]:
 
 
 def _named_modules(node: ast.ImportFrom, package: Path) -> list[str]:
-    """The package modules an import names: `from .x import …` names `x`; `from . import a, b`
-    names each `a` that is a module file, and `__init__` for a name that is not."""
+    """The package modules an import names, read as its relative twin: `from wasi_python.x
+    import …` names `x`; `from wasi_python import a, b` names each `a` that is a module file, and
+    `__init__` for a name that is not."""
     if node.module:
         return [node.module.split(".")[0]]
     return [a.name if (package / f"{a.name}.py").is_file() else "__init__" for a in node.names]
@@ -170,7 +186,7 @@ def _tool_order_error(
 
 
 def test_the_runner_modules_import_in_the_written_order() -> None:
-    """Every module-level relative import names a module earlier in ORDER (or a filesystem
+    """Every module-level import of a sibling names a module earlier in ORDER (or a filesystem
     module from the four that may); `__init__.py` and `cli.py` stand above; a filesystem module
     imports none outside the filesystem at module level; no module imports `_wasmtime_ffi` at
     module level; a late import is one of LATE, or of `_wasmtime_ffi`. The tool protocol's
@@ -224,9 +240,9 @@ def _is_unchanging(name: str, obj: typing.Any) -> bool:
 
 
 def _from_imports(package: Path) -> list[tuple[str, int, str, str]]:
-    """Every `from ._x import name` of a runner module or of the tool protocol's two private
-    ones, from any file but `__init__.py` (the public facade re-exports `run` and `artifacts`
-    by name): (file, line, module, name)."""
+    """Every `from wasi_python._x import name` of a runner module or of the tool protocol's two
+    private ones, from any file but `__init__.py` (the public facade re-exports `run` and
+    `artifacts` by name): (file, line, module, name)."""
     out = []
     for path in sorted(package.glob("*.py")):
         if path.name == "__init__.py":
@@ -300,8 +316,8 @@ def _seam_errors(package: Path, tests: Path) -> list[str]:
 
 
 def test_a_module_imports_by_name_only_what_never_changes() -> None:
-    """The two forms: a `from ._x import name` binds a class, an alias, an immutable
-    constant or a sentinel; a function, a hook and every mutable object is reached as
+    """The two forms: a `from wasi_python._x import name` binds a class, an alias, an
+    immutable constant or a sentinel; a function, a hook and every mutable object is reached as
     `_x.name`, so a re-made lock, a replaced seam or a cleared cache is seen by every caller."""
     errors = _by_name_errors(PACKAGE) + _seam_errors(PACKAGE, paths.REPO / "tests")
     assert not errors, scan.report(errors)
@@ -346,4 +362,27 @@ def test_every_runner_name_is_defined_in_one_module() -> None:
     """Over the fifteen runner modules, no top-level name is bound twice, and each
     module begins with a docstring."""
     errors = _once_errors(PACKAGE)
+    assert not errors, scan.report(errors)
+
+
+def _bare_errors(package: Path) -> list[str]:
+    """Every `import wasi_python` or `import wasi_python.x`, at any depth: that form binds the
+    package's name, not the module's, and the checks above read only the `from` form."""
+    errors = []
+    for path in sorted(package.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                errors += [
+                    f"{path.name}:{node.lineno} (import {a.name}: import a sibling by `from`)"
+                    for a in node.names
+                    if a.name == NAME or a.name.startswith(f"{NAME}.")
+                ]
+    return errors
+
+
+def test_a_module_imports_its_siblings_only_by_from() -> None:
+    """No module of the package imports itself as `import wasi_python…`, so every import of a
+    sibling is one the order and by-name checks read."""
+    errors = _bare_errors(PACKAGE)
     assert not errors, scan.report(errors)

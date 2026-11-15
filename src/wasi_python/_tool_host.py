@@ -23,9 +23,17 @@ import typing
 from collections.abc import Callable, Iterable
 from typing import Any, NamedTuple
 
-from . import _tool_schema
-from ._tool_schema import _ECHO_CHARS, _TOOL_NESTING, _Json, _Validator
-from .tools import PROTOCOL, Tool, ToolCall, ToolDenied, ToolError, ToolOutcome, ToolRecord
+from wasi_python import _tool_schema
+from wasi_python._tool_schema import _ECHO_CHARS, _TOOL_NESTING, _Json, _Validator
+from wasi_python.tools import (
+    PROTOCOL,
+    Tool,
+    ToolCall,
+    ToolDenied,
+    ToolError,
+    ToolOutcome,
+    ToolRecord,
+)
 
 _PROTOCOLS = (1,)  # the versions this host serves
 _TOOL_REQUEST_BYTES = 1 << 20  # a request frame's cap

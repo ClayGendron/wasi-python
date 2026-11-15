@@ -14,16 +14,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _limits, _platform, _zip
-from ._artifacts import Artifacts
-from ._fs_memory import METHODS
-from ._limits import _UNSET
-from ._platform import Identity, _Walked
-from ._process import process
-from .mounts import Mount
+from wasi_python import _limits, _platform, _zip
+from wasi_python._artifacts import Artifacts
+from wasi_python._fs_memory import METHODS
+from wasi_python._limits import _UNSET
+from wasi_python._platform import Identity, _Walked
+from wasi_python._process import process
+from wasi_python.mounts import Mount
 
 if TYPE_CHECKING:
-    from .runner import Defaults
+    from wasi_python.runner import Defaults
 
 
 @dataclass(frozen=True)

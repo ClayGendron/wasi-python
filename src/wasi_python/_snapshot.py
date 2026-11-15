@@ -29,12 +29,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn
 
-from . import _artifacts, _places, _platform
-from ._artifacts import Artifacts, ArtifactsMissing
-from ._process import process
+from wasi_python import _artifacts, _places, _platform
+from wasi_python._artifacts import Artifacts, ArtifactsMissing
+from wasi_python._process import process
 
 if TYPE_CHECKING:
-    from ._call import Completed
+    from wasi_python._call import Completed
 
 MAGIC = b"wasi-python snapshot\n"  # the file's first line names its kind
 FORMAT = 1

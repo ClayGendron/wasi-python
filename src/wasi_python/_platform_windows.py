@@ -28,9 +28,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from . import _platform_common
-from ._platform_common import Identity, _Opened, _Walked
-from ._process import process
+from wasi_python import _platform_common
+from wasi_python._platform_common import Identity, _Opened, _Walked
+from wasi_python._process import process
 
 # Windows: Python cannot open a folder with os.open, so the walk opens every
 # component through CreateFileW, refuses a reparse point (a link or a junction), and holds each
@@ -493,7 +493,7 @@ class _Windows:
 
 
 if TYPE_CHECKING:
-    from ._platform import _Platform
+    from wasi_python._platform import _Platform
 
     # The checker reads the platform choice as one platform and skips the others, so this class
     # is held to the protocol here: a member the protocol gains and the class lacks is an error.

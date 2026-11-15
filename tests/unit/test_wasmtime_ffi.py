@@ -135,7 +135,8 @@ def test_the_runner_lets_the_adapters_import_error_through(monkeypatch) -> None:
 
     monkeypatch.delattr(_ffi, "wasmtime_error_new")
     monkeypatch.delitem(sys.modules, "wasi_python._wasmtime_ffi")
-    monkeypatch.delattr(wasi_python, "_wasmtime_ffi")  # else `from . import` finds the old one
+    # Else `from wasi_python import` finds the old one.
+    monkeypatch.delattr(wasi_python, "_wasmtime_ffi")
     version = re.escape(importlib.metadata.version("wasmtime"))
     with pytest.raises(ImportError, match=rf"wasmtime-py {version} .*wasmtime_error_new"):
         _engines._wasmtime()

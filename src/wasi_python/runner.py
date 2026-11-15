@@ -26,25 +26,36 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
-from . import _call, _engines, _entry, _limits, _outputs, _platform, _private_dirs, _sessions
-from ._artifacts import Artifacts, ArtifactsMissing
-from ._call import Completed as Completed  # re-exported: the public API names them here
-from ._call import _CheckedCall
-from ._limits import _UNSET
-from ._outputs import OutputChunk as OutputChunk  # re-exported: the public API names them here
-from ._outputs import OutputFeed as OutputFeed
-from ._places import Grant as Grant
-from ._process import process
-from ._sessions import _CLOSER, MAX_TURN_BYTES, _Event, _Phase, _State
-from ._sessions import SessionEnded as SessionEnded
-from ._snapshot import Snapshot
-from .mounts import Mount
+from wasi_python import (
+    _call,
+    _engines,
+    _entry,
+    _limits,
+    _outputs,
+    _platform,
+    _private_dirs,
+    _sessions,
+)
+from wasi_python._artifacts import Artifacts, ArtifactsMissing
+from wasi_python._call import Completed as Completed  # re-exported: the public API names them here
+from wasi_python._call import _CheckedCall
+from wasi_python._limits import _UNSET
+from wasi_python._outputs import (
+    OutputChunk as OutputChunk,  # re-exported: the public API names them here
+)
+from wasi_python._outputs import OutputFeed as OutputFeed
+from wasi_python._places import Grant as Grant
+from wasi_python._process import process
+from wasi_python._sessions import _CLOSER, MAX_TURN_BYTES, _Event, _Phase, _State
+from wasi_python._sessions import SessionEnded as SessionEnded
+from wasi_python._snapshot import Snapshot
+from wasi_python.mounts import Mount
 
 if TYPE_CHECKING:
     import asyncio
     import concurrent.futures
 
-    from .tools import Tool, ToolCall
+    from wasi_python.tools import Tool, ToolCall
 
 
 class _ExitFlag(Protocol):

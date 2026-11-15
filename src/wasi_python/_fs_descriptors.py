@@ -11,7 +11,7 @@ import struct
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from ._fs_memory import (
+from wasi_python._fs_memory import (
     APPEND,
     ATIM,
     ATIM_NOW,
@@ -50,10 +50,10 @@ from ._fs_memory import (
     _result,
     _rights,
 )
-from .mounts import _Open
+from wasi_python.mounts import _Open
 
 if TYPE_CHECKING:
-    from ._fs_table import _Files
+    from wasi_python._fs_table import _Files
 
 
 def _fd_advise(files: _Files, caller: Any, fd: int, offset: int, length: int, advice: int) -> int:

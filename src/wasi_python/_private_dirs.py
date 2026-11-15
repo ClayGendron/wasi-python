@@ -12,8 +12,8 @@ import tempfile
 import warnings
 from pathlib import Path
 
-from . import _platform
-from ._process import process
+from wasi_python import _platform
+from wasi_python._process import process
 
 # Private folders and the sweep. Each private root and stdin folder has a
 # lock file beside it in the temporary folder, locked for the folder's life and naming the kernel

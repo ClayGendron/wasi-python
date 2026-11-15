@@ -14,10 +14,10 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import _artifacts, _platform
-from ._artifacts import Artifacts
-from ._private_dirs import _Private
-from ._process import process
+from wasi_python import _artifacts, _platform
+from wasi_python._artifacts import Artifacts
+from wasi_python._private_dirs import _Private
+from wasi_python._process import process
 
 # The zip: one private folder per zip per
 # process, beside a lock file. It holds `lib/python3XY.zip`, granted read-only at /usr/local/lib

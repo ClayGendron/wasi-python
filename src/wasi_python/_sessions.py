@@ -15,11 +15,20 @@ import types
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from . import _artifacts, _call, _engines, _home, _outputs, _places, _platform, _private_dirs
-from . import _results as _results  # each on its own line: the line above is full
-from . import _snapshot as _snapshot
-from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
-from ._call import (
+from wasi_python import (
+    _artifacts,
+    _call,
+    _engines,
+    _home,
+    _outputs,
+    _places,
+    _platform,
+    _private_dirs,
+)
+from wasi_python import _results as _results  # each on its own line: the line above is full
+from wasi_python import _snapshot as _snapshot
+from wasi_python._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
+from wasi_python._call import (
     ARGV0,
     MASK32,
     UNMETERED,
@@ -30,23 +39,23 @@ from ._call import (
     _Driven,
     _Waits,
 )
-from ._engines import _epoch_ticker
-from ._fs_memory import STAGING_CEILING
-from ._home import _Home
-from ._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
-from ._outputs import _Capture, _Stream
-from ._places import _Preopen
-from ._platform import _TRAP_HANDLERS_REPLACED, _Walked
-from ._private_dirs import _Private
-from ._process import process
+from wasi_python._engines import _epoch_ticker
+from wasi_python._fs_memory import STAGING_CEILING
+from wasi_python._home import _Home
+from wasi_python._limits import CANCEL_TICKS, NO_DEADLINE, TICK_S
+from wasi_python._outputs import _Capture, _Stream
+from wasi_python._places import _Preopen
+from wasi_python._platform import _TRAP_HANDLERS_REPLACED, _Walked
+from wasi_python._private_dirs import _Private
+from wasi_python._process import process
 
 if TYPE_CHECKING:
     import asyncio
 
     import wasmtime
 
-    from ._fs_table import _Files
-    from ._tool_host import _Bounded, _ToolHost, _ToolLoop
+    from wasi_python._fs_table import _Files
+    from wasi_python._tool_host import _Bounded, _ToolHost, _ToolLoop
 
 # ---------------------------------------------------------------------------------------------
 # Sessions: one instance of the guest kept across turns, with an idle bound and a
@@ -729,7 +738,7 @@ def _session_tool_host(
     """A frame host per turn; one bound per session, so abandoned tool threads are counted
     across its turns; one private tool loop per session for its synchronous turns, or the
     caller's loop for a turn by run_async."""
-    from ._tool_host import _ToolHost, _ToolLoop
+    from wasi_python._tool_host import _ToolHost, _ToolLoop
 
     c = state.checked
     assert c.tools is not None and state.bounded is not None  # made together at the opening
@@ -1156,7 +1165,7 @@ def _open_session(
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _call._linker(wt, engine)
-        from ._fs_table import _Files
+        from wasi_python._fs_table import _Files
 
         staging = STAGING_CEILING if c.memory_bytes is None else c.memory_bytes
         others = [p.guest for p in preopens]
@@ -1198,7 +1207,7 @@ def _open_session(
         )
         state.engine, state.metered = engine, metered
         if c.tools is not None:
-            from ._tool_host import _Bounded
+            from wasi_python._tool_host import _Bounded
 
             state.bounded = _Bounded(
                 tick_s=TICK_S,

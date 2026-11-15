@@ -52,9 +52,9 @@ if TYPE_CHECKING:
 
     import wasmtime
 
-    from ._outputs import _Stream
-    from ._packages import Package
-    from ._sessions import _State
+    from wasi_python._outputs import _Stream
+    from wasi_python._packages import Package
+    from wasi_python._sessions import _State
 
 # A live call's cancel event maps to None, or, for a session's turn, to its future and the
 # release of its claim, which the exit hook runs if its shutdown of the pools cancels the turn
