@@ -122,7 +122,7 @@ Whether Decision 3's exception is the right one, or whether the guest package sh
 
 ### The news file
 
-`context/changes/189-the-package-imports-itself-by-name.md`, For contributors only, one bullet, ending with a link to `contributing/principles/`, whose 'uv only' line names ruff: the package imports its own modules by name, and ruff refuses a relative import anywhere it lints, the guest package excepted. Package rows: none. Claims: no new, retired, changed, passing or growing check; `units = 0`; `[claim.judge]` names `pyproject.toml` (the rule added), `tests/unit/test_runner_package.py` (reads both forms, and refuses `import wasi_python`) `tests/checks/test_v1_4_public_api.py` (the stand-in in the package's form) and `tests/unit/test_wasmtime_ffi.py` (a comment names the import's new form; no assertion changes).
+`context/changes/189-the-package-imports-itself-by-name.md`, For contributors only, one bullet, ending with a link to `contributing/principles/`, whose 'uv only' line names ruff: the package imports its own modules by name, and ruff refuses a relative import anywhere it lints, the guest package excepted. Package rows: none. Claims: no new, retired, changed, passing or growing check; `units = 1`, the new check of Decision 5; `[claim.judge]` names `pyproject.toml` (the rule added), `tests/unit/test_runner_package.py` (reads both forms, and refuses `import wasi_python`) `tests/checks/test_v1_4_public_api.py` (the stand-in in the package's form) and `tests/unit/test_wasmtime_ffi.py` (a comment names the import's new form; no assertion changes).
 
 ## Intent
 
@@ -156,4 +156,4 @@ Built 2026-11-15 on `spec/189-the-package-imports-itself-by-name`, from `dev` at
 - **Nothing public** (criterion 6). `uv run python -I tests/harness/api.py --check`: exit 0, `tests/public_api.txt` unchanged (EXECUTED).
 - **Types and words** (criteria 7 and 8). `uv run ruff check src tests` and `ruff format --check src tests` clean; `uv run mypy`: no issues in 32 files; `tests/harness/typecheck.py`: both passes clean; `uv run pytest tests/lint tests/checks/test_rules.py`: 157 passed, 5 skipped (EXECUTED).
 - **The unit tests.** `uv run pytest tests/unit -n 4`: on the branch 3,632 passed, 104 skipped, 1 failed; on `dev` 3,631 passed, 104 skipped, 1 failed; the one more is the new check, and the failure on both is `test_the_walk_judges_links`, from running as root (EXECUTED). `test_guest_tools.py` and `test_results.py` are among the passes; nothing under `recipes/` changed.
-- **The run** (criterion 9). Waits on the pull request's run.
+- **The run** (criterion 9). Run 43658743724 on `57901867`: every leg green on Linux (13), Windows (11) and macOS (14), `gather` 1120/2361 pass, 0 fail, no `GROWTH` line; `review` and `ci-status` waited on the review file alone (READ, by the pull-request review).
