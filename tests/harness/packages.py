@@ -824,7 +824,9 @@ def guard_findings(cfg: upstream.Config, modules: list[tuple[str, str]]) -> list
     }  # e.g. Pillow's selftest.py, run by docstring
     findings = []
     for name, f in modules:
-        if f.startswith(root):
+        if not f:  # the driver names a module a session loaded that its family does not use
+            findings.append(f"a module was loaded outside its family: {name}")
+        elif f.startswith(root):
             if not any(f.startswith(d) for d in folders) and f not in files:
                 findings.append(f"a module came from outside the staged folders: {name} {f}")
         else:
