@@ -4852,18 +4852,37 @@ def test_the_umbrella_lock_holds_each_packages_own_versions() -> None:
 
 
 def test_where_two_packages_locks_differ_the_umbrella_holds_the_higher() -> None:
-    orjson = _cargo_lock(("libc", "0.2.190"), ("syn", "3.0.6"))
-    core = _cargo_lock(("libc", "0.2.185"), ("syn", "2.0.82"), ("syn", "3.0.6"))
-    ours = _cargo_lock(("libc", "0.2.190"), ("syn", "2.0.119"), ("syn", "3.0.6"))
+    orjson = _cargo_lock(("libc", "0.2.190"), ("zerocopy", "0.8.27"))
+    core = _cargo_lock(("libc", "0.2.185"), ("zerocopy", "0.7.35"), ("zerocopy", "0.8.27"))
+    ours = _cargo_lock(("libc", "0.2.190"), ("zerocopy", "0.7.35"), ("zerocopy", "0.8.27"))
     locks = {"orjson": orjson, "pydantic-core": core}
     assert scan.package_version_errors(ours, locks) == []
-    lower = _cargo_lock(("libc", "0.2.185"), ("syn", "2.0.119"), ("syn", "3.0.6"))
+    lower = _cargo_lock(("libc", "0.2.185"), ("zerocopy", "0.7.35"), ("zerocopy", "0.8.27"))
     assert scan.package_version_errors(lower, locks) == [
         "libc: orjson's Cargo.lock names 0.2.190, recipes/rust/Cargo.lock 0.2.185"
     ]
-    no_line = _cargo_lock(("libc", "0.2.190"), ("syn", "3.0.6"))
+    no_line = _cargo_lock(("libc", "0.2.190"), ("zerocopy", "0.8.27"))
     assert scan.package_version_errors(no_line, locks) == [
-        "syn: pydantic-core's Cargo.lock names 2.0.82, recipes/rust/Cargo.lock 3.0.6"
+        "zerocopy: pydantic-core's Cargo.lock names 0.7.35, recipes/rust/Cargo.lock 0.8.27"
+    ]
+
+
+def test_the_umbrella_holds_no_version_above_the_packages_unless_named() -> None:
+    higher = LOCK.replace('version = "1.0.1"', 'version = "1.0.2"')
+    theirs = LOCK.replace('name = "rust_modules"', 'name = "orjson"')
+    assert scan.package_version_errors(higher, {"orjson": theirs}) == [
+        "itoap: orjson's Cargo.lock names 1.0.1, recipes/rust/Cargo.lock 1.0.2"
+    ]
+    core = _cargo_lock(("syn", "2.0.82"), ("portable-atomic", "1.6.0"))
+    raised = _cargo_lock(*scan.UMBRELLA_RAISED.items())
+    assert scan.UMBRELLA_RAISED == {"portable-atomic": "1.15.0", "syn": "2.0.119"}
+    assert scan.package_version_errors(raised, {"pydantic-core": core}) == []
+    other = _cargo_lock(("syn", "2.0.120"), ("portable-atomic", "1.6.0"))
+    assert scan.package_version_errors(other, {"pydantic-core": core}) == [
+        "syn: recipes/rust/Cargo.lock holds 2.0.120, not 2.0.119, "
+        "which it names above pydantic-core's 2.0.82",
+        "portable-atomic: recipes/rust/Cargo.lock holds 1.6.0, not 1.15.0, "
+        "which it names above pydantic-core's 1.6.0",
     ]
 
 

@@ -165,9 +165,10 @@ def test_source_tree_matches_its_tarball(component) -> None:
 
 
 def test_the_rust_lock_keeps_the_packages_versions() -> None:
-    """Each crate recipes/rust/Cargo.lock shares with a Rust package's own Cargo.lock is at that
-    package's version or a higher compatible one (the higher where orjson's and pydantic-core's
-    locks differ), and PyO3 is one version, read from each tree as its pinned sdist unpacks it."""
+    """Each crate recipes/rust/Cargo.lock shares with a Rust package's own Cargo.lock is at exactly
+    that package's version (the higher where orjson's and pydantic-core's locks differ, and the
+    two crates the umbrella names above both at the version it names), and PyO3 is one version,
+    read from each tree as its pinned sdist unpacks it."""
     needs.need("source tree orjson", "source tree pydantic-core")
     locks = {
         c: (pins.source_pair(c)[1] / "Cargo.lock").read_text() for c in ("orjson", "pydantic-core")

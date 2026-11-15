@@ -510,8 +510,9 @@ kind = "via"
 via = "orjson"
 
 [package.pyo3]
-# PyO3's own tests run under cargo on a host, so in the guest pydantic-core's suite reaches its
-# macros, its function wrappers and its FFI, which orjson's reaches only through pyo3-ffi
+# PyO3's own tests run under cargo on a host. In the guest pydantic-core's suite will reach its
+# macros, its function wrappers and its FFI once that suite joins the tiers; until then no suite
+# reaches PyO3 (orjson's, once it runs, reaches only pyo3-ffi)
 kind = "via"
 via = "pydantic-core"
 

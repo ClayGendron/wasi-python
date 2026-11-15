@@ -6462,13 +6462,19 @@ def _semver_line(version: str) -> tuple[int, ...]:
     return (major,) if major else (0, minor) if minor else (0, 0, patch)
 
 
+# The crates recipes/rust/Cargo.lock holds above every Rust package's own lock, each at this
+# version exactly: the umbrella's own crates brought them before pydantic-core joined, and cargo
+# keeps one version per semver line, so pydantic-core builds on these too.
+UMBRELLA_RAISED = {"portable-atomic": "1.15.0", "syn": "2.0.119"}
+
+
 def package_version_errors(lock: str, package_locks: dict[str, str]) -> list[str]:
     """Each crate a Rust package's own Cargo.lock names (`package_locks`: package -> its lock), and
-    recipes/rust/Cargo.lock names too, is there at a version of the same semver line and no lower
-    than the package's: the umbrella builds each package against what it was released with, or
-    against the higher version where two packages' locks name two compatible ones, or one the
-    umbrella's own crates bring. The PyO3 family is PYO3_VERSION alone, whatever a package's lock
-    names."""
+    recipes/rust/Cargo.lock names too, is there on that semver line at exactly the highest version
+    the packages' locks name on it: the umbrella builds each package against what it was released
+    with, or against the higher version where two packages' locks name two compatible ones. A crate
+    of UMBRELLA_RAISED is at the version it names there, where that is higher still. The PyO3
+    family is PYO3_VERSION alone, whatever a package's lock names."""
     ours: dict[str, set[str]] = {}
     for p in lock_packages(lock):
         if p.get("source") == CRATES_IO:
@@ -6480,18 +6486,33 @@ def package_version_errors(lock: str, package_locks: dict[str, str]) -> list[str
             errors.append(
                 f"{name}: recipes/rust/Cargo.lock holds {have}, not PyO3 {PYO3_VERSION} alone"
             )
+    highest: dict[tuple[str, tuple[int, ...]], tuple[str, str]] = {}
     for package, text in package_locks.items():
         for p in lock_packages(text):
             name, version = p["name"], p["version"]
             if p.get("source") != CRATES_IO or name not in ours or name in PYO3_FAMILY:
                 continue
-            same = [v for v in ours[name] if _semver_line(v) == _semver_line(version)]
-            if not same or _semver(max(same, key=_semver)) < _semver(version):
-                have = ", ".join(sorted(same or ours[name], key=_semver))
-                errors.append(
-                    f"{name}: {package}'s Cargo.lock names {version}, "
-                    f"recipes/rust/Cargo.lock {have}"
-                )
+            key = (name, _semver_line(version))
+            if key not in highest or _semver(version) > _semver(highest[key][0]):
+                highest[key] = (version, package)
+    for (name, line), (version, package) in highest.items():
+        want = version
+        raised = UMBRELLA_RAISED.get(name)
+        if raised and _semver_line(raised) == line and _semver(raised) > _semver(version):
+            want = raised
+        same = sorted((v for v in ours[name] if _semver_line(v) == line), key=_semver)
+        if same == [want]:
+            continue
+        have = ", ".join(same or sorted(ours[name], key=_semver))
+        if want == version:
+            errors.append(
+                f"{name}: {package}'s Cargo.lock names {version}, recipes/rust/Cargo.lock {have}"
+            )
+        else:
+            errors.append(
+                f"{name}: recipes/rust/Cargo.lock holds {have}, not {want}, "
+                f"which it names above {package}'s {version}"
+            )
     return errors
 
 

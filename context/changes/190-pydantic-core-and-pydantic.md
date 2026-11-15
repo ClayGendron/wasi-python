@@ -35,13 +35,13 @@ retired = [
 changed = []
 passes = []
 grows = []
-units = 5
+units = 6
 [claim.judge]
-"tests/harness/scan.py" = "the Rust lock holds each package's own versions with one PyO3, 0.30.1; the pydantic wheel requires the pinned core; modules.txt lists each Rust module; orjson carries its three patches"
+"tests/harness/scan.py" = "the Rust lock holds each crate at exactly the highest version the packages' own locks name on its semver line, as 187's rule held orjson's, with two named crates the umbrella already held above them (portable-atomic 1.15.0, syn 2.0.119), and one PyO3, 0.30.1; the pydantic wheel requires the pinned core; modules.txt lists each Rust module; orjson carries its three patches"
 "tests/harness/pins.py" = "pydantic-core's sdist is a source tree the tree check reads"
 "tests/harness/needs.py" = "pydantic-core joins the built source components"
 "tests/harness/paths.py" = "pydantic-core, pydantic, annotated-types and typing-inspection join the packages and the licence components"
-"tests/upstream/packages.toml" = "the four packages' suites are later, closing with 194, since their test sources are not yet pinned; PyO3 is reached through pydantic-core"
+"tests/upstream/packages.toml" = "the four packages' suites are later, closing with 194, since each smoke group needs its fuel measured on a built set and each expected class reasoned from a run; PyO3 is reached through pydantic-core once its suite runs"
 "tests/checks/test_rules.py" = "two rules: modules.txt lists each Rust module, and orjson carries the patches the owner chose"
 "tests/harness/jobs.py" = "the golden job pydantic_models joins the jobs"
 ```
