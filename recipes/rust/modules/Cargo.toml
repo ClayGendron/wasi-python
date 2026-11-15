@@ -14,4 +14,5 @@ crate-type = ["staticlib"]
 
 [dependencies]
 orjson = { path = "../../orjson-3.13.0" }
+pydantic-core = { path = "../../pydantic_core-2.50.4" }
 rust_probe = { path = "probe" }
