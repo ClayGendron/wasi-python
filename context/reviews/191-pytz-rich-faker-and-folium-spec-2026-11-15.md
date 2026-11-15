@@ -106,5 +106,22 @@ The round's fix commit follows `d67f2659`. It changes only the specification and
 
 The owner's answers are not recorded here or in the specification. The orchestrating session asks the five choices together with AskUserQuestion.
 
+## Reviewer's confirmation (round one, on c8f1141f)
+
+I read the specification whole again at `c8f1141f` (READ, `git show c8f1141f`). Its new citations hold: `pandas/compat/pyarrow.py:12` imports pyarrow, `faker/providers/internet/__init__.py:221-226` is `_to_ascii`, `folium/plugins/encoded.py:67` reads "Adapted from", and `scripts/steps/60_link.sh:186` freezes `reactor_bootstrap.py` (all READ).
+
+1. High 1 — confirmed. Decision 4 lists the table, GeoNames, the OpenStreetMap extract and the provenance lines. Faker is now its own owner's choice, 2, with three options, and it waits on that answer. Option B's reader is the one `_to_ascii` (READ), and its cost is stated.
+2. High 2 — confirmed for the fix. `_refresh` seeds `faker.generator.random` when `faker.generator` is loaded, beside sympy's step. That is the existing pattern, and a fresh import would seed the generator the same way (READ, `recipes/reactor_bootstrap.py:90-110`). A call's own `Faker.seed(n)` still runs after the refresh. A seed set in the image's prelude is reseeded away, as `random.seed` in a prelude is today. The check's wording is not right, which Low 13 below fixes.
+3. Medium 3 — confirmed. Both checks are named, each change is claimed, and the stub's count is read from a run, not assumed.
+4. Medium 4 — confirmed (Decision 2's last paragraph, Decision 3, criterion 4).
+5. Medium 5 — confirmed: the fixed 1.4 T and its owner's choice are gone. Each raise comes after a measurement, carries +17 G of headroom (today's is 16.9 G), is rounded up to 10 G and is claimed. That is the cairo precedent, so it is a re-budget, not a weakening. Its wording is ambiguous, which Low 14 below fixes.
+6. Medium 6 — confirmed (Decision 8; The owner's choices, 5). The gap is stated if the owner says no.
+7. Medium 7 — confirmed. The pattern is widened, and the rich, branca and folium notices are added.
+8. to 12. Lows 8 to 12 — confirmed, each as its fix text asked (READ).
+13. **Low: the Faker row cannot show "two calls from one image differ"** (Decision 4, last paragraph; criterion 7). The check file says its driver "answers entropy and the clocks alike in every run, so a row shows that a generator was reseeded, not that two calls differ" (READ, `tests/checks/test_v1_4_prepare.py:1-9`). Its rows compare a call's draw with the prelude's (`:182-193`). For Faker, an unreseeded call draws the next value from the frozen state, which may already differ from the prelude's, so the row might pass with the old refresh (INFERRED; not run). Fix: "the prelude also prints the next draw of a copy of the frozen state (`r = random.Random(); r.setstate(faker.generator.random.getstate()); r.random()`). The call's `faker.generator.random.random()` must differ from that value. The row is seen failing first with the old refresh. Decision 4 says 'the call does not continue the image's sequence', not 'two calls differ'."
+14. **Low: which sum the smoke bound is sized from** (Decision 8; criterion 9). "Its families' measured sum" can be read as that pull request's new groups alone, which would set the bound far below today's 1,183 G. Fix: "the sum of every test-source smoke group's `measured` at the pull request's head, plus 17 G, rounded up to 10 G."
+
+With this round confirmed, `uv run pytest tests/lint -q -p no:cacheprovider` → 14 passed (EXECUTED).
+
 ## Verdict
-Does not land yet: Findings 1 and 2 (Faker's licences, and Faker's generator frozen by a package snapshot) and Mediums 3 to 7 stand, so the specification is not yet fit to build.
+Lands: at `c8f1141f` both Highs and all five Mediums are answered, and Lows 13 and 14 need no round, so the specification is fit to build. Building waits on the owner. Choices 1, 3 and 4 must be recorded in `../decisions.md` before the first pull request is built, choice 2 before the Faker pull request, and choice 5 before each dispatch. None was answered when this was signed.
