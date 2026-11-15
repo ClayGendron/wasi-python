@@ -105,6 +105,8 @@ done
 [ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"
 [ -d "$B/statsmodels-install/statsmodels" ] || die "build/statsmodels-install/statsmodels is missing: run step 59"
 [ -d "$B/cairocffi-1.7.1/cairocffi" ] || die "build/cairocffi-1.7.1 is missing: run step 56"
+# orjson's Python package, as its wheel lays it out: its compiled module is in the binary (step 52)
+[ -f "$B/orjson-3.13.0/pysrc/orjson/__init__.py" ] || die "build/orjson-3.13.0 is missing: run step 52"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -202,6 +204,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/scipy-install" \
   --tree "$B/sklearn-install" \
   --tree "$B/statsmodels-install" \
+  --tree "$B/orjson-3.13.0/pysrc" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.6-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -279,6 +282,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/plotly-7.1.0/PKG-INFO=plotly,_plotly_utils" \
   --metadata "$B/folium-0.20.0/PKG-INFO=folium" \
   --metadata "$B/branca-0.8.2/PKG-INFO=branca" \
+  --metadata "$B/orjson-3.13.0/PKG-INFO=orjson" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \

@@ -493,3 +493,23 @@ closes_with = "spec 193"
 kind = "later"
 reason = "its suite, from its sdist's xyzservices/tests, joins the tiers once a built set measures its groups' fuel"
 closes_with = "spec 193"
+
+# orjson and the Rust it brings, built by step 52 into the umbrella library.
+
+[package.orjson]
+# its own suite from its release tag's archive (its sdist holds no tests), groups in
+# tests/upstream/orjson.toml: a smoke group in the normal tier, the rest in the release tier
+kind = "suite"
+
+[package.rust-std]
+# Rust's standard library, rebuilt from rust-src for wasm32-wasip1: its own tests run under cargo
+# on a host, and orjson's suite reaches it in the guest
+kind = "via"
+via = "orjson"
+
+[package.pyo3]
+# PyO3's own tests run under cargo on a host, so in the guest orjson's suite reaches its macros
+# and its FFI; pydantic-core's suite will reach more of it. A `later` row needs a written or
+# reserved specification, and pydantic-core's has no number yet.
+kind = "via"
+via = "orjson"

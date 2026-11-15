@@ -226,6 +226,7 @@ files = [
   "tests/checks/test_v1_3_data_stack.py",
   "tests/checks/test_v1_3_lxml.py",
   "tests/checks/test_v1_3_regex.py",
+  "tests/checks/test_v1_3_rust.py",
   "tests/checks/test_v1_2_portable_and_sealed.py",
   "tests/checks/test_v1_4_the_end_of_a_call.py",
   "tests/checks/test_v1_3_drawing.py",
@@ -700,7 +701,7 @@ systems = ["release"]
 
 [shard.upstream-pure-smoke-a]
 # 724.8 G measured
-groups = ["pyyaml-smoke", "mpmath-smoke", "seaborn-smoke", "sympy-smoke", "formulaic-smoke", "networkx-smoke", "pypdf-smoke", "reportlab-smoke", "wrapt-smoke", "tqdm-smoke", "narwhals-smoke", "soupsieve-smoke", "html5lib-smoke", "toolz-smoke", "openpyxl-smoke", "jinja2-smoke", "fonttools-smoke", "xmltodict-smoke", "packaging-smoke", "patsy-smoke", "typing-extensions-smoke", "joblib-smoke", "tabulate-smoke", "python-dateutil-smoke", "beautifulsoup4-smoke", "et-xmlfile-smoke", "xlsxwriter-smoke", "pyparsing-smoke", "threadpoolctl-smoke", "six-smoke", "attrs-smoke"]
+groups = ["pyyaml-smoke", "mpmath-smoke", "seaborn-smoke", "sympy-smoke", "formulaic-smoke", "networkx-smoke", "pypdf-smoke", "reportlab-smoke", "wrapt-smoke", "tqdm-smoke", "narwhals-smoke", "soupsieve-smoke", "html5lib-smoke", "toolz-smoke", "openpyxl-smoke", "jinja2-smoke", "fonttools-smoke", "xmltodict-smoke", "packaging-smoke", "patsy-smoke", "typing-extensions-smoke", "joblib-smoke", "tabulate-smoke", "python-dateutil-smoke", "beautifulsoup4-smoke", "et-xmlfile-smoke", "xlsxwriter-smoke", "pyparsing-smoke", "threadpoolctl-smoke", "six-smoke", "attrs-smoke", "orjson-smoke"]
 systems = ["linux"]
 
 [shard.upstream-pure-smoke-b]
@@ -1014,6 +1015,14 @@ systems = ["release"]
 # release run measures them.
 groups = ["cairocffi-r", "imageio-r"]
 minutes = 2.1
+systems = ["release"]
+
+[shard.upstream-release-070]
+# orjson's release group, not yet measured: its cap of 130 G stands in for its fuel, its minutes
+# estimated from that cap at upstream-pure-r-113's rate (210.2 G in 1.52 min) until a run measures
+# it.
+groups = ["orjson-r"]
+minutes = 1.0
 systems = ["release"]
 
 # --- the pure-Python packages' own tests: end

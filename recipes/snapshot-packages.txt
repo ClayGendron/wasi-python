@@ -99,3 +99,6 @@ faker: faker
 folium: folium folium.plugins
 branca: branca branca.colormap branca.element
 xyzservices: xyzservices xyzservices.providers
+orjson: orjson
+rust-std:
+pyo3:

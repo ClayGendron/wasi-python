@@ -1,6 +1,6 @@
 - **Project:** orjson (https://github.com/ijl/orjson)
 - **Against:** 3.13.0 (the pinned sdist)
-- **Status:** standing, provisionally: orjson takes no pull requests; re-checked at each orjson version
+- **Status:** drafted
 - **Title:** Declare the library as an rlib as well as a cdylib
 - **Files:** Cargo.toml
 - **Why we carry it:** a static CPython links orjson as a library of its own Rust crate, and cargo builds a dependency only as the crate types the dependency declares; orjson declares `cdylib` alone, so no other crate can link it.

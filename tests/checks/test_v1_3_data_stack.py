@@ -503,6 +503,7 @@ DISTRIBUTIONS = (
     "networkx",
     "numpy",
     "openpyxl",
+    "orjson",
     "packaging",
     "pandas",
     "patsy",
