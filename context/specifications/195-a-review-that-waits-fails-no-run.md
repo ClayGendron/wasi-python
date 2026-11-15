@@ -76,4 +76,7 @@ A pull request into `dev` that waits only on its review leaves both required che
 
 ## Landing notes
 
-(Filled in as the pull request runs.)
+- Run 43667987732 on 62db4b7 (the first head) was cancelled by the push of the round-1 fix, as the pull request's concurrency group asks; its `review` job had already concluded failure.
+- Run 43668754606 on e50571bd, with no review file yet, concluded **success** (EXECUTED, the Actions API, 2026-11-15 02:59Z). Its check runs: `review` failure and `ci-status` failure, every judge, verify, build, `quick` and gather job success on ubuntu-24.04, macos-15 and windows-2025, and the release-only jobs skipped. The pull request's `mergeable_state` read `blocked`. Acceptance criterion 4's first half holds.
+- That GitHub sent no failure mail for that run is INFERRED from the run's success conclusion; only the owner's inbox can confirm it.
+- `tests/unit/test_runner_grants.py::test_the_walk_judges_links` fails in the author's root container on this branch and on `origin/dev` alike, and passes in CI's `quick`; it is the environment's, not this change's.
