@@ -2,8 +2,8 @@
 
 - **Date:** 2026-11-16
 - **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author
-- **Reviewed:** `5cc59db4..7fc3559f` (`9499950b`, the judge files; `7fc3559f`, the context files), against the roadmap's 194 line at `5cc59db4`, 190's Decisions 1, 8 and 9, and 191's Decision 8. Box: 45 minutes; finished inside it.
-- **Run:** none: the branch is unpushed, and no self-check exists yet.
+- **Reviewed:** `5cc59db4..7fc3559f` (`9499950b`, the judge files; `7fc3559f`, the context files), against the roadmap's 194 line at `5cc59db4`, 190's Decisions 1, 8 and 9, and 191's Decision 8. Box: 45 minutes; finished inside it. Rounds 2 to 4 follow; round 4 reads the merge of `dev` (`aae733cf`) and the fix on `afa5d3dd`.
+- **Run:** none in round 1: the branch is unpushed, and no self-check exists yet. Round 4: run 43924281533 on `89d24122`, green by the author's word (not read here); none of `afa5d3dd`.
 - **Re-ran** (EXECUTED):
   - `uv run python release/precheck.py` → exit 1 on the allowed root-only `test_the_walk_judges_links` alone (unit 3,723 passed, 104 skipped); ruff, mypy, rules, budget and lint ok; the plan waits on this file.
   - `uv run pytest tests/lint tests/unit -q -p no:cacheprovider --deselect tests/unit/test_runner_grants.py::test_the_walk_judges_links` → 3,737 passed, 104 skipped, exit 0.
@@ -122,5 +122,36 @@ Does not land yet: Medium 1 stands. `drawn_form` sorts every id's parameter char
 - The judge: the fix narrows `drawn_ids`. The form now changes 45 of the smoke group's ids, not every parameterised one, and the release group no longer carries the key, which changed no verdict there (one system). G5 is red on exactly what it was red on. Each change is claimed under `[claim.judge]`.
 - §7: nothing is loosened past what the evidence needs. Finding 2 is a latent case that no id meets.
 
-## Verdict
+## Round 3 verdict (2026-11-16; replaced)
 Lands on `89d24122`. Medium 1 is closed. `drawn_form` masks a uuid and an address and sorts only a set display's members, and on six native collections its forms are equal with no ids merged. A row fails round 2's form and three other wide forms. Lows 2, 4 and 5 are fixed, and Low 3's written answer is enough, because the key never touches `passes` and G5 still compares them. The precheck holds but for the allowed root-only test. No run of this head was read; its gather shows pydantic-core-smoke's G5 row. The three new Lows are write-ins: 1 and 2 are answerable in writing, and 3 touches only `context/`.
+
+## Round four, on `afa5d3dd`
+
+- **Date:** 2026-11-16
+- **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author.
+- **Reviewed:** `7f1dc1bc..afa5d3dd`: `aae733cf`, the merge of `dev` at `cbfe00cd` (#113's squash and 182's #114), and `afa5d3dd`, the fix (`tests/harness/packages.py` `judge()`, a row and `_drawn_stream` in `tests/unit/test_packages.py`, the news file and the specification). Both trailers are Claude Opus 5.5.
+- **Run:** none of `afa5d3dd`, which is not pushed. That run 43924281533 on `89d24122` was green, gather G5 held, is the author's word (not read here: the repository's API is not reachable from this session).
+- **Re-ran** (EXECUTED unless marked):
+  - The merge. `git merge-tree --write-tree --merge-base 5cc59db4 origin/dev 7f1dc1bc` gives `3fbcdbf7`, which is `aae733cf`'s tree. `git diff origin/dev aae733cf` and `git diff 5cc59db4 7f1dc1bc` are the same 36 files, 911 insertions and 24 deletions, line for line; one hunk header's context label differs. `git diff 7f1dc1bc aae733cf` equals `git diff 5cc59db4 origin/dev`, which equals 182's own commit `92d5d6b5` (17 files, 676 and 23), so nothing of 182 is lost and nothing of 194 changes.
+  - `uv run python release/precheck.py` → exit 1 on the allowed root-only `test_the_walk_judges_links` alone: unit 3,741 passed, 104 skipped (round 3's 3,727, 182's rows and the new one); ruff, mypy, the rules checks (150 passed, 5 skipped), their budget and lint (14 passed) ok; the plan waits on this file (the review is followed by `afa5d3dd`).
+  - `uv run pytest` on `tests/unit/test_packages.py`, `test_upstream.py`, `test_gather.py`, `test_plugin.py` and `test_regrtest.py` → 492 passed.
+  - Mutants of `packages.judge`, each restored by copy (`git diff --quiet` after), against the four `drawn` rows. The `_counted` line reverted (the digest over every passed id, as before the fix) → `test_a_drawn_group_leaves_the_collectors_moves_out_of_its_digest` fails. `_counted(passed, None)` (the moves ignored) → it fails. The drawn form dropped from the digest → it and the uuid-and-address row fail. `_drawn_stream`'s lines without their trailing space → the new row fails on the fixed code: `parse_stream` splits on " -- ", so the id kept " --" and never met the moved name. The space is what drive.py writes (`tests/upstream/drive.py:106`).
+  - `drawn_form("a.py::t[{(1, 2), (3, 4)}]") == drawn_form("a.py::t[{(1, 4), (3, 2)}]")` → still True.
+  - READ: `judge_group` counts `passes` and `passed_digest` over `_counted` (`tests/harness/upstream.py:771-773`, `:890-895`); the fix takes the same `_counted` over the same passed ids, then the drawn form (`tests/harness/packages.py:885-888`), so a drawn group's digest and its `passes` count the same tests. `combine` re-digests raw ids, but only the CPython runner calls it (`upstream.py:1359`); `packages.judge` is the only place a package group's digest is set. No pydantic family names `collector_moves` (grep: only jinja2's and fonttools'), so no verdict moves today.
+  - The news file's two lines and the landing note at spec `:163` describe the fix as the code does, and the row count ("four rows") is right.
+
+### Round 3's findings
+1. **Low, the G5 row does not hold the passes** — open. `tests/unit/test_gather.py:498` is unchanged, and no written answer is in the branch; the pull request's comments could not be read here. Its fix text stands.
+2. **Low, a set display split on every ", "** — open, as above: no code change, no answer in the branch, and the tuple pair still merges. No id in pydantic-core-smoke meets it (round 3). Its fix text stands.
+3. **Low, the stale landing note** — closed. Spec `:163` now says each uuid and address is read as `*`, each set display's members sorted, the collector's moves left out, and "Only pydantic-core-smoke carries it".
+
+### Findings of round 4
+1. **Low, `context/` only: the merge commit is not recorded.** AGENTS.md step 4 brings a branch up to date "by rebase, never by a merge commit". `aae733cf` is a merge, and it is the right one here. The branch's merge base with `dev` is `d4761c4e`, below #113's own commits. A rebase would replay them onto their own squash (INFERRED), and it would rewrite the shas this review cites. The squash into `dev` leaves no merge behind. Fix: add to the landing notes, after "Round 2's fixes": "**`dev` merged in (`aae733cf`).** #113, this branch's base, landed by squash with 182 before it, so the branch took `dev` by a merge whose tree is `git merge-tree --merge-base 5cc59db4 origin/dev 7f1dc1bc`, not by rebase: a rebase would replay #113's commits onto their own squash. 182's rule that the collector's moves stay out of `passes` and `passed_digest` then reached this branch, and `afa5d3dd` makes a `drawn_ids` group's digest follow it."
+
+### Constitution checks, round 4
+- §4: nothing under `src/`, `.github/` or `release/` changes in 194's commits; the merge brings only what `dev` holds. The new row's name and the fix's comment-free line name no specification or `context/` path (lint).
+- The judge: the fix narrows a drawn group's digest to the tests `passes` counts, as 182 does for every group, and it is claimed under `[claim.judge]` in the news file. G5 is red on exactly what it was red on. `collector_moves` names raw ids, so a moved test whose id carries a drawn value could not be named stably; no group meets that (INFERRED, latent).
+- §7: nothing is loosened.
+
+## Verdict
+Lands on `afa5d3dd`. The merge of `dev` is clean: its tree is `merge-tree`'s, 194's change is line for line the one round 3 signed, and 182's change is whole. The fix makes a drawn group's digest leave out the collector's moves as `passes` does, and a new row fails on the old line and two other mutants. The precheck holds but for the allowed root-only test. Round 3's Low 3 is closed. Its Lows 1 and 2 stay open as write-ins, and round 4's Low 1 touches only `context/`. No run of this head was read.
