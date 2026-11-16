@@ -883,8 +883,9 @@ def judge(
     modules, stream.modules = stream.modules, []  # this driver's guard, not drive.py's
     outcome = upstream.judge_group(stream, run, cfg.classes(group))
     if group in cfg.keys.drawn_ids:
-        passed = [upstream.drawn_form(n) for o, n, _ in stream.outcomes if o == "passed"]
-        outcome.passed_digest = upstream.passed_digest(passed)
+        passed = [n for o, n, _ in stream.outcomes if o == "passed"]
+        counted = upstream._counted(passed, outcome.moves)
+        outcome.passed_digest = upstream.passed_digest([upstream.drawn_form(n) for n in counted])
     outcome.findings += guard_findings(cfg, modules)
     outcome.findings += keep_findings(extra, stream, keep)
     if cfg.keys.split_of(group) is not None and extra.collected is None:
