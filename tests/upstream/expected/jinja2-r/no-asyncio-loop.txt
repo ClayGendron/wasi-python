@@ -100,5 +100,3 @@ tests/test_async_filters.py::test_sum_attributes[<lambda>1]
 tests/test_async_filters.py::test_sum_attributes_nested
 tests/test_async_filters.py::test_sum_attributes_tuple
 tests/test_async_filters.py::test_unique_with_async_gen
-tests/test_ext.py::TestExtensions::test_streamfilter_extension
-tests/test_lexnparse.py::TestLexer::test_balancing

@@ -568,6 +568,25 @@ def report(findings: list[str], what: str = "findings") -> str:
     return f"{what}: {len(findings)} finding(s), digest {digest(findings)}: {shown}"
 
 
+# The prefix of a class check's second line: every member its list gained and lost.
+MOVED = "moved: "
+
+
+def moved(findings: list[str]) -> str:
+    """Every `+id` and `-id` of a class's findings, none cut, or "" when there are none. The
+    report's first line shows five findings, and the members come first, so without this line a
+    job log would name none of the tests a re-pin needs."""
+    moves = [f for f in findings if f.startswith(("+", "-"))]
+    return MOVED + "; ".join(moves) if moves else ""
+
+
+def moved_line(message: str) -> str:
+    """A failure message's moved line, whole, or "" when it has none. pytest indents an assertion
+    message's later lines, so the line is found by its prefix once stripped."""
+    lines = (line.strip() for line in message.splitlines())
+    return next((line for line in lines if line.startswith(MOVED)), "")
+
+
 # ---------------------------------------------------------------------------------------------
 # The release workflow's provenance
 

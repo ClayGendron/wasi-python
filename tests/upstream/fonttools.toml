@@ -103,6 +103,10 @@ outcome = "failed"
 match = "assert \\d\\.\\d+e-0\\d > \\d\\.\\d+e-0\\d|assert 3850070400 > 3850070400|Lists differ: \\[1, 2, 3\\] != \\[1, 2\\]|^assert 8\\.0 is None$"
 reason = "the guest's clock is the judge's counted clock (each read advances it one microsecond), so a test that times a sleep or a timeout, or expects two timestamps a second apart, sees other times than a wall clock gives (README)"
 closes_with = "docs/reference/limitations.md"
+# test_split asserts its second lap is the longer; a collector pass reads the counted clock at
+# its start and end, so the test passes when one falls in that lap, and the set's allocations
+# choose whether it does. The class check leaves it out.
+collector_moves = ["Tests/misc/loggingTools_test.py::TimerTest::test_split"]
 
 [[expected]]
 id = "importlib-module-names"

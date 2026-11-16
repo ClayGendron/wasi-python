@@ -134,6 +134,23 @@ def test_a_gap_that_fails_differently_is_a_failure(inner) -> None:
     )
 
 
+def test_a_gap_that_fails_differently_names_what_moved(inner) -> None:
+    """The reason keeps the message's first line, cut to 240 characters, and then every member
+    the class gained and lost, whole, so the job log alone says what to re-pin."""
+    moved = "moved: " + "; ".join(f"+t::joined_{i}" for i in range(30)) + "; -t::left"
+    first = "class g-c: 61 finding(s), digest 0123456789ab: " + "; ".join(["t::m" * 20] * 5)
+    source = (
+        "import pytest\n"
+        "pytestmark = pytest.mark.goal('rules')\n"
+        f"def test_failing():\n    assert False, {first + chr(10) + moved!r}\n"
+    )
+    result, record = inner(source=source, gaps_text=GAP.format(match="2 finding(s), digest x"))
+    reason = record["checks"]["test_inner.py::test_failing"]["reason"]
+    assert result.ret == 1 and status(record, "test_failing") == "fail"
+    assert reason.startswith("fails differently from its gap") and reason.endswith(" · " + moved)
+    assert moved in result.stdout.str()
+
+
 def test_a_gap_that_passes_is_a_failure(inner) -> None:
     result, record = inner(fail=False, gaps_text=GAP.format(match="the named failure"))
     assert result.ret == 1 and status(record, "test_failing") == "fail"
