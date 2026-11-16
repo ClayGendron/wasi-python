@@ -715,7 +715,8 @@ systems = ["linux"]
 # pdfplumber's, pdfminer.six's and xarray's, 41.4 G, 11.5 G and 39.7 G, and tinycss2's,
 # cssselect2's, cairocffi's, CairoSVG's and imageio's, 105.9 G, 18.0 G, 14.1 G, 16.3 G and 47.0 G,
 # and plotly's, 11.5 G, on darwin-arm64; then pydantic-core's, pydantic's, annotated-types' and
-# typing-inspection's, not yet measured (upper estimates 64 G, 89 G, 21 G and 19 G)
+# typing-inspection's: pydantic's 78.8 G measured on linux, the other three not yet measured
+# (upper estimates 64 G, 21 G and 19 G)
 groups = ["tomli-w-smoke", "charset-normalizer-smoke", "markupsafe-smoke", "more-itertools-smoke", "tzdata-smoke", "defusedxml-smoke", "interface-meta-smoke", "xlrd-smoke", "webencodings-smoke", "cycler-smoke", "cloudpickle-smoke", "python-docx-smoke", "python-pptx-smoke", "pdfplumber-smoke", "pdfminer-six-smoke", "xarray-smoke", "tinycss2-smoke", "cssselect2-smoke", "cairocffi-smoke", "cairosvg-smoke", "imageio-smoke", "plotly-smoke", "pydantic-core-smoke", "pydantic-smoke", "annotated-types-smoke", "typing-inspection-smoke"]
 systems = ["linux"]
 
@@ -1025,11 +1026,10 @@ minutes = 2.1
 systems = ["release"]
 
 [shard.upstream-release-070]
-# pydantic-core's and pydantic's release groups, not yet measured: upper estimates of 210 G and
-# 300 G; their minutes are estimated from that fuel at upstream-pure-r-113's rate (210.2 G in 1.52
-# min) until a release run measures them.
+# pydantic-core's and pydantic's release groups, 153.5 G and 190.1 G measured on linux in 1.95
+# min, the release-shape run 43888443839.
 groups = ["pydantic-core-r", "pydantic-r"]
-minutes = 3.7
+minutes = 1.95
 systems = ["release"]
 
 # --- the pure-Python packages' own tests: end

@@ -1,0 +1,4 @@
+tests/test_validate_call.py::test_async
+tests/test_validate_call.py::test_async_func
+tests/test_validate_call.py::test_item_method
+tests/test_validators.py::test_field_that_is_being_validated_is_excluded_from_validator_values

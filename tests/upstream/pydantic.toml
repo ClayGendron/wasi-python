@@ -7,18 +7,16 @@
 # does not carry, are test-only wheels too. Its tests read paths relative to the test source's
 # root, so they run there.
 #
-# Every group's `measured` is provisional, an upper estimate, not a measurement: no set with
-# pydantic-core linked in could be built where these groups were written, so each is one and a
-# half times an estimate from the native session of the same files (10 G for a session's start
-# and 10.4 G per native second, from packaging's and six's measured groups). The first run of a
-# set built with these groups measures them, and its fuel replaces each figure and each cap.
+# Each group's `measured` is its fuel on the first set built with these groups: the smoke group's
+# in run 43887736757 (linux, the larger of linux's and windows'), the release group's in the
+# release-shape run 43888443839; each cap is the rule's of it.
 
 package = "pydantic"
 driver = "package"
 grant = "/upstream-pydantic"
 test_source = true
 wheel = "pydantic-2.14.3-py3-none-any.whl"
-budget = 590_000_000_000
+budget = 410_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 cwd = "tree"
@@ -54,15 +52,15 @@ paths = [
     "tests/types/unions/test_union.py",
 ]
 smoke = "models, fields, validators, serialization, type adapters, typed dicts, dates and the standard types, the package and pydantic-core from the zip"
-fuel = 140_000_000_000
-measured = 89_000_000_000  # provisional: an upper estimate, not measured
+fuel = 120_000_000_000
+measured = 78_752_454_033
 
 [groups.pydantic-r]
 paths = ["tests"]
 tier = "release"
 release_by = "path"
-fuel = 450_000_000_000
-measured = 300_000_000_000  # provisional: an upper estimate, not measured
+fuel = 290_000_000_000
+measured = 190_095_484_353
 
 [[not_selected]]
 files = ["tests/benchmarks"]
@@ -103,4 +101,36 @@ group = "pydantic-smoke"
 outcome = "failed"
 match = "can't start new thread|thread constructor failed|start_new_thread"
 reason = "no threads: the guest cannot start one (README); the test rebuilds a model from two threads at once"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-asyncio-loop"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at the next test the collector runs during (README); the two async tests fail, and two synchronous ones carry the report"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "package-in-zip"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "Not a directory: '/usr/local/lib/python\\d+\\.zip/pydantic/"
+reason = "the package's files are bytecode in the stdlib zip, not source in folders, so a test that loads a module again from its file fails (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm-recursion-guard"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'UserWarning'>,\\) were emitted"
+reason = "pydantic-core's recursion guard stops at 49 levels on every wasm build, where native stops at 255 (limitations), so a union serializer 1,000 levels deep does not give the depth warning the test expects"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-asyncio-loop"
+group = "pydantic-r"
+outcome = "failed"
+match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at the next test the collector runs during (README); the deprecated decorator's async test fails, and the test after it carries the report"
 closes_with = "docs/reference/limitations.md"
