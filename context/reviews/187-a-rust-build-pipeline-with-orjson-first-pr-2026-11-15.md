@@ -2,9 +2,9 @@
 
 - **Date:** 2026-11-15
 - **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author
-- **Reviewed:** pull request #110 (draft), `origin/dev` `4bed5d73`...`cb2b25bb`: the pushed head `03097ea4` and three local commits (`d1d8888d`, `f01c1698`, `cb2b25bb`), with the specification, its landing notes and its pre-build review
-- **Run:** 43664780183 on `03097ea4`, the head before the fixes, read once. Green: plan, `quick`, the build (arm64 Linux), `verify` on three systems, 42 judge legs. Red: 17 jobs. Skipped: the gather, the release tier, both rebuilds, `same-bytes`. No run on `cb2b25bb` yet (READ).
-- **Re-ran:** `uv run pytest tests/lint -q -p no:cacheprovider` → 14 passed. The six changed unit files → 791 passed. `tests/checks/test_rules.py` and `test_upstream_files_are_well_formed` → 149 passed, 5 skipped. `harness.import_list.errors` on `dev`'s set at `338ed06d` → 43 imports in each binary, equal to `recipes/guest-imports.txt` (all EXECUTED).
+- **Reviewed:** round one: pull request #110 (draft), `origin/dev` `4bed5d73`...`cb2b25bb`: the pushed head `03097ea4` and three local commits (`d1d8888d`, `f01c1698`, `cb2b25bb`), with the specification, its landing notes and its pre-build review. Round two: `2183d5d5..e026a6ee` after the rebase onto `dev` `7deb6043`, six commits, the pushed `29162515` and one local commit, `e026a6ee`. Round three: `d4761c4e..fb4a1bc6` after the rebase onto `dev` `d4761c4e`, then, once #113's squash put this branch on `dev`, the merge of `dev` `8c34c02f` (its tree is `dev`'s) and `a746d5e4`, the whole pull request now
+- **Run:** 43664780183 on `03097ea4`, the head before the fixes, read once. Green: plan, `quick`, the build (arm64 Linux), `verify` on three systems, 42 judge legs. Red: 17 jobs. Skipped: the gather, the release tier, both rebuilds, `same-bytes`. No run on `cb2b25bb` yet (READ). Round two: 43771983479 on `29162515`, below. Round three: 43865484595, the owner's release-shape dispatch on `fb4a1bc6`, below.
+- **Re-ran:** `uv run pytest tests/lint -q -p no:cacheprovider` → 14 passed. The six changed unit files → 791 passed. `tests/checks/test_rules.py` and `test_upstream_files_are_well_formed` → 149 passed, 5 skipped. `harness.import_list.errors` on `dev`'s set at `338ed06d` → 43 imports in each binary, equal to `recipes/guest-imports.txt` (all EXECUTED). Round two: below. Round three: on `fb4a1bc6` and on `a746d5e4`, below.
 - **Box:** 45 minutes (build-class).
 
 Labels: EXECUTED, I ran it; READ, I read the file or log; INFERRED, my reasoning. Nothing was dispatched, pushed or labelled.
@@ -85,6 +85,99 @@ The next run on the pushed head must show:
 - macOS's GREW rows under GROWTH with 187's reason;
 - review and ci-status green.
 
+## Round two, on `e026a6ee`
+
+Re-ran on `e026a6ee` (EXECUTED, each):
+- `uv run python release/precheck.py` → fails only `tests/unit/test_runner_grants.py::test_the_walk_judges_links` (root-only, as on `dev`) and the plan's two notes that the review waits; ruff, mypy, the rules checks, their times and lint are ok.
+- `tests/unit/test_budget.py`, `tests/unit/test_gather.py` and `tests/lint` → 217 passed. `tests/checks/test_rules.py` → 149 passed, 4 skipped.
+- A mutant without the gather's `fresh` line → the new gather row fails.
+- Unit collection: `dev` 3,758, `2183d5d5` 3,801, `e026a6ee` 3,803.
+- `new_family_fuel` with an upstream node of a new package, in an accepted file → `[]`.
+
+Run 43771983479 on `29162515`, read once (READ). 81 jobs: 66 green, 13 skipped, 2 red. Green: plan, `quick`, the build (built, not reused; step 52 printed `rust: orjson 3.13.0, _rust_probe, panic=unwind, 2 kept, 1 dropped, 1 shimmed, 603470 bytes`), `verify` on three systems, 31 Linux, 14 macOS and 12 Windows judge legs, `own-guest-c` on all three among them, `own-rest`, `upstream-pure-smoke-a` and the gather. Red: `review` and `ci-status`; `ci-status` names only this file's two refusals. Skipped: both rebuilds, the release tier, `same-bytes` and the publish and accept jobs. Gather: `1240/2377 pass · 132 gap · 7 blocked · 0 fail`; macOS's `GREW` rows under GROWTH with 187's reason; three `budget:` lines report `test_v1_3_rust` as a new family, largest fuel 1,467,206,264, by `test_orjson_json_job_matches_native`. Every item round one asked of this run is there.
+
+What changed:
+- `10d4a6e7`, `1f334255`, `2fa07ac4`: three entries in `decisions.md`. The spec's Status, Decisions 3 and 12, its landing notes and the facts sheet now cite them, with no provisional wording left (READ, grep). They agree: the patch stands and is checked at each orjson version; the maintainer's address is in the facts sheet; the crate type stays; yyjson and `core`'s tables ship under the approved MIT and Unicode-3.0; patch 0003 is pydantic-core's.
+- `c1e8034b`: one blank line in `tests/unit/test_scan.py`; format only (READ).
+- `29162515`: the judge changes and only reports. `new_family_fuel`'s lines join `reported`, never `red`. `findings`, `run_fuel_over` and lint's caps are untouched (READ; the mutant above). Neither the new function nor the header note raises a cap. The cap of 100,000,000,000 lived only on this commit and its run, the family's first.
+- `e026a6ee`: the cap is 2,934,412,528, twice 1,467,206,264 (EXECUTED arithmetic), the same figure on three systems (READ). Lint passes with it.
+
+### Findings, round two
+
+11. **Medium, held from round one: the merge-grade run has not run** (finding 3; criteria 1, 5's release half and 6). The release tier, both rebuilds and `same-bytes` were skipped again. Failure: macOS's toolchain build and the cross-host bytes are unseen. `COPYRIGHT-library.html` is read from one host (`scripts/assemble_artifacts.py:1087`), and `same-bytes` is the only check that the hosts agree. Evidence that closes it: a green `ci:full` run on the pushed head. Or the owner's word, recorded in `decisions.md`, that this pull request merges on the normal tier and those criteria move to 0.1.5's release pull request.
+12. **Low: the news file's `units` is 43, and the branch adds 45** (`context/changes/187-a-rust-build-pipeline-with-orjson-first.md`). `29162515` adds two unit rows. Fix: `units = 45`.
+13. **Low: a new upstream package is never reported** (`tests/harness/budget.py`, `new_family_fuel`). It treats a family as seen by its file. Every upstream check shares one accepted file, so orjson's suite under 192 would get no line. The docstring and `budget.toml`'s header promise every family. It only reports, so nothing passes that would fail. Fix: `seen = {family(n) for n in accepted.get("checks", {})}`, with a unit row of an upstream node whose package is new. Or narrow both texts to "a check file".
+14. **Low: §4.12 does not name yyjson or `core`'s Unicode tables** (`context/constitution.md`). Round one's fix asked that it should. The new decision says §4.12's text covers them, but that text names Unicode-3.0 only for ICU4X. Fix: after "foldhash (Zlib)", add "; yyjson, vendored in orjson (MIT), and the Unicode tables in Rust's `core` (Unicode-3.0), approved 2026-11-15 (`decisions.md`, "yyjson and Rust's Unicode tables are covered")". Add the matching Status line.
+15. **Low: stale texts.** The spec's Status says pull request #105 is "not yet on `dev`"; it is `8d85302a`. The description still opens "Provisional defaults, waiting on the owner". Its first two boxes are unchecked, and "Still to build" lists built work. The 12 Windows legs of 43771983479 are green (READ). Fix: drop "not yet on `dev`", and update the description (the coordinator's).
+
+### Round one's findings
+
+1. Closed (READ), apart from finding 14.
+2. Holds: 192 is reserved and `closes_with = "spec 192"`.
+3. Open: finding 11.
+4. Holds. The guest's entropy check has still not been seen failing; its landing note says why.
+5. Closed for the spec. The description is finding 15.
+6. to 10. Hold.
+
+## Round three, on `fb4a1bc6`, then `a746d5e4`
+
+Reviewer: an agent (Claude), two fresh sub-agents of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author. The first read `d4761c4e..fb4a1bc6` and stopped before the verdict. The second read the branch as it now stands and wrote the verdict. Nothing was dispatched, pushed or labelled.
+
+Read. First, `d4761c4e..fb4a1bc6`: 35 commits after the rebase onto `dev` `d4761c4e` (191, #112), and the four since round two, `ae8934db` (Lows 12 to 15), `5801a25c` (the crates' identity), `28c9cfe5` (the units count) and `fb4a1bc6` (the getset tables). Then the branch now:
+- The owner squash-merged #113, which was stacked on this branch, into `dev` as `cbfe00cd`. So `dev` holds every commit here through `fb4a1bc6`. `dev` also holds #114 (182, `92d5d6b5`).
+- `8c34c02f` merges `dev`. Its tree equals `dev`'s: `git diff 8c34c02f origin/dev` is empty (EXECUTED).
+- `a746d5e4` is finding 16's fix. `git diff origin/dev a746d5e4` is the whole pull request now: two files, 4 lines added and 1 removed (EXECUTED).
+- Both new commits carry Claude Opus 5.5's trailer (EXECUTED). GitHub's head is still `fb4a1bc6`, so the two are not pushed (READ, `git ls-remote`).
+
+Re-ran on `fb4a1bc6` by the first sub-agent (EXECUTED, each):
+- `uv run python release/precheck.py` → fails only `tests/unit/test_runner_grants.py::test_the_walk_judges_links` (root-only, as on `dev`; 1 failed, 3,713 passed, 104 skipped) and the plan's two notes that the review waits; ruff, mypy, the rules checks (149 passed, 4 skipped), their times and lint (14 passed) are ok.
+- The touched unit files (`test_rust_ids`, `test_rust_objects`, `test_budget`, `test_callbacks`, `test_scan`, `test_gather`) → 848 passed.
+- Two mutants. The getset scan given the old references again → 2 rows of `test_callbacks.py` fail (the stray word and the stray constant). `rust_ids` naming a host dependency by its id, not `host` → `test_a_guest_crates_id_is_the_same_from_every_host_and_checkout` fails. Both restored.
+- Unit collection: `dev` `d4761c4e` 3,759, `fb4a1bc6` 3,818: 59, the news file's `units`.
+- Trees: `test_source_tree_matches_its_tarball` collects 44; `recipes/patches` holds 36 patches (35 on `dev`, and orjson's). `release.yml` asks for 44 in its three places.
+- The old and the new getset scans on the pre-187 `python.wasm` of the scratch set `pytz-start/z1`, the kept tables compared → old 449 tables, new 448; coverage the same, 2,948 getset entries, 5,665 method-array entries, 4,293 single definitions, 842 members, no finding in either. The one table dropped is a one-entry table whose entry is `tag_name`, cairo's, which the parser-rule check already skipped. So the narrowing keeps every table it checked.
+
+Re-ran on `a746d5e4` by the second sub-agent (EXECUTED, each):
+- `uv run python release/precheck.py` → fails only `test_the_walk_judges_links` (root-only; 1 failed, 3,736 passed, 104 skipped). ruff, mypy, the rules checks (151 passed, 4 skipped), their times and lint (14 passed) are ok. The plan has one note, that the review waits: this file is not yet among the changed paths against `dev`. The author's commit of it clears that.
+- `test_callbacks_have_the_types_cpython_calls` on the scratch set `pytz-start/z1`, with the 2,900 floor → 1 passed. Its coverage is 2,948 getset entries, so the floor sits 48 under it.
+- Class digests rebuilt from run 43865484595's three red messages with `upstream.class_findings` and `scan.digest`, below. As a control, `fb4a1bc6`'s list of `jinja2-r-no-asyncio-loop` gives its gap's `104 finding(s), digest 959d6ba605ec`.
+
+What changed:
+- `ae8934db`: `new_family_fuel` sees a family by its name (`family(node)`), with a unit row of a new upstream package beside an accepted one (finding 13). §4.12 names yyjson (MIT) and `core`'s Unicode tables (Unicode-3.0), with the Status line (finding 14). The spec's Status reads #105 as on `dev` as `8d85302a` (finding 15's spec half). All READ.
+- `5801a25c`: `scripts/rust_ids.py`, a `RUSTC_WRAPPER`, replaces each compile's `-C metadata` with a hash of the compile: arguments with the root made one word, cargo's hashes, output and search folders and reporting flags left out, each guest dependency by its `.rustc-id`, a host dependency by its name alone. `-C extra-filename` stays cargo's. `keep` writes the umbrella's object as `wasi_python_rust.o` and refuses two umbrella objects. Step 52 writes the wrapper and passes `RUSTC_WRAPPER` after the host's is unset (READ). The two `STEP_52_WORDS` rows are a judge change that only adds refusals; `scan.py` is not verdict-bearing (`paths.VERDICT_BEARING`), so it needs no claim, and the news file's scan row covers it. The cause in the landing notes (a host compile's `rustc -vV` reaching a guest crate's hash through its build scripts and proc macros) was EXECUTED there. That a real arm64 or macOS rustc writes the same code was INFERRED until `same-bytes`; run 43865484595's `same-bytes` is green (READ, below).
+- `28c9cfe5`: `units = 59` (finding 12, then the later rows).
+- `fb4a1bc6`: a judge change, claimed in `[claim.judge]`. A getset table counts only where CPython reaches one: a static type's `tp_getset` (124 bytes past an immortal reference count), a `Py_tp_getset` (73) slot, or an `i32.const` stored at offset 124. Method and member tables keep the old rule. It narrows what is read, so it could weaken the judge; on the 0.1.4-era binary it does not (above), and two of its four new rows hold that a real table is still read.
+- `a746d5e4`: `CALLBACK_MINIMUMS` sets `"getsets": 2_900`, with a comment that says why in words. Its `[claim.judge]` row names `tests/checks/test_v1_3_data_stack.py` (READ). The judge only gains: the floor rises, and nothing else moves.
+
+Run 43865484595, the owner's release-shape dispatch on `fb4a1bc6`, read once (READ, `actions_list` and three job logs). 148 jobs: 135 green, 3 red, 10 skipped.
+- Green: plan, `quick`, the build (arm64 Linux), both rebuilds from the pins (x86_64 Linux, with the build shard, and macOS 15), `the same bytes from every host`, `verify` on three systems, the PyPI rehearsal (`rehearse PyPI's signer and read-back`), every normal-tier judge leg (31 Linux, 14 macOS, 12 Windows), and 66 of the 68 release-tier legs.
+- Red: `upstream-release-039` and `upstream-release-041`, then `ci-status`. Its only line is `a job this check needs neither succeeded nor was skipped: judge-release`, with `REFUSALS: []`.
+- Skipped: `review` (a dispatch has no pull request to read), the gather, and the publishing, attesting and acceptance jobs.
+- Each red leg fails only on a class gap whose count moved, with `lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` against `80d725a9a3`:
+  - 039: `jinja2-r-no-asyncio-loop-error` is 19 findings, digest `54478dcb2e88`; its gap holds 13, `ba56b641f579`.
+  - 039: `jinja2-r-no-asyncio-loop` is 112 findings, digest `7623e94ffbea`; its gap holds 104, `959d6ba605ec`.
+  - 041: `fonttools-r-rest-counted-clock` is 4 findings, digest `02b4b38a0999`; its gap holds 2, `0c61ab6175e3`.
+
+These are the classes spec 182 (#114, now on `dev`) gives `collector_moves`. A class's findings are its members, plus `+id` for each that joined its list and `-id` for each that left. The log cuts each message at five members, so the members were rebuilt from the digests (EXECUTED):
+- `fonttools-r-rest-counted-clock`: one membership gives `02b4b38a0999`. `TimerTest::test_split` joined; nothing left. Under 182's rule (`test_split` left out) it gives `2 finding(s), digest 0c61ab6175e3`, `dev`'s gap. Clears.
+- `jinja2-r-no-asyncio-loop-error`: 19 = 13 + 2 × 3, so three joined. One membership gives `54478dcb2e88`. `test_simple_reject[<lambda>0]`, `test_simple_select_attr[<lambda>1]` and `test_sum_attributes[<lambda>0]` joined. `test_join_attribute[<lambda>1]`, `test_simple_select_attr[<lambda>0]` and `test_sum[<lambda>1]` left. All six are among the nine named moves. Under 182's rule it gives `9 finding(s), digest 1891e18dfe2d`, `dev`'s gap. Clears.
+- `jinja2-r-no-asyncio-loop`: 112 = 104 + 2 × 4, so four joined. For 182's rule to pass, the four named moves not in the list must be the ones that joined, and only the two named moves in the list may leave. Every membership of that kind was tried, and also those where up to four of any listed tests leave. None gives `7623e94ffbea`. So on `fb4a1bc6`'s bytes a test outside the six named moves joined this class, or a stable member left it. 182's rule holds this class red there (finding 18).
+
+### Findings, round three
+
+16. **Low: the getset floor is far below what is checked** (`tests/checks/test_v1_3_data_stack.py:789`). The scan now reads a getset table only through three patterns. A table reached another way (a store whose address is a constant and whose offset is 0, say) would drop out without a word: the floor is 1,000 and the binary checks 2,948. Fix: `"getsets": 2_900` in `CALLBACK_MINIMUMS`, so a narrowing that loses real tables is red. A judge change: claim it. **Closed on `a746d5e4`:** the floor is 2,900, 48 under the 2,948 the scratch set checks, and the check passes there (EXECUTED). Its claim row is in `[claim.judge]` (READ).
+17. **Low: the description is stale** (finding 15's half, the coordinator's). It still opens "Provisional defaults, waiting on the owner". Its first two boxes are unchecked. "Still to build" lists work that is built and on `dev`. The replacement text is in the report, not in this file.
+18. **Medium, on `dev`, not on this diff: `jinja2-r-no-asyncio-loop` moves beyond its named tests on 187's bytes** (`tests/upstream/jinja2.toml`, the class's `collector_moves`; run 43865484595, `upstream-release-039`). The rebuilt digests show that 182's six named moves do not cover how this class moved on `fb4a1bc6`'s set (above). 187's code reached `dev` in #113's squash merge, and `dev` now links pydantic-core too, so the next set's allocations differ again. No post-merge run judges the release tier. Failure: the 0.1.5 release pull request is red on this class, and nobody has looked at it until then. Fix: on `dev`, not here. The next release-tier run's moved line names the tests. Then a change to the class (more named moves, with their reason), which is a judge change of its own, or a reason in the release ledger. This pull request's diff cannot fix it: it is the getset floor alone.
+19. **Low: the branch carries a merge commit** (`8c34c02f`; AGENTS.md step 4 says "never by a merge commit"). A rebase would have replayed 35 commits that `dev` already holds as one squash. The merge's tree is `dev`'s exactly, the head's diff is `a746d5e4` alone, and the squash merge keeps `dev` linear. Answered in writing; no fix.
+
+### Round two's findings
+
+11. Closed for this pull request (READ, run 43865484595). Criterion 1: macOS's toolchain built the set; the macOS rebuild is green. Criterion 6: `same-bytes` is green. Its `SHA256SUMS` lists the licences, so `COPYRIGHT-library.html` agrees across the three hosts (READ, `release.yml`'s comment). Criterion 5's release half: 66 of 68 legs are green. The other two are red only on three collector-timing classes. Two of those clear under 182's rule, now on `dev` (EXECUTED, above). The third moves to finding 18, on `dev`.
+12. Closed: `units = 59`, which the collection shows (EXECUTED).
+13. Closed: a family is seen by its name, with its unit row (READ, EXECUTED in the 848).
+14. Closed: §4.12 and the Status line name both (READ).
+15. Closed for the spec. The description is finding 17.
+
 ## Verdict
 
-Does not land yet: the merge waits on the owner, who must answer orjson's patch, yyjson and core's Unicode tables, and the allocator question in `decisions.md` (1), and give the full run (3). Findings 2 and 4 to 10 are closed on be6e47b1. Once the next run shows the above, it lands on that pushed head, and the merge goes ahead after those two owner steps.
+Lands on `a746d5e4`. The pull request is now `a746d5e4` alone: it raises the getset floor to 2,900 and claims it, so the judge only gains (16, closed). The merge-grade run 43865484595 is green apart from three collector-timing classes (11, closed). 182 on `dev` clears two of them. The third is finding 18, a Medium carried to `dev` and the 0.1.5 release pull request, because 187's code is on `dev` already and this diff cannot fix it. 17 is the description, the author's. 19 is answered in writing. This file is committed after `a746d5e4` as the branch's last commit.
