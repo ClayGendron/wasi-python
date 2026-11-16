@@ -684,6 +684,11 @@ The code stays embedder-neutral (§4.5). The capabilities that agent use needs a
 - **Asked:** 2026-11-15, by the orchestrating session, in the same list: "orjson's allocator: patch it out so Rust's own serves every crate, since pydantic-core needs 64-byte alignment? [yes]". orjson 3.13.0 declares a `#[global_allocator]` that calls `PyMem_Malloc(layout.size())` and never reads `layout.align()`. In the umbrella library it serves every crate, and the guest's `malloc` gives 16-aligned blocks. Specification 187's crates put no type above 16 on the heap (its pull request review, finding 10), while pydantic-core's crates ask for more (regex-automata asks for 64).
 - **The owner's decision:** "Go with your picks" (2026-11-15, 12:10 UTC). A carried patch, 0003, drops orjson's `#[global_allocator]` before pydantic-core is built, so Rust's own allocator, which honours alignment, serves every crate in the umbrella. It is a decision for pydantic-core's specification, which writes the patch and its facts sheet; specification 187 changes nothing.
 
+## pydantic's suites first
+
+- **Asked:** 2026-11-16, by the orchestrating session, in the project chat, once specification 194 was built and before 0.1.5's cut: run pydantic's four suites in the guest first, keeping Rust panics unwinding, or throw Decision 8's switch to `panic=abort` ("pydantic-core's four questions", below).
+- **The owner's decision:** "Add Pydantic suite first" (2026-11-16). Panics stay catchable (`panic=unwind`, `RUST_PANIC=unwind` in `scripts/line.conf`) and the abort switch is never thrown. 194 landed green on 2026-11-16 (#118), which meets Decision 8's gate, so 0.1.5 ships unwinding.
+
 ## pydantic-core's four questions
 
 - **Asked:** 2026-11-15, by the orchestrating session, in the project chat, as a list of specification 190's open decisions, each with its recommended pick: how orjson reaches PyO3 0.30 (Decision 3), which allocator serves the umbrella (Decision 5), what a prepared image does with Rust's hash keys (Decision 7), and the panic strategy 0.1.5 ships with if the gate never runs (Decision 8). Each rested on the owner's yes to orjson's carried patch 0001 ("orjson's carried patch stands", above).
