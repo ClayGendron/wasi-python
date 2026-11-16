@@ -201,6 +201,9 @@ d339d2b616ba90ccce58da8495a78f46e55d4d25f9fd71dfd526f07e7d53f957  tinycss2-1.5.1
 6769f1f01c4dd46448307863a787c9a22fa4dbe11c0c88f525c6e410fdfd7983  imageio-2.38.1.tar.gz
 96e7f273c78deffb2571e8a1456839b8a9879adf9802f919160267e1a8c6e100  imageio-test-images-f676c96b-tag.tar.gz
 147ce0b9b55618fff26f4907d25d605c78a8710d7a08cd648e816149f1ead41e  plotly-7.1.0-tag.tar.gz
+1054f237f4d4733e5a30e1e2333bd33a2004ab9ab1510bd053a9a31bb48e232d  pydantic-2.14.3.tar.gz
+13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7  annotated_types-0.8.0.tar.gz
+7f16c411e7930dc79596d42ab44672a3fe5f60eb34b781a1647e7872363120c7  typing_inspection-0.4.5.tar.gz
 3fcd7f1709f62dda58bf4db2dcfd630a451e750aadaaa551a21cc4a627a37b4c  rustc-1.100.0-aarch64-apple-darwin.tar.xz
 7e18265d2d2cda8dec6cac4d0faa3bbafe927b401e5185350abc7d669f9adafb  cargo-1.100.0-aarch64-apple-darwin.tar.xz
 9345645b6f56eea28bf8cc2c0f628a61d507a688f91c1bec5ae6bfad216a16c7  rust-std-1.100.0-aarch64-apple-darwin.tar.xz

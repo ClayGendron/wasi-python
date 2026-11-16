@@ -1496,9 +1496,13 @@ def rule_errors(
 # change. They bound the test-source families only. Both rose with the five families of SVG to
 # PNG through cairo (tinycss2, cssselect2, cairocffi, CairoSVG, imageio): a group from 100 G to
 # 110 G for tinycss2's one test file, 105.9 G whole, which a smoke family cannot split by path;
-# the total from 1 T to 1.2 T, their smoke groups measuring 201.3 G together.
+# the total from 1 T to 1.2 T, their smoke groups measuring 201.3 G together. The total rose again
+# with pydantic-core's, pydantic's, annotated-types' and typing-inspection's smoke groups, to the
+# sum of every test-source smoke group's `measured` (1,376.1 G) plus 17 G, rounded up to 10 G:
+# provisionally, since those four record upper estimates (193 G together) that no run has
+# measured yet; their first measured fuel sets it again by the same rule.
 SMOKE_GROUP_BOUND = 110 * 10**9
-SMOKE_TOTAL_BOUND = 12 * 10**11
+SMOKE_TOTAL_BOUND = 14 * 10**11
 
 
 def source_rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
