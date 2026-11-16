@@ -118,19 +118,25 @@ def test_upstream_suite(
     ("package", "klass"), CLASSES, ids=[f"{k.group}-{k.id}" for _, k in CLASSES]
 )
 def test_upstream_class(
-    upstream_session, regrtest_session, package_session, package, klass
+    upstream_session, regrtest_session, package_session, fact, package, klass
 ) -> None:
     """The class's members are exactly its list, by node id: one finding each while the class has
     members, and `+id`/`-id` for each test admitted or released without an edit to the list. A
     node-limited class's list is its nodes, so a named test that no longer fails for its cause
-    shows as `-id`."""
+    shows as `-id`. The tests a class names as the collector's moves are left out, and the record
+    says which of them were members. The message's second line names every `+id` and `-id`."""
     _need(package)
     session = _session(package, upstream_session, regrtest_session, package_session)
     run = session.group(package, klass.group)
-    findings = upstream.class_findings(run.outcome.members[klass.id], upstream.class_list(klass))
+    members = run.outcome.members[klass.id]
+    if klass.collector_moves:  # reported, never ratcheted
+        fact("collector_moves_in", sorted(set(members) & set(klass.collector_moves)))
+    findings = upstream.class_findings(members, upstream.class_list(klass), klass.collector_moves)
     if not run.outcome.finished:
         findings.append(f"group {klass.group} did not finish")
-    assert not findings, scan.report(findings, f"class {klass.group}-{klass.id}")
+    message = scan.report(findings, f"class {klass.group}-{klass.id}")
+    moved = scan.moved(findings)
+    assert not findings, message + (f"\n{moved}" if moved else "")
 
 
 if TRAPS:  # an empty parametrization would be a skip that names no need, so a failure

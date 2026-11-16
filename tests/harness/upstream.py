@@ -151,7 +151,12 @@ class Klass:
     no earlier class, and its list file holds its members. A node-limited class names its tests
     (`nodes`): it claims theirs alone, before any other class, and those tests must fail or error
     for its cause in every run; its list is its nodes. It is for tests whose outcome the run's
-    timing chooses among its causes, and nothing else."""
+    timing chooses among its causes, and nothing else.
+
+    An ordinary class may also name, in `collector_moves`, tests that the collector's timing moves
+    into it, into a sibling class or to a pass: the class check leaves those out, and holds every
+    other member exactly. It is for tests on which a leaked object's collection lands wherever
+    the set's allocations put it, and nothing else."""
 
     id: str
     group: str
@@ -161,6 +166,7 @@ class Klass:
     closes_with: str
     nodes: tuple[str, ...] | None = None  # a node-limited class's tests
     outcomes: tuple[str, ...] = ()  # a node-limited class's outcomes, in place of `outcome`
+    collector_moves: tuple[str, ...] | None = None  # tests the collector's timing moves in and out
 
     def claims(self, outcome: str) -> bool:
         return outcome in (self.outcomes or (self.outcome,))
@@ -178,6 +184,7 @@ def klass_of(e: dict) -> Klass:
         e["closes_with"],
         None if nodes is None else tuple(nodes),
         tuple(e.get("outcomes", ())),
+        None if "collector_moves" not in e else tuple(e["collector_moves"]),
     )
 
 
@@ -894,9 +901,13 @@ def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> 
     )
 
 
-def class_findings(actual: list[str], listed: list[str]) -> list[str]:
+def class_findings(
+    actual: list[str], listed: list[str], moves: tuple[str, ...] | None = None
+) -> list[str]:
     """One finding per member, plus `+id` for each not in the list and `-id` for each listed but
-    gone; none when the class is empty (its gap then says "remove the gap")."""
+    gone; none when the class is empty (its gap then says "remove the gap"). The tests the
+    collector moves (`moves`) are left out, members or not, so they are never a finding."""
+    actual = [n for n in actual if n not in (moves or ())]
     if not actual:
         return []
     now, was = sorted(set(actual)), set(listed)
@@ -991,6 +1002,24 @@ def class_shape_errors(k: Klass, runner: str = "pytest") -> list[str]:
             errors.append(f"{name}: its nodes are not sorted and unique")
         if runner == "regrtest":
             errors.append(f"{name} names nodes, which only a pytest family's judge reads")
+    return errors + _moves_shape_errors(k, name, runner)
+
+
+def _moves_shape_errors(k: Klass, name: str, runner: str) -> list[str]:
+    """`collector_moves`: on an ordinary class only, at least one node, sorted and unique, and
+    only in a pytest family, the one whose class lists the key was made for."""
+    moves = k.collector_moves
+    if moves is None:
+        return []
+    errors = []
+    if not moves:
+        errors.append(f"{name} names no collector move")
+    elif list(moves) != sorted(set(moves)):
+        errors.append(f"{name}: its collector_moves are not sorted and unique")
+    if k.nodes is not None:
+        errors.append(f"{name} names collector_moves and nodes: its list is its nodes")
+    if runner == "regrtest":
+        errors.append(f"{name} names collector_moves, which only a pytest family's judge reads")
     return errors
 
 
@@ -1063,11 +1092,21 @@ def rule_errors(
             listed = read_list(f)
             if listed != sorted(set(listed)):
                 errors.append(f"{pkg}: {k.group}/{k.id}.txt is not sorted and unique")
+            errors += [
+                f"{pkg}: class {k.group}-{k.id}: {n} is in its list and in its collector_moves"
+                for n in sorted(set(listed) & set(k.collector_moves or ()))
+            ]
             has_gap = class_node(k.group, k.id) in gap_checks
             if listed and not has_gap:
                 errors.append(f"{pkg}: class {k.group}-{k.id} has members but no gap")
             if not listed and has_gap:
                 errors.append(f"{pkg}: class {k.group}-{k.id} is empty but still has a gap")
+        errors += [
+            f"{pkg}: {n} is named by a node-limited class and by collector_moves"
+            for k in cfg.expected
+            for n in k.collector_moves or ()
+            if (k.group, n) in limited
+        ]
         if cfg.driver == "package":
             from harness import packages
 

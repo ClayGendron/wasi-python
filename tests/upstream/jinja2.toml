@@ -42,6 +42,10 @@ match = "'Tests\\.misc\\.l.*gTools_test\\.A' == 'loggingTools_test\\.A'|'tests\\
 reason = "the driver imports test modules with pytest's importlib mode, so no test folder goes on sys.path and a test module is named by its package path; a test that checks its own module's name, or imports itself by that name, sees the longer one (README)"
 closes_with = "docs/reference/limitations.md"
 
+# The collector frees an event loop an earlier async test leaves behind during whichever test runs
+# when it fires, and the loop's warning lands on that test, in its call or at its teardown: the
+# set's allocations choose which. collector_moves names each test seen moving into or out of the
+# class (to its sibling, or to a pass); the class check leaves them out and holds the rest exactly.
 [[expected]]
 id = "no-asyncio-loop-error"
 group = "jinja2-r"
@@ -49,6 +53,17 @@ outcome = "error"
 match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
+collector_moves = [
+    "tests/test_async_filters.py::test_custom_async_filter[asyncio]",
+    "tests/test_async_filters.py::test_custom_async_iteratable_filter[asyncio-<lambda>0]",
+    "tests/test_async_filters.py::test_join_attribute[<lambda>1]",
+    "tests/test_async_filters.py::test_simple_reject[<lambda>0]",
+    "tests/test_async_filters.py::test_simple_select_attr[<lambda>0]",
+    "tests/test_async_filters.py::test_simple_select_attr[<lambda>1]",
+    "tests/test_async_filters.py::test_sum[<lambda>0]",
+    "tests/test_async_filters.py::test_sum[<lambda>1]",
+    "tests/test_async_filters.py::test_sum_attributes[<lambda>0]",
+]
 
 [[expected]]
 id = "no-asyncio-loop"
@@ -57,6 +72,14 @@ outcome = "failed"
 match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
+collector_moves = [
+    "tests/test_async_filters.py::test_custom_async_iteratable_filter[asyncio-<lambda>0]",
+    "tests/test_async_filters.py::test_sum[<lambda>1]",
+    "tests/test_ext.py::TestExtensions::test_extend_late",
+    "tests/test_ext.py::TestExtensions::test_streamfilter_extension",
+    "tests/test_lexnparse.py::TestLexer::test_balancing",
+    "tests/test_lexnparse.py::TestParser::test_line_syntax",
+]
 
 [[expected]]
 id = "read-only-source"

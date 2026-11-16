@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import history, litter, needs, news, paths, scoreboard
+from harness import history, litter, needs, news, paths, scan, scoreboard
 
 
 @dataclass
@@ -531,6 +531,9 @@ def _judge(item: pytest.Item, call: pytest.CallInfo, rep: pytest.TestReport):
         message = call.excinfo.exconly() if call.excinfo else ""
         if gap is not None and gap.match not in message:
             why = f"fails differently from its gap (expected {gap.match!r}): {_first_line(message)}"
+            moved = scan.moved_line(message)  # whole: what a re-pin needs, past the cut first line
+            if moved:
+                why += f" · {moved}"
             del rep.wasxfail  # pytest counts a report as failed only without it
             rep.outcome = "failed"
             rep.longrepr = why
