@@ -1036,7 +1036,7 @@ def test_the_id_guard_refuses_a_missing_id(case, tmp_path) -> None:
 
 
 def test_every_build_host_has_its_whole_table() -> None:
-    """Each build host names its five inputs in scripts/line.conf; each is pinned and fetched in
+    """Each build host names its eight inputs in scripts/line.conf; each is pinned and fetched in
     that host's own branch of the download script; and the four files know the same hosts."""
     import importlib.util
 
@@ -2139,3 +2139,83 @@ def test_contourpys_exemption_holds_only_for_the_checked_sdist() -> None:
     assert any("exempt only for contourpy-1.4.0" in e and "unpacks 1.5.0" in e for e in errors), (
         errors
     )
+
+
+RUST_LOCK = paths.REPO / "recipes" / "rust" / "Cargo.lock"
+
+
+def test_every_crate_is_pinned_from_crates_io() -> None:
+    """Every crates.io package of recipes/rust/Cargo.lock has one pin, the lock's checksum,
+    fetched from crates.io's own address for it, and no crate pin lacks a lock package. The
+    standard library's crates come from rust-src and are not read here."""
+    errors = scan.crate_pin_errors(
+        RUST_LOCK.read_text(),
+        paths.read_pin_list(),
+        (paths.REPO / "scripts" / "00_download.sh").read_text(),
+    )
+    assert not errors, scan.report(errors)
+
+
+def test_the_rust_toolchain_is_at_rust_version() -> None:
+    """Each host's rustc, cargo and rust-std, rust-src and the wasip1 rust-std are at
+    RUST_VERSION, pinned and fetched from Rust's dist server."""
+    scripts = paths.REPO / "scripts"
+    errors = scan.rust_toolchain_errors(
+        (scripts / "line.conf").read_text(),
+        (scripts / "00_download.sh").read_text(),
+        paths.read_pin_list(),
+    )
+    assert not errors, scan.report(errors)
+
+
+def test_the_panic_strategy_is_set_once() -> None:
+    """RUST_PANIC is unwind or abort, and no panic key or -Cpanic flag under recipes/rust/ or
+    scripts/ but step 52's one -Cpanic=$RUST_PANIC."""
+    texts = {
+        rel: (paths.REPO / rel).read_text(errors="replace")
+        for rel in paths.tracked_files("recipes/rust", "scripts")
+        if (paths.REPO / rel).is_file()
+    }
+    errors = scan.panic_switch_errors((paths.REPO / "scripts" / "line.conf").read_text(), texts)
+    assert not errors, scan.report(errors)
+
+
+def test_the_rust_steps_build_offline_and_run_their_gates() -> None:
+    """Step 52's cargo runs frozen and offline from build/, with its cargo home under build/, its
+    flags by CARGO_ENCODED_RUSTFLAGS and the host's Rust settings unset, refuses an ancestor
+    .cargo/config, and runs the archive's four gates; steps 60 and 80 run the link-map and import
+    gates."""
+    texts = {
+        rel: (paths.REPO / rel).read_text() if (paths.REPO / rel).is_file() else None
+        for rel in (scan.STEP_52, *scan.GATE_WORDS)
+    }
+    errors = scan.rust_step_errors(texts)
+    assert not errors, scan.report(errors)
+
+
+def test_the_rust_packages_have_their_rows() -> None:
+    """orjson, rust-std and pyo3 are in assemble_artifacts.py's PACKAGES and the harness's."""
+    text = (paths.REPO / "scripts" / "assemble_artifacts.py").read_text()
+    names = set(
+        re.findall(
+            r'^\s+"([a-z0-9-]+)": "', text.split("PACKAGES = {", 1)[1].split("}", 1)[0], re.M
+        )
+    )
+    errors = scan.rust_package_row_errors(names, paths.PACKAGES)
+    assert not errors, scan.report(errors)
+
+
+def test_modules_txt_lists_each_rust_module() -> None:
+    """recipes/rust/modules.txt lists orjson's, pydantic-core's and the probe's builtin modules,
+    each with its init function, which step 52's gate then finds in the archive."""
+    text = (paths.REPO / "recipes" / "rust" / "modules.txt").read_text()
+    errors = scan.rust_module_errors(text)
+    assert not errors, scan.report(errors)
+
+
+def test_orjson_carries_the_patches_the_owner_chose() -> None:
+    """recipes/patches/orjson-3.13.0/ holds exactly the three patches the owner chose: the rlib,
+    PyO3 0.30 and no global allocator."""
+    folder = paths.REPO / "recipes" / "patches" / "orjson-3.13.0"
+    errors = scan.orjson_patch_errors(p.name for p in folder.glob("*.patch"))
+    assert not errors, scan.report(errors)

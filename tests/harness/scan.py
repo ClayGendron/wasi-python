@@ -724,7 +724,16 @@ def release_attestation_errors(text: str) -> list[str]:
 # ---------------------------------------------------------------------------------------------
 # The build hosts
 
-HOST_NAMES = ("WASI_SDK_DIR", "WASMTIME_DIR", "HOST_PYTHON_ARCHIVE", "CYTHON_WHEEL", "NINJA_WHEEL")
+HOST_NAMES = (
+    "WASI_SDK_DIR",
+    "WASMTIME_DIR",
+    "HOST_PYTHON_ARCHIVE",
+    "CYTHON_WHEEL",
+    "NINJA_WHEEL",
+    "RUSTC_ARCHIVE",
+    "CARGO_ARCHIVE",
+    "RUST_STD_ARCHIVE",
+)
 # The file in downloads/ each host name stands for: a directory name is its tarball's stem.
 HOST_FILE = {"WASI_SDK_DIR": "{}.tar.gz", "WASMTIME_DIR": "{}.tar.xz"}
 CONF_HOST_LINE = re.compile(rf"^([A-Z][A-Z0-9_]*?)_({'|'.join(HOST_NAMES)})=(\S+)$", re.M)
@@ -757,7 +766,7 @@ def host_case_branches(text: str) -> dict[str, list[str]]:
 def host_table_errors(
     conf: str, sh_keys: Iterable[str], py_keys: Iterable[str], download: str, pinned: Iterable[str]
 ) -> list[str]:
-    """Every build host has all five host names in `line.conf`; each names a pinned file that the
+    """Every build host has all its host names in `line.conf`; each names a pinned file that the
     download script fetches in that host's own `case` branch; and `line.conf`, `line.sh`,
     `line.py` and `00_download.sh` know the same hosts."""
     pinned = set(pinned)
@@ -6274,3 +6283,334 @@ def producer_reverify_errors(text: str) -> list[str]:
     if ZERO_PATCH_STEP not in names or names.index(ZERO_PATCH_STEP) > at:
         errors.append(f"{RELEASE_ASSETS_STEP!r} does not come after the zero-patch step")
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The Rust build: its pins, its toolchain, its panic switch, step 52's offline cargo and the gates
+# the steps run.
+
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
+CRATE_URL = "https://static.crates.io/crates/{n}/{n}-{v}.crate"
+RUST_DIST = "https://static.rust-lang.org/dist/"
+RUST_HOST_NAMES = ("RUSTC_ARCHIVE", "CARGO_ARCHIVE", "RUST_STD_ARCHIVE")
+LOCK_PACKAGE = re.compile(r"^\[\[package\]\]\n((?:[a-z]+ = .*\n?)+)", re.M)
+LOCK_FIELD = re.compile(r'^([a-z]+) = "([^"]*)"$', re.M)
+
+
+def lock_packages(text: str) -> list[dict[str, str]]:
+    """Each `[[package]]` of a Cargo.lock as its string fields (name, version, source,
+    checksum)."""
+    return [dict(LOCK_FIELD.findall(block)) for block in LOCK_PACKAGE.findall(text)]
+
+
+def _gets(download: str) -> dict[str, str]:
+    """file name -> URL of every `get` line of the download script, read a line at a time so a
+    line with no name does not take the next line's first word."""
+    found = (GET.match(line) for line in download.splitlines())
+    return {g[2] or g[1].rsplit("/", 1)[-1]: g[1] for g in found if g}
+
+
+def crate_pin_errors(lock: str, pins: dict[str, str], download: str) -> list[str]:
+    """Every crates.io package of recipes/rust/Cargo.lock has its pin `<name>-<version>.crate`,
+    whose SHA-256 is the lock's checksum, fetched from crates.io's own address for it; and every
+    crate pin is a package of the lock."""
+    errors, wanted = [], set()
+    gets = _gets(download)
+    for p in lock_packages(lock):
+        if p.get("source") != CRATES_IO:
+            continue
+        name, version = p["name"], p["version"]
+        file = f"{name}-{version}.crate"
+        wanted.add(file)
+        if file not in pins:
+            errors.append(f"{file}: a package of recipes/rust/Cargo.lock with no pin")
+        elif pins[file] != p.get("checksum"):
+            errors.append(f"{file}: its pin is not the lock's checksum")
+        url = CRATE_URL.format(n=name, v=version)
+        if gets.get(file) != url:
+            errors.append(f"{file}: not fetched from {url}")
+    for file in sorted(f for f in pins if f.endswith(".crate") and f not in wanted):
+        errors.append(f"{file}: a crate pin recipes/rust/Cargo.lock does not name")
+    return errors
+
+
+def rust_toolchain_errors(conf: str, download: str, pins: Iterable[str]) -> list[str]:
+    """Each host's three Rust archives, rust-src and the wasip1 rust-std are at RUST_VERSION,
+    pinned, and fetched from Rust's dist server. The host table's rule holds that each host's names
+    are fetched in its own branch."""
+    m = re.search(r"^RUST_VERSION=(\S+)$", conf, re.M)
+    if m is None:
+        return ["line.conf: no RUST_VERSION"]
+    version, pins, gets = m[1], set(pins), _gets(download)
+    files = [
+        (f"{key}_{name}", value)
+        for key, name, value in CONF_HOST_LINE.findall(conf)
+        if name in RUST_HOST_NAMES
+    ]
+    for name in ("RUST_SRC_ARCHIVE", "RUST_STD_WASIP1_ARCHIVE"):
+        found = re.search(rf"^{name}=(\S+)$", conf, re.M)
+        if found is None:
+            return [f"line.conf: no {name}"]
+        files.append((name, found[1]))
+    errors = []
+    for where, file in files:
+        if f"-{version}-" not in file and not file.endswith(f"-{version}.tar.xz"):
+            errors.append(f"{where}: {file} is not at RUST_VERSION {version}")
+        if file not in pins:
+            errors.append(f"{where}: {file} is not pinned")
+        if not gets.get(file, "").startswith(RUST_DIST):
+            errors.append(f"{where}: {file} is not fetched from {RUST_DIST}")
+    return errors
+
+
+PANIC_FLAG = re.compile(r"-C\s*panic\b")
+PANIC_KEY = re.compile(r"^\s*panic\s*=", re.M)
+STEP_52 = "scripts/steps/52_rust.sh"
+STEP_52_PANIC = "-Cpanic=$RUST_PANIC"
+
+
+def panic_switch_errors(conf: str, texts: dict[str, str]) -> list[str]:
+    """RUST_PANIC is unwind or abort, and the only panic setting under recipes/rust/ and scripts/
+    (`texts`: path -> text) is step 52's one `-Cpanic=$RUST_PANIC`."""
+    m = re.search(r"^RUST_PANIC=(\S*)$", conf, re.M)
+    errors = (
+        []
+        if m and m[1] in ("unwind", "abort")
+        else ["line.conf: RUST_PANIC is not unwind or abort"]
+    )
+    for rel, text in sorted(texts.items()):
+        code = text
+        if rel.endswith((".sh", ".toml")) or "/" not in rel:
+            code = "\n".join(
+                line for line in text.splitlines() if not line.lstrip().startswith("#")
+            )
+        flags = PANIC_FLAG.findall(code)
+        if rel == STEP_52:
+            if flags != ["-Cpanic"] or code.count(STEP_52_PANIC) != 1:
+                errors.append(f"{rel}: not exactly one {STEP_52_PANIC}")
+        elif flags:
+            errors.append(f"{rel}: sets -Cpanic; only step 52 passes RUST_PANIC")
+        if rel.endswith(".toml") and PANIC_KEY.search(code):
+            errors.append(f"{rel}: a panic key; only step 52 passes RUST_PANIC")
+    return errors
+
+
+# What step 52's code must hold, each with why.
+STEP_52_WORDS = {
+    "--frozen --offline": "its cargo build runs frozen and offline",
+    'CH="$R/cargo-home"': "its cargo home is under build/",
+    'CARGO_HOME="$CH"': "cargo runs with that cargo home",
+    'cat > "$CH/config.toml"': "the source replacement is the cargo home's config.toml",
+    'CARGO_ENCODED_RUSTFLAGS="$RUSTFLAGS_TARGET"': "its flags go by CARGO_ENCODED_RUSTFLAGS",
+    'cd "$B"': "cargo runs from build/",
+    '.cargo/config.toml"': "an ancestor's .cargo/config.toml stops the step",
+    "unset RUSTFLAGS RUSTC_WRAPPER RUSTC_WORKSPACE_WRAPPER": "the host's Rust settings are unset",
+    'RUSTC_WRAPPER="$R/rustc-wrapper"': "cargo compiles through the build's own wrapper",
+    '"$HERE/scripts/rust_ids.py"': (
+        "the wrapper names each crate by its own compile, not by cargo's hash, which mixes in the"
+        " build host through every build script and proc macro"
+    ),
+    "CARGO_BUILD_": "every CARGO_BUILD_* is unset",
+    "CARGO_PROFILE_": "every CARGO_PROFILE_* is unset",
+    '"$OBJS" keep ': "the archive keeps only the crates' own objects",
+    '"$OBJS" imports ': "its direct WASI imports are routed through the shim",
+    '"$OBJS" inits ': "it defines exactly modules.txt's init functions",
+    '"$OBJS" foreign ': "it defines none of the runtime's names",
+}
+# Each cargo command step 52 runs: `"$RUST/bin/cargo" <command>`.
+CARGO_CALL = re.compile(r'/bin/cargo"\s+([a-z-]+)')
+# What steps 60 and 80 must run, each failing the step.
+GATE_WORDS = {
+    "scripts/steps/60_link.sh": ('"$HERE/scripts/rust_objects.py" link-map', "check_imports "),
+    "scripts/steps/80_snapshot.sh": ("check_imports ",),
+    "scripts/steps/constructors.sh": ("-m harness.import_list",),
+}
+
+
+def rust_step_errors(texts: dict[str, str | None]) -> list[str]:
+    """Step 52 builds offline with the host's Rust settings out and runs the archive's four gates;
+    step 60 runs the link-map gate and both binaries' import gate. A gate's line must fail the
+    step: it ends in `|| { … die …; }` or `|| … die`, or is a function whose failure exits."""
+    errors = []
+    s52 = texts.get(STEP_52)
+    if s52 is None:
+        return [f"{STEP_52} is missing"]
+    code = "\n".join(line for line in s52.splitlines() if not line.lstrip().startswith("#"))
+    for word, why in STEP_52_WORDS.items():
+        if word not in code:
+            errors.append(f"{STEP_52}: no {word!r}: {why}")
+    for line in code.splitlines():
+        call = CARGO_CALL.search(line)
+        if call and "--frozen --offline" not in line[call.end() :]:
+            errors.append(f"{STEP_52}: cargo {call[1]} does not run --frozen --offline")
+    for word in ('"$OBJS" keep ', '"$OBJS" imports ', '"$OBJS" inits ', '"$OBJS" foreign '):
+        at = code.find(word)
+        if (
+            at >= 0
+            and "die " not in code[at : code.find("\n\n", at) if "\n\n" in code[at:] else None]
+        ):
+            errors.append(f"{STEP_52}: {word.strip()} does not fail the step")
+    for rel, words in GATE_WORDS.items():
+        text = texts.get(rel)
+        if text is None:
+            errors.append(f"{rel} is missing")
+            continue
+        body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+        errors += [f"{rel}: does not run {w.strip()}" for w in words if w not in body]
+    return errors
+
+
+# The PyO3 crates, which share one version: the graph holds one PyO3, since each pyo3-ffi links
+# CPython and cargo admits one package per linked library.
+PYO3_FAMILY = ("pyo3", "pyo3-build-config", "pyo3-ffi", "pyo3-macros", "pyo3-macros-backend")
+PYO3_VERSION = "0.30.1"
+SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)")
+
+
+def _semver(version: str) -> tuple[int, int, int]:
+    m = SEMVER.match(version)
+    if m is None:
+        raise ValueError(f"not a version: {version}")
+    return int(m[1]), int(m[2]), int(m[3])
+
+
+def _semver_line(version: str) -> tuple[int, ...]:
+    """The versions cargo treats as compatible with this one share this tuple: the major part,
+    or below 1.0 the minor part, or below 0.1 the patch."""
+    major, minor, patch = _semver(version)
+    return (major,) if major else (0, minor) if minor else (0, 0, patch)
+
+
+# The crates recipes/rust/Cargo.lock holds above every Rust package's own lock, each at this
+# version exactly: the umbrella's own crates brought them before pydantic-core joined, and cargo
+# keeps one version per semver line, so pydantic-core builds on these too.
+UMBRELLA_RAISED = {"portable-atomic": "1.15.0", "syn": "2.0.119"}
+
+
+def package_version_errors(lock: str, package_locks: dict[str, str]) -> list[str]:
+    """Each crate a Rust package's own Cargo.lock names (`package_locks`: package -> its lock), and
+    recipes/rust/Cargo.lock names too, is there on that semver line at exactly the highest version
+    the packages' locks name on it: the umbrella builds each package against what it was released
+    with, or against the higher version where two packages' locks name two compatible ones. A crate
+    of UMBRELLA_RAISED is at the version it names there, where that is higher still. The PyO3
+    family is PYO3_VERSION alone, whatever a package's lock names."""
+    ours: dict[str, set[str]] = {}
+    for p in lock_packages(lock):
+        if p.get("source") == CRATES_IO:
+            ours.setdefault(p["name"], set()).add(p["version"])
+    errors = []
+    for name in PYO3_FAMILY:
+        if name in ours and ours[name] != {PYO3_VERSION}:
+            have = ", ".join(sorted(ours[name], key=_semver))
+            errors.append(
+                f"{name}: recipes/rust/Cargo.lock holds {have}, not PyO3 {PYO3_VERSION} alone"
+            )
+    highest: dict[tuple[str, tuple[int, ...]], tuple[str, str]] = {}
+    for package, text in package_locks.items():
+        for p in lock_packages(text):
+            name, version = p["name"], p["version"]
+            if p.get("source") != CRATES_IO or name not in ours or name in PYO3_FAMILY:
+                continue
+            key = (name, _semver_line(version))
+            if key not in highest or _semver(version) > _semver(highest[key][0]):
+                highest[key] = (version, package)
+    for (name, line), (version, package) in highest.items():
+        want = version
+        raised = UMBRELLA_RAISED.get(name)
+        if raised and _semver_line(raised) == line and _semver(raised) > _semver(version):
+            want = raised
+        same = sorted((v for v in ours[name] if _semver_line(v) == line), key=_semver)
+        if same == [want]:
+            continue
+        have = ", ".join(same or sorted(ours[name], key=_semver))
+        if want == version:
+            errors.append(
+                f"{name}: {package}'s Cargo.lock names {version}, recipes/rust/Cargo.lock {have}"
+            )
+        else:
+            errors.append(
+                f"{name}: recipes/rust/Cargo.lock holds {have}, not {want}, "
+                f"which it names above {package}'s {version}"
+            )
+    return errors
+
+
+# The MANIFEST packages the Rust library brings, each in both package tables, or step 90's
+# snapshot rows and the licence notices have no package to name: orjson, Rust's standard library
+# and PyO3, then pydantic-core and the three pure wheels pydantic needs beside it.
+RUST_PACKAGE_ROWS = (
+    "orjson",
+    "rust-std",
+    "pyo3",
+    "pydantic-core",
+    "annotated-types",
+    "typing-inspection",
+    "pydantic",
+)
+
+
+def rust_package_row_errors(
+    assemble_packages: Iterable[str], harness_packages: Iterable[str]
+) -> list[str]:
+    """Each of RUST_PACKAGE_ROWS is a MANIFEST package in both tables."""
+    a, h = set(assemble_packages), set(harness_packages)
+    return [
+        f"{name}: not in {where}'s PACKAGES"
+        for where, have in (("scripts/assemble_artifacts.py", a), ("tests/harness/paths.py", h))
+        for name in RUST_PACKAGE_ROWS
+        if name not in have
+    ]
+
+
+REQUIRES_CORE = re.compile(r"^Requires-Dist:\s*pydantic[-_]core\s*([^;\n]*?)\s*(;.*)?$", re.M)
+
+
+def pydantic_pair_errors(metadata: str, core_version: str) -> list[str]:
+    """The pinned pydantic's METADATA requires exactly the pinned pydantic-core, with no marker:
+    pydantic is released for one pydantic-core, so the two pins move together or not at all."""
+    found = REQUIRES_CORE.findall(metadata)
+    if not found:
+        return ["pydantic's METADATA requires no pydantic-core"]
+    return [
+        f"pydantic's METADATA requires pydantic-core{spec}{marker}, not the pinned {core_version}"
+        for spec, marker in found
+        if spec.replace(" ", "") != f"=={core_version}" or marker
+    ]
+
+
+# Each Rust package's builtin module, as recipes/rust/modules.txt lists it: the module's dotted
+# name, then its init function, which step 52's inits gate finds in the archive.
+RUST_MODULE_LINES = (
+    "orjson.orjson PyInit_orjson",
+    "pydantic_core._pydantic_core PyInit__pydantic_core",
+    "_rust_probe PyInit__rust_probe",
+)
+
+
+def rust_module_errors(modules_txt: str) -> list[str]:
+    """recipes/rust/modules.txt lists each of RUST_MODULE_LINES."""
+    lines = {" ".join(line.split()) for line in modules_txt.splitlines()}
+    return [
+        f"recipes/rust/modules.txt: no line {want}"
+        for want in RUST_MODULE_LINES
+        if want not in lines
+    ]
+
+
+# The carried patches the owner chose for orjson 3.13.0: the rlib, kept on 2026-11-15, and PyO3
+# 0.30 and no global allocator, both chosen that day, before pydantic-core joined the library.
+ORJSON_PATCHES = (
+    "0001-the-library-is-also-an-rlib.patch",
+    "0002-pyo3-0-30.patch",
+    "0003-no-global-allocator.patch",
+)
+
+
+def orjson_patch_errors(names: Iterable[str]) -> list[str]:
+    """recipes/patches/orjson-3.13.0/ holds exactly ORJSON_PATCHES."""
+    have = set(names)
+    errors = [f"recipes/patches/orjson-3.13.0: no {n}" for n in ORJSON_PATCHES if n not in have]
+    return errors + [
+        f"recipes/patches/orjson-3.13.0: {n} is not one the owner chose"
+        for n in sorted(have - set(ORJSON_PATCHES))
+    ]

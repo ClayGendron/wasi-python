@@ -33,6 +33,9 @@ HOST_NAMES = (
     "PKGCONF_WHEEL",
     "NUMPY_HOST_WHEEL",  # f2py's numpy, for scipy's build
     "CFFI_WHEEL",  # the build host's cffi, which writes cairocffi's bindings as C
+    "RUSTC_ARCHIVE",  # Rust's compiler for the build host
+    "CARGO_ARCHIVE",
+    "RUST_STD_ARCHIVE",  # the host's standard library, for build scripts and proc macros
 )
 
 

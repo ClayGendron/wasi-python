@@ -112,6 +112,11 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/47/c0/d0b335a499a04b65f532c3f034346ef390f81299060f928492dabc1e0272/numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl numpy-2.5.4-cp315-cp315-macosx_14_0_arm64.whl
     # cffi for the build host, which writes cairocffi's bindings as C at build time
     get https://files.pythonhosted.org/packages/0c/75/2f5207ff6d1a613133b23a5203cc0c2a628313b5eb3974d7956ae3c57950/cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl cffi-2.1.1-cp315-cp315-macosx_11_0_arm64.whl
+    # Rust's compiler, cargo and the host's standard library, from Rust's dist server (the
+    # channel manifest of 2026-11-12)
+    get https://static.rust-lang.org/dist/2026-11-12/rustc-1.100.0-aarch64-apple-darwin.tar.xz rustc-1.100.0-aarch64-apple-darwin.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/cargo-1.100.0-aarch64-apple-darwin.tar.xz cargo-1.100.0-aarch64-apple-darwin.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-aarch64-apple-darwin.tar.xz rust-std-1.100.0-aarch64-apple-darwin.tar.xz
     ;;
   LINUX_AARCH64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-arm64-linux.tar.gz wasi-sdk-34.0-arm64-linux.tar.gz
@@ -123,6 +128,11 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/b3/02/5dad269b02166965a7b4ca14adaddd75dbee0de42435bfecf561b84ba5a6/numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl
     # cffi for the build host, which writes cairocffi's bindings as C at build time
     get https://files.pythonhosted.org/packages/e2/31/9e1313b0a6e30e91b3b3d3fff51ae99c857c07738e3afcce1f7334e1b7ab/cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl cffi-2.1.1-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
+    # Rust's compiler, cargo and the host's standard library, from Rust's dist server (the
+    # channel manifest of 2026-11-12)
+    get https://static.rust-lang.org/dist/2026-11-12/rustc-1.100.0-aarch64-unknown-linux-gnu.tar.xz rustc-1.100.0-aarch64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/cargo-1.100.0-aarch64-unknown-linux-gnu.tar.xz cargo-1.100.0-aarch64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-aarch64-unknown-linux-gnu.tar.xz rust-std-1.100.0-aarch64-unknown-linux-gnu.tar.xz
     ;;
   LINUX_X86_64)
     get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz wasi-sdk-34.0-x86_64-linux.tar.gz
@@ -134,6 +144,11 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/93/3a/01360c8036822ed9f7aa32189a77d1476567ec1e8e1383522389e4faac45/numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl numpy-2.5.4-cp315-cp315-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
     # cffi for the build host, which writes cairocffi's bindings as C at build time
     get https://files.pythonhosted.org/packages/44/16/29e6d01b388bef055ecd6ca8244b3f4d336bd09e92d5d892187b9601084e/cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl cffi-2.1.1-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+    # Rust's compiler, cargo and the host's standard library, from Rust's dist server (the
+    # channel manifest of 2026-11-12)
+    get https://static.rust-lang.org/dist/2026-11-12/rustc-1.100.0-x86_64-unknown-linux-gnu.tar.xz rustc-1.100.0-x86_64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/cargo-1.100.0-x86_64-unknown-linux-gnu.tar.xz cargo-1.100.0-x86_64-unknown-linux-gnu.tar.xz
+    get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-x86_64-unknown-linux-gnu.tar.xz rust-std-1.100.0-x86_64-unknown-linux-gnu.tar.xz
     # The fallback's compiler: the arm64 Linux
     # SDK's clang, under Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries
     # that clang loads, each a snapshot.debian.org URL, which does not change when Debian moves on.
@@ -152,6 +167,10 @@ esac
 # compiler-rt builtins, laid in place of the host tarball's own by step 10.
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sysroot-34.0.tar.gz wasi-sysroot-34.0.tar.gz
 get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libclang_rt-34.0.tar.gz libclang_rt-34.0.tar.gz
+# Rust's standard library's source, rebuilt for the guest, and the guest's shipped standard library,
+# the same bytes for each host (the channel manifest of 2026-11-12)
+get https://static.rust-lang.org/dist/2026-11-12/rust-src-1.100.0.tar.xz rust-src-1.100.0.tar.xz
+get https://static.rust-lang.org/dist/2026-11-12/rust-std-1.100.0-wasm32-wasip1.tar.xz rust-std-1.100.0-wasm32-wasip1.tar.xz
 
 # Sources
 get https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz Python-3.15.2.tar.xz
@@ -165,6 +184,127 @@ get https://sqlite.org/2026/sqlite-autoconf-3540100.tar.gz sqlite-autoconf-35401
 get https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz zstd-1.5.7.tar.gz
 # regex: its sdist, whose two C files are compiled and whose package goes in the zip
 get https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz regex-2026.9.29.tar.gz
+# orjson: its sdist, whose Rust and vendored C (yyjson) step 52 compiles and whose package goes in
+# the zip
+get https://files.pythonhosted.org/packages/f2/72/380b97dc45bd162d23afe5194721ef678d9eac7cfaa549fe2873f7f0a518/orjson-3.13.0.tar.gz orjson-3.13.0.tar.gz
+# pydantic-core: its sdist, whose Rust step 52 compiles, whose package goes in the zip and whose
+# tests/ is its suite's test source
+get https://files.pythonhosted.org/packages/9c/0f/34f9ce4ba701dd0b815033ef94d99b56f66200e578ee6052aa3ac26f064e/pydantic_core-2.50.4.tar.gz pydantic_core-2.50.4.tar.gz
+# The Rust crates recipes/rust/Cargo.lock names, each the .crate file crates.io serves, its SHA-256
+# the lock's checksum
+get https://static.crates.io/crates/ahash/ahash-0.8.12.crate ahash-0.8.12.crate
+get https://static.crates.io/crates/aho-corasick/aho-corasick-1.1.3.crate aho-corasick-1.1.3.crate
+get https://static.crates.io/crates/arrayvec/arrayvec-0.7.8.crate arrayvec-0.7.8.crate
+get https://static.crates.io/crates/associative-cache/associative-cache-3.0.1.crate associative-cache-3.0.1.crate
+get https://static.crates.io/crates/autocfg/autocfg-1.3.0.crate autocfg-1.3.0.crate
+get https://static.crates.io/crates/base64/base64-0.23.1.crate base64-0.23.1.crate
+get https://static.crates.io/crates/bitflags/bitflags-2.9.1.crate bitflags-2.9.1.crate
+get https://static.crates.io/crates/bitvec/bitvec-1.0.1.crate bitvec-1.0.1.crate
+get https://static.crates.io/crates/bumpalo/bumpalo-3.19.0.crate bumpalo-3.19.0.crate
+get https://static.crates.io/crates/bytecount/bytecount-0.6.9.crate bytecount-0.6.9.crate
+get https://static.crates.io/crates/cc/cc-1.6.0.crate cc-1.6.0.crate
+get https://static.crates.io/crates/cfg-if/cfg-if-1.0.0.crate cfg-if-1.0.0.crate
+get https://static.crates.io/crates/displaydoc/displaydoc-0.2.5.crate displaydoc-0.2.5.crate
+get https://static.crates.io/crates/enum_dispatch/enum_dispatch-0.3.13.crate enum_dispatch-0.3.13.crate
+get https://static.crates.io/crates/equivalent/equivalent-1.0.3.crate equivalent-1.0.3.crate
+get https://static.crates.io/crates/find-msvc-tools/find-msvc-tools-0.1.14.crate find-msvc-tools-0.1.14.crate
+get https://static.crates.io/crates/foldhash/foldhash-0.2.0.crate foldhash-0.2.0.crate
+get https://static.crates.io/crates/form_urlencoded/form_urlencoded-1.2.2.crate form_urlencoded-1.2.2.crate
+get https://static.crates.io/crates/funty/funty-2.0.0.crate funty-2.0.0.crate
+get https://static.crates.io/crates/getrandom/getrandom-0.3.3.crate getrandom-0.3.3.crate
+get https://static.crates.io/crates/gimli/gimli-0.34.0.crate gimli-0.34.0.crate
+get https://static.crates.io/crates/hashbrown/hashbrown-0.17.1.crate hashbrown-0.17.1.crate
+get https://static.crates.io/crates/heck/heck-0.5.0.crate heck-0.5.0.crate
+get https://static.crates.io/crates/hex/hex-0.4.3.crate hex-0.4.3.crate
+get https://static.crates.io/crates/icu_collections/icu_collections-1.5.0.crate icu_collections-1.5.0.crate
+get https://static.crates.io/crates/icu_locid/icu_locid-1.5.0.crate icu_locid-1.5.0.crate
+get https://static.crates.io/crates/icu_locid_transform/icu_locid_transform-1.5.0.crate icu_locid_transform-1.5.0.crate
+get https://static.crates.io/crates/icu_locid_transform_data/icu_locid_transform_data-1.5.0.crate icu_locid_transform_data-1.5.0.crate
+get https://static.crates.io/crates/icu_normalizer/icu_normalizer-1.5.0.crate icu_normalizer-1.5.0.crate
+get https://static.crates.io/crates/icu_normalizer_data/icu_normalizer_data-1.5.0.crate icu_normalizer_data-1.5.0.crate
+get https://static.crates.io/crates/icu_properties/icu_properties-1.5.1.crate icu_properties-1.5.1.crate
+get https://static.crates.io/crates/icu_properties_data/icu_properties_data-1.5.0.crate icu_properties_data-1.5.0.crate
+get https://static.crates.io/crates/icu_provider/icu_provider-1.5.0.crate icu_provider-1.5.0.crate
+get https://static.crates.io/crates/icu_provider_macros/icu_provider_macros-1.5.0.crate icu_provider_macros-1.5.0.crate
+get https://static.crates.io/crates/idna/idna-1.1.0.crate idna-1.1.0.crate
+get https://static.crates.io/crates/idna_adapter/idna_adapter-1.2.0.crate idna_adapter-1.2.0.crate
+get https://static.crates.io/crates/indexmap/indexmap-2.14.0.crate indexmap-2.14.0.crate
+get https://static.crates.io/crates/itoa/itoa-1.0.11.crate itoa-1.0.11.crate
+get https://static.crates.io/crates/itoap/itoap-1.0.1.crate itoap-1.0.1.crate
+get https://static.crates.io/crates/jiff-core/jiff-core-0.1.1.crate jiff-core-0.1.1.crate
+get https://static.crates.io/crates/jiter/jiter-0.18.0.crate jiter-0.18.0.crate
+get https://static.crates.io/crates/js-sys/js-sys-0.3.77.crate js-sys-0.3.77.crate
+get https://static.crates.io/crates/lexical-parse-float/lexical-parse-float-1.0.6.crate lexical-parse-float-1.0.6.crate
+get https://static.crates.io/crates/lexical-parse-integer/lexical-parse-integer-1.0.6.crate lexical-parse-integer-1.0.6.crate
+get https://static.crates.io/crates/lexical-util/lexical-util-1.0.7.crate lexical-util-1.0.7.crate
+get https://static.crates.io/crates/libc/libc-0.2.190.crate libc-0.2.190.crate
+get https://static.crates.io/crates/litemap/litemap-0.7.3.crate litemap-0.7.3.crate
+get https://static.crates.io/crates/log/log-0.4.27.crate log-0.4.27.crate
+get https://static.crates.io/crates/lru/lru-0.18.5.crate lru-0.18.5.crate
+get https://static.crates.io/crates/memchr/memchr-2.7.4.crate memchr-2.7.4.crate
+get https://static.crates.io/crates/no-panic/no-panic-0.1.37.crate no-panic-0.1.37.crate
+get https://static.crates.io/crates/num-bigint/num-bigint-0.4.6.crate num-bigint-0.4.6.crate
+get https://static.crates.io/crates/num-integer/num-integer-0.1.46.crate num-integer-0.1.46.crate
+get https://static.crates.io/crates/num-traits/num-traits-0.2.19.crate num-traits-0.2.19.crate
+get https://static.crates.io/crates/once_cell/once_cell-1.21.4.crate once_cell-1.21.4.crate
+get https://static.crates.io/crates/percent-encoding/percent-encoding-2.3.2.crate percent-encoding-2.3.2.crate
+get https://static.crates.io/crates/portable-atomic/portable-atomic-1.15.0.crate portable-atomic-1.15.0.crate
+get https://static.crates.io/crates/proc-macro2/proc-macro2-1.0.107.crate proc-macro2-1.0.107.crate
+get https://static.crates.io/crates/pyo3/pyo3-0.30.1.crate pyo3-0.30.1.crate
+get https://static.crates.io/crates/pyo3-build-config/pyo3-build-config-0.30.1.crate pyo3-build-config-0.30.1.crate
+get https://static.crates.io/crates/pyo3-ffi/pyo3-ffi-0.30.1.crate pyo3-ffi-0.30.1.crate
+get https://static.crates.io/crates/pyo3-macros/pyo3-macros-0.30.1.crate pyo3-macros-0.30.1.crate
+get https://static.crates.io/crates/pyo3-macros-backend/pyo3-macros-backend-0.30.1.crate pyo3-macros-backend-0.30.1.crate
+get https://static.crates.io/crates/quote/quote-1.0.47.crate quote-1.0.47.crate
+get https://static.crates.io/crates/r-efi/r-efi-5.2.0.crate r-efi-5.2.0.crate
+get https://static.crates.io/crates/radium/radium-0.7.0.crate radium-0.7.0.crate
+get https://static.crates.io/crates/regex/regex-1.13.1.crate regex-1.13.1.crate
+get https://static.crates.io/crates/regex-automata/regex-automata-0.4.18.crate regex-automata-0.4.18.crate
+get https://static.crates.io/crates/regex-syntax/regex-syntax-0.8.11.crate regex-syntax-0.8.11.crate
+get https://static.crates.io/crates/serde/serde-1.0.229.crate serde-1.0.229.crate
+get https://static.crates.io/crates/serde_core/serde_core-1.0.229.crate serde_core-1.0.229.crate
+get https://static.crates.io/crates/serde_derive/serde_derive-1.0.229.crate serde_derive-1.0.229.crate
+get https://static.crates.io/crates/serde_json/serde_json-1.0.151.crate serde_json-1.0.151.crate
+get https://static.crates.io/crates/shlex/shlex-2.0.1.crate shlex-2.0.1.crate
+get https://static.crates.io/crates/simdutf8/simdutf8-0.1.5.crate simdutf8-0.1.5.crate
+get https://static.crates.io/crates/smallvec/smallvec-1.16.2.crate smallvec-1.16.2.crate
+get https://static.crates.io/crates/speedate/speedate-0.18.0.crate speedate-0.18.0.crate
+get https://static.crates.io/crates/stable_deref_trait/stable_deref_trait-1.2.0.crate stable_deref_trait-1.2.0.crate
+get https://static.crates.io/crates/strum/strum-0.28.0.crate strum-0.28.0.crate
+get https://static.crates.io/crates/strum_macros/strum_macros-0.28.0.crate strum_macros-0.28.0.crate
+get https://static.crates.io/crates/syn/syn-2.0.119.crate syn-2.0.119.crate
+get https://static.crates.io/crates/syn/syn-3.0.6.crate syn-3.0.6.crate
+get https://static.crates.io/crates/synstructure/synstructure-0.13.1.crate synstructure-0.13.1.crate
+get https://static.crates.io/crates/tap/tap-1.0.1.crate tap-1.0.1.crate
+get https://static.crates.io/crates/target-lexicon/target-lexicon-0.13.5.crate target-lexicon-0.13.5.crate
+get https://static.crates.io/crates/tinystr/tinystr-0.7.6.crate tinystr-0.7.6.crate
+get https://static.crates.io/crates/unicode-ident/unicode-ident-1.0.26.crate unicode-ident-1.0.26.crate
+get https://static.crates.io/crates/unwinding/unwinding-0.2.10.crate unwinding-0.2.10.crate
+get https://static.crates.io/crates/url/url-2.5.8.crate url-2.5.8.crate
+get https://static.crates.io/crates/utf16_iter/utf16_iter-1.0.5.crate utf16_iter-1.0.5.crate
+get https://static.crates.io/crates/utf8_iter/utf8_iter-1.0.4.crate utf8_iter-1.0.4.crate
+get https://static.crates.io/crates/uuid/uuid-1.23.4.crate uuid-1.23.4.crate
+get https://static.crates.io/crates/version_check/version_check-0.9.5.crate version_check-0.9.5.crate
+get https://static.crates.io/crates/wasi/wasi-0.14.2+wasi-0.2.4.crate wasi-0.14.2+wasi-0.2.4.crate
+get https://static.crates.io/crates/wasm-bindgen/wasm-bindgen-0.2.100.crate wasm-bindgen-0.2.100.crate
+get https://static.crates.io/crates/wasm-bindgen-backend/wasm-bindgen-backend-0.2.100.crate wasm-bindgen-backend-0.2.100.crate
+get https://static.crates.io/crates/wasm-bindgen-macro/wasm-bindgen-macro-0.2.100.crate wasm-bindgen-macro-0.2.100.crate
+get https://static.crates.io/crates/wasm-bindgen-macro-support/wasm-bindgen-macro-support-0.2.100.crate wasm-bindgen-macro-support-0.2.100.crate
+get https://static.crates.io/crates/wasm-bindgen-shared/wasm-bindgen-shared-0.2.100.crate wasm-bindgen-shared-0.2.100.crate
+get https://static.crates.io/crates/wit-bindgen-rt/wit-bindgen-rt-0.39.0.crate wit-bindgen-rt-0.39.0.crate
+get https://static.crates.io/crates/write16/write16-1.0.0.crate write16-1.0.0.crate
+get https://static.crates.io/crates/writeable/writeable-0.5.5.crate writeable-0.5.5.crate
+get https://static.crates.io/crates/wyz/wyz-0.5.1.crate wyz-0.5.1.crate
+get https://static.crates.io/crates/xxhash-rust/xxhash-rust-0.8.19.crate xxhash-rust-0.8.19.crate
+get https://static.crates.io/crates/yoke/yoke-0.7.4.crate yoke-0.7.4.crate
+get https://static.crates.io/crates/yoke-derive/yoke-derive-0.7.4.crate yoke-derive-0.7.4.crate
+get https://static.crates.io/crates/zerocopy/zerocopy-0.8.25.crate zerocopy-0.8.25.crate
+get https://static.crates.io/crates/zerocopy-derive/zerocopy-derive-0.8.25.crate zerocopy-derive-0.8.25.crate
+get https://static.crates.io/crates/zerofrom/zerofrom-0.1.4.crate zerofrom-0.1.4.crate
+get https://static.crates.io/crates/zerofrom-derive/zerofrom-derive-0.1.4.crate zerofrom-derive-0.1.4.crate
+get https://static.crates.io/crates/zerovec/zerovec-0.10.4.crate zerovec-0.10.4.crate
+get https://static.crates.io/crates/zerovec-derive/zerovec-derive-0.10.3.crate zerovec-derive-0.10.3.crate
+get https://static.crates.io/crates/zmij/zmij-1.0.23.crate zmij-1.0.23.crate
 # matplotlib: the five C libraries at matplotlib 3.11.2's own wrap versions, which give
 # native pixel parity; qhull and SheenBidi saved under names that are their top folders (the
 # release workflow's tree check names a tree by its file)
@@ -237,6 +377,11 @@ get https://files.pythonhosted.org/packages/5d/57/3c4b1c6f2e0cc29ba023802458ea3d
 get https://files.pythonhosted.org/packages/db/17/4c8beb6c8c4176c6bf143bfd7e1e4dd6719b00ced90738c7ac471b71c1df/toolz-1.2.0-py3-none-any.whl toolz-1.2.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl tqdm-4.70.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl typing_extensions-4.16.0-py3-none-any.whl
+# pydantic and the two packages it imports beside typing-extensions: pure wheels; pydantic's
+# Rust half is pydantic-core's sdist, above
+get https://files.pythonhosted.org/packages/72/b8/b864503789ef5c58597d2a7b4adbee62c26440ab1e682581fc6838df8947/pydantic-2.14.3-py3-none-any.whl pydantic-2.14.3-py3-none-any.whl
+get https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl annotated_types-0.8.0-py3-none-any.whl
+get https://files.pythonhosted.org/packages/de/0c/ea2544850a7c135e15033a5c7a8e7211136184b7ae63e2239d557c2b3019/typing_inspection-0.4.5-py3-none-any.whl typing_inspection-0.4.5-py3-none-any.whl
 get https://files.pythonhosted.org/packages/18/53/84099323c2ec4be98d935f63c033ac4151ee83836ca1050ede3b3aadf155/joblib-1.6.0-py3-none-any.whl joblib-1.6.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl cloudpickle-3.1.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/43/3f/f88a53f60a472b46f4023f56d204dd7de33d34c5d2acbfa0d70a674e639e/threadpoolctl-3.7.0-py3-none-any.whl threadpoolctl-3.7.0-py3-none-any.whl
@@ -324,6 +469,9 @@ get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a30
 # The full GPL-3.0 text CairoSVG's LGPL-3.0 builds on, which CairoSVG's own LICENSE does not
 # carry; from the same SPDX commit
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/GPL-3.0-only.txt spdx-31ba1a50-GPL-3.0-only.txt
+# The MIT text for the wasip1 crate compiled into Rust's standard library, which ships no licence
+# file of its own; from the same SPDX commit
+get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt spdx-31ba1a50-MIT.txt
 # The notices of three projects scikit-learn adapts code from with no full notice of their own:
 # numpydoc's docscrape, django's slugify and pytest's lines in
 # sklearn/utils/_testing.py, each at the last commit that touched the file

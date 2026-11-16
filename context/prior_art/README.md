@@ -45,6 +45,10 @@ the commit in the memo that cites it.
 | `rust` (rust-lang/rust, cloned 2026-10-21, sparse: `.github`, `src/ci`, `src/doc/rustc-dev-guide/src/{tests,building}`) | CI tiers: `src/ci/github-actions/jobs.yml` (`pr`, `try`, `optional`, `auto`), the dev guide's `tests/ci.md` (bors, rollups, try builds, Docker caching), `tests/perf.md`, `tests/crater.md` | MIT OR Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`) | 1a2c479 |
 | `scipy` (scipy/scipy, cloned 2026-10-21, sparse: `.github`, `ci`, `tools`, `benchmarks`) | which tests run where: `-m full` jobs, `--fail-slow=1.0` (`pixi.toml`), `commit_message.yml` skip tags | BSD-3-Clause (`LICENSE.txt`) | 3f3cfc3 |
 | `emscripten-forge-recipes` (emscripten-forge/recipes, cloned 2026-10-21, sparse: `.github`, `emci`, `docs`) | building only changed recipes: `emci/find_recipes_with_changes.py`, `--skip-existing` | BSD-3-Clause (`LICENSE`) | 2c44545 |
+| `orjson` (ijl/orjson, cloned 2026-11-14) | a PyO3 module on raw `pyo3-ffi` bindings: `Cargo.toml` (`crate-type`, the release profile), `build.rs`, the sdist's vendored crates (`.github/workflows/artifact.yaml`), the `test/` layout and its `data/` fixtures | MPL-2.0 AND (Apache-2.0 OR MIT) (`LICENSE-MPL-2.0`, `LICENSE-APACHE`, `LICENSE-MIT`) | bd00937c |
+| `pydantic` (pydantic/pydantic, cloned 2026-11-14; pydantic-core now lives in it) | pydantic-core's PyO3 0.30.1 dependency and its crate type, in `pydantic-core/Cargo.toml` | MIT (`LICENSE`; `pydantic-core/LICENSE`) | 560f0f96 |
+| `pydantic-core` (pydantic/pydantic-core, archived, cloned 2026-11-14) | the last standalone tree of pydantic-core, against which the copy inside pydantic is compared | MIT (`LICENSE`) | 383eb95a |
+| `pyo3` (PyO3/pyo3, cloned 2026-11-14) | `pyo3-ffi`'s `links = "python"`, `pyo3-build-config`'s config file, `PanicException` and the trampolines that raise it, the `wasm32-wasip1` CI job | MIT OR Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`) | b3fd2149 |
 
 Removed: `bashkit` (everruns/bashkit; no licence file in the clone).
 Its Wizer snapshot of CPython 3.14 and its HTTP door are studied

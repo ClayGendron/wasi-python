@@ -6,8 +6,8 @@
 The key is the SHA-256 of one canonical text: a format line, the build's environment as the
 workflow sets it (`ENV`), and `file <sha256> <path>` for every file of `closure()`: the pins, every
 tracked file under `scripts/` and `recipes/`, this file, the build constraints an env value names,
-and the gate step 60 runs with `tests/` on PYTHONPATH (`GATES`) with every local module it
-imports. A cached set is judged on pull requests into dev and on dev without a rebuild. It is
+and the gates steps 60 and 80 run with `tests/` on PYTHONPATH (`GATES`) with every local module
+they import. A cached set is judged on pull requests into dev and on dev without a rebuild. It is
 rebuilt from the pins and compared byte for byte at the weekly run, at the release pull request
 into main and at the tag, each of which builds its own set or rebuilds the cached one on two more
 hosts and requires the same bytes. So a key that missed an input, or a planted cache entry, is
@@ -39,7 +39,7 @@ TREES = ("scripts", "recipes")
 FILES = ("downloads/SHA256SUMS", "release/set_key.py", "release/build-constraints.txt")
 # The modules the build runs with PYTHONPATH="$HERE/<GATE_ROOT>" (scripts/steps/constructors.sh).
 GATE_ROOT = "tests"
-GATES = ("harness.constructors",)
+GATES = ("harness.constructors", "harness.import_list")
 SUMS = "SHA256SUMS"
 
 

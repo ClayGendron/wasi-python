@@ -37,7 +37,8 @@ def _module(*, passive: bool = False) -> str:
       at by a data word;
     - at 1200, a look-alike {look: $one NOARGS} that nothing points at;
     - at 1300, a single {single: $two VARARGS|KEYWORDS} that code points at (`i32.const 1300`);
-    - at 1400, a getset array {gs: get $one, set $three; st: set $two}, pointed at by a data word;
+    - at 1400, a getset array {gs: get $one, set $three; st: set $two}, pointed at by a
+      `Py_tp_getset` slot;
     - at 1700, a method array {coded: $one NOARGS} that only code points at (`i32.const 1700`),
       as numpy's scalar methods, which C code sets at run time."""
     blob, at = _strings()
@@ -50,7 +51,8 @@ def _module(*, passive: bool = False) -> str:
     getsets = struct.pack("<5I", at["gs"], 21, 23, 0, 0)
     getsets += struct.pack("<5I", at["st"], 0, 22, 0, 0) + zero20
     coded = struct.pack("<4I", at["coded"], 21, NOARGS, 0) + zero16
-    pointers = struct.pack("<2I", 1100, 1400)  # a type object's tp_methods and tp_getset
+    # A type's tp_methods, then a {Py_tp_getset, 1400} PyType_Slot.
+    pointers = struct.pack("<3I", 1100, callbacks.PY_TP_GETSET, 1400)
     segments = [
         (STRINGS, blob),
         (1100, methods),
@@ -221,13 +223,16 @@ def test_a_low_index_that_is_no_parser_rule_is_checked(work, at_one) -> None:
 
 
 def _low_getset_module(work, at_one: str):
-    """A code-referenced record that reads as a one-entry PyGetSetDef array, its getter at table
-    index 1, where the function `at_one` sits with three parameters, as cairo's tag-attribute
-    table reads: {name, 3, 0} twice, so a doc pointer and a small closure follow the getter."""
+    """A record that reads as a one-entry PyGetSetDef array, pointed at by a `Py_tp_getset` slot,
+    its getter at table index 1, where the function `at_one` sits with three parameters, as
+    cairo's tag-attribute table reads: {name, 3, 0} twice, so a doc pointer and a small closure
+    follow the getter."""
     blob, at = _strings()
     record = struct.pack("<5I", at["look"], 1, 0, at["single"], 3) + bytes(20)
+    slot = struct.pack("<2I", callbacks.PY_TP_GETSET, 1300)
     data = "\n".join(
-        f'  (data (i32.const {a}) "{_escape(b)}")' for a, b in [(STRINGS, blob), (1300, record)]
+        f'  (data (i32.const {a}) "{_escape(b)}")'
+        for a, b in [(STRINGS, blob), (1300, record), (1400, slot)]
     )
     return wasm.parse_file(
         wat.build(
@@ -265,6 +270,71 @@ def test_a_getset_at_the_reactors_allocator_is_not_a_getset(work) -> None:
     mod = _low_getset_module(work, "skipping_calloc")
     mod.names.clear()
     assert callbacks.findings(callbacks.scan(mod)) == [GETSET_FINDING]
+
+
+def _html_element_module(work, reach: str):
+    """libxml2's HTML element `center`, {"center", 0, 3, 0, 0, 1, 1, 0, desc, NULL...}, whose
+    first 20 bytes read as one getset entry {name, getter 768, setter 257, doc, 0} with a zero
+    entry after it; here getter at table index 21 ($two), setter at 22 ($two too, a getter's
+    type), so a kept record is a setter finding. `reach` is how something points at it: a stray
+    data word, a stray code constant (a call's argument), a code store into a type's
+    `tp_getset` (offset 124), or a static type's field."""
+    blob, at = _strings()
+    record = struct.pack("<5I", at["look"], 21, 22, at["single"], 0) + bytes(20)
+    segments = [(STRINGS, blob), (1300, record)]
+    code = '(func (export "make") (param i32))'
+    if reach == "word":
+        segments.append((1400, struct.pack("<2I", 7, 1300)))
+    elif reach == "constant":
+        code = '(func (export "make") (result i32) (i32.const 1300))'
+    elif reach == "store":
+        code = (
+            '(func (export "make") (param i32) '
+            "(i32.store offset=124 (local.get 0) (i32.const 1300)))"
+        )
+    elif reach == "type":
+        segments.append((2048, _type(at["gs"], o124=1300)))
+    data = "\n".join(f'  (data (i32.const {a}) "{_escape(b)}")' for a, b in segments)
+    return wasm.parse_file(
+        wat.build(
+            work,
+            f"html-{reach}.wasm",
+            f"""
+(module
+  (func $two (param i32 i32) (result i32) (local.get 0))
+  {code}
+  (table 25 funcref)
+  (elem (i32.const 21) $two $two)
+  (memory 1)
+{data}
+)
+""",
+        )
+    )
+
+
+HTML_FINDING = (
+    "setter look: table index 22 has (i32, i32) -> (i32), called as (i32, i32, i32) -> (i32) (two)"
+)
+
+
+@pytest.mark.parametrize("reach", ["word", "constant"])
+def test_a_getset_shaped_record_a_stray_word_points_at_is_not_a_getset(work, reach) -> None:
+    """A getset array is reached only through a type's tp_getset: a record shaped like one that
+    a word or a code constant only happens to point at is not read (libxml2's HTML element
+    table, whose `center` entry was reported as a setter at code_getvarnames)."""
+    report = callbacks.scan(_html_element_module(work, reach))
+    assert callbacks.findings(report) == []
+    assert report.coverage["getsets"] == 0
+
+
+@pytest.mark.parametrize("reach", ["store", "type"])
+def test_a_getset_array_a_type_points_at_is_read(work, reach) -> None:
+    """The same record pointed at by a static type's tp_getset, or stored into one by code (as
+    numpy and _regex fill tp_getset at run time), is read, and its setter is checked."""
+    report = callbacks.scan(_html_element_module(work, reach))
+    assert callbacks.findings(report) == [HTML_FINDING]
+    assert report.coverage["getsets"] == 1
 
 
 # ---------------------------------------------------------------------------------------------

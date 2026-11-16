@@ -460,7 +460,7 @@ def gather(i: Inputs) -> Verdict:
                     red.append(row)
     # The budget, held on each record's own fuel, so the change that grows a check past its
     # family's cap is the one that is red; a check listed with the specification that moves it is
-    # reported.
+    # reported, and so is the largest fuel of a family no accepted check is from yet.
     reported: list[str] = []
     if i.budget is not None:
         plan_budget, families, specs = i.budget
@@ -475,6 +475,10 @@ def gather(i: Inputs) -> Verdict:
             bad, said = budget.findings(over, plan_budget, specs, stale=False)
             red += [f"G5 budget {system}/{shard}: {line}" for line in bad]
             reported += [f"budget: {system}/{shard}: {line}" for line in said]
+            fresh = budget.new_family_fuel(
+                r.get("checks", {}), i.accepted, family, i.release_checks
+            )
+            reported += [f"budget: {system}/{shard}: {line}" for line in fresh]
     # A check accepted in one tier and now in the other: shown on every run, so a pull request
     # names a move before its acceptance needs the reason.
     for node, acc in sorted(i.accepted.get("checks", {}).items()):

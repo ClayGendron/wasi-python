@@ -469,6 +469,7 @@ def test_npy_files_round_trip(guest, which) -> None:
 # The zip keeps each distribution's METADATA, so a package that asks for its own
 # version gets it. A later specification that adds a distribution adds it here.
 DISTRIBUTIONS = (
+    "annotated-types",
     "attrs",
     "beautifulsoup4",
     "branca",
@@ -503,6 +504,7 @@ DISTRIBUTIONS = (
     "networkx",
     "numpy",
     "openpyxl",
+    "orjson",
     "packaging",
     "pandas",
     "patsy",
@@ -510,6 +512,8 @@ DISTRIBUTIONS = (
     "pdfplumber",
     "pillow",
     "plotly",
+    "pydantic",
+    "pydantic-core",
     "pygments",
     "pyparsing",
     "pypdf",
@@ -535,6 +539,7 @@ DISTRIBUTIONS = (
     "toolz",
     "tqdm",
     "typing-extensions",
+    "typing-inspection",
     "tzdata",
     "webencodings",
     "wrapt",

@@ -38,6 +38,7 @@ STEPS = (
     "39_cairo_libs",
     "40_numpy",
     "50_pandas",
+    "52_rust",
     "53_regex",
     "54_lxml",
     "55_matplotlib",
@@ -962,7 +963,7 @@ def test_check_refuses_too_little_space_only_on_a_first_build(work) -> None:
     out = tree.plain("--check")
     assert out.returncode == 1
     assert out.stdout.splitlines() == [
-        "ERROR preflight: 1.0 GiB free under build/; a first build needs 2.5 GiB"
+        "ERROR preflight: 1.0 GiB free under build/; a first build needs 3.5 GiB"
     ]
     assert tree.plain().returncode == 1  # a build runs the preflight first, and stops
     assert not (tree.root / "build" / "logs" / "00_download.log").exists()

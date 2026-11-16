@@ -29,11 +29,13 @@ CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, 
 | regex | 2026.9.29 | Fuzzy matching, full Unicode properties, graphemes, variable-length lookbehind, `captures()`, with native regex's answers. |
 | cairocffi | 1.7.1 | Built in, over cairo 1.18.6 with pixman 0.46.4 and libpng 1.6.59, and cffi 2.1.1's C backend: image, PDF and SVG surfaces, PNG in and out, text in matplotlib's DejaVu fonts. No PostScript. |
 
-A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml and regex each have golden jobs, and each gives native's answers.
+A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml, regex, orjson and pydantic each have golden jobs, and each gives native's answers.
+
+`_rust_probe` is a builtin module too: the build's own checks use it to panic on purpose and to test Rust's entropy. It is not an API; do not import it.
 
 ## Pure-Python packages
 
-matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, imageio, plotly, pytz, rich with markdown-it-py, mdurl and Pygments, Faker, and folium with branca and xyzservices:
+matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip also carries python-dateutil, tzdata and six. Besides these, the stdlib zip carries thirty pure-Python packages, plus pydantic with annotated-types and typing-inspection, seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG with tinycss2 and cssselect2, imageio, plotly, pytz, rich with markdown-it-py, mdurl and Pygments, Faker, and folium with branca and xyzservices:
 
 | family | distribution and version | what it is for |
 |---|---|---|
@@ -69,6 +71,7 @@ matplotlib brings fontTools 4.67.0, cycler, pyparsing and packaging. The zip als
 | symbolic | sympy 1.14.0, mpmath 1.3.0 | symbolic maths; arbitrary precision |
 | time zones | pytz 2026.6 | the tz database's zones, `localize` and `normalize`; pandas takes its zones |
 | test data | Faker 40.54.0 | fake names, addresses, e-mails and more, in 110 locales |
+| validation | pydantic 2.14.3, annotated-types 0.8.0, typing-inspection 0.4.5 | typed models: validation, serialization and JSON Schema, over the compiled pydantic-core |
 | utilities | attrs 26.1.0, typing-extensions 4.16.0 | classes without boilerplate; typing backports |
 | | more-itertools 11.2.1, toolz 1.2.0 | iteration and functional helpers |
 | | tqdm 4.70.1 | progress bars |
@@ -143,4 +146,4 @@ The list is the runtime's. A package a grant adds through `import_path=` is not 
 
 ## In one line
 
-CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml and regex compiled in, and thirty pure-Python packages plus seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG, imageio and plotly in the zip, each at one pinned version.
+CPython 3.15.2 with numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, lxml, regex, orjson and pydantic-core compiled in, and thirty pure-Python packages plus pydantic, seaborn, reportlab, python-docx, python-pptx, pdfplumber with pdfminer.six, xarray, drawsvg, CairoSVG, imageio and plotly in the zip, each at one pinned version.

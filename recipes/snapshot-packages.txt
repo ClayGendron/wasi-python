@@ -61,6 +61,10 @@ more-itertools: more_itertools
 toolz: toolz
 tqdm: tqdm
 typing-extensions: typing_extensions
+annotated-types: annotated_types
+typing-inspection: typing_inspection typing_inspection.introspection
+pydantic-core: pydantic_core
+pydantic: pydantic pydantic.main pydantic.type_adapter
 joblib: joblib
 cloudpickle: cloudpickle
 threadpoolctl: threadpoolctl
@@ -99,3 +103,6 @@ faker: faker
 folium: folium folium.plugins
 branca: branca branca.colormap branca.element
 xyzservices: xyzservices xyzservices.providers
+orjson: orjson
+rust-std:
+pyo3:

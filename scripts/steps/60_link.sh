@@ -13,7 +13,10 @@
 # checks of scripts/weak_duplicates.py: before it, no weak definition that two archives share unless
 # a review allowed it (recipes/weak-duplicates-allowed.txt), which wasm-ld would resolve without a
 # word; after it, the link map names scikit-learn's renamed random generators and none of the
-# originals.
+# originals. Step 52's Rust library (orjson and _rust_probe) joins the link as one archive; after
+# the link, the map must show the math names from wasi-libc and the 128-bit helpers from
+# compiler-rt (scripts/rust_objects.py link-map), and the binary's imports must be exactly
+# recipes/guest-imports.txt (tests/harness/import_list.py).
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -46,6 +49,11 @@ PM="$B/plot-modules"
 [ -d "$B/statsmodels-modules/statsmodels" ] || die "build/statsmodels-modules/statsmodels is missing: run step 59"
 # Step 56's modules: cffi's backend and cairocffi's bindings, with cairo.
 [ -d "$B/cffi-modules" ] || die "build/cffi-modules is missing: run step 56"
+# Step 52's Rust library, and its modules: one `<dotted> PyInit_<name>` per line.
+RUST_LIB="$B/rust/lib/librust_modules.a"
+[ -s "$RUST_LIB" ] || die "build/rust/lib/librust_modules.a is missing: run step 52"
+RUST_ENTRIES=$(sed -n '/^[^#]/s/^\([^ ]*\) \(PyInit_[A-Za-z0-9_]*\)$/--rust \1=\2/p' "$HERE/recipes/rust/modules.txt")
+[ -n "$RUST_ENTRIES" ] || die "recipes/rust/modules.txt lists no module"
 # The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
 # header declares it: a CPython that changes it stops here, not at run time.
 grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
@@ -53,7 +61,8 @@ grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcont
   || die "Include/internal/pycore_import.h no longer declares _PyImport_SwapPackageContext as gen_inittab.py does"
 remove "$L" "$OUT/python.wasm"
 mkdir -p "$L/archives" "$OUT"
-"$HOSTPY" "$HERE/scripts/gen_inittab.py" --against "$W/Modules/config.c" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
+# shellcheck disable=SC2086
+"$HOSTPY" "$HERE/scripts/gen_inittab.py" --against "$W/Modules/config.c" $RUST_ENTRIES "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
   PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" \
   contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build" scipy="$B/scipy-modules" \
   sklearn="$B/sklearn-modules" statsmodels="$B/statsmodels-modules" cffi="$B/cffi-modules"
@@ -94,13 +103,17 @@ libs="$libs$(printf '%s\n' $deps | grep '^-l' | sort -u | tr '\n' ' ')"
 # scipy's and numpy's sides of the LAPACK ABI (no module's .deps names them),
 # and the emulated mmap OpenBLAS's buffer uses (wasi-libc's, malloc underneath; no new import).
 libs="$libs$B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a -lwasi-emulated-mman "
+# The Rust library, after every C archive and before the C++ runtime, unwinder and setjmp that its
+# unwinding code calls.
+cp "$RUST_LIB" "$L/archives/rust_modules.a"
+libs="$libs$L/archives/rust_modules.a "
 
 # The weak-duplicate gate: every archive this link takes but the SDK's
 # runtime libraries and CPython's own (the modules', the static libraries their .deps name,
 # scipy's and numpy's shims, and the five C libraries the Setup lines below link), read with the
 # SDK's llvm-nm.
 weak_archives="$archives $(printf '%s\n' $deps | grep '\.a$' | sort -u | tr '\n' ' ')"
-weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a $B/zlib-wasi/lib/libz.a"
+weak_archives="$weak_archives $B/scipy-shims/libscipy_lapack_shims.a $B/numpy-shims/libnumpy_lapack_shims.a $B/zlib-wasi/lib/libz.a $L/archives/rust_modules.a"
 for lib in libbz2.a liblzma.a libsqlite3.a libzstd.a; do weak_archives="$weak_archives $B/stdlib-libs/lib/$lib"; done
 "$HOSTPY" "$HERE/scripts/weak_duplicates.py" archives "$SDK/bin/llvm-nm" "$SDK/bin/llvm-cxxfilt" \
   "$HERE/recipes/weak-duplicates-allowed.txt" $weak_archives > "$L/weak-duplicates.log" 2>&1 \
@@ -211,6 +224,11 @@ clashes "$L/reactor-link.log"
   --forbid mt_rand set_seed bounded_rand_int > "$L/link-map-check.log" 2>&1 \
   || { cat "$L/link-map-check.log"; die "the link map shows a random generator of scikit-learn's under its original name, or none (build/link/link-map-check.log)"; }
 tail -n 1 "$L/link-map-check.log"
+# The Rust library brought none of Rust's own math or 128-bit helpers into the link: each comes
+# from wasi-libc or compiler-rt, as for every C module.
+"$HOSTPY" -I "$HERE/scripts/rust_objects.py" link-map "$L/python.map" > "$L/rust-link-map.log" 2>&1 \
+  || { cat "$L/rust-link-map.log"; die "the link map shows a runtime name from somewhere other than wasi-libc or compiler-rt (build/link/rust-link-map.log)"; }
+tail -n 1 "$L/rust-link-map.log"
 
 # The link used the host-neutral wasm runtime that step 10 put in place, not
 # the host tarball's: each runtime archive the link map names, its path resolved (the map writes
@@ -228,6 +246,7 @@ text = open(link_map, encoding="utf-8", errors="replace").read()
 want = {
     "libc++.a": (sysroot, sysroot_tgz, "lib/wasm32-wasip1/eh/libc++.a"),
     "libc++abi.a": (sysroot, sysroot_tgz, "lib/wasm32-wasip1/eh/libc++abi.a"),
+    "libunwind.a": (sysroot, sysroot_tgz, "lib/wasm32-wasip1/eh/libunwind.a"),
     "libclang_rt.builtins.a": (builtins, rt_tgz, "wasm32-unknown-wasip1/libclang_rt.builtins.a"),
 }
 members = {}
@@ -254,4 +273,6 @@ EOF_RUNTIME
 # that fails it is removed.
 . "$HERE/scripts/steps/constructors.sh"
 check_constructors "$OUT/python.wasm" "$L/constructors.log"
+# What the binary asks of its host: exactly the reviewed list, one more or one fewer failing.
+check_imports "$OUT/python.wasm" "$L/imports.log"
 echo "reactor: $(wc -c < "$OUT/python.wasm" | tr -d ' ') bytes, $(shasum -a 256 "$OUT/python.wasm" | cut -c1-16)"

@@ -86,6 +86,10 @@ JOBS = (
     "terminal_text",
     "fake_data",
     "web_maps",
+    # orjson, compiled from Rust
+    "orjson_json",
+    # pydantic, its core compiled from Rust
+    "pydantic_models",
 )
 # Jobs whose native output may differ off the platform that recorded them:
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the

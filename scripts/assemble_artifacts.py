@@ -143,6 +143,18 @@ PACKAGES = {
     "folium": "0.20.0",
     "branca": "0.8.2",
     "xyzservices": "2026.9.1",
+    # orjson, compiled from Rust into the one Rust library with Rust's standard library and the
+    # crates it links; PyO3, which pydantic-core and the build's own probe module, _rust_probe,
+    # link.
+    "orjson": "3.13.0",
+    "rust-std": "1.100.0",
+    "pyo3": "0.30.1",
+    # pydantic: its Rust half, pydantic-core, compiled into the same library from its sdist; the
+    # package itself and the two it imports beside typing-extensions, pure wheels
+    "pydantic-core": "2.50.4",
+    "annotated-types": "0.8.0",
+    "typing-inspection": "0.4.5",
+    "pydantic": "2.14.3",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -201,6 +213,10 @@ WHEELS = {
     "pygments": "pygments-2.21.0-py3-none-any.whl",
     "faker": "faker-40.54.0-py3-none-any.whl",
     "xyzservices": "xyzservices-2026.9.1-py3-none-any.whl",
+    # pydantic and the two it imports beside typing-extensions
+    "annotated-types": "annotated_types-0.8.0-py3-none-any.whl",
+    "typing-inspection": "typing_inspection-0.4.5-py3-none-any.whl",
+    "pydantic": "pydantic-2.14.3-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file.
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -1087,6 +1103,217 @@ def cairosvg_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
     ]
 
 
+# The crates the Rust library links, each with its licence file in its pinned .crate, the MIT side
+# where a crate offers a choice (xxhash-rust is BSL-1.0, itoap and zmij MIT alone). Step 52
+# writes the build graph cargo resolves for wasm32-wasip1 (build/rust/linked-crates.txt); a crate
+# there and not here, or here and not there, stops the build, so no notice is missed or stale.
+ORJSON_CRATES = (
+    ("associative-cache", "3.0.1", "LICENSE-MIT"),
+    ("bytecount", "0.6.9", "LICENSE.MIT"),
+    ("itoap", "1.0.1", "LICENSE"),
+    ("jiff-core", "0.1.1", "LICENSE-MIT"),
+    ("libc", "0.2.190", "LICENSE-MIT"),
+    ("once_cell", "1.21.4", "LICENSE-MIT"),
+    ("pyo3-ffi", "0.30.1", "LICENSE-MIT"),
+    ("simdutf8", "0.1.5", "LICENSE-MIT"),
+    ("xxhash-rust", "0.8.19", "LICENSE"),
+    ("zmij", "1.0.23", "LICENSE-MIT"),
+)
+PYO3_CRATES = (("pyo3", "0.30.1", "LICENSE-MIT"),)
+# The crates pydantic-core links beyond orjson's, PyO3's and the standard library's, each with its
+# licence file in its pinned .crate: the MIT side where a crate offers a choice; Unicode-3.0 for
+# ICU4X's crates (icu_*, litemap, tinystr, writeable, yoke, zerofrom, zerovec); Zlib for foldhash.
+PYDANTIC_CORE_CRATES = (
+    ("ahash", "0.8.12", "LICENSE-MIT"),
+    ("aho-corasick", "1.1.3", "LICENSE-MIT"),
+    ("arrayvec", "0.7.8", "LICENSE-MIT"),
+    ("base64", "0.23.1", "LICENSE-MIT"),
+    ("bitvec", "1.0.1", "LICENSE.txt"),
+    ("cfg-if", "1.0.0", "LICENSE-MIT"),
+    ("equivalent", "1.0.3", "LICENSE-MIT"),
+    ("foldhash", "0.2.0", "LICENSE"),
+    ("form_urlencoded", "1.2.2", "LICENSE-MIT"),
+    ("funty", "2.0.0", "LICENSE.txt"),
+    ("getrandom", "0.3.3", "LICENSE-MIT"),
+    ("hex", "0.4.3", "LICENSE-MIT"),
+    ("icu_collections", "1.5.0", "LICENSE"),
+    ("icu_locid", "1.5.0", "LICENSE"),
+    ("icu_locid_transform", "1.5.0", "LICENSE"),
+    ("icu_locid_transform_data", "1.5.0", "LICENSE"),
+    ("icu_normalizer", "1.5.0", "LICENSE"),
+    ("icu_normalizer_data", "1.5.0", "LICENSE"),
+    ("icu_properties", "1.5.1", "LICENSE"),
+    ("icu_properties_data", "1.5.0", "LICENSE"),
+    ("icu_provider", "1.5.0", "LICENSE"),
+    ("idna", "1.1.0", "LICENSE-MIT"),
+    ("idna_adapter", "1.2.0", "LICENSE-MIT"),
+    ("indexmap", "2.14.0", "LICENSE-MIT"),
+    ("itoa", "1.0.11", "LICENSE-MIT"),
+    ("jiter", "0.18.0", "LICENSE"),
+    ("lexical-parse-float", "1.0.6", "LICENSE-MIT"),
+    ("lexical-parse-integer", "1.0.6", "LICENSE-MIT"),
+    ("lexical-util", "1.0.7", "LICENSE-MIT"),
+    ("litemap", "0.7.3", "LICENSE"),
+    ("lru", "0.18.5", "LICENSE"),
+    ("memchr", "2.7.4", "LICENSE-MIT"),
+    ("num-bigint", "0.4.6", "LICENSE-MIT"),
+    ("num-integer", "0.1.46", "LICENSE-MIT"),
+    ("num-traits", "0.2.19", "LICENSE-MIT"),
+    ("percent-encoding", "2.3.2", "LICENSE-MIT"),
+    ("radium", "0.7.0", "LICENSE.txt"),
+    ("regex", "1.13.1", "LICENSE-MIT"),
+    ("regex-automata", "0.4.18", "LICENSE-MIT"),
+    ("regex-syntax", "0.8.11", "LICENSE-MIT"),
+    ("serde", "1.0.229", "LICENSE-MIT"),
+    ("serde_core", "1.0.229", "LICENSE-MIT"),
+    ("serde_json", "1.0.151", "LICENSE-MIT"),
+    ("smallvec", "1.16.2", "LICENSE-MIT"),
+    ("speedate", "0.18.0", "LICENSE"),
+    ("stable_deref_trait", "1.2.0", "LICENSE-MIT"),
+    ("strum", "0.28.0", "LICENSE"),
+    ("tap", "1.0.1", "LICENSE.txt"),
+    ("tinystr", "0.7.6", "LICENSE"),
+    ("url", "2.5.8", "LICENSE-MIT"),
+    ("utf16_iter", "1.0.5", "LICENSE-MIT"),
+    ("utf8_iter", "1.0.4", "LICENSE-MIT"),
+    ("uuid", "1.23.4", "LICENSE-MIT"),
+    ("write16", "1.0.0", "LICENSE-MIT"),
+    ("writeable", "0.5.5", "LICENSE"),
+    ("wyz", "0.5.1", "LICENSE.txt"),
+    ("yoke", "0.7.4", "LICENSE"),
+    ("zerocopy", "0.8.25", "LICENSE-MIT"),
+    ("zerofrom", "0.1.4", "LICENSE"),
+    ("zerovec", "0.10.4", "LICENSE"),
+)
+# The standard library's own crates for wasm32-wasip1, read from rust-src's vendor folder (pinned
+# by rust-src's SHA-256). wasip1 ships no licence file: it is offered under MIT among others, and
+# its notice is SPDX's MIT text with the crate's repository named.
+STD_CRATES = (
+    ("cfg-if", "1.0.4", "LICENSE-MIT"),
+    ("hashbrown", "0.17.1", "LICENSE-MIT"),
+    ("libc", "0.2.189", "LICENSE-MIT"),
+    ("rustc-demangle", "0.1.28", "LICENSE-MIT"),
+    ("wasip1", "1.0.0", None),
+)
+SPDX_MIT = "spdx-31ba1a50-MIT.txt"
+ORJSON_SDIST = "orjson-3.13.0.tar.gz"
+ORJSON_URL = (
+    "https://files.pythonhosted.org/packages/f2/72/"
+    "380b97dc45bd162d23afe5194721ef678d9eac7cfaa549fe2873f7f0a518/" + ORJSON_SDIST
+)
+# orjson's carried patches, each with what it changes, for MPL-2.0's Source Code Form paragraph.
+ORJSON_PATCHES = (
+    (
+        "recipes/patches/orjson-3.13.0/0001-the-library-is-also-an-rlib.patch",
+        "declares the library an rlib as well as a cdylib and changes no code",
+    ),
+    (
+        "recipes/patches/orjson-3.13.0/0002-pyo3-0-30.patch",
+        "asks for PyO3 0.30 in place of 0.29 and changes no code",
+    ),
+    (
+        "recipes/patches/orjson-3.13.0/0003-no-global-allocator.patch",
+        "leaves out orjson's global allocator, so Rust's own serves the library",
+    ),
+)
+RUST_STD_WASIP1 = "rust-std-1.100.0-wasm32-wasip1.tar.xz"
+# yyjson, compiled into orjson: its folder has no licence file, and its MIT notice is the header
+# comment of yyjson.h.
+YYJSON_MIT = (
+    "YaoYuan",
+    "Permission is hereby granted, free of charge",
+    'THE SOFTWARE IS PROVIDED "AS IS"',
+)
+
+
+def crate_file(d: Path, name: str, version: str, member: str) -> bytes:
+    """One file of a pinned crate, read from its bytes once they match the pin."""
+    with tarfile.open(fileobj=io.BytesIO(pinned_bytes(d, f"{name}-{version}.crate"))) as t:
+        f = t.extractfile(f"{name}-{version}/{member}")
+        if f is None:
+            raise SystemExit(f"{name}-{version}.crate holds no {member}")
+        return f.read()
+
+
+def linked_crates(b: Path) -> set[tuple[str, str]]:
+    """(name, version) of each crate step 52's build graph names."""
+    path = b / "rust" / "linked-crates.txt"
+    if not path.is_file():
+        raise SystemExit("build/rust/linked-crates.txt is missing: run step 52")
+    return {tuple(line.split()) for line in path.read_text().splitlines() if line.strip()}
+
+
+def orjson_source_part(d: Path) -> bytes:
+    """Where orjson's source is, the Source Code Form of section 3.2 of MPL-2.0: the sdist and
+    its carried patches."""
+    sha = hashlib.sha256(pinned_bytes(d, ORJSON_SDIST)).hexdigest()
+    patches = "".join(
+        f"  {path} (MANIFEST's recipe line), which {what}\n" for path, what in ORJSON_PATCHES
+    )
+    return (
+        "orjson is MPL-2.0 AND (Apache-2.0 OR MIT); the set takes MIT for the second part.\n"
+        "Its compiled code is in python.wasm and python-snapshot.wasm, built from the unmodified\n"
+        "sdist\n"
+        f"  {ORJSON_URL}\n"
+        f"  SHA-256 {sha} (MANIFEST's pin line for {ORJSON_SDIST})\n"
+        f"with {len(ORJSON_PATCHES)} carried patches, applied in order:\n" + patches
+    ).encode()
+
+
+def rust_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """Rust's standard library: its licence and copyright files, its own crates' notices."""
+    with tarfile.open(fileobj=io.BytesIO(pinned_bytes(d, RUST_STD_WASIP1))) as t:
+        top = RUST_STD_WASIP1.removesuffix(".tar.xz")
+        parts = [
+            (f"{RUST_STD_WASIP1}: {n}", t.extractfile(f"{top}/{n}").read())
+            for n in ("LICENSE-MIT", "COPYRIGHT")
+        ]
+    doc = b / "tools" / "rust" / "share" / "doc" / "rust" / "COPYRIGHT-library.html"
+    parts.append(("Rust's share/doc/rust/COPYRIGHT-library.html", doc.read_bytes()))
+    vendor = b / "tools" / "rust" / "lib" / "rustlib" / "src" / "rust" / "library" / "vendor"
+    for name, version, member in STD_CRATES:
+        if member is None:
+            line = f"{name} {version}, which ships no licence file, under MIT:\n"
+            parts.append(
+                (f"{name} {version} (SPDX's MIT text)", line.encode() + pinned_bytes(d, SPDX_MIT))
+            )
+        else:
+            parts.append(
+                (f"{name} {version} {member}", (vendor / f"{name}-{version}" / member).read_bytes())
+            )
+    return parts
+
+
+def orjson_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    tree = b / "orjson-3.13.0"
+    parts = [
+        ("orjson, as this build compiles it", orjson_source_part(d)),
+        ("orjson LICENSE-MPL-2.0", (tree / "LICENSE-MPL-2.0").read_bytes()),
+        ("orjson LICENSE-MIT", (tree / "LICENSE-MIT").read_bytes()),
+        (
+            "yyjson include/yyjson/yyjson.h, its head comment",
+            head_notice(tree / "include" / "yyjson" / "yyjson.h", YYJSON_MIT),
+        ),
+    ]
+    return parts + [(f"{n} {v} {m}", crate_file(d, n, v, m)) for n, v, m in ORJSON_CRATES]
+
+
+def pydantic_core_parts(b: Path, d: Path) -> list[tuple[str, bytes]]:
+    """pydantic-core's own MIT licence, then each crate it links beyond orjson's and PyO3's."""
+    own = [("pydantic-core LICENSE", (b / "pydantic_core-2.50.4" / "LICENSE").read_bytes())]
+    return own + [(f"{n} {v} {m}", crate_file(d, n, v, m)) for n, v, m in PYDANTIC_CORE_CRATES]
+
+
+def crate_notice_errors(b: Path) -> list[str]:
+    """The notice tables against step 52's build graph: one name each way."""
+    tables = ORJSON_CRATES + PYO3_CRATES + PYDANTIC_CORE_CRATES + STD_CRATES
+    ours = {(n, v) for n, v, _ in tables}
+    graph = linked_crates(b)
+    out = [f"{n} {v} is linked and has no notice" for n, v in sorted(graph - ours)]
+    out += [f"{n} {v} has a notice and is not linked" for n, v in sorted(ours - graph)]
+    return out
+
+
 def modified_notice(root: Path, top: str) -> bytes:
     """One line per carried patch of a tree: the files it changes, read from the patch itself,
     the patch's path and what it does; then that the rest is compiled as released."""
@@ -1377,9 +1604,16 @@ def main() -> None:
         ],
         "cairocffi": [("cairocffi LICENSE", (b / "cairocffi-1.7.1" / "LICENSE").read_bytes())],
         "cairosvg": cairosvg_parts(b, d),
+        "orjson": orjson_parts(b, d),
+        "rust": rust_parts(b, d),
+        "pyo3": [(f"{n} {v} {m}", crate_file(d, n, v, m)) for n, v, m in PYO3_CRATES],
+        "pydantic-core": pydantic_core_parts(b, d),
         "wasi-libc": [(name, pinned_bytes(d, name)) for name in WASI_LIBC],
         "llvm-runtimes": [(name, pinned_bytes(d, name)) for name in LLVM],
     }
+    crate_errors = crate_notice_errors(b)
+    if crate_errors:
+        raise SystemExit("the Rust library's crates and their notices: " + "; ".join(crate_errors))
     tqdm_source = pinned_bytes(d, TQDM_WHEEL)
     (new / "LICENSES" / TQDM_SOURCE).write_bytes(tqdm_source)
     licences["tqdm"] += [
@@ -1421,6 +1655,7 @@ def main() -> None:
         # builds the same bytes, so MANIFEST is the same file from any of them.
         "x-pins every-supported-build-host",
         f"x-wizer {wizer}",
+        f"x-rust {LINE['RUST_VERSION']} panic={LINE['RUST_PANIC']}",
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",
         f"x-preimport {preimport_list((root / PREIMPORT_RECIPE).read_text())}",
         *snapshot_package_lines(

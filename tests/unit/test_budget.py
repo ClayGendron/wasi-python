@@ -250,3 +250,44 @@ def test_a_specification_dated_before_the_caps_is_not_named(tmp_path: Path) -> N
     assert budget.length_over([status]) == []  # no Date line: the header's first date
     new = _spec(tmp_path, "902-new.md", 2001, date="2026-10-30")
     assert budget.length_over([new]) == ["902-new.md: 2,001 words, past 2,000"]
+
+
+def test_a_new_familys_largest_fuel_is_reported_from_one_run() -> None:
+    """A family none of whose checks is accepted is reported with its largest fuel, so its cap
+    can be set from the pull request's own run; an accepted family, a failing check and a
+    release-tier one are not."""
+    new_a = "tests/checks/test_v1_9_new.py::test_a"
+    new_b = "tests/checks/test_v1_9_new.py::test_b[plain]"
+    accepted = {"checks": {A: entry(5)}}
+
+    def ran(fuel: int, status: str = "pass") -> dict:
+        return {"status": status, "metrics": {"fuel": fuel}}
+
+    checks = {A: ran(90), new_a: ran(7), new_b: ran(12), R: ran(9_999)}
+    assert budget.new_family_fuel(checks, accepted, family, {R}) == [
+        f"test_v1_9_new is a new family: its largest fuel is 12, by {new_b}"
+    ]
+    checks[new_b] = ran(50, "fail")
+    assert budget.new_family_fuel(checks, accepted, family, {R}) == [
+        f"test_v1_9_new is a new family: its largest fuel is 7, by {new_a}"
+    ]
+    assert budget.new_family_fuel({A: ran(90)}, accepted, family, set()) == []
+
+
+def test_a_new_upstream_package_is_reported_though_its_file_is_accepted() -> None:
+    """Every upstream check shares one file, so a family is seen by its package, not its file: a
+    package no accepted check is from is reported while another package's checks are accepted."""
+    new = f"{budget.UPSTREAM_FILE}::test_upstream_suite[orjson-core]"
+    families = {**FAMILIES, new: "orjson"}
+
+    def upstream(node: str) -> str:
+        return budget.family_of(node, families)
+
+    accepted = {"checks": {U: entry(5)}}
+    checks = {
+        U: {"status": "pass", "metrics": {"fuel": 90}},
+        new: {"status": "pass", "metrics": {"fuel": 40}},
+    }
+    assert budget.new_family_fuel(checks, accepted, upstream, set()) == [
+        f"orjson is a new family: its largest fuel is 40, by {new}"
+    ]

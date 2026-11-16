@@ -190,6 +190,8 @@ SOURCE_COMPONENTS = (
     "plotly",
     "folium",
     "branca",
+    "orjson",
+    "pydantic-core",
 )
 
 # The test sources: every other pinned source the judge stages but never builds (the pure-Python

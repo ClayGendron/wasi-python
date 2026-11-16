@@ -117,6 +117,14 @@ dependencies = [
     "folium==0.20.0",
     "branca==0.8.2",
     "xyzservices==2026.9.1",
+    # orjson at the guest's pin, its stock cp315 wheel: the guest compiles the same sdist's Rust.
+    "orjson==3.13.0",
+    # pydantic and pydantic-core at the guest's pins, pydantic-core's stock cp315 wheel: the guest
+    # compiles the same sdist's Rust; annotated-types and typing-inspection as the guest's wheels.
+    "pydantic==2.14.3",
+    "pydantic-core==2.50.4",
+    "annotated-types==0.8.0",
+    "typing-inspection==0.4.5",
 ]
 
 [tool.uv.sources]

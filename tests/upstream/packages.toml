@@ -493,3 +493,49 @@ closes_with = "spec 193"
 kind = "later"
 reason = "its suite, from its sdist's xyzservices/tests, joins the tiers once a built set measures its groups' fuel"
 closes_with = "spec 193"
+
+# orjson and the Rust it brings, built by step 52 into the umbrella library.
+
+[package.orjson]
+# its own suite runs from its sdist, which carries test/ (the tests that read data/ skip
+# themselves); its groups join, with their measured fuel, by the reserved specification
+kind = "later"
+reason = "orjson's own tests are in its sdist, but a group needs its measured fuel, and no run of the set has measured it yet"
+closes_with = "spec 192"
+
+[package.rust-std]
+# Rust's standard library, rebuilt from rust-src for wasm32-wasip1: its own tests run under cargo
+# on a host, and orjson's suite reaches it in the guest
+kind = "via"
+via = "orjson"
+
+[package.pyo3]
+# PyO3's own tests run under cargo on a host. In the guest pydantic-core's suite will reach its
+# macros, its function wrappers and its FFI once that suite joins the tiers; until then no suite
+# reaches PyO3 (orjson's, once it runs, reaches only pyo3-ffi)
+kind = "via"
+via = "pydantic-core"
+
+# pydantic and its Rust half, built by step 52 into the umbrella library, and the two pure packages
+# pydantic imports beside typing-extensions. Each suite waits for a built set: a smoke group's fuel
+# is measured before it joins the normal tier, so none is in a shard yet.
+
+[package.pydantic-core]
+kind = "later"
+reason = "its suite, from its sdist's tests/, with dirty-equals, inline-snapshot, pytest-mock and hypothesis, joins the tiers on panic=unwind once a built set measures its groups' fuel"
+closes_with = "spec 194"
+
+[package.pydantic]
+kind = "later"
+reason = "its suite, from its sdist's tests/ (mypy, plugin, benchmark and docs tests left out), with dirty-equals, pytest-mock and pytz, joins the tiers on panic=unwind once a built set measures its groups' fuel"
+closes_with = "spec 194"
+
+[package.annotated-types]
+kind = "later"
+reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 194"
+
+[package.typing-inspection]
+kind = "later"
+reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
+closes_with = "spec 194"
