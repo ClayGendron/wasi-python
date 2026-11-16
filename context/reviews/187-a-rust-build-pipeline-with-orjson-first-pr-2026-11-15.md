@@ -2,9 +2,9 @@
 
 - **Date:** 2026-11-15
 - **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author
-- **Reviewed:** round one: pull request #110 (draft), `origin/dev` `4bed5d73`...`cb2b25bb`: the pushed head `03097ea4` and three local commits (`d1d8888d`, `f01c1698`, `cb2b25bb`), with the specification, its landing notes and its pre-build review. Round two: `2183d5d5..e026a6ee` after the rebase onto `dev` `7deb6043`, six commits, the pushed `29162515` and one local commit, `e026a6ee`. Round three: `d4761c4e..fb4a1bc6` after the rebase onto `dev` `d4761c4e`, then, once #113's squash put this branch on `dev`, the merge of `dev` `8c34c02f` (its tree is `dev`'s) and `a746d5e4`, the whole pull request now
-- **Run:** 43664780183 on `03097ea4`, the head before the fixes, read once. Green: plan, `quick`, the build (arm64 Linux), `verify` on three systems, 42 judge legs. Red: 17 jobs. Skipped: the gather, the release tier, both rebuilds, `same-bytes`. No run on `cb2b25bb` yet (READ). Round two: 43771983479 on `29162515`, below. Round three: 43865484595, the owner's release-shape dispatch on `fb4a1bc6`, below.
-- **Re-ran:** `uv run pytest tests/lint -q -p no:cacheprovider` → 14 passed. The six changed unit files → 791 passed. `tests/checks/test_rules.py` and `test_upstream_files_are_well_formed` → 149 passed, 5 skipped. `harness.import_list.errors` on `dev`'s set at `338ed06d` → 43 imports in each binary, equal to `recipes/guest-imports.txt` (all EXECUTED). Round two: below. Round three: on `fb4a1bc6` and on `a746d5e4`, below.
+- **Reviewed:** round one: pull request #110 (draft), `origin/dev` `4bed5d73`...`cb2b25bb`: the pushed head `03097ea4` and three local commits (`d1d8888d`, `f01c1698`, `cb2b25bb`), with the specification, its landing notes and its pre-build review. Round two: `2183d5d5..e026a6ee` after the rebase onto `dev` `7deb6043`, six commits, the pushed `29162515` and one local commit, `e026a6ee`. Round three: `d4761c4e..fb4a1bc6` after the rebase onto `dev` `d4761c4e`, then, once #113's squash put this branch on `dev`, the merge of `dev` `8c34c02f` (its tree is `dev`'s) and `a746d5e4`, the whole pull request now. Round four: the branch rebuilt linearly on `dev` `cbfe00cd` with no merge, `3aac2e7c` (`a746d5e4` cherry-picked) and `aff4aeab` (round three's review, `23ab3e6e` cherry-picked).
+- **Run:** 43664780183 on `03097ea4`, the head before the fixes, read once. Green: plan, `quick`, the build (arm64 Linux), `verify` on three systems, 42 judge legs. Red: 17 jobs. Skipped: the gather, the release tier, both rebuilds, `same-bytes`. No run on `cb2b25bb` yet (READ). Round two: 43771983479 on `29162515`, below. Round three: 43865484595, the owner's release-shape dispatch on `fb4a1bc6`, below. Round four: none of the rebuilt head; the merged head's run failed on rule 3 alone, by the author's word (not read here).
+- **Re-ran:** `uv run pytest tests/lint -q -p no:cacheprovider` → 14 passed. The six changed unit files → 791 passed. `tests/checks/test_rules.py` and `test_upstream_files_are_well_formed` → 149 passed, 5 skipped. `harness.import_list.errors` on `dev`'s set at `338ed06d` → 43 imports in each binary, equal to `recipes/guest-imports.txt` (all EXECUTED). Round two: below. Round three: on `fb4a1bc6` and on `a746d5e4`, below. Round four: on `aff4aeab`, below.
 - **Box:** 45 minutes (build-class).
 
 Labels: EXECUTED, I ran it; READ, I read the file or log; INFERRED, my reasoning. Nothing was dispatched, pushed or labelled.
@@ -178,6 +178,29 @@ These are the classes spec 182 (#114, now on `dev`) gives `collector_moves`. A c
 14. Closed: §4.12 and the Status line name both (READ).
 15. Closed for the spec. The description is finding 17.
 
-## Verdict
+## Round three verdict (2026-11-16; replaced)
 
 Lands on `a746d5e4`. The pull request is now `a746d5e4` alone: it raises the getset floor to 2,900 and claims it, so the judge only gains (16, closed). The merge-grade run 43865484595 is green apart from three collector-timing classes (11, closed). 182 on `dev` clears two of them. The third is finding 18, a Medium carried to `dev` and the 0.1.5 release pull request, because 187's code is on `dev` already and this diff cannot fix it. 17 is the description, the author's. 19 is answered in writing. This file is committed after `a746d5e4` as the branch's last commit.
+
+## Round four, on `3aac2e7c`
+
+Reviewer: an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author. Nothing was dispatched, pushed or labelled.
+
+Read. The merged head's pull-request run failed on rule 3 alone, `test_this_repository_is_linear`, on the merge `8c34c02f`, by the author's word (not read here). The author rebuilt the branch on `origin/dev` `cbfe00cd` with no merge. The old head is kept as the local branch `backup/187-merge` (`23ab3e6e`). GitHub's head is still `23ab3e6e`, so the rebuild is not pushed (READ, `git ls-remote`). The shas, old to new: `8c34c02f`, the merge, is dropped, and the new commits sit on `cbfe00cd`, which is that merge's tree. `a746d5e4` becomes `3aac2e7c`, and `23ab3e6e` becomes `aff4aeab`. Round three's shas are the old ones; read them through this map.
+
+Re-ran (EXECUTED, each):
+- Trees: `HEAD^{tree}` and `backup/187-merge^{tree}` are both `41855d86`, and `3aac2e7c`'s tree is `a746d5e4`'s (`f2bebf94`).
+- Merges: `git rev-list --merges origin/dev..HEAD` is empty. Rule 3 skips here with "needs: git history", because this clone is shallow. So I ran its query, `git rev-list --merges HEAD`, by hand. It finds no merge among the 64 commits it reaches. On `backup/187-merge` it finds `8c34c02f`, as a control.
+- The change: `git diff origin/dev 3aac2e7c` equals `git diff 8c34c02f a746d5e4`, line for line. `3aac2e7c`'s own diff equals `a746d5e4`'s, and `aff4aeab`'s equals `23ab3e6e`'s. That is two files, 4 lines added and 1 removed: the getset floor of 2,900 and its `[claim.judge]` row. Both commits' trailers are Claude Opus 5.5.
+- `uv run python release/precheck.py` → exit 1 on the allowed root-only `test_the_walk_judges_links` alone: unit 3,736 passed, 104 skipped (round three's count); ruff, mypy, the rules checks (151 passed, 4 skipped), their times and lint (14 passed) ok; the plan refuses nothing.
+
+### Findings, round four
+
+None. Round three's findings stand as they were, but for 19:
+- 16: closed, as before. 17: the description, the author's, as before.
+- 18: **Medium, on `dev`, not on this diff**, as round three wrote it. It is carried to `dev` and to the 0.1.5 release pull request.
+- 19: **Low, the merge commit** — moot. The branch carries no merge, so AGENTS.md step 4 holds. Round three's reason for the merge was that a rebase would replay 35 commits `dev` already holds. The rebuild avoided that by replaying only the getset floor onto `dev`.
+
+## Verdict
+
+Lands on `3aac2e7c`. The branch is rebuilt linearly on `dev` `cbfe00cd` with no merge, so rule 3 holds. Its tree is the merged head's, and its diff against `dev` is `a746d5e4`'s alone, the getset floor, so the judge only gains. The precheck holds but for the allowed root-only test. 19 is moot. 18 is a Medium carried to `dev` and the 0.1.5 release pull request, which this diff cannot fix. 17 is the description, the author's. No run of this head was read.
