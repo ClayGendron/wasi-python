@@ -12,11 +12,22 @@ table something points at:
 - **`PyMemberDef` arrays** (`{name, type <= 20, offset, flags, doc}`) are found first and kept
   out of the others, so a member's type code is never read as a function pointer.
 
-A table is kept only when something points at it: an entry's address appears as an aligned
-4-byte word in the data image (a type's `tp_methods`, a `PyModuleDef`, a `PyType_Slot`) or as an
-`i32.const` operand in the code section. The operands are read at every `0x41` byte, which
-over-approximates: it can add references, never lose one. A run of entries is kept from its first
-referenced entry, so bytes that happen to look like an entry just before a table do not hide it.
+A method or member table is kept only when something points at it: an entry's address appears
+as an aligned 4-byte word in the data image (a type's `tp_methods`, a `PyModuleDef`, a
+`PyType_Slot`) or as an `i32.const` operand in the code section. The operands are read at every
+`0x41` byte, which over-approximates: it can add references, never lose one. A run of entries is
+kept from its first referenced entry, so bytes that happen to look like an entry just before a
+table do not hide it.
+
+A getset table is kept only when it is pointed at the way CPython reaches one, through a type's
+`tp_getset`: a static type's field (the word 124 bytes past a static object's reference count), a
+`Py_tp_getset` entry of a `PyType_Slot` array, or code that stores the constant into that field
+(an `i32.const` the next instruction, `i32.store`, writes at offset 124 or at a static type's
+field). Any word anywhere would not do: a 20-byte getset entry is common in other data, and an
+address that only happens to equal one is a false finding (libxml2's HTML element table reads
+`{"center", 0, 3, 0, 0, 1, 1, 0, "shorthand for div align=center "}` as a getter at table index
+768 and a setter at 257, and once a word elsewhere happened to equal its address, the getter that
+sits at 257 was reported as a setter of the wrong type).
 
 Members go first because a member array also reads as a getset array (its type code taken for a
 getter's table index). The cost: a getset array whose getters all sit at table indices 1 to 20 with
@@ -68,6 +79,13 @@ METHOD, GETSET, MEMBER = 16, 20, 20  # entry sizes in bytes (wasm32)
 # binary, never a callback.
 PARSER_RULES = 20
 I32_CONST = re.compile(rb"(?=\x41([\x80-\xff]{0,4}[\x00-\x7f]))", re.DOTALL)
+# `i32.const v` followed by `i32.store align offset`: the constant is the stored value.
+I32_STORED = re.compile(
+    rb"(?=\x41([\x80-\xff]{0,4}[\x00-\x7f])\x36[\x00-\x7f]([\x80-\xff]{0,4}[\x00-\x7f]))",
+    re.DOTALL,
+)
+TP_GETSET = 124  # the byte offset of PyTypeObject.tp_getset on wasm32
+PY_TP_GETSET = 73  # its PyType_Slot id (Include/typeslots.h)
 
 # Reviewed real cases only, keyed by "<kind> <entry name>", each with its reason. Today none: a
 # mismatch is fixed by a carried patch or an upstream release, never by an exclusion. An entry
@@ -120,19 +138,37 @@ class _Image:
         return self.has(addr, n) and not any(self.mem[addr - self.base : addr - self.base + n])
 
 
+def _leb(raw: bytes, signed: bool) -> int:
+    value = shift = 0
+    for b in raw:
+        value |= (b & 0x7F) << shift
+        shift += 7
+    if signed and raw[-1] & 0x40:
+        value -= 1 << shift
+    return value & 0xFFFFFFFF
+
+
 def code_constants(code: bytes) -> set[int]:
     """Every value an `i32.const` could carry in the code: the signed LEB after each 0x41 byte,
     read at every position, so an opcode inside another's operand is never skipped."""
-    out = set()
-    for m in I32_CONST.finditer(code):
-        raw = m.group(1)
-        value = shift = 0
-        for b in raw:
-            value |= (b & 0x7F) << shift
-            shift += 7
-        if raw[-1] & 0x40:
-            value -= 1 << shift
-        out.add(value & 0xFFFFFFFF)
+    return {_leb(m.group(1), True) for m in I32_CONST.finditer(code)}
+
+
+def getset_refs(image: _Image, code: bytes) -> set[int]:
+    """The addresses a type's `tp_getset` holds: a static type's field, a `Py_tp_getset` slot's
+    pointer, and a constant the code stores into that field (the module docstring says why no
+    other word counts). The stores are read at every 0x41 byte, as `code_constants` reads."""
+    words = array("I")
+    words.frombytes(image.mem[: len(image.mem) - len(image.mem) % 4])
+    if struct.pack("=I", 1) != struct.pack("<I", 1):  # pragma: no cover
+        words.byteswap()
+    field_ = TP_GETSET // 4
+    out = {words[k + field_] for k in range(len(words) - field_) if words[k] == STATIC_REFCNT}
+    out |= {words[k + 1] for k in range(len(words) - 1) if words[k] == PY_TP_GETSET}
+    for m in I32_STORED.finditer(code):
+        offset = _leb(m.group(2), False)
+        if offset == TP_GETSET or image.words(offset - TP_GETSET, 1) == (STATIC_REFCNT,):
+            out.add(_leb(m.group(1), True))
     return out
 
 
@@ -270,7 +306,7 @@ def scan(mod: Module) -> Report:
             found = _check(mod, "method", name, meth, _method_type(flags))
             report.findings += [found] if found else []
 
-    getsets = _tables(image, GETSET, _getset_entry, elements, refs, taken)
+    getsets = _tables(image, GETSET, _getset_entry, elements, getset_refs(image, mod.code), taken)
     for table in getsets:
         for _addr, (name, get, set_) in table:
             if get and get <= PARSER_RULES and _parser_rule(mod, get):
