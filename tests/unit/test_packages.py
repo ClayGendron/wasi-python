@@ -439,9 +439,9 @@ def test_a_clock_stepped_group_with_two_outcomes_is_red() -> None:
 def _drawn_stream(drawn: str, at: str, members: str) -> str:
     return STREAM.format(code=0).replace(
         "R passed tests/test_big.py::test_a --\n",
-        f"R passed tests/test_big.py::test_u[s11-{drawn}-False] --\n"
-        f"R passed tests/test_big.py::test_f[<function f at {at}>] --\n"
-        f"R passed tests/test_big.py::test_l[{members}-IsList(1, 2, 3)] --\n",
+        f"R passed tests/test_big.py::test_u[s11-{drawn}-False] -- \n"
+        f"R passed tests/test_big.py::test_f[<function f at {at}>] -- \n"
+        f"R passed tests/test_big.py::test_l[{members}-IsList(1, 2, 3)] -- \n",
     )
 
 
@@ -459,6 +459,21 @@ def test_a_group_whose_ids_carry_values_drawn_each_run_digests_the_same_tests_th
     assert d[1].passed_digest == d[2].passed_digest != d[3].passed_digest
     plain = [packages.judge(cfg, "demo-2", s, _run(), {})[0].passed_digest for s in (one, two)]
     assert plain[0] != plain[1]  # a group without the key digests its ids as they are
+
+
+def test_a_drawn_group_leaves_the_collectors_moves_out_of_its_digest(monkeypatch) -> None:
+    reason = 'drawn_ids = "a uuid drawn at import, a repr with its address, a set in its order"'
+    cfg = _cfg(BASE.replace("measured = 7\n", f"measured = 7\n{reason}\n", 1))
+    text = _drawn_stream("5014f79b-c917-4efc-96c4-e03022ddca5e", "0x7f7ea4f124b0", "{1, 2}")
+    moved = "tests/test_big.py::test_f[<function f at 0x7f7ea4f124b0>]"
+    monkeypatch.setattr(upstream, "_moves", lambda stream, classes: {moved: ["passed"]})
+    outcome = packages.judge(cfg, "demo-1", text, _run(), {})[0]
+    kept = [
+        "tests/test_big.py::test_u[s11-*-False]",
+        "tests/test_big.py::test_l[{1, 2}-IsList(1, 2, 3)]",
+    ]
+    assert outcome.passes == 2
+    assert outcome.passed_digest == upstream.passed_digest(kept)
 
 
 def test_a_drawn_form_keeps_parameters_apart_that_only_reorder() -> None:
