@@ -1,0 +1,1 @@
+tests/test_main.py::test_serialization_depth_exceeded_error_discriminated_union

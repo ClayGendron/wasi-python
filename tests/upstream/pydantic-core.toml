@@ -4,17 +4,17 @@
 # exactly one tier. The tests import dirty-equals, inline-snapshot (with asttokens and executing)
 # and pytest-mock, test-only wheels; hypothesis is the kit's.
 #
-# Every group's `measured` is provisional, an upper estimate, not a measurement: no set with
-# pydantic-core linked in could be built where these groups were written, so each is one and a
-# half times an estimate from the native session of the same files (10 G for a session's start
-# and 10.4 G per native second, from packaging's and six's measured groups). The first run of a
-# set built with these groups measures them, and its fuel replaces each figure and each cap.
+# The release group's `measured` is its fuel in the release-shape run 43888443839, the first on a
+# set built with these groups, and its cap the rule's of it. The smoke group's is still
+# provisional, an upper estimate: one and a half times an estimate from the native session of the
+# same files (10 G for a session's start and 10.4 G per native second, from packaging's and six's
+# measured groups), since a group that passes records its fuel only in the run's gather.
 
 package = "pydantic-core"
 driver = "package"
 grant = "/upstream-pydantic-core"
 test_source = true
-budget = 416_000_000_000
+budget = 336_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 cwd = "/tmp/work"
@@ -61,8 +61,8 @@ measured = 64_000_000_000  # provisional: an upper estimate, not measured
 paths = ["tests"]
 tier = "release"
 release_by = "path"
-fuel = 320_000_000_000
-measured = 210_000_000_000  # provisional: an upper estimate, not measured
+fuel = 240_000_000_000
+measured = 153_506_544_711
 
 [[not_selected]]
 files = ["tests/benchmarks"]
@@ -80,4 +80,12 @@ group = "pydantic-core-r"
 outcome = "failed"
 match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
 reason = "no processes: the guest cannot start one (README); these tests start Python again in another process, to set an environment variable before the first error or to swap decimal for _pydecimal"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "pydecimal-exponents"
+group = "pydantic-core-r"
+outcome = "failed"
+match = "DID NOT RAISE <class 'pydantic_core\\._pydantic_core\\.ValidationError'>"
+reason = "the guest has no _decimal, CPython's C accelerator, so decimal is _pydecimal, whose exponents are unbounded (guest filesystem): a three-tuple with an exponent of 10**30 builds a Decimal, where the test expects the C module's OverflowError, as on PyPy, which the test skips"
 closes_with = "docs/reference/limitations.md"

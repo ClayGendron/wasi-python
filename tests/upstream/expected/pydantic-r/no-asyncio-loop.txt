@@ -1,0 +1,2 @@
+tests/test_deprecated_validate_arguments.py::test_async
+tests/test_deprecated_validate_arguments.py::test_config_title
