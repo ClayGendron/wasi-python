@@ -5,7 +5,9 @@
 # rebuilt from rust-src with the line's panic strategy (RUST_PANIC), on the pinned stable compiler,
 # which RUSTC_BOOTSTRAP=1 lets take -Zbuild-std. Cargo runs offline from an empty cargo home whose
 # one file points crates-io at the pinned crates, unpacked here with each file's SHA-256, and the
-# host's own Rust settings are unset first. Then the archive keeps only the crates' own objects
+# host's own Rust settings are unset first. Every compile goes through scripts/rust_ids.py, which
+# names each crate by a hash of its own compile, not cargo's, so no build host's triple reaches the
+# bytes. Then the archive keeps only the crates' own objects
 # (scripts/rust_objects.py keep), its direct WASI imports are routed through the wrapped entropy
 # call by a written shim (imports), and it must define exactly the listed init functions (inits)
 # and none of the SDK runtime's names (foreign). Needs steps 10 and 20.
@@ -93,12 +95,17 @@ for v in $(env | sed -n 's/^\(CARGO_BUILD_[A-Za-z0-9_]*\)=.*/\1/p; s/^\(CARGO_PR
 done
 COMMIT=$("$RUST/bin/rustc" -vV | sed -n 's/^commit-hash: //p')
 [ -n "$COMMIT" ] || die "build/tools/rust's rustc -vV names no commit-hash"
+# Our own wrapper replaces each compile's -C metadata with a hash of the compile itself
+# (scripts/rust_ids.py): cargo's hash mixes in the host's triple through every build script and
+# proc macro a crate depends on, so each build host gave the library other symbol names and bytes.
+printf '#!/bin/sh\nexec "%s" -I "%s" "%s" "$@"\n' "$HOSTPY" "$HERE/scripts/rust_ids.py" "$HERE" > "$R/rustc-wrapper"
+chmod 755 "$R/rustc-wrapper"
 US=$(printf '\037')
 RUSTFLAGS_TARGET="-Cpanic=$RUST_PANIC${US}-Clink-arg=--allow-undefined${US}--remap-path-prefix=$HERE=/wasi-python-build${US}--remap-path-prefix=$RUST/lib/rustlib/src/rust=/rustc/$COMMIT"
 (
   cd "$B"
   env CARGO_HOME="$CH" CARGO_TARGET_DIR="$TARGET" RUSTC="$RUST/bin/rustc" CARGO="$RUST/bin/cargo" \
-    RUSTC_BOOTSTRAP=1 PYO3_CONFIG_FILE="$R/pyo3.cfg" CARGO_PROFILE_RELEASE_PANIC="$RUST_PANIC" \
+    RUSTC_WRAPPER="$R/rustc-wrapper" RUSTC_BOOTSTRAP=1 PYO3_CONFIG_FILE="$R/pyo3.cfg" CARGO_PROFILE_RELEASE_PANIC="$RUST_PANIC" \
     CARGO_ENCODED_RUSTFLAGS="$RUSTFLAGS_TARGET" CC_wasm32_wasip1="$HERE/scripts/wasi-cc" \
     AR_wasm32_wasip1="$SDK/bin/llvm-ar" CFLAGS_wasm32_wasip1="-O2 -DNDEBUG -ffile-prefix-map=$HERE=/wasi-python-build" \
     "$RUST/bin/cargo" build --release --frozen --offline --target wasm32-wasip1 \

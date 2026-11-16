@@ -14,6 +14,8 @@ umbrella crate's object, the one LTO writes for all the Rust code, and each obje
 module crate's own build-script folder (`build/<crate>-<hash>/out/` or `build/<crate>/<hash>/out/`:
 the C a module compiles, orjson's yyjson). A member is matched to such an object by its bytes. Any
 other member that is not `compiler_builtins`' stops the step, so nothing is dropped unnamed. The
+umbrella's object is kept as `<umbrella>.o`: cargo's name for it carries cargo's hash of the
+build, which mixes in the build host, and the archive must be the same bytes on every host. The
 archive is written by `llvm-ar rcsD`, with no timestamps.
 
 **inits.** The archive defines exactly the `PyInit_*` names `recipes/rust/modules.txt` lists.
@@ -129,16 +131,21 @@ def build_objects(target: Path, crates: set[str]) -> dict[str, str]:
 def keep(members: list[tuple[str, bytes]], umbrella: str, ours: dict[str, str], builtins: set[str]):
     """(kept members, dropped names, errors): the umbrella's object and the module crates' own C."""
     kept, dropped, errors = [], [], []
+    umbrellas = [n for n, _ in members if n.startswith(f"{umbrella}-") and n.endswith(".o")]
+    if len(umbrellas) > 1:
+        errors.append(
+            f"{len(umbrellas)} objects of the umbrella crate {umbrella}, where fat LTO writes one"
+        )
     for name, body in members:
         if name.startswith(f"{umbrella}-") and name.endswith(".o"):
-            kept.append((name, body))
+            kept.append((f"{umbrella}.o", body))
         elif _sha(body) in ours:
             kept.append((name, body))
         elif name.startswith(f"{COMPILER_BUILTINS}-") or _sha(body) in builtins:
             dropped.append(name)
         else:
             errors.append(f"a member that is neither a module's nor {COMPILER_BUILTINS}': {name}")
-    if not any(n.startswith(f"{umbrella}-") for n, _ in kept):
+    if not umbrellas:
         errors.append(f"no object of the umbrella crate {umbrella}")
     return kept, dropped, errors
 

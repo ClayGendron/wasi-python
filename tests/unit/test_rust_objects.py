@@ -60,12 +60,27 @@ def test_the_umbrella_and_a_module_crates_c_are_kept_and_compiler_builtins_dropp
             ("compiler_builtins-c3.compiler_builtins.d4-cgu.0.rcgu.o", b"builtins"),
         ]
     )
-    assert [n for n, _ in kept] == [
-        "wasi_python_rust-a1.wasi_python_rust.b2-cgu.0.rcgu.o",
-        "c8ee16200fd4ed00-yyjson.o",
-    ]
+    assert [n for n, _ in kept] == ["wasi_python_rust.o", "c8ee16200fd4ed00-yyjson.o"]
     assert dropped == ["compiler_builtins-c3.compiler_builtins.d4-cgu.0.rcgu.o"]
     assert errors == []
+
+
+def test_the_umbrellas_object_is_kept_under_a_name_without_cargos_hash() -> None:
+    # Cargo's file name carries its hash of the build, which mixes in the build host: two hosts'
+    # archives must hold the same member names for the same bytes.
+    a, _, _ = _keep([("wasi_python_rust-a1.wasi_python_rust.b2-cgu.0.rcgu.o", b"rust")])
+    b, _, _ = _keep([("wasi_python_rust-f9.wasi_python_rust.b2-cgu.0.rcgu.o", b"rust")])
+    assert a == b == [("wasi_python_rust.o", b"rust")]
+
+
+def test_two_objects_of_the_umbrella_stop_the_step() -> None:
+    _, _, errors = _keep(
+        [
+            ("wasi_python_rust-a1.wasi_python_rust.b2-cgu.0.rcgu.o", b"rust"),
+            ("wasi_python_rust-a1.wasi_python_rust.b2-cgu.1.rcgu.o", b"more rust"),
+        ]
+    )
+    assert errors == ["2 objects of the umbrella crate wasi_python_rust, where fat LTO writes one"]
 
 
 def test_a_member_that_is_neither_a_modules_nor_compiler_builtins_stops_the_step() -> None:

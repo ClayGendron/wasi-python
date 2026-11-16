@@ -6386,6 +6386,11 @@ STEP_52_WORDS = {
     'cd "$B"': "cargo runs from build/",
     '.cargo/config.toml"': "an ancestor's .cargo/config.toml stops the step",
     "unset RUSTFLAGS RUSTC_WRAPPER RUSTC_WORKSPACE_WRAPPER": "the host's Rust settings are unset",
+    'RUSTC_WRAPPER="$R/rustc-wrapper"': "cargo compiles through the build's own wrapper",
+    '"$HERE/scripts/rust_ids.py"': (
+        "the wrapper names each crate by its own compile, not by cargo's hash, which mixes in the"
+        " build host through every build script and proc macro"
+    ),
     "CARGO_BUILD_": "every CARGO_BUILD_* is unset",
     "CARGO_PROFILE_": "every CARGO_PROFILE_* is unset",
     '"$OBJS" keep ': "the archive keeps only the crates' own objects",
