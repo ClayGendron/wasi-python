@@ -757,6 +757,19 @@ class GroupOutcome:
     finished: bool
 
 
+# The values an id can carry that a run draws afresh: a uuid4 drawn at import, an object's address
+# in its repr. `drawn_form` reads each as `*`, then the parameters' characters in sorted order, so
+# a set's members shown in hash order read the same: for a group whose `drawn_ids` says so only.
+DRAWN = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?<= at )0x[0-9a-f]+"
+)
+
+
+def drawn_form(node: str) -> str:
+    name, bracket, params = DRAWN.sub("*", node).partition("[")
+    return name + bracket + "".join(sorted(params))
+
+
 def passed_digest(nodes: list[str]) -> str:
     return paths.sha256_bytes("\n".join(sorted(nodes)).encode())[:12]
 

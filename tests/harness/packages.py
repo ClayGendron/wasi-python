@@ -38,6 +38,11 @@ scikit-learn, statsmodels):
 - `smoke_cover`: for a smoke family, the cover of each compiled subpackage of the package: a smoke
   path, a golden job line that calls it, or `release-only` with the reason.
 
+A group may carry `drawn_ids`, its reason: its tests' ids carry a value drawn afresh in each run
+(a uuid4 a module draws at import, an object's address in a repr, a set's members in hash order),
+so its passed digest reads each id in its drawn form (`upstream.drawn_form`), and the same tests
+passing on two systems digest the same. The tests still run, count and are named in full.
+
 A release group may carry `clock_step_ns` (with `clock_reason`): its guest's clock advances that
 much per read, for a test that repeats a call until a fixed time has passed. Such a group must
 run exactly one test, so a changed clock never reaches ordinary tests unnoticed.
@@ -215,6 +220,7 @@ class PackageKeys:
     env_reasons: dict[str, str] = field(default_factory=dict)
     group_env: tuple[str, ...] = ()  # groups that carry `env`, which only a family may
     clock_steps: dict[str, tuple[int, str]] = field(default_factory=dict)
+    drawn_ids: dict[str, str] = field(default_factory=dict)  # group -> why its ids are drawn
     smoke_cover: dict[str, str] = field(default_factory=dict)
     extra_sys_path: tuple[str, ...] = ()
     support_packages: tuple[str, ...] = ()
@@ -318,6 +324,7 @@ def load(raw: dict, directory: Path | None = None) -> upstream.Config:
             for n, g in groups.items()
             if "clock_step_ns" in g
         },
+        drawn_ids={n: str(g["drawn_ids"]) for n, g in groups.items() if "drawn_ids" in g},
         smoke_cover=dict(raw.get("smoke_cover", {})),
         extra_sys_path=tuple(raw.get("extra_sys_path", [])),
         support_packages=tuple(raw.get("support_packages", [])),
@@ -875,6 +882,9 @@ def judge(
     extra = parse_extra(text)
     modules, stream.modules = stream.modules, []  # this driver's guard, not drive.py's
     outcome = upstream.judge_group(stream, run, cfg.classes(group))
+    if group in cfg.keys.drawn_ids:
+        passed = [upstream.drawn_form(n) for o, n, _ in stream.outcomes if o == "passed"]
+        outcome.passed_digest = upstream.passed_digest(passed)
     outcome.findings += guard_findings(cfg, modules)
     outcome.findings += keep_findings(extra, stream, keep)
     if cfg.keys.split_of(group) is not None and extra.collected is None:
@@ -1343,6 +1353,17 @@ def clock_errors(pkg: str, cfg: upstream.Config) -> list[str]:
     return errors
 
 
+def drawn_errors(pkg: str, cfg: upstream.Config) -> list[str]:
+    """`drawn_ids`: on a group of the family, with its reason."""
+    errors = []
+    for g, reason in cfg.keys.drawn_ids.items():
+        if g not in cfg.groups:
+            errors.append(f"{pkg}: group {g}: drawn_ids on a group the family does not have")
+        if not reason.strip():
+            errors.append(f"{pkg}: group {g}: drawn_ids without its reason")
+    return errors
+
+
 def compiled_families(builtins: list[str], top: str) -> set[str]:
     """The subpackages that hold the package's compiled modules: each builtin module's parent."""
     return {n.rsplit(".", 1)[0] for n in builtins if n.startswith(top + ".")}
@@ -1432,6 +1453,7 @@ def rule_errors(
     errors += derived_errors(pkg, cfg, members)
     errors += env_errors(pkg, cfg)
     errors += clock_errors(pkg, cfg)
+    errors += drawn_errors(pkg, cfg)
     errors += cover_errors(pkg, cfg, None)
     for g in cfg.groups.values():
         m = k.measured.get(g.name)
@@ -1498,12 +1520,10 @@ def rule_errors(
 # 110 G for tinycss2's one test file, 105.9 G whole, which a smoke family cannot split by path;
 # the total from 1 T to 1.2 T, their smoke groups measuring 201.3 G together. The total rose again
 # with pydantic-core's, pydantic's, annotated-types' and typing-inspection's smoke groups, to the
-# sum of every test-source smoke group's `measured` (1,365.9 G) plus 17 G, rounded up to 10 G:
-# provisionally, since three of those four record upper estimates (104 G together) that no run
-# has measured yet, pydantic's alone measured; their first measured fuel sets it again by the
-# same rule.
+# sum of every test-source smoke group's `measured` (1,346.8 G, those four's 163.7 G measured in
+# runs 43887736757 and 43912197491) plus 17 G, rounded up to 10 G.
 SMOKE_GROUP_BOUND = 110 * 10**9
-SMOKE_TOTAL_BOUND = 139 * 10**10
+SMOKE_TOTAL_BOUND = 137 * 10**10
 
 
 def source_rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:

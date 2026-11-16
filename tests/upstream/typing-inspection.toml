@@ -2,18 +2,15 @@
 # judge change. The whole suite is the smoke group, in the normal tier: each test in exactly one
 # tier. Upstream puts src/ on the path; here the package comes from the zip, so src/ is not staged.
 #
-# The group's `measured` is provisional, an upper estimate, not a measurement: no set with
-# pydantic-core linked in could be built where this group was written, so it is one and a half
-# times an estimate from the native session of the same files (10 G for a session's start and
-# 10.4 G per native second, from packaging's and six's measured groups). The first run of a set built
-# with this group measures it, and its fuel replaces the figure and the cap.
+# The group's `measured` is its fuel in run 43912197491 on linux, the first run of a set built
+# with this group, and its cap the rule's of it.
 
 package = "typing-inspection"
 driver = "package"
 grant = "/upstream-typing-inspection"
 test_source = true
 wheel = "typing_inspection-0.4.5-py3-none-any.whl"
-budget = 29_000_000_000
+budget = 17_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 cwd = "tree"
@@ -22,5 +19,5 @@ markers = []
 [groups.typing-inspection-smoke]
 paths = ["tests"]
 smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
-fuel = 29_000_000_000
-measured = 19_000_000_000  # provisional: an upper estimate, not measured
+fuel = 17_000_000_000
+measured = 11_161_682_897

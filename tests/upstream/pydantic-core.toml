@@ -5,16 +5,14 @@
 # and pytest-mock, test-only wheels; hypothesis is the kit's.
 #
 # The release group's `measured` is its fuel in the release-shape run 43888443839, the first on a
-# set built with these groups, and its cap the rule's of it. The smoke group's is still
-# provisional, an upper estimate: one and a half times an estimate from the native session of the
-# same files (10 G for a session's start and 10.4 G per native second, from packaging's and six's
-# measured groups), since a group that passes records its fuel only in the run's gather.
+# set built with these groups; the smoke group's is its fuel in run 43912197491 on windows, the
+# larger of windows' and linux's (62,341,461,720); each cap is the rule's of it.
 
 package = "pydantic-core"
 driver = "package"
 grant = "/upstream-pydantic-core"
 test_source = true
-budget = 336_000_000_000
+budget = 334_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
 cwd = "/tmp/work"
@@ -54,8 +52,9 @@ paths = [
     "tests/serializers/test_union.py",
 ]
 smoke = "the validators and serializers of scalars, dates, lists, dicts, tuples, unions, models and typed dicts, schema building and JSON, the package from the zip"
-fuel = 96_000_000_000
-measured = 64_000_000_000  # provisional: an upper estimate, not measured
+fuel = 94_000_000_000
+measured = 62_365_787_622
+drawn_ids = "its ids carry values each run draws afresh: serializers/test_union.py's two uuid4 cases (a uuid drawn at import), test_schema_functions.py's cases with a function's address, and the list, tuple, dict and model-fields cases that show a set's members in hash order (hashes are seeded per run); natively, four hash seeds collect 2,862 ids, of which 41 change between seeds, and their drawn forms are the same in all four"
 
 [groups.pydantic-core-r]
 paths = ["tests"]
@@ -63,6 +62,7 @@ tier = "release"
 release_by = "path"
 fuel = 240_000_000_000
 measured = 153_506_544_711
+drawn_ids = "the same files as the smoke group's, whose ids carry values each run draws afresh (that group's reason), and test_any.py's and others with the same kinds"
 
 [[not_selected]]
 files = ["tests/benchmarks"]
