@@ -28,7 +28,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
-from harness import litter, paths
+from harness import litter, paths, scan
 
 HERE = paths.REPO / "tests" / "upstream"
 KIT = HERE / "kit.txt"
@@ -155,8 +155,9 @@ class Klass:
 
     An ordinary class may also name, in `collector_moves`, tests that the collector's timing moves
     into it, into a sibling class or to a pass: the class check leaves those out, and holds every
-    other member exactly. It is for tests on which a leaked object's collection lands wherever
-    the set's allocations put it, and nothing else."""
+    other member exactly; the group's passes count and passed digest leave them out, and the
+    record lists each with its outcomes. It is for tests on which a leaked object's collection
+    lands wherever the set's allocations put it, and nothing else."""
 
     id: str
     group: str
@@ -761,6 +762,25 @@ class GroupOutcome:
     passed_digest: str
     counts: dict[str, int]
     finished: bool
+    # each test the group's classes name as the collector's moves, with its outcomes this run
+    # (none when it did not run): recorded, and never in `passes` or `passed_digest`
+    moves: dict[str, list[str]] | None = None
+
+
+def _counted(passed: list[str], moves: dict[str, list[str]] | None) -> list[str]:
+    """The passed ids `passes` and `passed_digest` count: every one but the collector's moves."""
+    return [n for n in passed if n not in (moves or {})]
+
+
+def _moves(stream: Stream, classes: list[Klass]) -> dict[str, list[str]] | None:
+    named = sorted({n for k in classes for n in k.collector_moves or ()})
+    if not named:
+        return None
+    seen: dict[str, list[str]] = {n: [] for n in named}
+    for outcome, node, _ in stream.outcomes:
+        if node in seen:
+            seen[node].append(outcome)
+    return {n: sorted(o) for n, o in seen.items()}
 
 
 def passed_digest(nodes: list[str]) -> str:
@@ -851,7 +871,8 @@ def judge_group(stream: Stream, run: GuestRun, classes: list[Klass]) -> GroupOut
     for name, f in stream.modules:
         if "tests" not in name.split(".") and name != "pandas.conftest":
             findings.append(f"a product module came from the grant: {name} {f}")
-    passed = [n for o, n, _ in stream.outcomes if o == "passed"]
+    moves = _moves(stream, classes)
+    passed = _counted([n for o, n, _ in stream.outcomes if o == "passed"], moves)
     return GroupOutcome(
         findings=findings,
         members={k: sorted(set(v)) for k, v in members.items()},
@@ -859,6 +880,7 @@ def judge_group(stream: Stream, run: GuestRun, classes: list[Klass]) -> GroupOut
         passed_digest=passed_digest(passed),
         counts=dict(sorted(Counter(o for o, _, _ in stream.outcomes).items())),
         finished=not ended,
+        moves=moves,
     )
 
 
@@ -881,8 +903,15 @@ def fact_findings(group: Stream, alone: Stream, fact: FuelFact) -> list[str]:
 def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> GroupOutcome:
     """One group's outcome from its sessions, the group's own and each fuel fact's:
     findings keep their session's prefix; members, counts and passes add up; the digest is of every
-    passed id, so it is the one a single session gives when nothing else changed."""
-    passed = [n for s, _, _ in parts for o, n, _ in s.outcomes if o == "passed"]
+    counted passed id (the collector's moves are listed with their outcomes, not counted), so it is
+    the one a single session gives when nothing else changed."""
+    moves: dict[str, list[str]] | None = None
+    for _, outcome, _ in parts:
+        if outcome.moves is not None:
+            moves = moves or {}
+            for n, seen in outcome.moves.items():
+                moves[n] = sorted(moves.get(n, []) + seen)
+    passed = _counted([n for s, _, _ in parts for o, n, _ in s.outcomes if o == "passed"], moves)
     members: dict[str, set[str]] = {}
     counts: Counter[str] = Counter()
     findings: list[str] = []
@@ -898,6 +927,7 @@ def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> 
         passed_digest=passed_digest(passed),
         counts=dict(sorted(counts.items())),
         finished=all(outcome.finished for _, outcome, _ in parts),
+        moves=moves,
     )
 
 
@@ -916,6 +946,25 @@ def class_findings(
 
 # ---------------------------------------------------------------------------------------------
 # The rules (Decision 17)
+
+
+def class_check(klass: Klass, outcome: GroupOutcome, listed: list[str]) -> tuple[list[str], str]:
+    """A class check's findings and its failure message: its members against its list, the
+    collector's moves left out, a group that did not finish, and the moved line under the
+    report's first line."""
+    findings = class_findings(outcome.members[klass.id], listed, klass.collector_moves)
+    if not outcome.finished:
+        findings.append(f"group {klass.group} did not finish")
+    message = scan.report(findings, f"class {klass.group}-{klass.id}")
+    moved = scan.moved(findings)
+    return findings, message + (f"\n{moved}" if moved else "")
+
+
+def moves_in(klass: Klass, outcome: GroupOutcome) -> list[str] | None:
+    """The fact a class that names collector moves records: those that were its members."""
+    if not klass.collector_moves:
+        return None
+    return sorted(set(outcome.members[klass.id]) & set(klass.collector_moves))
 
 
 def caps(configs: dict[str, Config], tier: str | None = None) -> int:

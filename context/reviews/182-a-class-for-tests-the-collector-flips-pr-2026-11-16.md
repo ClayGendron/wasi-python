@@ -38,9 +38,9 @@ Nothing loosens outside the three classes (READ, EXECUTED). With no `moves`, `cl
 Keeping the count made the pass ratchet the backstop: a named test that really regressed, with a reason matching its class's pattern, still showed as a fall to claim. Leaving it out keeps the rows green across flips but drops that backstop. The fact in 1(c) then carries the weight, so it should name each named test's outcome. The pinned three-classes row bounds the cost.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
-1. —
-2. —
-3. —
+1. Fixed in the round's fix commit, "182: the review's round 1". (a) `_counted` is the one helper `judge_group` and `combine` count through, from the group's own classes; (b) a group whose classes name none keeps its count and lists nothing, and a test only another group's class names counts; (c) `GroupOutcome.moves` gives each named test its outcomes, none when it did not run, recorded as `collector_moves_outcomes`; (d) `passed_digest` drops the named tests as `passes` does (Decision 3); (e) the fall is claimed under `passes` and `fewer` in the news file and the ledger, `fonttools-r-rest` from 2,635 and `jinja2-r` from 552, the second's size left to the first release-tier run (about four is the review's inference); (f) Decision 3, the claims' reasons and the changelog entry are rewritten. Unit row `test_a_collector_move_is_listed_with_its_outcomes_not_counted`, failing against the first commit's harness; dropping `_counted` from `combine` fails it.
+2. Fixed in the same commit: the body is `upstream.class_check` and `upstream.moves_in`, held by `test_a_class_check_leaves_its_moves_out_and_records_those_in`, which M4 (no moves passed to `class_findings`) and dropping the unfinished-group finding each fail.
+3. Fixed in the same commit, with the review's text.
 
 ## Verdict
 Does not land yet: finding 1 (the owner's `passes` decision, to be built in the fix commit under conditions (a) to (f)) and finding 2 (no unit row holds the class check's wiring) stand. Finding 3 is independent of the decision, and finding 2's new row should also cover finding 1's fact.

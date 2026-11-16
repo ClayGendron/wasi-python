@@ -649,6 +649,74 @@ def test_a_test_the_collector_moves_may_fail_error_or_pass() -> None:
     assert seen[0] == seen[1] == seen[2] == [[stable], [stable]]
 
 
+def test_a_collector_move_is_listed_with_its_outcomes_not_counted() -> None:
+    """A named test's pass is in neither the group's passes nor its passed digest, so a flip
+    moves neither, in one session or split across two; the outcome lists every named test with
+    its outcomes, none when it did not run. A test only another group's class names still counts,
+    and a group whose classes name no move lists nothing."""
+    flip, gone = "tests/test_a.py::test_flip", "tests/test_a.py::test_gone"
+    rx = r"unraisable exception warnings"
+    moves = (flip, gone)
+    loop = upstream.Klass("loop", "g", "failed", rx, "r", "README.md", collector_moves=moves)
+    error = upstream.Klass("loop-error", "g", "error", rx, "r", "README.md", collector_moves=moves)
+    stable = "tests/test_a.py::test_stable"
+    warned = "AssertionError: unraisable exception warnings"
+    clean = upstream.GuestRun(0, None, None, 1, "", "")
+    seen = []
+    for state, outcomes in (
+        ([f"R passed {flip} -- "], ["passed"]),
+        ([f"R failed {flip} -- {warned}"], ["failed"]),
+        ([f"R passed {flip} -- ", f"R error {flip} -- {warned}"], ["error", "passed"]),
+    ):
+        text = _stream(f"S {stable}", f"R passed {stable} -- ", f"S {flip}", *state)
+        g = _group(text, classes=(loop, error))
+        assert g.findings == [], g.findings
+        seen.append((g.passes, g.passed_digest))
+        assert g.moves == {flip: outcomes, gone: []}
+    assert seen[0] == seen[1] == seen[2] == (1, upstream.passed_digest([stable]))
+    a = upstream.parse_stream(_stream(f"S {stable}", f"R passed {stable} -- "))
+    b = upstream.parse_stream(_stream(f"S {flip}", f"R passed {flip} -- "))
+    both = upstream.combine(
+        [
+            (a, upstream.judge_group(a, clean, [loop]), ""),
+            (b, upstream.judge_group(b, clean, [loop]), "fuel fact f: "),
+        ],
+        [],
+    )
+    assert (both.passes, both.passed_digest) == seen[0]
+    assert both.moves == {flip: ["passed"], gone: []}
+    text = _stream(f"S {stable}", f"R passed {stable} -- ", f"S {flip}", f"R passed {flip} -- ")
+    plain = _group(text, classes=())  # flip is named only by another group's class
+    assert (plain.passes, plain.moves) == (2, None)
+    assert plain.passed_digest == upstream.passed_digest([stable, flip])
+
+
+def test_a_class_check_leaves_its_moves_out_and_records_those_in() -> None:
+    """The class check's wiring: a named member is no finding and the fact names it, a stable
+    member's move is a finding whose message carries the moved line, and a group that did not
+    finish is a finding."""
+    flip, stable, new = "t::flip", "t::stable", "t::new"
+    rx = r"unraisable exception warnings"
+    loop = upstream.Klass("loop", "g", "failed", rx, "r", "README.md", collector_moves=(flip,))
+    plain = upstream.Klass("plain", "g", "failed", rx, "r", "README.md")
+
+    def outcome(members, finished=True):
+        return upstream.GroupOutcome([], {"loop": members, "plain": members}, 0, "", {}, finished)
+
+    assert upstream.class_check(loop, outcome([stable, flip]), [stable]) == (
+        [stable],
+        scan.report([stable], "class g-loop"),
+    )
+    assert upstream.moves_in(loop, outcome([stable, flip])) == [flip]
+    assert upstream.moves_in(loop, outcome([stable])) == []
+    assert upstream.moves_in(plain, outcome([stable, flip])) is None
+    findings, message = upstream.class_check(plain, outcome([stable, flip, new]), [stable])
+    assert findings == [flip, new, stable, f"+{flip}", f"+{new}"]
+    assert message.endswith(f"\n{scan.moved(findings)}") and f"+{new}" in message.splitlines()[-1]
+    findings, _ = upstream.class_check(loop, outcome([stable], finished=False), [stable])
+    assert findings == [stable, "group g did not finish"]
+
+
 def test_only_three_classes_name_collector_moves() -> None:
     """The key loosens a class, so each class that carries it is a judge change a reviewer reads:
     adding a fourth means changing this row."""

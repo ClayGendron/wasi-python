@@ -86,7 +86,8 @@ def test_upstream_suite(
     fails to collect or load, or ends abnormally; no product module comes from the grant. numpy's
     and pandas' hypothesis profile is derandomized; CPython's modules are exactly the plan's, and
     each environment change is one an entry names. A fuel fact's cases ran exactly once, in their
-    own session, within its cap."""
+    own session, within its cap. A class's collector moves are listed in the record with their
+    outcomes, never counted in the group's passes or its passed digest."""
     _need(package)
     run = _session(package, upstream_session, regrtest_session, package_session).group(
         package, group
@@ -94,6 +95,8 @@ def test_upstream_suite(
     fact("counts", run.outcome.counts)
     fact("passed_digest", run.outcome.passed_digest)
     fact("left_out", run.left_out)
+    if run.outcome.moves is not None:  # each named collector move's outcomes: never counted
+        fact("collector_moves_outcomes", run.outcome.moves)
     if CONFIGS[package].runner == "regrtest":
         fact("states", run.outcome.states)
         fact("env_altered", run.outcome.env_altered)
@@ -128,15 +131,11 @@ def test_upstream_class(
     _need(package)
     session = _session(package, upstream_session, regrtest_session, package_session)
     run = session.group(package, klass.group)
-    members = run.outcome.members[klass.id]
-    if klass.collector_moves:  # reported, never ratcheted
-        fact("collector_moves_in", sorted(set(members) & set(klass.collector_moves)))
-    findings = upstream.class_findings(members, upstream.class_list(klass), klass.collector_moves)
-    if not run.outcome.finished:
-        findings.append(f"group {klass.group} did not finish")
-    message = scan.report(findings, f"class {klass.group}-{klass.id}")
-    moved = scan.moved(findings)
-    assert not findings, message + (f"\n{moved}" if moved else "")
+    moved_in = upstream.moves_in(klass, run.outcome)
+    if moved_in is not None:  # reported, never ratcheted
+        fact("collector_moves_in", moved_in)
+    findings, message = upstream.class_check(klass, run.outcome, upstream.class_list(klass))
+    assert not findings, message
 
 
 if TRAPS:  # an empty parametrization would be a skip that names no need, so a failure

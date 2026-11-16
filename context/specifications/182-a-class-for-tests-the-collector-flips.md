@@ -49,13 +49,13 @@ An ordinary class (one with a list file) may carry `collector_moves = [...]`: no
 
 The rules refuse: `collector_moves` on a node-limited class (whose list is its nodes); an empty, unsorted or repeated list; a named test also in the class's list file; a named test that a node-limited class of the group names; `collector_moves` in CPython's family, whose class lists are module and test ids from a different judge. A unit row holds that exactly the three classes below carry the key, so a fourth is a judge change a reviewer sees.
 
-### 3. The pass ratchets do not change
+### 3. A named test's pass is listed, not counted (the owner's answer)
 
 A lost pass, a check that passed and now fails, stays red with no reason that clears it. This change touches no check's status: the class checks are gaps before and after.
 
-The group's `passes` count still counts every passed test, a named one included. When a named test moves from passing into a class, the suite row's `passes` falls by one. That fall is a `FEWER` row, exactly as now: red on a pull request unless the pull request's news file names the suite row under `passes` with a `fewer` reason, and at the release unless a news file or the release ledger gives one (`../changes/README.md`; `../progress/README.md`, "The release tier"). The class gives no claim of its own, and nothing here lowers or skips the count. A rise is listed, not red (183).
+A group's `passes` count and its `passed_digest` leave out the tests its classes name in `collector_moves`; the suite row records each named test with its outcomes this run instead (none when it did not run, so a named test skipped or gone still shows), as the fact `collector_moves_outcomes`, reported and never ratcheted. `passed_digest` drops them as `passes` does: both count through one helper, in `judge_group` and in `combine`, from the group's own classes alone, so a test only another group's class names still counts. So a flip of a named test moves neither the count nor the digest, on any system, and the gather's comparison of both across systems stays exact. Every other test counts as before, and a group whose classes name no move is unchanged.
 
-For jinja2-r the count has not moved: both states 181 saw pass 552 (READ: 181, Decision 2), since each leaked loop warns on exactly one test and the victims trade places (INFERRED). For `test_split` it is not neutral: the count's accepted high-water mark is 2,635 since 181, so each run where `test_split` fails is `fonttools-r-rest` 2,635 to 2,634, a fall to claim. Whether a named test should leave the count is the owner's to decide (Landing notes, "For the owner"); this specification does not choose it.
+Kept, every run in which `test_split` failed would be `fonttools-r-rest` 2,635 to 2,634, a fall to claim, since the count's accepted high-water mark is 2,635 since 181, and so would any jinja2-r flip that did not trade a pass for a pass. The owner chose to leave the named tests out (2026-11-16, "Stop counting them"). The cost is one fall now, by the named tests that passed in the accepted run: `fonttools-r-rest` 2,635 to 2,634, `test_split`, and `jinja2-r` 552 less those of its fifteen that passed (about four, by their lists' history: INFERRED; the first release-tier run after the merge gives the number). The news file and the release ledger claim it once, under `passes` with its `fewer` reason. After it, a named test that broke for good would show only in the record's facts, each named test's outcomes among them, not as a fall; the cap on what is named is the unit row that holds exactly three classes carry the key.
 
 ### 4. The three classes and what is named
 
@@ -88,15 +88,15 @@ A change to the set that only moves the collector's timing no longer turns these
 
 - `tests/harness/scan.py`: `moved(findings)`, the second line of Decision 1; `MOVED`, its prefix; `moved_line(message)`, which finds it in a failure message (pytest indents an assertion message's later lines).
 - `tests/harness/plugin.py`: a gap that fails differently appends the message's moved line, whole, to its reason.
-- `tests/harness/upstream.py`: `Klass.collector_moves`; `klass_of` reads it; `class_findings` takes `moves` and leaves them out; `class_shape_errors` and `rule_errors` hold Decision 2's rules.
-- `tests/checks/test_v1_3_upstream_suites.py`: `test_upstream_class` passes the class's moves to `class_findings`, adds the moved line to its message, and records `collector_moves_in` for a class that names any.
+- `tests/harness/upstream.py`: `Klass.collector_moves`; `klass_of` reads it; `class_findings` takes `moves` and leaves them out; `class_shape_errors` and `rule_errors` hold Decision 2's rules; `judge_group` and `combine` leave the named tests out of `passes` and `passed_digest` and list each with its outcomes in `GroupOutcome.moves` (Decision 3); `class_check` and `moves_in` are the class check's body, so a unit row holds its wiring.
+- `tests/checks/test_v1_3_upstream_suites.py`: `test_upstream_class` asserts `class_check`'s findings with its message and records `moves_in` as `collector_moves_in` for a class that names any; `test_upstream_suite` records `collector_moves_outcomes` for a group whose classes name any.
 - `tests/upstream/jinja2.toml`, `tests/upstream/fonttools.toml`, `tests/upstream/expected/jinja2-r/{no-asyncio-loop,no-asyncio-loop-error}.txt`, `tests/known_gaps.toml`: Decision 4.
 - `tests/unit/test_upstream.py`, `tests/unit/test_plugin.py`: the rows of the acceptance criteria.
 - `context/changes/182-a-class-for-tests-the-collector-flips.md` and `context/release-claims/182-a-class-for-tests-the-collector-flips.toml`: the claims.
 
 ## Scope
 
-**In:** the moved line (every class check and every gap that fails differently); the `collector_moves` key, its rules, and the three classes. **Out:** the `passes` count of a named test (Decision 3, the owner's); a driver that collects at each test's teardown so a leaked loop warns on the test that leaked it (the roadmap's other route, not measured); 172's node-limited class and tqdm-smoke's `collector-timing`, unchanged; CPython's judge, which refuses the key.
+**In:** the moved line (every class check and every gap that fails differently); the `collector_moves` key, its rules, and the three classes; a named test listed with its outcomes, not counted (Decision 3, the owner's answer). **Out:** a driver that collects at each test's teardown so a leaked loop warns on the test that leaked it (the roadmap's other route, not measured); 172's node-limited class and tqdm-smoke's `collector-timing`, unchanged; CPython's judge, which refuses the key.
 
 ## Acceptance criteria
 
@@ -106,7 +106,8 @@ A change to the set that only moves the collector's timing no longer turns these
 4. Two sibling classes that name a test give the same findings whether it fails, errors or passes, and the group has no finding. Unit row `test_a_test_the_collector_moves_may_fail_error_or_pass`, seen failing first.
 5. The rules of Decision 2. Six cases of `test_a_classs_collector_moves_are_held_by_the_rules` and `test_only_three_classes_name_collector_moves`, each seen failing first.
 6. The three classes, over the members of every state seen (the three list versions, and run 43865484595's reproduced error and counted-clock members), give one digest each: 9, `1891e18dfe2d`; 102, `ea1eb2ac4985`; 2, `0c61ab6175e3`. EXECUTED (Landing notes).
-7. The news file claims each verdict-bearing file under `[claim.judge]` and the three class checks under `changed`; the release ledger file carries the same block. `tests/lint`, `tests/checks/test_rules.py`, the fast tier and `release/precheck.py` are green.
+7. A named test's pass is in neither its group's `passes` nor its `passed_digest`, in one session or two, and the outcome lists each named test with its outcomes; a test only another group's class names still counts, and a group whose classes name no move lists nothing. The class check's body holds its moves, its moved line and an unfinished group. Unit rows `test_a_collector_move_is_listed_with_its_outcomes_not_counted` and `test_a_class_check_leaves_its_moves_out_and_records_those_in`, seen failing first.
+8. The news file claims each verdict-bearing file under `[claim.judge]`, the three class checks and the two suite rows under `changed`, and the two suite rows' one fall under `passes` with its `fewer` reason; the release ledger file carries the same block. `tests/lint`, `tests/checks/test_rules.py`, the fast tier and `release/precheck.py` are green.
 
 ## Landing notes
 
@@ -127,9 +128,9 @@ Built 2026-11-16, before its pull request and review.
 
   The "before" column of each `d099f5d0` row, and of run 43865484595, is the gap's match or the run's digest, so the script reproduces the judge.
 - **Not run here.** No artifact set or upstream source is in this container, so no class check ran in the guest. The next release-shape run or the release pull request is the first to run them, and `no-asyncio-loop` may still fail differently there (Decision 4); its moved line then names each test.
-- **No pass count moves with this change.** It changes no outcome and no group's `passes`. A release run in which `test_split` fails shows `fonttools-r-rest` 2,635 to 2,634, red until claimed (Decision 3); whether run 43865484595 showed that fall is not known, since its gather could not be read here.
-- **Where the claims are read.** The news file and `../release-claims/182-a-class-for-tests-the-collector-flips.toml` carry the three class checks under `changed`, and the judge files with their reasons. The rows are release-tier, so the run after the merge does not judge them; the release pull request reads the ledger.
+- **Two pass counts fall once.** `fonttools-r-rest` and `jinja2-r` lose the named tests that pass (Decision 3); the first release-tier run after the merge shows each fall, claimed. After it, a flip moves no count. Two unit rows came with the first review (findings 1 and 2): `test_a_collector_move_is_listed_with_its_outcomes_not_counted` and `test_a_class_check_leaves_its_moves_out_and_records_those_in`. Both failed against the first commit's harness and pass now; dropping the moves from `class_check`, from `combine`'s count, or the unfinished-group finding fails one of them (EXECUTED, 2026-11-16).
+- **Where the claims are read.** The news file and `../release-claims/182-a-class-for-tests-the-collector-flips.toml` carry the three class checks and the two suite rows under `changed`, the two suite rows' fall under `passes`, and the judge files with their reasons. The rows are release-tier, so the run after the merge does not judge them; the release pull request reads the ledger.
 
-**For the owner.** One question this specification does not decide (Decision 3): should a test a class names in `collector_moves` still count in its group's `passes`? Kept (built): every flip of `test_split` from pass to fail is a fall to claim, and so is any jinja2-r flip that does not trade a pass for a pass; nothing about the ratchet changes. Left out: a named test's pass is recorded as a fact and the count leaves it out, so the flip moves nothing; the accepted counts fall once, by the named tests that pass, and that fall is claimed once. The second changes what the `passes` ratchet counts, so it is the owner's.
+**The owner's answer.** Asked whether a test a class names in `collector_moves` should still count in its group's `passes`, the owner answered "Stop counting them" (2026-11-16): Decision 3 as written.
 
 The pull request, its run and its review are to be written at the landing.
