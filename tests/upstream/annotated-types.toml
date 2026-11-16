@@ -1,0 +1,26 @@
+# annotated-types's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite is the smoke group, in the normal tier: each test in exactly one
+# tier.
+#
+# The group's `measured` is provisional, an upper estimate, not a measurement: no set with
+# pydantic-core linked in could be built where this group was written, so it is one and a half
+# times an estimate from the native session of the same files (10 G for a session's start and
+# 10.4 G per native second, from packaging's and six's measured groups). The first run of a set built
+# with this group measures it, and its fuel replaces the figure and the cap.
+
+package = "annotated-types"
+driver = "package"
+grant = "/upstream-annotated-types"
+test_source = true
+wheel = "annotated_types-0.8.0-py3-none-any.whl"
+budget = 32_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.annotated-types-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 32_000_000_000
+measured = 21_000_000_000  # provisional: an upper estimate, not measured

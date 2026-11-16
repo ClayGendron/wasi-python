@@ -124,6 +124,10 @@ SOURCE_PATTERNS = {
     "imageio-test-images": re.compile(r"imageio-test-images-[0-9a-f]+-tag\.tar\.gz"),
     # plotly's release tag: its sdist holds no tests
     "plotly-tests": re.compile(r"plotly-[\w.]+-tag\.tar\.gz"),
+    # pydantic's, annotated-types' and typing-inspection's sdists; pydantic-core's is above
+    "pydantic": re.compile(r"pydantic-[\w.]+\.tar\.gz"),
+    "annotated-types": re.compile(r"annotated_types-[\w.]+\.tar\.gz"),
+    "typing-inspection": re.compile(r"typing_inspection-[\w.]+\.tar\.gz"),
     "python-dateutil": re.compile(r"python\-dateutil-[\w.]+\.tar\.gz"),
     "reportlab": re.compile(r"reportlab-[\w.]+\.tar\.gz"),
     "six": re.compile(r"six-[\w.]+\.tar\.gz"),

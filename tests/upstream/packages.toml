@@ -510,9 +510,8 @@ kind = "via"
 via = "orjson"
 
 [package.pyo3]
-# PyO3's own tests run under cargo on a host. In the guest pydantic-core's suite will reach its
-# macros, its function wrappers and its FFI once that suite joins the tiers; until then no suite
-# reaches PyO3 (orjson's, once it runs, reaches only pyo3-ffi)
+# PyO3's own tests run under cargo on a host. In the guest pydantic-core's suite reaches its
+# macros, its function wrappers and its FFI (orjson's, once it runs, reaches only pyo3-ffi)
 kind = "via"
 via = "pydantic-core"
 
@@ -521,21 +520,22 @@ via = "pydantic-core"
 # is measured before it joins the normal tier, so none is in a shard yet.
 
 [package.pydantic-core]
-kind = "later"
-reason = "its suite, from its sdist's tests/, with dirty-equals, inline-snapshot, pytest-mock and hypothesis, joins the tiers on panic=unwind once a built set measures its groups' fuel"
-closes_with = "spec 194"
+# its own suite from its test source, the sdist the Rust build compiles, groups in
+# tests/upstream/pydantic-core.toml: a smoke group in the normal tier, every other test file in the
+# release tier
+kind = "suite"
 
 [package.pydantic]
-kind = "later"
-reason = "its suite, from its sdist's tests/ (mypy, plugin, benchmark and docs tests left out), with dirty-equals, pytest-mock and pytz, joins the tiers on panic=unwind once a built set measures its groups' fuel"
-closes_with = "spec 194"
+# its own suite from its test source, groups in tests/upstream/pydantic.toml: a smoke group in the
+# normal tier, every other test file in the release tier
+kind = "suite"
 
 [package.annotated-types]
-kind = "later"
-reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
-closes_with = "spec 194"
+# its own suite from its test source, groups in tests/upstream/annotated-types.toml: the whole
+# suite is its smoke group, in the normal tier
+kind = "suite"
 
 [package.typing-inspection]
-kind = "later"
-reason = "its suite, from its sdist's tests/, joins the tiers once a built set measures its groups' fuel"
-closes_with = "spec 194"
+# its own suite from its test source, groups in tests/upstream/typing-inspection.toml: the whole
+# suite is its smoke group, in the normal tier
+kind = "suite"

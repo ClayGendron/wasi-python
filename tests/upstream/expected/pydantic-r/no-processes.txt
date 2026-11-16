@@ -1,0 +1,6 @@
+tests/test_exports.py::test_dataclass_import
+tests/test_exports.py::test_dataclass_import2
+tests/test_exports.py::test_import_base_model
+tests/test_exports.py::test_import_pydantic
+tests/test_generics.py::test_generic_model_pickle_different_module
+tests/test_pickle.py::test_cloudpickle_model_with_defs

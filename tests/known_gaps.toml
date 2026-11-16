@@ -2061,6 +2061,24 @@ match = "1 finding(s), digest b939ae7e9431"
 reason = "test_colors.py's test_sample_colorscale converts colors.sequential.Inferno to rgb in place, and the colorscale validator's test of Inferno_r, later in the same session, reads the changed scale; natively the two files in one session fail the same way (EXECUTED), and each passes alone"
 closes_with = "context/roadmap.md"
 
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-no-processes]"
+match = "13 finding(s), digest d4bce486ff96"
+reason = "no processes: the guest cannot start one (README); these tests start Python again in another process, to set an environment variable before the first error or to swap decimal for _pydecimal"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-processes]"
+match = "6 finding(s), digest a243e3dc9965"
+reason = "no processes: the guest cannot start one (README); these tests import pydantic, or pickle a model, in another Python process"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-smoke-no-threads]"
+match = "1 finding(s), digest 47a860157c80"
+reason = "no threads: the guest cannot start one (README); the test rebuilds a model from two threads at once"
+closes_with = "docs/reference/limitations.md"
+
 # The pure-Python packages' own tests. (end)
 
 [[gap]]

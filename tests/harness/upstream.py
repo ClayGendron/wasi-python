@@ -60,6 +60,7 @@ PURE_SUITES = (
     "pdfplumber", "pdfminer-six", "xarray",
     "tinycss2", "cssselect2", "imageio", "cairocffi", "cairosvg",
     "plotly",
+    "pydantic-core", "pydantic", "annotated-types", "typing-inspection",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"
