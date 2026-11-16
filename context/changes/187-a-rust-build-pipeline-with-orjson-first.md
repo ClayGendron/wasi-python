@@ -39,4 +39,5 @@ units = 59
 "tests/checks/test_rules.py" = "the patch rule's docstring counts eight inputs, and the Rust build's rules: crate pins, the toolchain, the panic switch, offline cargo, the gates and the package rows"
 "tests/harness/jobs.py" = "the golden job orjson_json joins the jobs"
 "tests/harness/callbacks.py" = "a getset table is read only where a type reaches it, through tp_getset, a Py_tp_getset slot or a code store into that field: run 43793800978 reported libxml2's HTML element row `center` as a setter of the wrong type once a stray word or constant in the larger binary equalled its address"
+"tests/checks/test_v1_3_data_stack.py" = "the getset floor rises from 1,000 to 2,900, just under the 2,948 entries checked on a set read before orjson, so a narrower table rule that loses real tables is red"
 ```
