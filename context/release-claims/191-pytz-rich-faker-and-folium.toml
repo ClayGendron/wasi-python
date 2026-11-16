@@ -1,9 +1,0 @@
-[[claim]]
-spec = "191"
-passes = [
-  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-*",
-  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-*",
-  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[tqdm-*",
-]
-grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
-growth = "the zip gains pytz, rich, markdown-it-py, mdurl, Pygments, Faker, folium, branca and xyzservices (1,967 members, about 6.86 MB, measured in scratch with step 70's packing), so every release group's start reads a longer directory; pandas imports pytz whenever it is there, and its conftest parametrizes over pytz's zones, so the pandas release groups run more cases; rich's presence adds tqdm.rich's cases. Not measured on a built set: the first built set records every figure"
