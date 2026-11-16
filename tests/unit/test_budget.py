@@ -272,3 +272,22 @@ def test_a_new_familys_largest_fuel_is_reported_from_one_run() -> None:
         f"test_v1_9_new is a new family: its largest fuel is 7, by {new_a}"
     ]
     assert budget.new_family_fuel({A: ran(90)}, accepted, family, set()) == []
+
+
+def test_a_new_upstream_package_is_reported_though_its_file_is_accepted() -> None:
+    """Every upstream check shares one file, so a family is seen by its package, not its file: a
+    package no accepted check is from is reported while another package's checks are accepted."""
+    new = f"{budget.UPSTREAM_FILE}::test_upstream_suite[orjson-core]"
+    families = {**FAMILIES, new: "orjson"}
+
+    def upstream(node: str) -> str:
+        return budget.family_of(node, families)
+
+    accepted = {"checks": {U: entry(5)}}
+    checks = {
+        U: {"status": "pass", "metrics": {"fuel": 90}},
+        new: {"status": "pass", "metrics": {"fuel": 40}},
+    }
+    assert budget.new_family_fuel(checks, accepted, upstream, set()) == [
+        f"orjson is a new family: its largest fuel is 40, by {new}"
+    ]

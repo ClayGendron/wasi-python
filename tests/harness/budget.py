@@ -141,17 +141,18 @@ def new_family_fuel(
 ) -> list[str]:
     """For each family none of whose checks is accepted yet, the largest fuel a passing
     normal-tier check of one run's record used, so the cap that came with it can be set to twice
-    that from the pull request's own run: reported, never red."""
-    seen = {node.split("::", 1)[0] for node in accepted.get("checks", {})}
+    that from the pull request's own run: reported, never red. A family is seen by its name, not
+    its file, since every upstream package's checks share one file."""
+    seen = {family(node) for node in accepted.get("checks", {})}
     largest: dict[str, tuple[int, str]] = {}
     for node, c in sorted(checks.items()):
         metrics = c.get("metrics") or {}
         fuel = metrics.get("fuel") if isinstance(metrics, dict) else None
         if c.get("status") != "pass" or node in release or not isinstance(fuel, int):
             continue
-        if node.split("::", 1)[0] in seen:
-            continue
         name = family(node)
+        if name in seen:
+            continue
         if name not in largest or fuel > largest[name][0]:
             largest[name] = (fuel, node)
     return [
