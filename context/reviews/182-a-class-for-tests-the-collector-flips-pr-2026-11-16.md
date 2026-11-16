@@ -73,5 +73,34 @@ The new claims hold. `units = 13` is the rows collected: one in `test_plugin.py`
 - §4: nothing under `src/`, no artifact, recipe or patch. The added comments and docstrings give reasons in words.
 - §7: the judge counts thirteen named jinja2-r tests and one fontTools test out of two pass counts, by the owner's answer, claimed with its reason; every other pass counts, and the cap is the three-classes row. The fall is claimed; no lost pass is cleared. Every commit's trailer is Claude Opus 5.5.
 
-## Verdict
+## Round 2 verdict (2026-11-16; replaced)
 Lands on `435760cf`: the owner's answer is built as round 1's conditions (a) to (f) ask, through one helper in both counts, held by a row that five mutants fail; the class check's wiring is held by a row that four mutants fail; jinja2's comment is fixed; the claims, `units = 13` and the precheck hold. No run was read, and the five rows first run in the guest at the release pull request. The two Lows are write-ins, the first answerable in writing.
+
+## Round 3
+
+- **Date:** 2026-11-16
+- **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author.
+- **Reviewed:** `fdae7cd2..658a1312`, the one fix commit (`tests/harness/regrtest.py`, one row of `tests/unit/test_regrtest.py`, two `[claim.judge]` lines; trailer Claude Opus 5.5), and every path that builds or reads a group outcome.
+- **Run:** 43886101525, as the author read it: four Linux shards red, every failure `test_upstream_suite[cpython-*]` with `AttributeError: 'GroupOutcome' object has no attribute 'moves'` at `tests/checks/test_v1_3_upstream_suites.py:98`. I could not read it here (the proxy refused the run's API path), so its lines are the author's.
+- **Re-ran** (EXECUTED):
+  - `uv run pytest tests/lint tests/unit -q -p no:cacheprovider --deselect tests/unit/test_runner_grants.py::test_the_walk_judges_links -n 4` → 3,681 passed, 104 skipped, exit 0 (round 2's count; the fix adds an assertion, not a row).
+  - `uv run python release/precheck.py` → exit 1 on one test, `test_the_walk_judges_links` (root container; allowed): unit 3,667 passed, 104 skipped; ruff, mypy, the rules checks (143 passed, 5 skipped), their budget and lint (14 passed) ok; the plan waits on this file being read again after `658a1312`.
+  - The harness line removed alone → `test_a_clean_stream_passes_counts_passes_and_sorts_its_failure` fails; restored, it passes; `git diff --quiet` after.
+  - A scratch probe that calls `test_upstream_suite`'s own body with a stub session returning a real `regrtest.judge_group` outcome for `cpython-fs`: with the field it records `counts`, `passed_digest`, `left_out`, `states` and `env_altered` and passes; without it, it raises CI's `AttributeError`. The same probe over all 27 CPython class checks with `regrtest.GroupOutcome`s: none raises anything but the classes' own gap assertions.
+
+### The fix
+It is right and complete. READ: `.moves` has three readers, the suite check (`:98-99`), `upstream.combine` (`tests/harness/upstream.py:910-912`) and the unit rows. Group outcomes are built in three places: `upstream.judge_group` (`:876`) and `upstream.combine` (`:923`), both of which set `moves`, and `regrtest.judge_group` (`tests/harness/regrtest.py:569`), which now takes the default `None`. `packages.judge` (`tests/harness/packages.py:871`), the smoke judge, goes through `upstream.judge_group`, so it carries `moves`, as does every family session that combines fuel-fact parts. No outcome is rebuilt from a cache or by `replace`. The class check reads only `members`, `finished` and the class's own `collector_moves`, and every CPython class is an `upstream.Klass`, so `moves_in` returns `None` there without touching the outcome. The comment "the rules refuse the key" is true: `_moves_shape_errors` refuses `collector_moves` in a regrtest family (`upstream.py:1071`). With `moves` `None`, CPython's suite rows record what `dev` records, so they need no `changed` claim, and `units = 13` stands.
+
+### Round 2 was wrong, and why
+Round 2 said "`packages.py:877`'s smoke judge and CPython's own judge are untouched in effect". That held for the counts and missed the check. The suite check read `run.outcome.moves` from both judges' outcomes, and CPython's had no such field, so every CPython suite row crashed. Round 2's own mutants M10 and M11 replaced exactly that line with `pass`, and the unit tier passed both ways. That was the sign: no unit row runs the suite check's body. Round 2 filed it as a Low about recording. It was the gap a High went through, and "Lands on `435760cf`" should not have been given.
+
+### Findings of round 3
+1. **Low: the suite check's body still has no unit row** (`tests/checks/test_v1_3_upstream_suites.py:95-116`). This is round 2's finding 1, carried, now with its cost shown. The new assertion holds the field on CPython's outcome and fails without it. It does not run the check against either judge's outcome, and my probe had to. A field read the same way next time would again first fail in CI, and mail the owner. Fix in code: a harness function giving a suite run's facts, with a unit row over a `regrtest` outcome and an `upstream` outcome. Or answer in writing.
+2. **Low: round 2's finding 2 is not applied** (`context/specifications/182-a-class-for-tests-the-collector-flips.md:58`, `:131`). Line 58 still says "its fifteen" and "about four"; line 131 still says "shows each fall". Round 2's fix text stands: thirteen named tests, and 552 → 548. It touches only `context/`.
+
+### Constitution checks, round 3
+- §4: nothing under `src/`, no artifact, recipe or patch. The new comment gives its reason in words and names no specification, run or `context/` path (lint).
+- §7: the judge is not weakened. The fix adds a field that is always `None` and changes no verdict, count or digest of CPython's; it is claimed under `[claim.judge]`. The trailer is Claude Opus 5.5.
+
+## Verdict
+Lands on `658a1312`. CPython's outcome now carries `moves`, always `None`. Every builder and reader of a group outcome was checked, and none other lacks the field. A unit row fails without the line. A probe of the suite check's own body passes with the line and reproduces CI's `AttributeError` without it. The tests and the precheck hold. No run of this head was read; the next pull request run shows the CPython shards. The two Lows are write-ins, the first answerable in writing; round 2's verdict on `435760cf` is withdrawn.
