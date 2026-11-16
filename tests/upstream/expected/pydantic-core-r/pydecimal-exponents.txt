@@ -1,0 +1,4 @@
+tests/validators/test_decimal.py::test_decimal_three_tuple_constructor_invalid[json-(0, (1,), -1000000000000000000000000000000)]
+tests/validators/test_decimal.py::test_decimal_three_tuple_constructor_invalid[json-(0, (1,), 1000000000000000000000000000000)]
+tests/validators/test_decimal.py::test_decimal_three_tuple_constructor_invalid[python-(0, (1,), -1000000000000000000000000000000)]
+tests/validators/test_decimal.py::test_decimal_three_tuple_constructor_invalid[python-(0, (1,), 1000000000000000000000000000000)]

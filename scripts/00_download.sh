@@ -537,6 +537,11 @@ tests https://files.pythonhosted.org/packages/f3/cd/69e4ac55b6dafdd2b5f320752368
 tests https://github.com/imageio/test_images/archive/f676c96b1af7e04bb1eed1e4551e058eb2f14acd.tar.gz imageio-test-images-f676c96b-tag.tar.gz
 # plotly's release tag: its sdist holds no tests
 tests https://github.com/plotly/plotly.py/archive/refs/tags/v7.1.0.tar.gz plotly-7.1.0-tag.tar.gz
+# pydantic's, annotated-types' and typing-inspection's sdists, which carry their tests;
+# pydantic-core's come from its sdist, the source step 52 builds, above
+tests https://files.pythonhosted.org/packages/b4/fc/1203d011145c98ddce3cd2f505bb54375ef8d43223053df6bfcf3c746f46/pydantic-2.14.3.tar.gz pydantic-2.14.3.tar.gz
+tests https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz annotated_types-0.8.0.tar.gz
+tests https://files.pythonhosted.org/packages/ff/50/0195198eb1d75bab716bb0a813abea4cc394bfa17a92a189f021a34859af/typing_inspection-0.4.5.tar.gz typing_inspection-0.4.5.tar.gz
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

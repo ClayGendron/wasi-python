@@ -1,0 +1,10 @@
+[[claim]]
+spec = "194"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pydantic-core-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pydantic-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-pydecimal-exponents]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-asyncio-loop]",
+]

@@ -1,0 +1,23 @@
+# typing-inspection's own tests in the guest, from its test source. A judge file: every edit is a
+# judge change. The whole suite is the smoke group, in the normal tier: each test in exactly one
+# tier. Upstream puts src/ on the path; here the package comes from the zip, so src/ is not staged.
+#
+# The group's `measured` is its fuel in run 43912197491 on linux, the first run of a set built
+# with this group, and its cap the rule's of it.
+
+package = "typing-inspection"
+driver = "package"
+grant = "/upstream-typing-inspection"
+test_source = true
+wheel = "typing_inspection-0.4.5-py3-none-any.whl"
+budget = 17_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+
+[groups.typing-inspection-smoke]
+paths = ["tests"]
+smoke = "the whole suite: a smaller smoke group would cost as much, a session's start being most of it"
+fuel = 17_000_000_000
+measured = 11_161_682_897

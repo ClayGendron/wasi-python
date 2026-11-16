@@ -2061,6 +2061,54 @@ match = "1 finding(s), digest b939ae7e9431"
 reason = "test_colors.py's test_sample_colorscale converts colors.sequential.Inferno to rgb in place, and the colorscale validator's test of Inferno_r, later in the same session, reads the changed scale; natively the two files in one session fail the same way (EXECUTED), and each passes alone"
 closes_with = "context/roadmap.md"
 
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-no-processes]"
+match = "13 finding(s), digest d4bce486ff96"
+reason = "no processes: the guest cannot start one (README); these tests start Python again in another process, to set an environment variable before the first error or to swap decimal for _pydecimal"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-pydecimal-exponents]"
+match = "4 finding(s), digest 69db45d68c2a"
+reason = "the guest has no _decimal, so decimal is _pydecimal, whose exponents are unbounded (guest filesystem): an exponent of 10**30 builds a Decimal where the test expects an OverflowError"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-processes]"
+match = "6 finding(s), digest a243e3dc9965"
+reason = "no processes: the guest cannot start one (README); these tests import pydantic, or pickle a model, in another Python process"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-asyncio-loop]"
+match = "2 finding(s), digest 07e94848cc3e"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at the next test the collector runs during (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-smoke-no-threads]"
+match = "1 finding(s), digest 47a860157c80"
+reason = "no threads: the guest cannot start one (README); the test rebuilds a model from two threads at once"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-smoke-no-asyncio-loop]"
+match = "4 finding(s), digest ec4eb17ca43d"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at the next test the collector runs during (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-smoke-package-in-zip]"
+match = "1 finding(s), digest 9768be142ca0"
+reason = "the package's files are bytecode in the stdlib zip, not source in folders, so a test that loads a module again from its file fails (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-smoke-wasm-recursion-guard]"
+match = "1 finding(s), digest e3cafde1091b"
+reason = "pydantic-core's recursion guard stops at 49 levels on every wasm build, where native stops at 255 (limitations), so a union serializer 1,000 levels deep does not give the depth warning the test expects"
+closes_with = "docs/reference/limitations.md"
+
 # The pure-Python packages' own tests. (end)
 
 [[gap]]

@@ -1,0 +1,90 @@
+# pydantic-core's own tests in the guest, from its test source: the pinned sdist, the tree the
+# Rust build compiles, whose tests/ the zip leaves out. A judge file: every edit is a judge change.
+# The smoke group runs in the normal tier, every other test file in the release tier: each test in
+# exactly one tier. The tests import dirty-equals, inline-snapshot (with asttokens and executing)
+# and pytest-mock, test-only wheels; hypothesis is the kit's.
+#
+# The release group's `measured` is its fuel in the release-shape run 43888443839, the first on a
+# set built with these groups; the smoke group's is its fuel in run 43912197491 on windows, the
+# larger of windows' and linux's (62,341,461,720); each cap is the rule's of it.
+
+package = "pydantic-core"
+driver = "package"
+grant = "/upstream-pydantic-core"
+test_source = true
+budget = 334_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "/tmp/work"
+markers = []
+kit_extra = ["dirty-equals", "inline-snapshot", "asttokens", "executing", "pytest-mock"]
+
+[groups.pydantic-core-smoke]
+paths = [
+    "tests/test_build.py",
+    "tests/test_config.py",
+    "tests/test_json.py",
+    "tests/test_misc.py",
+    "tests/test_schema_functions.py",
+    "tests/test_tzinfo.py",
+    "tests/validators/test_arguments.py",
+    "tests/validators/test_date.py",
+    "tests/validators/test_datetime.py",
+    "tests/validators/test_dict.py",
+    "tests/validators/test_float.py",
+    "tests/validators/test_int.py",
+    "tests/validators/test_json.py",
+    "tests/validators/test_list.py",
+    "tests/validators/test_model.py",
+    "tests/validators/test_model_fields.py",
+    "tests/validators/test_string.py",
+    "tests/validators/test_tagged_union.py",
+    "tests/validators/test_tuple.py",
+    "tests/validators/test_typed_dict.py",
+    "tests/validators/test_union.py",
+    "tests/validators/test_with_default.py",
+    "tests/serializers/test_datetime.py",
+    "tests/serializers/test_dict.py",
+    "tests/serializers/test_list_tuple.py",
+    "tests/serializers/test_model.py",
+    "tests/serializers/test_simple.py",
+    "tests/serializers/test_typed_dict.py",
+    "tests/serializers/test_union.py",
+]
+smoke = "the validators and serializers of scalars, dates, lists, dicts, tuples, unions, models and typed dicts, schema building and JSON, the package from the zip"
+fuel = 94_000_000_000
+measured = 62_365_787_622
+drawn_ids = "its ids carry values each run draws afresh: serializers/test_union.py's two uuid4 cases (a uuid drawn at import), test_schema_functions.py's cases with a function's address, and the list, tuple, dict and model-fields cases that show a set's members in hash order (hashes are seeded per run); natively, four hash seeds collect 2,862 ids, of which 41 change between seeds, and their drawn forms are the same in all four"
+
+[groups.pydantic-core-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 240_000_000_000
+measured = 153_506_544_711
+
+[[not_selected]]
+files = ["tests/benchmarks"]
+reason = "pytest-benchmark's timings of the package, not tests of what it does; they need the benchmark fixture, a plugin the kit does not carry, and measure host time"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/test_docstrings.py"]
+reason = "it imports pytest-examples at its top, which checks the docstrings' examples by running ruff, a compiled program, in another process; the guest has no processes (README), and the examples' code runs in the other tests"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-processes"
+group = "pydantic-core-r"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README); these tests start Python again in another process, to set an environment variable before the first error or to swap decimal for _pydecimal"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "pydecimal-exponents"
+group = "pydantic-core-r"
+outcome = "failed"
+match = "DID NOT RAISE <class 'pydantic_core\\._pydantic_core\\.ValidationError'>"
+reason = "the guest has no _decimal, CPython's C accelerator, so decimal is _pydecimal, whose exponents are unbounded (guest filesystem): a three-tuple with an exponent of 10**30 builds a Decimal, where the test expects the C module's OverflowError, as on PyPy, which the test skips"
+closes_with = "docs/reference/limitations.md"

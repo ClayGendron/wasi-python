@@ -1,0 +1,136 @@
+# pydantic's own tests in the guest, from its test source: the pinned sdist, whose tests/ the
+# wheel leaves out. A judge file: every edit is a judge change. The smoke group runs in the normal
+# tier, every other test file in the release tier: each test in exactly one tier. The tests import
+# dirty-equals and pytest-mock, test-only wheels. Every test's autouse fixture checks each JSON
+# Schema it builds with jsonschema, imported on every platform but emscripten, so jsonschema
+# 4.17.3 (the last release without the compiled rpds-py) and pyrsistent, its one dependency the set
+# does not carry, are test-only wheels too. Its tests read paths relative to the test source's
+# root, so they run there.
+#
+# Each group's `measured` is its fuel on the first set built with these groups: the smoke group's
+# in run 43887736757 (linux, the larger of linux's and windows'), the release group's in the
+# release-shape run 43888443839; each cap is the rule's of it.
+
+package = "pydantic"
+driver = "package"
+grant = "/upstream-pydantic"
+test_source = true
+wheel = "pydantic-2.14.3-py3-none-any.whl"
+budget = 410_000_000_000
+stage_folders = ["tests"]
+extra_sys_path = ["."]
+cwd = "tree"
+markers = []
+kit_extra = ["dirty-equals", "pytest-mock", "jsonschema", "pyrsistent"]
+
+[groups.pydantic-smoke]
+paths = [
+    "tests/test_aliases.py",
+    "tests/test_annotated.py",
+    "tests/test_computed_fields.py",
+    "tests/test_config.py",
+    "tests/test_construction.py",
+    "tests/test_create_model.py",
+    "tests/test_datetime.py",
+    "tests/test_edge_cases.py",
+    "tests/test_fields.py",
+    "tests/test_json.py",
+    "tests/test_main.py",
+    "tests/test_private_attributes.py",
+    "tests/test_root_model.py",
+    "tests/test_serialize.py",
+    "tests/test_type_adapter.py",
+    "tests/test_types.py",
+    "tests/test_types_typeddict.py",
+    "tests/test_validate_call.py",
+    "tests/test_validators.py",
+    "tests/types/test_bool.py",
+    "tests/types/test_float.py",
+    "tests/types/test_int.py",
+    "tests/types/test_model.py",
+    "tests/types/test_str.py",
+    "tests/types/unions/test_union.py",
+]
+smoke = "models, fields, validators, serialization, type adapters, typed dicts, dates and the standard types, the package and pydantic-core from the zip"
+fuel = 120_000_000_000
+measured = 78_752_454_033
+
+[groups.pydantic-r]
+paths = ["tests"]
+tier = "release"
+release_by = "path"
+fuel = 290_000_000_000
+measured = 190_095_484_353
+
+[[not_selected]]
+files = ["tests/benchmarks"]
+reason = "pytest-benchmark's timings of the package, not tests of what it does; they need the benchmark fixture, a plugin the kit does not carry, and measure host time"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/mypy"]
+reason = "pydantic's mypy plugin checked by running mypy, a type checker the set does not carry, over sample modules; nothing of it runs when a program does"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/plugin"]
+reason = "a pydantic plugin installed as a distribution, which these tests need installed with its entry point and skip without; the plugin loader's own tests run in test_plugin_loader.py and test_plugins.py"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/test_docs.py"]
+reason = "the documentation's examples, through pytest-examples and time-machine, which the kit does not carry; it runs some examples in another process, and the guest has no processes (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[not_selected]]
+files = ["tests/test_exports.py::test_public_internal"]
+reason = "it reads the package's own source files beside its tests, which the stage does not hold, since the package comes from the zip; without them it would pass having checked nothing"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-processes"
+group = "pydantic-r"
+outcome = "failed"
+match = "wasi does not support processes|has no attribute 'pipe'|_multiprocessing|multiprocessing\\.synchronize|_posixsubprocess|has no attribute 'fork'|ProcessPoolExecutor|BrokenProcessPool|has no attribute 'getppid'"
+reason = "no processes: the guest cannot start one (README); these tests import pydantic, or pickle a model, in another Python process"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-threads"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "can't start new thread|thread constructor failed|start_new_thread"
+reason = "no threads: the guest cannot start one (README); the test rebuilds a model from two threads at once"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-asyncio-loop"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at the next test the collector runs during (README); the two async tests fail, and two synchronous ones carry the report"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "package-in-zip"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "Not a directory: '/usr/local/lib/python\\d+\\.zip/pydantic/"
+reason = "the package's files are bytecode in the stdlib zip, not source in folders, so a test that loads a module again from its file fails (README)"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "wasm-recursion-guard"
+group = "pydantic-smoke"
+outcome = "failed"
+match = "DID NOT WARN\\. No warnings of type \\(<class 'UserWarning'>,\\) were emitted"
+reason = "pydantic-core's recursion guard stops at 49 levels on every wasm build, where native stops at 255 (limitations), so a union serializer 1,000 levels deep does not give the depth warning the test expects"
+closes_with = "docs/reference/limitations.md"
+
+[[expected]]
+id = "no-asyncio-loop"
+group = "pydantic-r"
+outcome = "failed"
+match = "\\[Errno 58\\] Not supported|unraisable exception warnings|Exception ignored while calling deallocator"
+reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at the next test the collector runs during (README); the deprecated decorator's async test fails, and the test after it carries the report"
+closes_with = "docs/reference/limitations.md"

@@ -60,6 +60,7 @@ PURE_SUITES = (
     "pdfplumber", "pdfminer-six", "xarray",
     "tinycss2", "cssselect2", "imageio", "cairocffi", "cairosvg",
     "plotly",
+    "pydantic-core", "pydantic", "annotated-types", "typing-inspection",
 )  # fmt: skip
 PACKAGE_SUITES = COMPILED_SUITES + PURE_SUITES
 GRANT = "/upstream"
@@ -781,6 +782,21 @@ def _moves(stream: Stream, classes: list[Klass]) -> dict[str, list[str]] | None:
         if node in seen:
             seen[node].append(outcome)
     return {n: sorted(o) for n, o in seen.items()}
+
+
+# The values an id can carry that a run draws afresh: a uuid4 drawn at import, an object's address
+# in its repr, and a set's members, shown in hash order. `drawn_form` reads each uuid and address
+# as `*` and lists each set display's members (braces with no colon) in sorted order; everything
+# else stays as it is: for a group whose `drawn_ids` says so only.
+DRAWN = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?<= at )0x[0-9a-f]+"
+)
+SET_DISPLAY = re.compile(r"\{([^{}:]*)\}")
+
+
+def drawn_form(node: str) -> str:
+    masked = DRAWN.sub("*", node)
+    return SET_DISPLAY.sub(lambda m: "{" + ", ".join(sorted(m[1].split(", "))) + "}", masked)
 
 
 def passed_digest(nodes: list[str]) -> str:

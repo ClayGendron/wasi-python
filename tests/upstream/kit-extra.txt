@@ -8,3 +8,10 @@ e389b12b7073604be67845dbe32bf8297360ad9a609b24846fe15d86e0b7dc01  https://files.
 933ca923a23075a87fb7070c0ec272a6848489824d887c85c812670932835aa1  https://files.pythonhosted.org/packages/03/e2/08a497ef684b88559c9cc5f4ad53a37e7b99e727094a86d6ea32536d5d3c/pytest_asyncio-1.4.0-py3-none-any.whl
 5b223d6027d0619584116a0cbc28e8d2e378f7a79c1e5e024f9ff3b673c58506  https://files.pythonhosted.org/packages/79/4f/a6a2e2b202d7fd97eadfe90979845b8706676b41cbd3b42ba75adf329d1f/Pympler-1.1-py3-none-any.whl
 7fed3fee8fd6bd4a2b7b75a8d56021d0624127bf69bd5691f115db929ac570b3  https://files.pythonhosted.org/packages/b6/25/564f3fc5b70c1398d706c51f2b1470d0ea0b1b2f96fee67877b6f5bdf3b6/pytz-2026.6-py2.py3-none-any.whl
+b1d7093273fc2f9be12f443a8ead954ef6daaf6746fd42ef3a5616433ee85286  https://files.pythonhosted.org/packages/bb/8d/dbff05239043271dbeace563a7686212a3dd517864a35623fe4d4a64ca19/dirty_equals-0.11-py3-none-any.whl
+2c7980bee5149ecfffae3fea2e6670e56d0cd94fa975e7bd8517c4c984ce6e5c  https://files.pythonhosted.org/packages/b4/c3/acde9e9d26ec0b529ae77543a1e8fa1816ff601618a34a27c35cd7c81b1b/inline_snapshot-0.36.2-py3-none-any.whl
+9da13157f5b28becde0bd374fc677dcd3c290614264eff096f167c469cd9f933  https://files.pythonhosted.org/packages/d4/2b/04b8a15f3a1c77bc79ddf5c73875327f34b4fa75982df2b76e45e402d364/asttokens-3.0.2-py3-none-any.whl
+736e859c9f8701f11fcf516856f26f562e04776387824b43a35a1dfe21c84122  https://files.pythonhosted.org/packages/4d/dd/8bc67e7d5ffc1d88aa5af511189dfb76dc4e1e5b808fab186146ef2663e5/executing-2.3.0-py3-none-any.whl
+1b82aa4b37137248bd687055e109723debeb07b489de1565297dc9589c5f2d6b  https://files.pythonhosted.org/packages/e8/ea/47fbdc8f37410956fd445720e927589b1e2a47772c5f28109f0ce2fa26d9/pytest_mock-3.17.0-py3-none-any.whl
+a870ad254da1a8ca84b6a2905cac29d265f805acc57af304784962a2aa6508f6  https://files.pythonhosted.org/packages/c1/97/c698bd9350f307daad79dd740806e1a59becd693bd11443a0f531e3229b3/jsonschema-4.17.3-py3-none-any.whl
+c55acc4733aad6560a7f5f818466631f07efc001fd023f34a6c203f8b6df0f0b  https://files.pythonhosted.org/packages/23/88/0acd180010aaed4987c85700b7cc17f9505f3edb4e5873e4dc67f613e338/pyrsistent-0.20.0-py3-none-any.whl

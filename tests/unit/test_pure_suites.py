@@ -105,11 +105,11 @@ def test_a_smoke_group_and_the_smoke_groups_together_are_bounded() -> None:
         "fuel = 30\n", "fuel = 180_000_000_000\n", 1
     )
     assert any("past 110 G" in e for e in _errors(_cfg(big)))
-    many = {f"p{i}": _cfg(big) for i in range(11)}
+    many = {f"p{i}": _cfg(big) for i in range(12)}
     assert packages.smoke_total_errors(many) == [
-        "the test-source smoke groups measure 1320.0 G together, past 1.2 T"
+        "the test-source smoke groups measure 1440.0 G together, past 1.4 T"
     ]
-    assert packages.smoke_total_errors({f"p{i}": _cfg(big) for i in range(10)}) == []
+    assert packages.smoke_total_errors({f"p{i}": _cfg(big) for i in range(11)}) == []
 
 
 def test_a_staged_support_file_may_be_a_group_path() -> None:
