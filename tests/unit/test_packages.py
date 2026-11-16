@@ -3,9 +3,11 @@ the guard, lxml's selection both ways and the extra stream lines, on fixed input
 
 from __future__ import annotations
 
+import ast
 import json
 import tomllib
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -149,6 +151,8 @@ def test_the_guard_is_path_based() -> None:
     assert "outside the staged folders" in packages.guard_findings(cfg, from_tree)[0]
     from_kit = [("packaging", "/upstream-demo/kit/packaging/__init__.py")]
     assert "outside the zip" in packages.guard_findings(cfg, from_kit)[0]
+    loaded = packages.guard_findings(cfg, [("faker", "")])
+    assert loaded and "outside its family" in loaded[0], loaded
 
 
 SUITE = """
@@ -763,3 +767,57 @@ def test_every_other_family_stages_what_it_staged_before(tmp_path) -> None:
         assert got[name]["json"] == want[name][key], f"{name}'s group JSON changed"
         if "staged" in got[name]:
             assert got[name]["staged"] == want[name]["staged"], f"{name}'s staged files changed"
+
+
+DRIVERS = Path(__file__).resolve().parents[1] / "upstream"
+
+
+def _main_argv(tree: ast.Module) -> list[ast.expr]:
+    """The list the driver passes to pytest.main."""
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "main"
+            and node.args
+            and isinstance(node.args[0], ast.List)
+        ):
+            return node.args[0].elts
+    raise AssertionError("no pytest.main([...]) call")
+
+
+def _pairs(elts: list[ast.expr]) -> list[tuple[object, object]]:
+    values = [e.value if isinstance(e, ast.Constant) else None for e in elts]
+    return list(zip(values, values[1:], strict=False))
+
+
+def test_only_fakers_family_loads_its_plugin() -> None:
+    """Faker registers a pytest plugin by entry point. The package driver blocks it for every
+    family but Faker's, and reports a session that imported Faker anyway; the numpy and pandas
+    driver blocks it always."""
+    tree = ast.parse((DRIVERS / "package_drive.py").read_text())
+    argv = _main_argv(tree)
+    starred = [e.value for e in argv if isinstance(e, ast.Starred)]
+    blocks = [
+        node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(n, ast.Name) and n.id == "NO_FAKER" for n in node.targets)
+    ]
+    assert len(blocks) == 1 and any(
+        isinstance(s, ast.Name) and s.id == "NO_FAKER" for s in starred
+    ), "package_drive.py passes no NO_FAKER to pytest.main"
+    code = compile(ast.Expression(blocks[0]), "package_drive.py", "eval")
+    assert eval(code, {"package": "faker"}) == []
+    assert eval(code, {"package": "pandas"}) == ["-p", "no:faker"]
+    reports = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "emit"
+        and [getattr(a, "value", None) for a in node.args] == ["M faker"]
+    ]
+    assert reports, "package_drive.py does not report a session that imported Faker"
+    drive = _main_argv(ast.parse((DRIVERS / "drive.py").read_text()))
+    assert ("-p", "no:faker") in _pairs(drive), "drive.py does not block Faker's plugin"

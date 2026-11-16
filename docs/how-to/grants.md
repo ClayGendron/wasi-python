@@ -86,7 +86,7 @@ These rules stop one call from planting code that the same call, or a later one,
 
 A missing entry, or a file that is not a zip, is skipped, as Python skips a bad `PYTHONPATH` entry. No `.pyc` file is ever written. A valid `.pyc` already in an entry, made for CPython 3.15, is used.
 
-The runtime's own modules come first. A module the runtime has, such as numpy, pandas or the tool protocol's `host`, is always the runtime's, so name your packages apart. A module the runtime looks for and lacks is taken from an entry. That includes C accelerators such as `_decimal`, other platforms' modules such as `fcntl`, and optional dependencies such as `pytz`. Ship such a name only on purpose.
+The runtime's own modules come first. A module the runtime has, such as numpy, pandas or the tool protocol's `host`, is always the runtime's, so name your packages apart. A module the runtime looks for and lacks is taken from an entry. That includes C accelerators such as `_decimal`, other platforms' modules such as `fcntl`, and optional dependencies such as `pyarrow`. Ship such a name only on purpose.
 
 A call with an import path costs a little more fuel, and the program reaches the recursion limit two frames sooner.
 

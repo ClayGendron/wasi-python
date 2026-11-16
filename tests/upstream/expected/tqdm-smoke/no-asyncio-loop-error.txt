@@ -7,4 +7,6 @@ tests/tests_asyncio.py::test_gather_exceptions
 tests/tests_asyncio.py::test_generators
 tests/tests_asyncio.py::test_nested
 tests/tests_asyncio.py::test_range
+tests/tests_contrib.py::test_map[tqdm_kwargs0]
 tests/tests_pandas.py::test_pandas_rolling_expanding
+tests/tests_synchronisation.py::test_threadpool

@@ -1,0 +1,15 @@
+versions faker=40.54.0
+en_US ['Jason Brown', '02907 Jenkins Fort Suite 672 | Smithside, FL 57896', 'karawong@example.net', 'annahamilton', {'thus': 'pTsudrGkmdpJJZKSpzDN', 'piece': 265765091.99083, 'maybe': 1140}, '2023-03-04', 'South Andreamouth', '313.438.4119x87698']
+en_US ['Monique Brown', '82976 Murphy Way Apt. 355 | New Anthony, MP 38729', 'bmooney@example.net', 'hodgesjeff', {'general': -5458357.782537, 'open': 80770532918.1853, 'bring': 'efepMpPwhKWKWeYRUJXO'}, '2024-11-15', 'Lake Nicoleburgh', '+1-215-518-1514']
+de_DE ['Nuran Kroker', 'Jäntschgasse 16/62 | 35640 Aschaffenburg', 'klemtflorence@example.com', 'verenabeyer', {'jetzt': -22610771428.7751, 'Dorf': 'iSuJfTTmjPEFHClCPgtb', 'hoch': 4511, 'Hase': 1086.97839637042}, '2025-09-06', 'Tecklenburg', '02494129970']
+de_DE ['Wenke Jacob', 'Svenja-Albers-Straße 8149 | 70224 Chemnitz', 'markus48@example.org', 'christine72', {'Seite': 99792460.688769, 'zurück': 8384, 'liegen': 579382253.446301, 'Bauer': 655}, '2022-07-18', 'Wittenberg', '+49(0) 317998159']
+ja_JP ['鈴木 直子', '山梨県富里市長畑18丁目4番20号 シャルム大中631', 'yui70@example.net', 'kyosuke27', {'野球': 'bnIXjJmTuqVfMzeWvDfm', '管理する': 'nNtEpgWhFMQKpFbeytyh'}, '2025-11-13', '富津市', '63-6197-7431']
+ja_JP ['山田 裕樹', '青森県武蔵村山市白金18丁目12番13号', 'tarosato@example.net', 'naotoyamazaki', {'日曜日': 9141, '教授': 4172, '文言': 2643, '本質的な': 'mdqOcWZcYcvKXYCoJOpV'}, '2023-05-18', '夷隅郡大多喜町', '080-2866-9580']
+ru_RU ['Морозова Алевтина Федоровна', 'клх Арзамас, ул. Дачная, д. 86 к. 820, 834115', {'соответствие': 413214.611623424, 'дьявол': 'AyGucBHXfGfrnaaQvVmL'}, '2021-06-03', 'ст. Неплюевка', '8 (667) 333-86-43']
+ru_RU ['София Альбертовна Коновалова', 'ст. Солнечногорск, пр. Пролетарский, д. 450, 618613', {'оставить': -205943.387937096, 'горький': 5711, 'бак': 5024, 'ночь': 981}, '2025-08-03', 'клх Тверь', '8 310 322 3348']
+two locales Kimberly Brooks DDS christinematthews@example.org
+two locales Brandon Kaiser ycamus@example.org
+two locales Karen Wagner louise69@example.net
+unique [4, 5, 7, 8, 9, 10, 12, 14, 17, 20]
+locales 110 ['am_ET', 'ar_AA', 'ar_AE', 'ar_BH', 'ar_DZ']
+providers ['faker.providers.address.en_US', 'faker.providers.automotive.en_US', 'faker.providers.bank.en_GB', 'faker.providers.barcode.en_US', 'faker.providers.color.en_US', 'faker.providers.company.en_US', 'faker.providers.credit_card.en_US', 'faker.providers.currency.en_US', 'faker.providers.date_time.en_US', 'faker.providers.doi', 'faker.providers.emoji', 'faker.providers.file', 'faker.providers.geo.en_US', 'faker.providers.internet.en_US', 'faker.providers.isbn.en_US', 'faker.providers.job.en_US', 'faker.providers.lorem.en_US', 'faker.providers.misc.en_US', 'faker.providers.passport.en_US', 'faker.providers.person.en_US', 'faker.providers.phone_number.en_US', 'faker.providers.profile', 'faker.providers.python', 'faker.providers.sbn', 'faker.providers.ssn.en_US', 'faker.providers.user_agent']

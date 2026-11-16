@@ -36,11 +36,11 @@ tests/tests_perf.py::test_lock_args
 tests/tests_perf.py::test_manual_basic_overhead
 tests/tests_perf.py::test_manual_overhead_hard
 tests/tests_perf.py::test_manual_overhead_simplebar_hard
+tests/tests_rich.py::test_rich_no_total
 tests/tests_synchronisation.py::test_monitor_atexit_does_not_deadlock_on_stuck_get_lock
 tests/tests_synchronisation.py::test_monitor_thread
 tests/tests_synchronisation.py::test_monitoring_and_cleanup
 tests/tests_synchronisation.py::test_monitoring_multi
-tests/tests_synchronisation.py::test_threadpool
 tests/tests_tqdm.py::test_SI_unit
 tests/tests_tqdm.py::test_ascii_autodetect
 tests/tests_tqdm.py::test_ascii_bar

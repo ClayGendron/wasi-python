@@ -1,0 +1,60 @@
+diff --git a/branca/colormap.py b/branca/colormap.py
+index 2e76ba5..0b08be9 100644
+--- a/branca/colormap.py
++++ b/branca/colormap.py
+@@ -9,6 +9,7 @@ Utility module for dealing with colormaps.
+ import json
+ import math
+ import os
++import pkgutil
+ from typing import Dict, List, Optional, Sequence, Tuple, Union
+ 
+ from jinja2 import Template
+@@ -18,11 +19,11 @@ from branca.utilities import legend_scaler
+ 
+ rootpath: str = os.path.abspath(os.path.dirname(__file__))
+ 
+-with open(os.path.join(rootpath, "_cnames.json")) as f:
+-    _cnames: Dict[str, str] = json.loads(f.read())
++# The tables are read through the package's loader, so they are found wherever
++# the package is imported from, a zip included.
++_cnames: Dict[str, str] = json.loads(pkgutil.get_data("branca", "_cnames.json"))
+ 
+-with open(os.path.join(rootpath, "_schemes.json")) as f:
+-    _schemes: Dict[str, List[str]] = json.loads(f.read())
++_schemes: Dict[str, List[str]] = json.loads(pkgutil.get_data("branca", "_schemes.json"))
+ 
+ 
+ TypeRGBInts = Tuple[int, int, int]
+diff --git a/branca/utilities.py b/branca/utilities.py
+index 14a1d46..3003e92 100644
+--- a/branca/utilities.py
++++ b/branca/utilities.py
+@@ -10,6 +10,7 @@ import base64
+ import json
+ import math
+ import os
++import pkgutil
+ import re
+ import struct
+ import typing
+@@ -138,14 +139,13 @@ def color_brewer(color_code: str, n: int = 6) -> List[str]:
+         core_color_code = base_code + "_" + str(n).zfill(2)
+         color_reverse = False
+ 
+-    with open(os.path.join(rootpath, "_schemes.json")) as f:
+-        schemes = json.loads(f.read())
++    # Read through the package's loader, so they are found wherever the package
++    # is imported from, a zip included.
++    schemes = json.loads(pkgutil.get_data("branca", "_schemes.json"))
+ 
+-    with open(os.path.join(rootpath, "scheme_info.json")) as f:
+-        scheme_info = json.loads(f.read())
++    scheme_info = json.loads(pkgutil.get_data("branca", "scheme_info.json"))
+ 
+-    with open(os.path.join(rootpath, "scheme_base_codes.json")) as f:
+-        core_schemes = json.loads(f.read())["codes"]
++    core_schemes = json.loads(pkgutil.get_data("branca", "scheme_base_codes.json"))["codes"]
+ 
+     if base_code not in core_schemes:
+         raise ValueError(base_code + " is not a valid ColorBrewer code")

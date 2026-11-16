@@ -35,8 +35,13 @@ ZIP_LEFT_OPEN = (
 )
 DRAWS = (
     "import random, tempfile, numpy.random, sympy.core.random, more_itertools.recipes\n"
+    "import faker.generator\n"
     "print(random.random(), numpy.random.random(), sympy.core.random.rng.random(),"
-    " next(tempfile._get_candidate_names()), more_itertools.recipes._private_randrange(0, 10**9))\n"
+    " next(tempfile._get_candidate_names()), more_itertools.recipes._private_randrange(0, 10**9),"
+    " faker.generator.random.random())\n"
+    # the next draw of a copy of Faker's shared generator: what a call that did not reseed it
+    # would draw first
+    "r = random.Random(); r.setstate(faker.generator.random.getstate()); print(r.random())\n"
 )
 
 
@@ -180,16 +185,20 @@ def test_a_prelude_does_not_pin_files(guest_turns, metric) -> None:
 
 
 def test_the_refresh_reseeds_what_the_image_froze(guest, guest_turns) -> None:
-    """`random`, numpy's legacy generator, sympy's generators, more-itertools' private one and
-    `tempfile`'s name sequence are seeded afresh in each call from an image: none of their next
-    draws repeats the prelude's."""
+    """`random`, numpy's legacy generator, sympy's generators, more-itertools' private one,
+    Faker's shared generator and `tempfile`'s name sequence are seeded afresh in each call from an
+    image: none of their next draws repeats the prelude's. The driver answers entropy alike in
+    every run, so Faker's row also asks that the call's first draw is not the one the image's
+    frozen state would give next."""
     image, made = _image(guest_turns, DRAWS)
     r = guest("snapshot", ["-c", DRAWS], image=image)
     assert r.exit_code == 0, r.describe()
     before, after = made.text.split(), r.text.split()
-    assert len(before) == len(after) == 5, (made.text, r.text)
-    names = ("random", "numpy.random", "sympy", "tempfile", "more_itertools")
-    same = [f"{n}: {b}" for n, b, a in zip(names, before, after, strict=True) if a == b]
+    assert len(before) == len(after) == 7, (made.text, r.text)
+    names = ("random", "numpy.random", "sympy", "tempfile", "more_itertools", "faker")
+    same = [f"{n}: {b}" for n, b, a in zip(names, before[:6], after[:6], strict=True) if a == b]
+    if after[5] == before[6]:
+        same.append(f"faker: {after[5]}, the frozen state's next draw")
     assert not same, scan.report(same, "a draw the image repeats")
 
 

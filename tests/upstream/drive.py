@@ -121,6 +121,8 @@ code = pytest.main(
         "--basetemp=/tmp/pytest",
         "-p",
         "no:cacheprovider",
+        "-p",
+        "no:faker",  # Faker's pytest plugin, registered by entry point, is not numpy's or pandas'
         "--import-mode=importlib",
         "--strict-markers",
         "--strict-config",

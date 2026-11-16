@@ -283,6 +283,25 @@ get https://files.pythonhosted.org/packages/7d/8a/3b7f62b9df56460959f1b9bef09424
 get https://files.pythonhosted.org/packages/49/c3/72b369f5ed7701b04ab0ea3dcf83e9bbce71c0b3bc6f07f87568550d09ea/plotly-7.1.0.tar.gz plotly-7.1.0.tar.gz
 get https://raw.githubusercontent.com/matplotlib/cmocean/501d10ef9ecb3d8f56ac093894b750c8367e044a/LICENSE.txt cmocean-501d10ef-LICENSE.txt
 get https://raw.githubusercontent.com/maplibre/maplibre-gl-js/v6.9.0/LICENSE.txt maplibre-gl-js-v6.9.0-LICENSE.txt
+# pytz, rich with markdown-it-py, mdurl and Pygments, Faker, and xyzservices, each its pure wheel;
+# folium and branca from their sdists, since each carries a patch; all pure Python. Four notices
+# the wheels name and do not carry: wcwidth's and PyFilesystem2's licences, for the tables and code
+# rich takes from them, each from its wheel; text-unidecode's licence, for the transliteration table
+# Faker ships, from its sdist; and BSD-2-Clause's text, for the leaflet-providers data xyzservices
+# ships, from SPDX's license-list-data at the same commit as the texts below
+get https://files.pythonhosted.org/packages/b6/25/564f3fc5b70c1398d706c51f2b1470d0ea0b1b2f96fee67877b6f5bdf3b6/pytz-2026.6-py2.py3-none-any.whl pytz-2026.6-py2.py3-none-any.whl
+get https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl rich-15.0.0-py3-none-any.whl
+get https://files.pythonhosted.org/packages/c9/31/5f0ac2f1a1c67423c995c731a11cd4ad05d081a2be969d74f868bdb9cc70/markdown_it_py-4.3.0-py3-none-any.whl markdown_it_py-4.3.0-py3-none-any.whl
+get https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl mdurl-0.1.2-py3-none-any.whl
+get https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl pygments-2.21.0-py3-none-any.whl
+get https://files.pythonhosted.org/packages/85/2d/031405437c6ccdc5fb24fc8cc715fbe5fbf9af492749ad070d9cc85f69dc/faker-40.54.0-py3-none-any.whl faker-40.54.0-py3-none-any.whl
+get https://files.pythonhosted.org/packages/c7/76/84a1b1b00ce71f9c0c44af7d80f310c02e2e583591fe7d4cb03baecd0d3f/folium-0.20.0.tar.gz folium-0.20.0.tar.gz
+get https://files.pythonhosted.org/packages/32/14/9d409124bda3f4ab7af3802aba07181d1fd56aa96cc4b999faea6a27a0d2/branca-0.8.2.tar.gz branca-0.8.2.tar.gz
+get https://files.pythonhosted.org/packages/a8/71/9219fe65ef32bddc0b5d14e1d98dfefe9d2c9c1b1d1e93efca1f29fcbd4d/xyzservices-2026.9.1-py3-none-any.whl xyzservices-2026.9.1-py3-none-any.whl
+get https://files.pythonhosted.org/packages/6f/0c/309b1813b230d1dbbd6f2c2ab2bb21ef68992358977605d9ef289bbfedcc/wcwidth-0.9.4-py3-none-any.whl wcwidth-0.9.4-py3-none-any.whl
+get https://files.pythonhosted.org/packages/b9/5c/a3d95dc1ec6cdeb032d789b552ecc76effa3557ea9186e1566df6aac18df/fs-2.4.16-py2.py3-none-any.whl fs-2.4.16-py2.py3-none-any.whl
+get https://files.pythonhosted.org/packages/ab/e2/e9a00f0ccb71718418230718b3d900e71a5d16e701a3dae079a21e9cd8f8/text-unidecode-1.3.tar.gz text-unidecode-1.3.tar.gz
+get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/BSD-2-Clause.txt spdx-31ba1a50-BSD-2-Clause.txt
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)

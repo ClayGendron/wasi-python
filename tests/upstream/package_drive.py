@@ -259,6 +259,9 @@ def _last_line(longrepr) -> str:
     return lines[-1] if lines else ""
 
 
+# Faker registers a pytest plugin by entry point: only Faker's own family loads it, so no other
+# family's session imports Faker or pays for it
+NO_FAKER = [] if package == "faker" else ["-p", "no:faker"]
 code = pytest.main(
     [
         "-p",
@@ -269,6 +272,7 @@ code = pytest.main(
         "--basetemp=/tmp/pytest",
         "-p",
         "no:cacheprovider",
+        *NO_FAKER,
         "--import-mode=importlib",
         "--strict-markers",
         "--strict-config",
@@ -293,5 +297,7 @@ for mod_name, mod in sorted(sys.modules.items()):
         emit(f"M {mod_name} {f}")
     elif mod_name.split(".")[0] in top and ".zip/" not in f and f != "built-in":
         emit(f"M {mod_name} {f}")
+if package != "faker" and "faker" in sys.modules:
+    emit("M faker")  # a module with no file: the gather reads it as one loaded outside its family
 emit(f"E {int(code)}")
 out.close()

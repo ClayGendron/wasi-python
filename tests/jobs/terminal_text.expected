@@ -1,0 +1,15 @@
+versions rich=15.0.0 markdown-it-py=4.3.0 mdurl=0.1.2 pygments=2.21.0
+rich ansi 3930 cc42b368ee48dae1
+rich text 2100 0686bdf206987e06
+rich html 7281 3a481276658eb347
+rich svg 27003 396c88dde204219e
+markdown html 231 14395aba762e877e
+markdown tokens ['heading_open', 'inline', 'heading_close', 'paragraph_open', 'inline', 'paragraph_close', 'bullet_list_open', 'list_item_open', 'paragraph_open', 'inline', 'paragraph_close', 'list_item_close', 'list_item_open', 'paragraph_open', 'inline', 'paragraph_close', 'list_item_close', 'bullet_list_close', 'fence']
+<ul>
+mdurl https: example.org 8080 /a path/ü ?q=1 #frag
+mdurl encode /a%20path/%C3%BC?q=%25zz /a path/ü
+mdurl format https://user@example.org:8080/a path/ü?q=1#frag
+pygments html 448 8cc5f7b3116765fd
+pygments css 4848 1391123c90891f96
+pygments terminal 244 5eb564bfd9f492b6
+pygments guess Python

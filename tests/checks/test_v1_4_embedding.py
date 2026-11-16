@@ -4765,13 +4765,14 @@ def test_the_import_path_comes_after_the_runtime(guest_workdir, which) -> None:
         done = run(["-c", "import same; print(same.WHO)"], grants=both, import_path=order,
                    snapshot=snapshot)  # fmt: skip
         assert (done.exit_code, done.stdout) == (0, want), (order, done)
-    pytz = _folder(guest_workdir, {"pytz.py": STUB.format(name="pytz") + "raise ImportError\n"})
-    done = run(["-c", "import pandas"], grants=[Grant(pytz, "/e")], import_path=["/e"],
+    stub = STUB.format(name="pyarrow") + "raise ImportError\n"
+    pyarrow = _folder(guest_workdir, {"pyarrow.py": stub})
+    done = run(["-c", "import pandas"], grants=[Grant(pyarrow, "/e")], import_path=["/e"],
                snapshot=snapshot)  # fmt: skip
     assert done.exit_code == 0, done
-    # pandas' import looks for its optional pytz twice, in the call, on both binaries: the
-    # snapshot pre-imports no package.
-    assert done.stderr.decode().count("HIT pytz") == 2, done.stderr
+    # pandas' import looks for its optional pyarrow, which the set lacks, once, in the call, on
+    # both binaries, as natively: the snapshot pre-imports no package.
+    assert done.stderr.decode().count("HIT pyarrow") == 1, done.stderr
     hashlib = _folder(guest_workdir, {"_hashlib.py": STUB.format(name="_hashlib")})
     done = run(["-c", "import hashlib"], grants=[Grant(hashlib, "/e")], import_path=["/e"],
                snapshot=snapshot)  # fmt: skip

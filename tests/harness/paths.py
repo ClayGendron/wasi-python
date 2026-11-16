@@ -208,6 +208,18 @@ LICENCE_COMPONENTS = (
     # plotly, its MIT licence, the notices of its colour scales, pypng and plotly.js's bundled
     # libraries, and its datasets' sources
     "plotly",
+    # pytz, rich, markdown-it-py, mdurl, Pygments, Faker and xyzservices, each its wheel's licence
+    # and the notices of the code and data it carries; folium and branca, each its sdist's MIT
+    # licence and the same
+    "pytz",
+    "rich",
+    "markdown-it-py",
+    "mdurl",
+    "pygments",
+    "faker",
+    "folium",
+    "branca",
+    "xyzservices",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -296,6 +308,15 @@ PACKAGES = (
     "cssselect2",
     "imageio",
     "plotly",
+    "pytz",
+    "rich",
+    "markdown-it-py",
+    "mdurl",
+    "pygments",
+    "faker",
+    "folium",
+    "branca",
+    "xyzservices",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

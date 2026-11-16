@@ -249,6 +249,21 @@ def test_a_zone_load_does_not_grow_with_the_zip(guest, judge_zips, note, which) 
     assert c - b <= 2_000_000, f"a second zone costs {c - b:,} fuel (2 M)"
 
 
+PYTZ = "import pytz\n"
+PYTZ_PARIS = PYTZ + "pytz.timezone('Europe/Paris')\n"
+PYTZ_TOKYO = PYTZ_PARIS + "pytz.timezone('Asia/Tokyo')\n"
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_pytz_first_zone_is_bounded(guest, note, which) -> None:
+    """pytz's first `timezone()` opens every one of its zone names to build its set of them,
+    each through the reactor's resource reader from the zip: it costs at most 1 G fuel over
+    `import pytz` on either binary, the line pytz is kept in the set by."""
+    a, b, c = (_fuel(guest, which, code) for code in (PYTZ, PYTZ_PARIS, PYTZ_TOKYO))
+    note(f"pytz: Paris {b - a:,}; Tokyo after it {c - b:,}")
+    assert b - a <= 1_000_000_000, f"pytz's first zone costs {b - a:,} fuel (1 G)"
+
+
 RESOURCES = """
 import importlib.resources as ir, json, posixpath, zipfile
 Z = "/usr/local/lib/python315.zip"
@@ -532,7 +547,7 @@ def test_a_read_after_invalidate_caches_reads_again_first(guest, how) -> None:
     assert (r.exit_code, r.text) == (0, "True\n"), r.describe()
 
 
-PANDAS_FOLDERS = ["numpy", "dateutil", "pandas"]
+PANDAS_FOLDERS = ["numpy", "dateutil", "pandas", "pytz"]
 
 
 def test_pandas_styler_reads_its_templates(guest) -> None:
@@ -552,7 +567,8 @@ def answers():
 
 
 def test_import_pandas_loads_exactly_its_packages(guest, note) -> None:
-    """The folders of packages loaded by `import pandas`: numpy, dateutil and pandas."""
+    """The folders of packages loaded by `import pandas`: numpy, dateutil, pandas and pytz, which
+    pandas imports when it is there, as natively."""
     code = (
         "import sys, json, pandas, _zip_directory as zd\n"
         "print(json.dumps([f for f in zd.loaded(sys._stdlib_dir)"

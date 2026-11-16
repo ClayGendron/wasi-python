@@ -188,6 +188,8 @@ SOURCE_COMPONENTS = (
     "cairocffi",
     "cairosvg",
     "plotly",
+    "folium",
+    "branca",
 )
 
 # The test sources: every other pinned source the judge stages but never builds (the pure-Python

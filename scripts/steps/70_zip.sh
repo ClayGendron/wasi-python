@@ -73,6 +73,16 @@
 # validators' table and the datasets through the package's loader, so they are found in the zip;
 # its METADATA its PKG-INFO; and left out, its JupyterLab extension and the widget's script, which
 # only FigureWidget in a notebook loads.
+# pytz, rich with markdown-it-py, mdurl and Pygments, Faker and xyzservices: their pure wheels,
+# whole (xyzservices' .data copy of its providers stays out, as every wheel's .data does; Faker's
+# entry_points.txt rides along, and the judge's drivers block its pytest plugin for every family
+# but Faker's). folium and branca from their sdists, staged as python-docx is: folium's package
+# with its carried patch, which imports requests only where a GeoJSON URL is fetched, without its
+# templates folder, three bundled scripts no Python reads (a map loads its scripts from a CDN by
+# URL); branca's package with its carried patch, which reads its colour tables through the
+# package's loader, so they are found in the zip, and with recipes/branca_version_stand_in.py as
+# its _version.py, the module its wheel's build writes, byte for byte, so branca.__version__ is
+# the release's, as folium's version check reads it.
 # Last, make_stdlib_zip.py writes the folder table into the zip's archive comment: each top-level
 # folder's run of the directory, which a plain start reads only when a program first uses that
 # folder. The snapshot reads the whole directory at build time, as before.
@@ -110,10 +120,10 @@ done
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
 remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/seaborn-0.13.2" \
   "$B/python_docx-1.2.0" "$B/python_pptx-1.0.2" "$B/pdfminer_six-20260107" "$B/xarray-2026.9.0" \
-  "$B/cairosvg-2.9.1" "$B/plotly-7.1.0" "$B/pure-install"
+  "$B/cairosvg-2.9.1" "$B/plotly-7.1.0" "$B/folium-0.20.0" "$B/branca-0.8.2" "$B/pure-install"
 for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7 seaborn-0.13.2 python_docx-1.2.0 \
   python_pptx-1.0.2 pdfminer_six-20260107 xarray-2026.9.0 cairosvg-2.9.1 \
-  plotly-7.1.0; do
+  plotly-7.1.0 folium-0.20.0 branca-0.8.2; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -172,6 +182,9 @@ stage "$B/cairocffi-1.7.1/cairocffi" "$B/pure-install/cairocffi" \
 stage "$B/cairosvg-2.9.1/cairosvg" "$B/pure-install/cairosvg" "test_api.py"
 cp -R "$B/plotly-7.1.0/plotly" "$B/pure-install/plotly"
 cp -R "$B/plotly-7.1.0/_plotly_utils" "$B/pure-install/_plotly_utils"
+cp -R "$B/folium-0.20.0/folium" "$B/pure-install/folium"
+stage "$B/branca-0.8.2/branca" "$B/pure-install/branca" "" \
+  "_version.py=$HERE/recipes/branca_version_stand_in.py"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -232,6 +245,13 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned tinycss2-1.5.1-py3-none-any.whl)" \
   --wheel "$(pinned cssselect2-0.10.1-py3-none-any.whl)" \
   --wheel "$(pinned imageio-2.38.1-py3-none-any.whl)" \
+  --wheel "$(pinned pytz-2026.6-py2.py3-none-any.whl)" \
+  --wheel "$(pinned rich-15.0.0-py3-none-any.whl)" \
+  --wheel "$(pinned markdown_it_py-4.3.0-py3-none-any.whl)" \
+  --wheel "$(pinned mdurl-0.1.2-py3-none-any.whl)" \
+  --wheel "$(pinned pygments-2.21.0-py3-none-any.whl)" \
+  --wheel "$(pinned faker-40.54.0-py3-none-any.whl)" \
+  --wheel "$(pinned xyzservices-2026.9.1-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.4/PKG-INFO=numpy" \
   --metadata "$B/pandas-3.1.0/PKG-INFO=pandas" \
   --metadata "$B/pillow-13.0.0/PKG-INFO=PIL" \
@@ -257,6 +277,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/cairosvg-2.9.1/PKG-INFO=cairosvg" \
   --source cairosvg \
   --metadata "$B/plotly-7.1.0/PKG-INFO=plotly,_plotly_utils" \
+  --metadata "$B/folium-0.20.0/PKG-INFO=folium" \
+  --metadata "$B/branca-0.8.2/PKG-INFO=branca" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -289,6 +311,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --drop pdfminer/cmap \
   --drop plotly/labextension \
   --drop plotly/package_data/widgetbundle.js \
+  --drop folium/templates \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \
