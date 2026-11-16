@@ -39,6 +39,8 @@ units = 13
 "tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "the two collector moves it held leave it (test_streamfilter_extension, test_balancing); 102 stable members stay"
 "tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop-error 9, 1891e18dfe2d and jinja2-r-no-asyncio-loop 102, ea1eb2ac4985: the stable members, the same in every state the list files' history and run 43865484595 show; fonttools-r-rest-counted-clock stays 2, 0c61ab6175e3"
 "tests/unit/test_upstream.py" = "the moved line, a class leaving the collector's tests out, two siblings in three states, the six rules, the three classes that carry the key, a named test listed with its outcomes and not counted, and the class check's body"
+"tests/harness/regrtest.py" = "CPython's GroupOutcome carries moves, always None, so the suite check reads the same field from either judge's outcome; CPython's rules still refuse collector_moves"
+"tests/unit/test_regrtest.py" = "a clean stream's outcome names no collector moves"
 "tests/unit/test_plugin.py" = "a gap that fails differently names what moved, past the first line's cut"
 "context/release-claims/182-a-class-for-tests-the-collector-flips.toml" = "182's block: the three release-tier classes"
 ```

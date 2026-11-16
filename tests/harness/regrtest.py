@@ -417,6 +417,7 @@ class GroupOutcome:
     env_altered: list[str]
     host_seen: dict[str, dict]  # host entry id -> what this system did
     finished: bool
+    moves: None = None  # CPython's judge names no collector moves (the rules refuse the key)
 
 
 def passed_digest(nodes: list[str]) -> str:
