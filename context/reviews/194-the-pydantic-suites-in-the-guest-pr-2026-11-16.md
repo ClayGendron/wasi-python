@@ -2,9 +2,9 @@
 
 - **Date:** 2026-11-16
 - **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author
-- **Reviewed:** `5cc59db4..7fc3559f` (`9499950b`, the judge files; `7fc3559f`, the context files), against the roadmap's 194 line at `5cc59db4`, 190's Decisions 1, 8 and 9, and 191's Decision 8. Box: 45 minutes; finished inside it. Rounds 2 to 4 follow; round 4 reads the merge of `dev` (`aae733cf`) and the fix on `afa5d3dd`.
-- **Run:** none in round 1: the branch is unpushed, and no self-check exists yet. Round 4: run 43924281533 on `89d24122`, green by the author's word (not read here); none of `afa5d3dd`.
-- **Re-ran** (EXECUTED):
+- **Reviewed:** `5cc59db4..7fc3559f` (`9499950b`, the judge files; `7fc3559f`, the context files), against the roadmap's 194 line at `5cc59db4`, 190's Decisions 1, 8 and 9, and 191's Decision 8. Box: 45 minutes; finished inside it. Rounds 2 to 5 follow; round 4 reads the merge of `dev` (`aae733cf`) and the fix on `afa5d3dd`; round 5 reads the branch rebuilt on `dev` `cbfe00cd` without that merge, the fix now `b370dda4` (round 5 maps each old sha to its new one).
+- **Run:** none in round 1: the branch is unpushed, and no self-check exists yet. Round 4: run 43924281533 on `89d24122`, green by the author's word (not read here); none of `afa5d3dd`. Round 5: none of the rebuilt head; the merged head's run failed on rule 3 alone, by the author's word (not read here).
+- **Re-ran** (EXECUTED; round 5's below):
   - `uv run python release/precheck.py` → exit 1 on the allowed root-only `test_the_walk_judges_links` alone (unit 3,723 passed, 104 skipped); ruff, mypy, rules, budget and lint ok; the plan waits on this file.
   - `uv run pytest tests/lint tests/unit -q -p no:cacheprovider --deselect tests/unit/test_runner_grants.py::test_the_walk_judges_links` → 3,737 passed, 104 skipped, exit 0.
   - `scan.digest(upstream.class_findings(list, list))` of each list file → 13 `d4bce486ff96`, 6 `a243e3dc9965`, 1 `47a860157c80`: each gap's `match` exactly.
@@ -153,5 +153,48 @@ Lands on `89d24122`. Medium 1 is closed. `drawn_form` masks a uuid and an addres
 - The judge: the fix narrows a drawn group's digest to the tests `passes` counts, as 182 does for every group, and it is claimed under `[claim.judge]` in the news file. G5 is red on exactly what it was red on. `collector_moves` names raw ids, so a moved test whose id carries a drawn value could not be named stably; no group meets that (INFERRED, latent).
 - §7: nothing is loosened.
 
-## Verdict
+## Round 4 verdict (2026-11-16; replaced)
 Lands on `afa5d3dd`. The merge of `dev` is clean: its tree is `merge-tree`'s, 194's change is line for line the one round 3 signed, and 182's change is whole. The fix makes a drawn group's digest leave out the collector's moves as `passes` does, and a new row fails on the old line and two other mutants. The precheck holds but for the allowed root-only test. Round 3's Low 3 is closed. Its Lows 1 and 2 stay open as write-ins, and round 4's Low 1 touches only `context/`. No run of this head was read.
+
+## Round five, on `b370dda4`
+
+- **Date:** 2026-11-16
+- **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01BD1pVHiZoxnwRv6JCqJKeC; not the author.
+- **Reviewed:** `cbfe00cd..45ab141b`, the branch rebuilt linearly on `origin/dev` `cbfe00cd` (#113's squash, with 182's #114 below it): eleven commits, no merge. The merged head's pull-request run failed only on rule 3, `test_this_repository_is_linear` ("`aae733cf49e5` is a merge commit; main moves only by fast-forward"), by the author's word (not read here). The old head is kept as the local branch `backup/194-merge` (`a3e2ee8e`). Every commit's trailer is Claude Opus 5.5 (EXECUTED).
+- **Run:** none of the rebuilt head. It is not pushed: GitHub's head is still `a3e2ee8e` (READ, `git ls-remote`).
+
+The shas, old to new, by subject (EXECUTED, `git patch-id --stable`). Earlier rounds cite the old ones; read them through this map.
+
+| Old | New | Commit |
+|---|---|---|
+| `5cc59db4` | `cbfe00cd` | the base: 190's branch then, its squash on `dev` now |
+| `9499950b` | `09548c34` | the suites in the guest |
+| `7fc3559f` | `07e1a525` | the specification, news file, claims and roadmap line |
+| `ea31eb32` | `cc79e90e` | review, round 1 |
+| `7858c710` | `5ee97908` | the review's round 1 |
+| `2dcb248d` | `1296acb3` | the first runs' classes and fuel |
+| `887cbb42` | `c8736e4f` | drawn ids and the last three groups' fuel |
+| `5ebecdb3` | `d90f358e` | review, round 2 |
+| `89d24122` | `28161619` | review round 2, a narrower drawn form |
+| `7f1dc1bc` | `9f794484` | review, round 3 |
+| `aae733cf` | none | the merge of `dev`, dropped |
+| `afa5d3dd` | `b370dda4` | a drawn group's digest leaves out the collector's moves |
+| `a3e2ee8e` | `45ab141b` | review, round 4 |
+
+Re-ran (EXECUTED, each):
+- Trees: `HEAD^{tree}` and `backup/194-merge^{tree}` are both `2d3153cd`, and `9f794484`'s tree is `aae733cf`'s (`3fbcdbf7`). The rebuilt branch's files are the merged branch's, byte for byte.
+- Merges: `git rev-list --merges origin/dev..HEAD` is empty. Rule 3 itself, `uv run pytest tests/unit/test_landing_lane.py::test_this_repository_is_linear`, skips here with "needs: git history", because this clone is shallow. So I ran its query, `git rev-list --merges HEAD` (`scan.merge_commit_errors`), by hand. It finds no merge among the 73 commits it reaches. On `backup/194-merge` it finds `aae733cf`, the run's line, as a control.
+- The change: ten of the eleven commits have their old commit's patch id. The eleventh, `c8736e4f`, differs from `887cbb42` in one hunk of `tests/harness/upstream.py` only: its line numbers move by 27 and its context label changes, because 182's lines now sit above it. Its own lines are the same. `git diff origin/dev 9f794484` equals `git diff 5cc59db4 7f1dc1bc` but for two `index` lines and that hunk header. `b370dda4`'s diff equals `afa5d3dd`'s, and `45ab141b`'s equals `a3e2ee8e`'s, exactly. So `git diff origin/dev HEAD` is 194's change alone, the one rounds 3 and 4 signed, with nothing lost or added.
+- `uv run python release/precheck.py` → exit 1 on the allowed root-only `test_the_walk_judges_links` alone: unit 3,741 passed, 104 skipped (round 4's count); ruff, mypy, the rules checks (150 passed, 5 skipped, rule 3 among the skips, as above), their budget and lint (14 passed) ok; the plan refuses nothing.
+
+### Round 4's finding
+1. **Low, the merge commit** — moot. The branch carries no merge, so AGENTS.md step 4 holds, and no landing note is needed. Round 4 inferred that a rebase would replay #113's commits onto their own squash. The rebuild avoided that by replaying only 194's own commits onto `dev` (EXECUTED: the patch ids above).
+
+### Round 3's findings
+1. and 2. **Low** — open, as round 4 left them: the tree is unchanged, and no answer is in the branch. The pull request's comments could not be read here. Their fix texts stand, as write-ins.
+
+### Findings of round 5
+None.
+
+## Verdict
+Lands on `b370dda4`. The branch is rebuilt linearly on `dev` `cbfe00cd` with no merge, so rule 3 holds. Its tree is the merged head's, and its diff against `dev` is 194's change alone, commit for commit, as rounds 3 and 4 signed it. The precheck holds but for the allowed root-only test. Round 4's Low is moot. Round 3's Lows 1 and 2 stay open as write-ins. Nothing Medium or High is open. No run of this head was read.
