@@ -29,9 +29,7 @@ new = [
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_the_rust_lock_keeps_the_packages_versions",
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_the_pinned_pydantic_requires_the_pinned_core",
 ]
-retired = [
-  "tests/checks/test_v1_5_rebuild_from_pins.py::test_the_rust_lock_keeps_orjsons_versions",
-]
+retired = []
 changed = []
 passes = []
 grows = ["tests/checks/*"]
