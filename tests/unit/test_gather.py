@@ -492,6 +492,12 @@ MUTATIONS = [
 ]
 
 
+def test_a_g5_difference_names_each_systems_passes_and_digest(case) -> None:
+    _digest(case)
+    row = next(r for r in case.run().red if r.startswith("G5 g1: passes or passed_digest"))
+    assert "linux " in row and " d1" in row and "windows " in row and " d2" in row, row
+
+
 @pytest.mark.parametrize(("what", "edit", "error"), MUTATIONS, ids=[m[0] for m in MUTATIONS])
 def test_each_mutation_is_red(case, what, edit, error) -> None:
     edit(case)

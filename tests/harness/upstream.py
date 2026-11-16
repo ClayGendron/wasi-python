@@ -758,16 +758,18 @@ class GroupOutcome:
 
 
 # The values an id can carry that a run draws afresh: a uuid4 drawn at import, an object's address
-# in its repr. `drawn_form` reads each as `*`, then the parameters' characters in sorted order, so
-# a set's members shown in hash order read the same: for a group whose `drawn_ids` says so only.
+# in its repr, and a set's members, shown in hash order. `drawn_form` reads each uuid and address
+# as `*` and lists each set display's members (braces with no colon) in sorted order; everything
+# else stays as it is: for a group whose `drawn_ids` says so only.
 DRAWN = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(?<= at )0x[0-9a-f]+"
 )
+SET_DISPLAY = re.compile(r"\{([^{}:]*)\}")
 
 
 def drawn_form(node: str) -> str:
-    name, bracket, params = DRAWN.sub("*", node).partition("[")
-    return name + bracket + "".join(sorted(params))
+    masked = DRAWN.sub("*", node)
+    return SET_DISPLAY.sub(lambda m: "{" + ", ".join(sorted(m[1].split(", "))) + "}", masked)
 
 
 def passed_digest(nodes: list[str]) -> str:

@@ -1354,14 +1354,12 @@ def clock_errors(pkg: str, cfg: upstream.Config) -> list[str]:
 
 
 def drawn_errors(pkg: str, cfg: upstream.Config) -> list[str]:
-    """`drawn_ids`: on a group of the family, with its reason."""
-    errors = []
-    for g, reason in cfg.keys.drawn_ids.items():
-        if g not in cfg.groups:
-            errors.append(f"{pkg}: group {g}: drawn_ids on a group the family does not have")
-        if not reason.strip():
-            errors.append(f"{pkg}: group {g}: drawn_ids without its reason")
-    return errors
+    """`drawn_ids`, read from a group's own table: with its reason."""
+    return [
+        f"{pkg}: group {g}: drawn_ids without its reason"
+        for g, reason in cfg.keys.drawn_ids.items()
+        if not reason.strip()
+    ]
 
 
 def compiled_families(builtins: list[str], top: str) -> set[str]:

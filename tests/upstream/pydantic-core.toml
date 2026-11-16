@@ -62,7 +62,6 @@ tier = "release"
 release_by = "path"
 fuel = 240_000_000_000
 measured = 153_506_544_711
-drawn_ids = "the same files as the smoke group's, whose ids carry values each run draws afresh (that group's reason), and test_any.py's and others with the same kinds"
 
 [[not_selected]]
 files = ["tests/benchmarks"]
