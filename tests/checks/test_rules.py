@@ -2203,3 +2203,19 @@ def test_the_rust_packages_have_their_rows() -> None:
     )
     errors = scan.rust_package_row_errors(names, paths.PACKAGES)
     assert not errors, scan.report(errors)
+
+
+def test_modules_txt_lists_each_rust_module() -> None:
+    """recipes/rust/modules.txt lists orjson's, pydantic-core's and the probe's builtin modules,
+    each with its init function, which step 52's gate then finds in the archive."""
+    text = (paths.REPO / "recipes" / "rust" / "modules.txt").read_text()
+    errors = scan.rust_module_errors(text)
+    assert not errors, scan.report(errors)
+
+
+def test_orjson_carries_the_patches_the_owner_chose() -> None:
+    """recipes/patches/orjson-3.13.0/ holds exactly the three patches the owner chose: the rlib,
+    PyO3 0.30 and no global allocator."""
+    folder = paths.REPO / "recipes" / "patches" / "orjson-3.13.0"
+    errors = scan.orjson_patch_errors(p.name for p in folder.glob("*.patch"))
+    assert not errors, scan.report(errors)

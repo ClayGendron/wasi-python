@@ -107,6 +107,8 @@ done
 [ -d "$B/cairocffi-1.7.1/cairocffi" ] || die "build/cairocffi-1.7.1 is missing: run step 56"
 # orjson's Python package, as its wheel lays it out: its compiled module is in the binary (step 52)
 [ -f "$B/orjson-3.13.0/pysrc/orjson/__init__.py" ] || die "build/orjson-3.13.0 is missing: run step 52"
+# pydantic-core's Python package, as its wheel lays it out: its compiled module is in the binary too
+[ -f "$B/pydantic_core-2.50.4/python/pydantic_core/__init__.py" ] || die "build/pydantic_core-2.50.4 is missing: run step 52"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -205,6 +207,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/sklearn-install" \
   --tree "$B/statsmodels-install" \
   --tree "$B/orjson-3.13.0/pysrc" \
+  --tree "$B/pydantic_core-2.50.4/python" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.6-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -235,6 +238,9 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned toolz-1.2.0-py3-none-any.whl)" \
   --wheel "$(pinned tqdm-4.70.1-py3-none-any.whl)" \
   --wheel "$(pinned typing_extensions-4.16.0-py3-none-any.whl)" \
+  --wheel "$(pinned annotated_types-0.8.0-py3-none-any.whl)" \
+  --wheel "$(pinned typing_inspection-0.4.5-py3-none-any.whl)" \
+  --wheel "$(pinned pydantic-2.14.3-py3-none-any.whl)" \
   --wheel "$(pinned joblib-1.6.0-py3-none-any.whl)" \
   --wheel "$(pinned cloudpickle-3.1.2-py3-none-any.whl)" \
   --wheel "$(pinned threadpoolctl-3.7.0-py3-none-any.whl)" \
@@ -283,6 +289,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/folium-0.20.0/PKG-INFO=folium" \
   --metadata "$B/branca-0.8.2/PKG-INFO=branca" \
   --metadata "$B/orjson-3.13.0/PKG-INFO=orjson" \
+  --metadata "$B/pydantic_core-2.50.4/PKG-INFO=pydantic_core" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \

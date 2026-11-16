@@ -1,0 +1,11 @@
+diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -46,7 +46,6 @@
+ #[macro_use]
+ mod util;
+ 
+-mod alloc;
+ mod deserialize;
+ mod exception;
+ mod ffi;

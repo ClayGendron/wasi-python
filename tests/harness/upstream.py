@@ -28,7 +28,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
-from harness import litter, paths
+from harness import litter, paths, scan
 
 HERE = paths.REPO / "tests" / "upstream"
 KIT = HERE / "kit.txt"
@@ -151,7 +151,13 @@ class Klass:
     no earlier class, and its list file holds its members. A node-limited class names its tests
     (`nodes`): it claims theirs alone, before any other class, and those tests must fail or error
     for its cause in every run; its list is its nodes. It is for tests whose outcome the run's
-    timing chooses among its causes, and nothing else."""
+    timing chooses among its causes, and nothing else.
+
+    An ordinary class may also name, in `collector_moves`, tests that the collector's timing moves
+    into it, into a sibling class or to a pass: the class check leaves those out, and holds every
+    other member exactly; the group's passes count and passed digest leave them out, and the
+    record lists each with its outcomes. It is for tests on which a leaked object's collection
+    lands wherever the set's allocations put it, and nothing else."""
 
     id: str
     group: str
@@ -161,6 +167,7 @@ class Klass:
     closes_with: str
     nodes: tuple[str, ...] | None = None  # a node-limited class's tests
     outcomes: tuple[str, ...] = ()  # a node-limited class's outcomes, in place of `outcome`
+    collector_moves: tuple[str, ...] | None = None  # tests the collector's timing moves in and out
 
     def claims(self, outcome: str) -> bool:
         return outcome in (self.outcomes or (self.outcome,))
@@ -178,6 +185,7 @@ def klass_of(e: dict) -> Klass:
         e["closes_with"],
         None if nodes is None else tuple(nodes),
         tuple(e.get("outcomes", ())),
+        None if "collector_moves" not in e else tuple(e["collector_moves"]),
     )
 
 
@@ -754,6 +762,25 @@ class GroupOutcome:
     passed_digest: str
     counts: dict[str, int]
     finished: bool
+    # each test the group's classes name as the collector's moves, with its outcomes this run
+    # (none when it did not run): recorded, and never in `passes` or `passed_digest`
+    moves: dict[str, list[str]] | None = None
+
+
+def _counted(passed: list[str], moves: dict[str, list[str]] | None) -> list[str]:
+    """The passed ids `passes` and `passed_digest` count: every one but the collector's moves."""
+    return [n for n in passed if n not in (moves or {})]
+
+
+def _moves(stream: Stream, classes: list[Klass]) -> dict[str, list[str]] | None:
+    named = sorted({n for k in classes for n in k.collector_moves or ()})
+    if not named:
+        return None
+    seen: dict[str, list[str]] = {n: [] for n in named}
+    for outcome, node, _ in stream.outcomes:
+        if node in seen:
+            seen[node].append(outcome)
+    return {n: sorted(o) for n, o in seen.items()}
 
 
 def passed_digest(nodes: list[str]) -> str:
@@ -844,7 +871,8 @@ def judge_group(stream: Stream, run: GuestRun, classes: list[Klass]) -> GroupOut
     for name, f in stream.modules:
         if "tests" not in name.split(".") and name != "pandas.conftest":
             findings.append(f"a product module came from the grant: {name} {f}")
-    passed = [n for o, n, _ in stream.outcomes if o == "passed"]
+    moves = _moves(stream, classes)
+    passed = _counted([n for o, n, _ in stream.outcomes if o == "passed"], moves)
     return GroupOutcome(
         findings=findings,
         members={k: sorted(set(v)) for k, v in members.items()},
@@ -852,6 +880,7 @@ def judge_group(stream: Stream, run: GuestRun, classes: list[Klass]) -> GroupOut
         passed_digest=passed_digest(passed),
         counts=dict(sorted(Counter(o for o, _, _ in stream.outcomes).items())),
         finished=not ended,
+        moves=moves,
     )
 
 
@@ -874,8 +903,15 @@ def fact_findings(group: Stream, alone: Stream, fact: FuelFact) -> list[str]:
 def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> GroupOutcome:
     """One group's outcome from its sessions, the group's own and each fuel fact's:
     findings keep their session's prefix; members, counts and passes add up; the digest is of every
-    passed id, so it is the one a single session gives when nothing else changed."""
-    passed = [n for s, _, _ in parts for o, n, _ in s.outcomes if o == "passed"]
+    counted passed id (the collector's moves are listed with their outcomes, not counted), so it is
+    the one a single session gives when nothing else changed."""
+    moves: dict[str, list[str]] | None = None
+    for _, outcome, _ in parts:
+        if outcome.moves is not None:
+            moves = moves or {}
+            for n, seen in outcome.moves.items():
+                moves[n] = sorted(moves.get(n, []) + seen)
+    passed = _counted([n for s, _, _ in parts for o, n, _ in s.outcomes if o == "passed"], moves)
     members: dict[str, set[str]] = {}
     counts: Counter[str] = Counter()
     findings: list[str] = []
@@ -891,12 +927,17 @@ def combine(parts: list[tuple[Stream, GroupOutcome, str]], extra: list[str]) -> 
         passed_digest=passed_digest(passed),
         counts=dict(sorted(counts.items())),
         finished=all(outcome.finished for _, outcome, _ in parts),
+        moves=moves,
     )
 
 
-def class_findings(actual: list[str], listed: list[str]) -> list[str]:
+def class_findings(
+    actual: list[str], listed: list[str], moves: tuple[str, ...] | None = None
+) -> list[str]:
     """One finding per member, plus `+id` for each not in the list and `-id` for each listed but
-    gone; none when the class is empty (its gap then says "remove the gap")."""
+    gone; none when the class is empty (its gap then says "remove the gap"). The tests the
+    collector moves (`moves`) are left out, members or not, so they are never a finding."""
+    actual = [n for n in actual if n not in (moves or ())]
     if not actual:
         return []
     now, was = sorted(set(actual)), set(listed)
@@ -905,6 +946,25 @@ def class_findings(actual: list[str], listed: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------------------------------------
 # The rules (Decision 17)
+
+
+def class_check(klass: Klass, outcome: GroupOutcome, listed: list[str]) -> tuple[list[str], str]:
+    """A class check's findings and its failure message: its members against its list, the
+    collector's moves left out, a group that did not finish, and the moved line under the
+    report's first line."""
+    findings = class_findings(outcome.members[klass.id], listed, klass.collector_moves)
+    if not outcome.finished:
+        findings.append(f"group {klass.group} did not finish")
+    message = scan.report(findings, f"class {klass.group}-{klass.id}")
+    moved = scan.moved(findings)
+    return findings, message + (f"\n{moved}" if moved else "")
+
+
+def moves_in(klass: Klass, outcome: GroupOutcome) -> list[str] | None:
+    """The fact a class that names collector moves records: those that were its members."""
+    if not klass.collector_moves:
+        return None
+    return sorted(set(outcome.members[klass.id]) & set(klass.collector_moves))
 
 
 def caps(configs: dict[str, Config], tier: str | None = None) -> int:
@@ -991,6 +1051,24 @@ def class_shape_errors(k: Klass, runner: str = "pytest") -> list[str]:
             errors.append(f"{name}: its nodes are not sorted and unique")
         if runner == "regrtest":
             errors.append(f"{name} names nodes, which only a pytest family's judge reads")
+    return errors + _moves_shape_errors(k, name, runner)
+
+
+def _moves_shape_errors(k: Klass, name: str, runner: str) -> list[str]:
+    """`collector_moves`: on an ordinary class only, at least one node, sorted and unique, and
+    only in a pytest family, the one whose class lists the key was made for."""
+    moves = k.collector_moves
+    if moves is None:
+        return []
+    errors = []
+    if not moves:
+        errors.append(f"{name} names no collector move")
+    elif list(moves) != sorted(set(moves)):
+        errors.append(f"{name}: its collector_moves are not sorted and unique")
+    if k.nodes is not None:
+        errors.append(f"{name} names collector_moves and nodes: its list is its nodes")
+    if runner == "regrtest":
+        errors.append(f"{name} names collector_moves, which only a pytest family's judge reads")
     return errors
 
 
@@ -1063,11 +1141,21 @@ def rule_errors(
             listed = read_list(f)
             if listed != sorted(set(listed)):
                 errors.append(f"{pkg}: {k.group}/{k.id}.txt is not sorted and unique")
+            errors += [
+                f"{pkg}: class {k.group}-{k.id}: {n} is in its list and in its collector_moves"
+                for n in sorted(set(listed) & set(k.collector_moves or ()))
+            ]
             has_gap = class_node(k.group, k.id) in gap_checks
             if listed and not has_gap:
                 errors.append(f"{pkg}: class {k.group}-{k.id} has members but no gap")
             if not listed and has_gap:
                 errors.append(f"{pkg}: class {k.group}-{k.id} is empty but still has a gap")
+        errors += [
+            f"{pkg}: {n} is named by a node-limited class and by collector_moves"
+            for k in cfg.expected
+            for n in k.collector_moves or ()
+            if (k.group, n) in limited
+        ]
         if cfg.driver == "package":
             from harness import packages
 

@@ -84,6 +84,7 @@ def test_a_clean_stream_passes_counts_passes_and_sorts_its_failure() -> None:
     assert o.findings == []
     assert o.passes == 1 and o.members == {"no-x": ["test.test_b.U.test_two"]}
     assert o.passed_digest == upstream.passed_digest(["test.test_a.T.test_one"])
+    assert o.moves is None  # the suite check reads it from either judge's outcome
 
 
 def test_a_failing_subtest_sorts_by_its_own_id() -> None:

@@ -4831,23 +4831,141 @@ def test_step_52_builds_offline_and_every_gate_runs() -> None:
     assert scan.rust_step_errors({}) == [f"{scan.STEP_52} is missing"]
 
 
-def test_the_umbrella_lock_holds_orjsons_own_versions() -> None:
+def _cargo_lock(*packages: tuple[str, str]) -> str:
+    """A Cargo.lock of crates.io packages, each (name, version)."""
+    return "version = 4\n\n" + "".join(
+        f'[[package]]\nname = "{n}"\nversion = "{v}"\nsource = "{scan.CRATES_IO}"\n'
+        'checksum = "aa"\n\n'
+        for n, v in packages
+    )
+
+
+def test_the_umbrella_lock_holds_each_packages_own_versions() -> None:
     theirs = LOCK.replace('name = "rust_modules"', 'name = "orjson"')
-    assert scan.orjson_version_errors(LOCK, theirs) == []
+    assert scan.package_version_errors(LOCK, {"orjson": theirs}) == []
     both = LOCK + LOCK.split("\n\n", 1)[1].split("\n\n")[0].replace("1.0.1", "0.9.0") + "\n"
-    assert scan.orjson_version_errors(both, theirs) == []
+    assert scan.package_version_errors(both, {"orjson": theirs}) == []
     older = LOCK.replace('version = "1.0.1"', 'version = "1.0.0"')
-    assert scan.orjson_version_errors(older, theirs) == [
+    assert scan.package_version_errors(older, {"orjson": theirs}) == [
         "itoap: orjson's Cargo.lock names 1.0.1, recipes/rust/Cargo.lock 1.0.0"
     ]
 
 
+def test_where_two_packages_locks_differ_the_umbrella_holds_the_higher() -> None:
+    orjson = _cargo_lock(("libc", "0.2.190"), ("zerocopy", "0.8.27"))
+    core = _cargo_lock(("libc", "0.2.185"), ("zerocopy", "0.7.35"), ("zerocopy", "0.8.27"))
+    ours = _cargo_lock(("libc", "0.2.190"), ("zerocopy", "0.7.35"), ("zerocopy", "0.8.27"))
+    locks = {"orjson": orjson, "pydantic-core": core}
+    assert scan.package_version_errors(ours, locks) == []
+    lower = _cargo_lock(("libc", "0.2.185"), ("zerocopy", "0.7.35"), ("zerocopy", "0.8.27"))
+    assert scan.package_version_errors(lower, locks) == [
+        "libc: orjson's Cargo.lock names 0.2.190, recipes/rust/Cargo.lock 0.2.185"
+    ]
+    no_line = _cargo_lock(("libc", "0.2.190"), ("zerocopy", "0.8.27"))
+    assert scan.package_version_errors(no_line, locks) == [
+        "zerocopy: pydantic-core's Cargo.lock names 0.7.35, recipes/rust/Cargo.lock 0.8.27"
+    ]
+
+
+def test_the_umbrella_holds_no_version_above_the_packages_unless_named() -> None:
+    higher = LOCK.replace('version = "1.0.1"', 'version = "1.0.2"')
+    theirs = LOCK.replace('name = "rust_modules"', 'name = "orjson"')
+    assert scan.package_version_errors(higher, {"orjson": theirs}) == [
+        "itoap: orjson's Cargo.lock names 1.0.1, recipes/rust/Cargo.lock 1.0.2"
+    ]
+    core = _cargo_lock(("syn", "2.0.82"), ("portable-atomic", "1.6.0"))
+    raised = _cargo_lock(*scan.UMBRELLA_RAISED.items())
+    assert scan.UMBRELLA_RAISED == {"portable-atomic": "1.15.0", "syn": "2.0.119"}
+    assert scan.package_version_errors(raised, {"pydantic-core": core}) == []
+    other = _cargo_lock(("syn", "2.0.120"), ("portable-atomic", "1.6.0"))
+    assert scan.package_version_errors(other, {"pydantic-core": core}) == [
+        "syn: recipes/rust/Cargo.lock holds 2.0.120, not 2.0.119, "
+        "which it names above pydantic-core's 2.0.82",
+        "portable-atomic: recipes/rust/Cargo.lock holds 1.6.0, not 1.15.0, "
+        "which it names above pydantic-core's 1.6.0",
+    ]
+
+
+def test_the_umbrella_holds_one_pyo3_whatever_the_packages_locks_name() -> None:
+    orjson = _cargo_lock(("pyo3-ffi", "0.29.3"), ("pyo3-build-config", "0.29.3"))
+    ours = _cargo_lock(("pyo3-ffi", scan.PYO3_VERSION), ("pyo3-build-config", scan.PYO3_VERSION))
+    assert scan.package_version_errors(ours, {"orjson": orjson}) == []
+    two = ours + _cargo_lock(("pyo3-ffi", "0.29.3")).split("\n\n", 1)[1]
+    assert scan.package_version_errors(two, {"orjson": orjson}) == [
+        f"pyo3-ffi: recipes/rust/Cargo.lock holds 0.29.3, {scan.PYO3_VERSION}, "
+        f"not PyO3 {scan.PYO3_VERSION} alone"
+    ]
+
+
 def test_the_rust_packages_are_in_both_package_tables() -> None:
-    names = ["orjson", "rust-std", "pyo3", "zlib"]
+    names = [*scan.RUST_PACKAGE_ROWS, "zlib"]
     assert scan.rust_package_row_errors(names, names) == []
     assert scan.rust_package_row_errors(names[1:], names) == [
         "orjson: not in scripts/assemble_artifacts.py's PACKAGES"
     ]
     assert scan.rust_package_row_errors(names, ["orjson", "rust-std"]) == [
-        "pyo3: not in tests/harness/paths.py's PACKAGES"
+        f"{name}: not in tests/harness/paths.py's PACKAGES"
+        for name in scan.RUST_PACKAGE_ROWS
+        if name not in ("orjson", "rust-std")
+    ]
+    without = [n for n in names if n != "typing-inspection"]
+    assert scan.rust_package_row_errors(without, names) == [
+        "typing-inspection: not in scripts/assemble_artifacts.py's PACKAGES"
+    ]
+
+
+PYDANTIC_METADATA = """Metadata-Version: 2.4
+Name: pydantic
+Version: 2.14.3
+Requires-Dist: annotated-types>=0.6.0
+Requires-Dist: pydantic-core==2.50.4
+Requires-Dist: typing-extensions>=4.16.0
+Requires-Dist: email-validator>=2.0.0; extra == 'email'
+"""
+
+
+def test_the_pydantic_wheel_requires_exactly_the_pinned_core() -> None:
+    assert scan.pydantic_pair_errors(PYDANTIC_METADATA, "2.50.4") == []
+    assert scan.pydantic_pair_errors(PYDANTIC_METADATA, "2.50.5") == [
+        "pydantic's METADATA requires pydantic-core==2.50.4, not the pinned 2.50.5"
+    ]
+    loose = PYDANTIC_METADATA.replace("pydantic-core==2.50.4", "pydantic-core>=2.50.4")
+    assert scan.pydantic_pair_errors(loose, "2.50.4") == [
+        "pydantic's METADATA requires pydantic-core>=2.50.4, not the pinned 2.50.4"
+    ]
+    none = PYDANTIC_METADATA.replace("Requires-Dist: pydantic-core==2.50.4\n", "")
+    assert scan.pydantic_pair_errors(none, "2.50.4") == [
+        "pydantic's METADATA requires no pydantic-core"
+    ]
+    underscored = PYDANTIC_METADATA.replace("pydantic-core==", "pydantic_core ==")
+    assert scan.pydantic_pair_errors(underscored, "2.50.4") == []
+
+
+MODULES_TXT = (
+    "orjson.orjson PyInit_orjson\n"
+    "pydantic_core._pydantic_core PyInit__pydantic_core\n"
+    "_rust_probe PyInit__rust_probe\n"
+)
+
+
+def test_modules_txt_lists_each_rust_packages_module() -> None:
+    assert scan.rust_module_errors(MODULES_TXT) == []
+    without = MODULES_TXT.replace("pydantic_core._pydantic_core PyInit__pydantic_core\n", "")
+    assert scan.rust_module_errors(without) == [
+        "recipes/rust/modules.txt: no line pydantic_core._pydantic_core PyInit__pydantic_core"
+    ]
+    wrong = MODULES_TXT.replace("PyInit__pydantic_core", "PyInit_pydantic_core")
+    assert scan.rust_module_errors(wrong) == [
+        "recipes/rust/modules.txt: no line pydantic_core._pydantic_core PyInit__pydantic_core"
+    ]
+
+
+def test_orjson_carries_exactly_its_three_patches() -> None:
+    names = list(scan.ORJSON_PATCHES)
+    assert scan.orjson_patch_errors(names) == []
+    assert scan.orjson_patch_errors(names[:1]) == [
+        f"recipes/patches/orjson-3.13.0: no {n}" for n in names[1:]
+    ]
+    assert scan.orjson_patch_errors([*names, "0004-more.patch"]) == [
+        "recipes/patches/orjson-3.13.0: 0004-more.patch is not one the owner chose"
     ]

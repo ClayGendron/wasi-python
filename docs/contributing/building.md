@@ -69,7 +69,7 @@ The steps live in [`scripts/steps/`](https://github.com/ClayGendron/wasi-python/
 2. Build CPython with its own `Platforms/WASI` driver.
 3. Build zlib and the C libraries behind `bz2`, `lzma` and `sqlite3`.
 4. Build libxml2 and libxslt, the plotting libraries, and OpenBLAS's C LAPACK.
-5. Cross-compile numpy, pandas, regex, lxml, matplotlib, scipy, scikit-learn and statsmodels, and build the Rust modules (orjson, and the build's own probe) into one static library with cargo, offline, from pinned crates (step 52).
+5. Cross-compile numpy, pandas, regex, lxml, matplotlib, scipy, scikit-learn and statsmodels, and build the Rust modules (orjson, pydantic-core, and the build's own probe) into one static library with cargo, offline, from pinned crates (step 52).
 6. Link everything into one interpreter as builtin modules, and relink it as a WASI reactor.
 7. Build the bytecode-only, deterministic stdlib zip.
 8. Snapshot the reactor with the pinned wasmtime's own `wasmtime wizer`. The snapshot pre-imports the stdlib's bootstrap modules and no package.

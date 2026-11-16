@@ -117,7 +117,11 @@ PIN_FILES = {
     "xyzservices-2026.9.1-py3-none-any.whl": b"xyzservices pin",
     "orjson-3.13.0.tar.gz": b"orjson pin",
     "rust-std-1.100.0-aarch64-apple-darwin.tar.xz": b"rust-std pin",
-    "pyo3-0.29.3.crate": b"pyo3 pin",
+    "pyo3-0.30.1.crate": b"pyo3 pin",
+    "pydantic_core-2.50.4.tar.gz": b"pydantic-core pin",
+    "annotated_types-0.8.0-py3-none-any.whl": b"annotated-types pin",
+    "typing_inspection-0.4.5-py3-none-any.whl": b"typing-inspection pin",
+    "pydantic-2.14.3-py3-none-any.whl": b"pydantic pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -219,7 +223,11 @@ PACKAGES = {
     "xyzservices": "2026.9.1",
     "orjson": "3.13.0",
     "rust-std": "1.100.0",
-    "pyo3": "0.29.3",
+    "pyo3": "0.30.1",
+    "pydantic-core": "2.50.4",
+    "annotated-types": "0.8.0",
+    "typing-inspection": "0.4.5",
+    "pydantic": "2.14.3",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
@@ -404,6 +412,37 @@ def test_manifest_versions_must_match_their_pins() -> None:
     assert paths.manifest_pin_errors(m, PIN_LIST) == [
         "package numpy 2.5.3 does not match its pin numpy-2.5.2.tar.gz"
     ]
+
+
+def test_a_crate_pin_never_stands_for_a_python_package() -> None:
+    """A Rust crate may share a Python package's name (pydantic-core links the crate regex, and
+    the set ships the package regex): the package's pin is its own file, never the crate, and a
+    crate alone pins no Python package."""
+    both = dict(PIN_LIST, **{"regex-1.13.1.crate": sha(b"the regex crate")})
+    m = paths.parse_manifest(manifest_text())
+    m.pins = dict(both)
+    assert paths.manifest_pin_errors(m, both) == []
+    crate_only = {k: v for k, v in both.items() if k != "regex-2026.9.29.tar.gz"}
+    m.pins = dict(crate_only)
+    assert paths.manifest_pin_errors(m, crate_only) == ["no pin for package regex"]
+
+
+def test_pyo3s_pin_is_its_crate() -> None:
+    """PyO3's package line is pinned by its crate; a tarball of the same name and version does
+    not stand for it."""
+    other = {k: v for k, v in PIN_LIST.items() if k != "pyo3-0.30.1.crate"}
+    other["pyo3-0.30.1.tar.gz"] = sha(b"not the crate")
+    m = paths.parse_manifest(manifest_text())
+    m.pins = dict(other)
+    assert paths.manifest_pin_errors(m, other) == ["no pin for package pyo3"]
+
+
+def test_a_longer_package_name_is_not_its_pin() -> None:
+    """pydantic's pin is pydantic's file, never pydantic-core's, whose name begins with it."""
+    core_only = {k: v for k, v in PIN_LIST.items() if k != "pydantic-2.14.3-py3-none-any.whl"}
+    m = paths.parse_manifest(manifest_text())
+    m.pins = dict(core_only)
+    assert paths.manifest_pin_errors(m, core_only) == ["no pin for package pydantic"]
 
 
 def test_manifest_requires_toolchain_pins() -> None:

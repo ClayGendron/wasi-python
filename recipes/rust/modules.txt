@@ -1,2 +1,3 @@
 orjson.orjson PyInit_orjson
+pydantic_core._pydantic_core PyInit__pydantic_core
 _rust_probe PyInit__rust_probe

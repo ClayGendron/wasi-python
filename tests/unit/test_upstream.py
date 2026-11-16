@@ -578,6 +578,156 @@ def test_an_emptied_class_passes_and_a_returning_failure_shows_as_plus() -> None
     assert upstream.class_findings(["a"], []) == ["a", "+a"]
 
 
+def test_a_class_failure_names_every_member_it_gained_and_lost() -> None:
+    """The first line shows five findings, the members first, so a job log would show none of
+    the moves; the moved line names each one, and the first line keeps the form gaps match."""
+    listed = [f"t::m{i}" for i in range(6)]
+    actual = listed[1:] + [f"t::n{i}" for i in range(7)]
+    findings = upstream.class_findings(actual, listed)
+    first = scan.report(findings, "class g-c")
+    assert (
+        first
+        == f"class g-c: 20 finding(s), digest {scan.digest(findings)}: "
+        + "; ".join(findings[:5])
+        + "; +15 more"
+    )
+    assert scan.moved(findings) == "moved: " + "; ".join(
+        [f"+t::n{i}" for i in range(7)] + ["-t::m0"]
+    )
+    assert scan.moved(upstream.class_findings(listed, listed)) == ""
+
+
+COLLECTED = ("t::flip", "t::swap")
+
+
+def test_a_class_leaves_the_collectors_tests_out_of_its_findings() -> None:
+    """A named test is no finding whether it is a member or not; every other member stays exact."""
+    listed = ["t::a", "t::b"]
+    exact = upstream.class_findings(listed, listed)
+    for actual in (listed, listed + ["t::flip"], listed + ["t::flip", "t::swap"]):
+        assert upstream.class_findings(actual, listed, COLLECTED) == exact, actual
+    assert upstream.class_findings(["t::a", "t::flip"], listed, COLLECTED) == [
+        "t::a",
+        "-t::b",
+    ]
+    assert upstream.class_findings(listed + ["t::c"], listed, COLLECTED)[-1] == "+t::c"
+    assert upstream.class_findings(["t::flip"], [], COLLECTED) == []
+
+
+def test_a_test_the_collector_moves_may_fail_error_or_pass() -> None:
+    """jinja2-r's shape: two classes of one cause, one per outcome, both naming the test a leaked
+    loop's warning may land on. Failed, errored or passed, each class gives the same findings."""
+    flip = "tests/test_a.py::test_flip"
+    rx = r"unraisable exception warnings"
+    failed = upstream.Klass("loop", "g", "failed", rx, "r", "README.md", collector_moves=(flip,))
+    error = upstream.Klass(
+        "loop-error", "g", "error", rx, "r", "README.md", collector_moves=(flip,)
+    )
+    stable = "tests/test_a.py::test_stable"
+    warned = "AssertionError: unraisable exception warnings"
+    seen = []
+    for state in (
+        [f"R failed {flip} -- {warned}"],
+        [f"R passed {flip} -- ", f"R error {flip} -- {warned}"],
+        [f"R passed {flip} -- "],
+    ):
+        text = _stream(
+            f"S {stable}",
+            f"R failed {stable} -- {warned}",
+            f"R error {stable} -- {warned}",
+            f"S {flip}",
+            *state,
+        )
+        g = _group(text, classes=(failed, error))
+        assert g.findings == [], g.findings
+        seen.append(
+            [
+                upstream.class_findings(g.members[k.id], [stable], k.collector_moves)
+                for k in (failed, error)
+            ]
+        )
+    assert seen[0] == seen[1] == seen[2] == [[stable], [stable]]
+
+
+def test_a_collector_move_is_listed_with_its_outcomes_not_counted() -> None:
+    """A named test's pass is in neither the group's passes nor its passed digest, so a flip
+    moves neither, in one session or split across two; the outcome lists every named test with
+    its outcomes, none when it did not run. A test only another group's class names still counts,
+    and a group whose classes name no move lists nothing."""
+    flip, gone = "tests/test_a.py::test_flip", "tests/test_a.py::test_gone"
+    rx = r"unraisable exception warnings"
+    moves = (flip, gone)
+    loop = upstream.Klass("loop", "g", "failed", rx, "r", "README.md", collector_moves=moves)
+    error = upstream.Klass("loop-error", "g", "error", rx, "r", "README.md", collector_moves=moves)
+    stable = "tests/test_a.py::test_stable"
+    warned = "AssertionError: unraisable exception warnings"
+    clean = upstream.GuestRun(0, None, None, 1, "", "")
+    seen = []
+    for state, outcomes in (
+        ([f"R passed {flip} -- "], ["passed"]),
+        ([f"R failed {flip} -- {warned}"], ["failed"]),
+        ([f"R passed {flip} -- ", f"R error {flip} -- {warned}"], ["error", "passed"]),
+    ):
+        text = _stream(f"S {stable}", f"R passed {stable} -- ", f"S {flip}", *state)
+        g = _group(text, classes=(loop, error))
+        assert g.findings == [], g.findings
+        seen.append((g.passes, g.passed_digest))
+        assert g.moves == {flip: outcomes, gone: []}
+    assert seen[0] == seen[1] == seen[2] == (1, upstream.passed_digest([stable]))
+    a = upstream.parse_stream(_stream(f"S {stable}", f"R passed {stable} -- "))
+    b = upstream.parse_stream(_stream(f"S {flip}", f"R passed {flip} -- "))
+    both = upstream.combine(
+        [
+            (a, upstream.judge_group(a, clean, [loop]), ""),
+            (b, upstream.judge_group(b, clean, [loop]), "fuel fact f: "),
+        ],
+        [],
+    )
+    assert (both.passes, both.passed_digest) == seen[0]
+    assert both.moves == {flip: ["passed"], gone: []}
+    text = _stream(f"S {stable}", f"R passed {stable} -- ", f"S {flip}", f"R passed {flip} -- ")
+    plain = _group(text, classes=())  # flip is named only by another group's class
+    assert (plain.passes, plain.moves) == (2, None)
+    assert plain.passed_digest == upstream.passed_digest([stable, flip])
+
+
+def test_a_class_check_leaves_its_moves_out_and_records_those_in() -> None:
+    """The class check's wiring: a named member is no finding and the fact names it, a stable
+    member's move is a finding whose message carries the moved line, and a group that did not
+    finish is a finding."""
+    flip, stable, new = "t::flip", "t::stable", "t::new"
+    rx = r"unraisable exception warnings"
+    loop = upstream.Klass("loop", "g", "failed", rx, "r", "README.md", collector_moves=(flip,))
+    plain = upstream.Klass("plain", "g", "failed", rx, "r", "README.md")
+
+    def outcome(members, finished=True):
+        return upstream.GroupOutcome([], {"loop": members, "plain": members}, 0, "", {}, finished)
+
+    assert upstream.class_check(loop, outcome([stable, flip]), [stable]) == (
+        [stable],
+        scan.report([stable], "class g-loop"),
+    )
+    assert upstream.moves_in(loop, outcome([stable, flip])) == [flip]
+    assert upstream.moves_in(loop, outcome([stable])) == []
+    assert upstream.moves_in(plain, outcome([stable, flip])) is None
+    findings, message = upstream.class_check(plain, outcome([stable, flip, new]), [stable])
+    assert findings == [flip, new, stable, f"+{flip}", f"+{new}"]
+    assert message.endswith(f"\n{scan.moved(findings)}") and f"+{new}" in message.splitlines()[-1]
+    findings, _ = upstream.class_check(loop, outcome([stable], finished=False), [stable])
+    assert findings == [stable, "group g did not finish"]
+
+
+def test_only_three_classes_name_collector_moves() -> None:
+    """The key loosens a class, so each class that carries it is a judge change a reviewer reads:
+    adding a fourth means changing this row."""
+    named = {f"{k.group}-{k.id}" for c in CONFIGS.values() for k in c.expected if k.collector_moves}
+    assert named == {
+        "jinja2-r-no-asyncio-loop",
+        "jinja2-r-no-asyncio-loop-error",
+        "fonttools-r-rest-counted-clock",
+    }
+
+
 def test_a_list_file_reads_sorted_lines(work) -> None:
     f = work / "x.txt"
     f.write_text("a\nb\n")
@@ -687,6 +837,44 @@ def test_a_node_limited_class_in_cpythons_family_is_refused(work) -> None:
     gaps = {upstream.class_node("g", "timed")}
     errors = upstream.rule_errors({"python": cfg}, gaps, expected_dir=work / "expected")
     assert any("names nodes, which only a pytest family's judge reads" in e for e in errors), errors
+
+
+def _moving(id="c", **kw) -> upstream.Klass:
+    base = {"outcome": "failed", "collector_moves": ("t::flip",)}
+    base.update(kw)
+    outcome = base.pop("outcome")
+    return upstream.Klass(id, "g", outcome, "x", "r", "README.md", **base)
+
+
+@pytest.mark.parametrize(
+    ("classes", "listed", "error"),
+    [
+        ([_moving(collector_moves=())], ["t::a"], "names no collector move"),
+        ([_moving(collector_moves=("t::z", "t::flip"))], ["t::a"],
+         "collector_moves are not sorted and unique"),
+        ([_moving()], ["t::a", "t::flip"], "t::flip is in its list and in its collector_moves"),
+        ([_moving(outcome="", nodes=("t::flip",), outcomes=("failed",))], [],
+         "names collector_moves and nodes"),
+        ([_moving(), _limited(nodes=("t::flip",))], ["t::a"],
+         "t::flip is named by a node-limited class and by collector_moves"),
+        ([_moving()], ["t::a"], "names collector_moves, which only a pytest family's judge reads"),
+    ],
+)  # fmt: skip
+def test_a_classs_collector_moves_are_held_by_the_rules(work, classes, listed, error) -> None:
+    runner = "regrtest" if "pytest family" in error else "pytest"
+    package = "python" if runner == "regrtest" else "numpy"
+    cfg = _cfg(package=package, expected=classes, runner=runner)
+    (work / "expected" / "g").mkdir(parents=True, exist_ok=True)
+    gaps = set()
+    for k in classes:
+        gaps.add(upstream.class_node("g", k.id))
+        if k.nodes is None:
+            (work / "expected" / "g" / f"{k.id}.txt").write_text("".join(n + "\n" for n in listed))
+    errors = upstream.rule_errors({package: cfg}, gaps, expected_dir=work / "expected")
+    assert any(error in e for e in errors), errors
+    if error.startswith("names no collector"):  # the well-formed class beside it passes
+        fine = _cfg(expected=[_moving()])
+        assert upstream.rule_errors({"numpy": fine}, gaps, expected_dir=work / "expected") == []
 
 
 def test_paths_that_are_not_tarball_members_fail_the_rules(work) -> None:

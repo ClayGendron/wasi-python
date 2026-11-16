@@ -224,6 +224,34 @@ def test_turns_drives_one_instance_across_calls(work) -> None:
         t.close()
 
 
+def _probe_turns(work: Path, name: str, source: str, **kw) -> int:
+    """`run()`'s value from a fresh `Turns` instance of a probe module."""
+    stdlib = work / "stdlib.zip"
+    stdlib.write_bytes(b"")
+    t = guest.turns(
+        wat.build(work, name, source), workdir=work, python_version="3.15.0", stdlib=stdlib, **kw
+    )
+    try:
+        return t.run().value
+    finally:
+        t.close()
+
+
+def test_an_answered_instance_can_leave_entropy_to_the_host(work) -> None:
+    """With `host_entropy`, the driver still answers the clocks, but `random_get` is the host's
+    own: two instances draw different bytes, where two answered alike draw the same."""
+    answered = [_probe_turns(work, "r.wasm", wat.RANDOM_PROBE, answered=True) for _ in range(2)]
+    assert answered[0] == answered[1]
+    host = [
+        _probe_turns(work, "r.wasm", wat.RANDOM_PROBE, answered=True, host_entropy=True)
+        for _ in range(3)
+    ]
+    assert len(set(host)) > 1, host
+    assert _probe_turns(work, "c.wasm", wat.CLOCK_PROBE, answered=True, host_entropy=True) == 1
+    with pytest.raises(ValueError, match="needs answered"):
+        _probe_turns(work, "r.wasm", wat.RANDOM_PROBE, host_entropy=True)
+
+
 # A measured run's inputs name no host path, so its fuel does not depend on where the
 # checkout is. The driver refuses one before it runs.
 

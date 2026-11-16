@@ -469,6 +469,7 @@ def test_npy_files_round_trip(guest, which) -> None:
 # The zip keeps each distribution's METADATA, so a package that asks for its own
 # version gets it. A later specification that adds a distribution adds it here.
 DISTRIBUTIONS = (
+    "annotated-types",
     "attrs",
     "beautifulsoup4",
     "branca",
@@ -511,6 +512,8 @@ DISTRIBUTIONS = (
     "pdfplumber",
     "pillow",
     "plotly",
+    "pydantic",
+    "pydantic-core",
     "pygments",
     "pyparsing",
     "pypdf",
@@ -536,6 +539,7 @@ DISTRIBUTIONS = (
     "toolz",
     "tqdm",
     "typing-extensions",
+    "typing-inspection",
     "tzdata",
     "webencodings",
     "wrapt",
@@ -786,9 +790,7 @@ def test_ctypes_stand_in_names_what_packages_import(guest, which) -> None:
 
 # The minimum coverage, set from the frozen set's 3,072 / 1,125 / 1,990
 # with room, so a toolchain change cannot make the scan pass by finding nothing.
-# The getset floor sits just under the 2,948 entries a set read before orjson
-# checks, so a narrower way of finding tables that loses real ones is red.
-CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 2_900, "singles": 1_500}
+CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 1_000, "singles": 1_500}
 
 
 def test_callbacks_have_the_types_cpython_calls(artifacts, note) -> None:

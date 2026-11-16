@@ -1,0 +1,17 @@
+versions 2.14.3 2.50.4
+python dump -> 286 603829ddf3c30540bc8c7bcb47359f8c512921534630df5a3afc7239269d0794 {"id": "12345678-1234-5678-1234-567812345678", "name": "api", "pet": {"kind": "cat", "lives": 3}, "price": "1234.50", "started": "2026-11-15T12:34:56.789000+01:00", "tags": ["a", "b", "c"], "timeout": "PT1M30S", "upstream": [{"host": "one", "port": 443}, {"host": "two", "port": 8080}]}
+json dump -> 259 797099627137faaffc4dd1ced695957ca13375cb158054223fad93e8fef4f6ed {"id":"12345678-1234-5678-1234-567812345678","name":"api","started":"2026-11-15T12:34:56.789000+01:00","timeout":"PT1M30S","price":"1234.50","tags":["a","b","c"],"upstream":[{"host":"one","port":443},{"host":"two","port":8080}],"pet":{"kind":"cat","lives":3}}
+json dump indented -> 356 118eb4d2588b81bfc3af12c174f0b1654109ce60f7b597e40b5b64ff42f309d2 ...
+from json -> True
+the union's other arm -> 26 e958930e925da11c623cb21b1fc3350d255334b9ee28c9590546eb4b55c3c346 {"kind":"dog","good":true}
+errors (ValidationError) -> 1761 c1d17de9caae8f11aef47282420b568d00fa6777d8d26f9b075241dc06f4ae91 ...
+a model validator (ValidationError) -> 413 e9a605c1e9b0a00d4de5dc78a99466394b113f52bb509b50083c91331d5b0b61 ...
+strict int (ValidationError) -> 134 49cb4b756753496c368e2d19d40396c1377b4014fbaa3f28d9aa9156534ebe05 [{"type":"int_type","loc":[],"msg":"Input should be a valid integer","input":"1","url":"https://errors.pydantic.dev/2.14/v/int_type"}]
+floats -> 77 6ed768fae1c82f4b5d3c87b37f64aead507c8dab3520827befe257ad013d44d2 {"values":[0.1,1e+16,1e-7,5e-324,-0.0,1.152921504606847e+18,1.5,123456789.0]}
+floats back -> Floats(values=[0.1, 1e+16, 1e-07, 5e-324, -0.0, 1.152921504606847e+18, 1.5, 123456789.0])
+dataclasses -> 57 ba77ec70de4a97c713da1e92789ddb7212f12cdf539e7d71b66f3eaf29fdaa2c [{"x":1,"y":2.5,"label":"p"},{"x":3,"y":4.0,"label":"q"}]
+dates -> 35 432bfe6521b41b75f827f47c50c146818afa1d6b635ad50ba4074774f2118a2d {"b":"2026-02-28","a":"1970-01-01"}
+schema -> 1600 428ec1644c086028c11eeda15685859ef7ae58ada485a77d444aaa3e5f1851da ...
+adapter schema -> 293 f19e375d1c2174c892b851262cbabcd89b0e0cb7662c79b72f12b3cc9cf00901 {"$defs": {"Point": {"properties": {"label": {"default": "p", "title": "Label", "type": "string"}, "x": {"title": "X", "type": "integer"}, "y": {"title": "Y", "type": "number"}}, "required": ["x", "y"], "title": "Point", "type": "object"}}, "items": {"$ref": "#/$defs/Point"}, "type": "array"}
+core json -> 23 d10f86951f0443079a60cb4cfeaf7a5e0c66058a1ab3bd06b941f60717db8d2e {"a":[1,2.5,null,"é"]}
+core from json -> {'a': [1, 2500.0, None]}
