@@ -2,6 +2,181 @@
 
 `release/version.py date` moves each file of the ledger (`release-claims/NNN-<slug>.toml`, one per pull request) here, under the version it dates and under the file's name, in file-name order, before the release pull request, and removes the file; the ledger's folder keeps its README alone. The release pull request's gather and acceptance read the version's blocks, with any file written since, as their claims (`progress/README.md`, "The release tier" and "Acceptance from CI's record"). Until 0.1.0 the release acceptance moved them. Until 0.1.2 the ledger was `release-tier-claims.toml` and this file `release-tier-claims-history.md`, and they carried release-tier claims alone; the 0.1.2 block below names the ledger by its old name, as it was written. Until specification 177 the ledger was the single file `release-claims.toml`, whose blocks `date` moved as one fence; 0.1.2's section and those before it keep that shape.
 
+## 0.1.5
+
+Moved by `release/version.py date` on 2026-11-16, before the release pull request.
+
+`182-a-class-for-tests-the-collector-flips.toml`:
+
+```toml
+[[claim]]
+spec = "182"
+changed = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop-error]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[fonttools-r-rest-counted-clock]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[jinja2-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[fonttools-r-rest]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[jinja2-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[fonttools-r-rest]",
+]
+fewer = "the named collector moves leave their group's passes count and passed digest, the owner's answer of 2026-11-16 ('Stop counting them'): fonttools-r-rest falls from its accepted 2,635 by TimerTest::test_split, and jinja2-r from its accepted 552 by those of its two asyncio classes' named tests that passed in the accepted run; each named test is listed with its outcomes in the record's collector_moves_outcomes instead, so a flip moves no count after this one fall"
+[claim.judge]
+"tests/upstream/jinja2.toml" = "jinja2-r's no-asyncio-loop-error names nine collector moves and no-asyncio-loop six: a leaked event loop's warning lands on whichever test runs when the collector fires; the class checks leave them out and hold every other member exactly (the owner's choice of 2026-11-01, 'Restore + follow-up spec')"
+"tests/upstream/fonttools.toml" = "fonttools-r-rest's counted-clock names TimerTest::test_split, which passes when a collector pass reads the counted clock in its second lap; the class check leaves it out, and the group's passes count and passed digest leave it out"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop-error.txt" = "the four collector moves it held leave it; nine stable members stay"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "the two collector moves it held leave it; 102 stable members stay"
+"tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop-error 9, 1891e18dfe2d and jinja2-r-no-asyncio-loop 102, ea1eb2ac4985, the stable members in every state seen; fonttools-r-rest-counted-clock stays 2, 0c61ab6175e3"
+```
+
+`188-soupsieve-4-1-1.toml`:
+
+```toml
+[[claim]]
+spec = "188"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[soupsieve-r-no-threads]",
+]
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
+]
+grows = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[soupsieve-r]",
+]
+growth = "soupsieve 4.1.1 replaces 3.0.4: its suite adds about 266 native passes and three files (test_threads.py, test_extra/test_iframe.py, test_extra/test_template.py), and 4.x caches matches per element; the release tier's figures come from the dispatch of the specification's Decision 4, on the owner's yes, or from 0.1.5's release pull request, and go in its landing notes"
+
+[[claim]]
+spec = "188"
+grows = [
+  "tests/checks/test_v1_1_artifact_set.py::test_a_missing_stdlib_module_says_why",
+  "tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[eq-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[eval-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[exec-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[format-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[getattr-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[hash-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[heapq-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[iter-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[len-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lru-cache-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-apply-along-axis-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[pickle-reduce-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[re-sub-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[reduce-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-list-of-self-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[setrecursionlimit-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[sorted-key-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[str-snapshot]",
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[xslt-extension-snapshot]",
+  "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[snapshot]",
+  "tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot]",
+  "tests/checks/test_v1_3_data_stack.py::test_numpy_is_built_on_the_sets_openblas[snapshot]",
+  "tests/checks/test_v1_3_data_stack.py::test_numpys_own_floating_point_signals_reach_errstate[snapshot]",
+  "tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes",
+  "tests/checks/test_v1_3_data_stack.py::test_the_snapshot_starts_cheaper_than_plain",
+  "tests/checks/test_v1_3_default_profile.py::test_plotly_reads_its_data_from_the_zip[snapshot]",
+  "tests/checks/test_v1_3_default_profile.py::test_statsmodels_reads_its_datasets_from_the_zip[snapshot]",
+  "tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented",
+  "tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[plain]",
+  "tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[snapshot]",
+  "tests/checks/test_v1_3_lxml.py::test_read_html_uses_lxml_by_default[snapshot]",
+  "tests/checks/test_v1_3_matplotlib.py::test_plot_contour_job_matches_native[snapshot]",
+  "tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot]",
+  "tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]",
+  "tests/checks/test_v1_3_scipy.py::test_a_flat_convex_hull_raises_qhullerror[snapshot]",
+  "tests/checks/test_v1_3_scipy.py::test_matrix_market_round_trips_in_memory[snapshot]",
+  "tests/checks/test_v1_3_scipy.py::test_ndarray_ctypes_gives_the_arrays_address[snapshot]",
+  "tests/checks/test_v1_3_scipy.py::test_scipy_odr_is_left_out_by_name[snapshot]",
+  "tests/checks/test_v1_3_scipy.py::test_scipy_solvers_job_matches_native[snapshot]",
+  "tests/checks/test_v1_3_scipy.py::test_the_sobol_options_need_nothing_writable[snapshot]",
+  "tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[padded]",
+  "tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[snapshot]",
+  "tests/checks/test_v1_4_checkpoint.py::test_a_fork_imports_from_its_own_path_only",
+  "tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[snapshot]",
+  "tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_the_stdlib_reaches[snapshot]",
+  "tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[snapshot]",
+  "tests/checks/test_v1_4_prepare.py::test_a_hung_writer_is_flushed",
+  "tests/checks/test_v1_4_prepare.py::test_a_prepared_call_finalizes_a_zipfile_left_open",
+  "tests/checks/test_v1_4_prepare.py::test_a_prepared_call_keeps_an_unclosed_files_bytes",
+  "tests/checks/test_v1_4_prepare.py::test_a_prepared_image_runs_a_program",
+  "tests/checks/test_v1_4_prepare.py::test_a_program_shares_the_codes_namespace",
+  "tests/checks/test_v1_4_prepare.py::test_the_makings_import_path_is_gone",
+  "tests/checks/test_v1_4_prepare.py::test_the_preopens_are_the_calls",
+  "tests/checks/test_v1_4_results.py::test_a_display_falls_between_two_prints",
+  "tests/checks/test_v1_4_results.py::test_both_binaries_return_the_same_records[True]",
+  "tests/checks/test_v1_4_starting_image.py::test_a_call_from_a_snapshot_keeps_an_unclosed_files_bytes",
+  "tests/checks/test_v1_4_starting_image.py::test_a_program_shares_the_codes_namespace",
+  "tests/checks/test_v1_4_starting_image.py::test_a_restored_hello_costs_its_own_work",
+  "tests/checks/test_v1_4_starting_image.py::test_a_snapshot_saved_and_loaded_runs",
+  "tests/checks/test_v1_4_starting_image.py::test_concurrent_calls_share_one_image",
+  "tests/checks/test_v1_4_starting_image.py::test_grants_in_another_order_work",
+  "tests/checks/test_v1_4_starting_image.py::test_home_is_the_images_and_each_calls_own",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_bare_calls_teardown_costs_less[snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_failed_new_in_teardown_ends_as_native[snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[SystemExit('bye')-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[__del__ hung on a pre-imported module-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[__del__ in __main__, in order-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[__del__ of a cycle that imports-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[__del__ of cyclic garbage-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[a pre-imported class patched-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[a stdout whose flush fails-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[a sys.monitoring tool-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[a weakref callback on a pre-imported class-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[a weakref callback-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[an atexit handler raises-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[an audit hook holds a file-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[an audit hook sees teardown-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[an uncaught exception-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[an uncommitted sqlite3 insert-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[atexit, then __del__-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[scandir left open, warnings on-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[tracemalloc stopped by an atexit handler-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[tracemalloc tracing at the end-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[unclosed file and a def-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_a_probe_ends_as_native[weakref.finalize-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_teardown_ends_as_native_near_the_cap[a sqlite rollback-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_teardown_ends_as_native_near_the_cap[numpy's data, in the raw domain-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_teardown_grows_the_memory_little[200,000 cycles-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_teardown_grows_the_memory_little[a bare call-snapshot]",
+  "tests/checks/test_v1_4_the_end_of_a_call.py::test_teardown_grows_the_memory_little[import numpy-snapshot]",
+]
+growth = "soupsieve 4.1.1's package is larger than 3.0.4's (155,400 to 197,263 bytes of source, a new bidi.py), so the stdlib zip, whose directory every start reads, and the snapshot, which imports soupsieve, grow, and every check that starts the runtime pays a little more: the first acceptance after 188's merge (history line 141, at e323d516, after 189 and 195 also merged; neither changes the set) recorded these 94 checks unclaimed, each 0.010% to 0.20% higher in fuel, written here by 0.1.5's preparation"
+```
+
+`191-pytz-rich-faker-and-folium.toml`:
+
+```toml
+[[claim]]
+spec = "191"
+passes = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[matplotlib-*",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[tqdm-*",
+]
+grows = ["tests/checks/test_v1_3_upstream_suites.py::*"]
+growth = "the zip gains pytz, rich, markdown-it-py, mdurl, Pygments, Faker, folium, branca and xyzservices (1,967 members, about 6.86 MB, measured in scratch with step 70's packing), so every release group's start reads a longer directory; pandas imports pytz whenever it is there, and its conftest parametrizes over pytz's zones, so the pandas release groups run more cases; rich's presence adds tqdm.rich's cases. Not measured on a built set: the first built set records every figure"
+```
+
+`194-the-pydantic-suites-in-the-guest.toml`:
+
+```toml
+[[claim]]
+spec = "194"
+new = [
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pydantic-core-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pydantic-r]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-processes]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-core-r-pydecimal-exponents]",
+  "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pydantic-r-no-asyncio-loop]",
+]
+```
+
 ## 0.1.4
 
 Moved by `release/version.py date` on 2026-11-05, before the release pull request.

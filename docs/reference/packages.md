@@ -28,6 +28,9 @@ CPython 3.15.2, built for `wasm32-wasip1`. `python.wasm -V` prints the version, 
 | lxml | 6.1.3 | `lxml.etree` and `lxml.objectify` over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath, XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser and `iterparse`. |
 | regex | 2026.9.29 | Fuzzy matching, full Unicode properties, graphemes, variable-length lookbehind, `captures()`, with native regex's answers. |
 | cairocffi | 1.7.1 | Built in, over cairo 1.18.6 with pixman 0.46.4 and libpng 1.6.59, and cffi 2.1.1's C backend: image, PDF and SVG surfaces, PNG in and out, text in matplotlib's DejaVu fonts. No PostScript. |
+| orjson | 3.13.0 | Built in, compiled from Rust: dumps and loads with every option, dataclasses, datetimes, UUIDs, enums and numpy arrays, with native orjson's bytes. A panic inside orjson ends the run, as natively. |
+| HTML and XML | beautifulsoup4 4.15.0, soupsieve 4.1.1 | parse messy HTML, CSS selectors |
+| pydantic-core | 2.50.4 | Built in, compiled from Rust: the core of pydantic 2.14.3, which the zip carries with annotated-types and typing-inspection; validation, serialization, JSON and JSON Schema, with native pydantic's results. A recursive model nests at most 49 levels. |
 
 A *golden job* is a fixed program whose output the project compares with native Python's at the same pins. numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, Pillow, lxml, regex, orjson and pydantic each have golden jobs, and each gives native's answers.
 
