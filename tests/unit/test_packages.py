@@ -461,7 +461,19 @@ def test_a_group_whose_ids_carry_values_drawn_each_run_digests_the_same_tests_th
     assert plain[0] != plain[1]  # a group without the key digests its ids as they are
 
 
-def test_drawn_ids_need_their_group_and_a_reason() -> None:
+def test_a_drawn_form_keeps_parameters_apart_that_only_reorder() -> None:
+    assert upstream.drawn_form("a.py::t[False-True]") != upstream.drawn_form("a.py::t[True-False]")
+    assert upstream.drawn_form("a.py::t[0-tz1]") != upstream.drawn_form("a.py::t[1-tz0]")
+    assert upstream.drawn_form("a.py::t[{1, 2}-x]") != upstream.drawn_form("a.py::t[x-{1, 2}]")
+    assert upstream.drawn_form("a.py::t[]") != upstream.drawn_form("a.py::t[x]")
+    same = upstream.drawn_form("a.py::t[frozenset({'b', 'a'})-{3, 1}]")
+    assert same == upstream.drawn_form("a.py::t[frozenset({'a', 'b'})-{1, 3}]")
+    assert upstream.drawn_form("a.py::t[{'a': 1, 'b': 2}]") != upstream.drawn_form(
+        "a.py::t[{'b': 2, 'a': 1}]"
+    )  # a dict's order is its insertion's, never drawn
+
+
+def test_drawn_ids_need_a_reason() -> None:
     errors = packages.rule_errors(
         "demo", _cfg(BASE.replace("measured = 7\n", 'measured = 7\ndrawn_ids = " "\n', 1)), None
     )

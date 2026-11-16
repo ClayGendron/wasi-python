@@ -520,7 +520,12 @@ def gather(i: Inputs) -> Verdict:
         passes = {c.get("metrics", {}).get("passes") for _, c in runs}
         digests = {c.get("facts", {}).get("passed_digest") for _, c in runs}
         if len(passes) > 1 or len(digests) > 1:
-            red.append(f"G5 {m[1]}: passes or passed_digest differ between systems")
+            seen = ", ".join(
+                f"{k[0]} {c.get('metrics', {}).get('passes')} "
+                f"{c.get('facts', {}).get('passed_digest')}"
+                for k, c in sorted(runs, key=lambda r: r[0])
+            )
+            red.append(f"G5 {m[1]}: passes or passed_digest differ between systems ({seen})")
         acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {}).get("darwin-arm64", {})
         if runs and "passes" in acc and passes != {acc["passes"]}:
             row = f"G5 {m[1]}: passes {sorted(passes, key=str)} is not accepted {acc['passes']}"
