@@ -86,7 +86,8 @@ def test_upstream_suite(
     fails to collect or load, or ends abnormally; no product module comes from the grant. numpy's
     and pandas' hypothesis profile is derandomized; CPython's modules are exactly the plan's, and
     each environment change is one an entry names. A fuel fact's cases ran exactly once, in their
-    own session, within its cap."""
+    own session, within its cap. A class's collector moves are listed in the record with their
+    outcomes, never counted in the group's passes or its passed digest."""
     _need(package)
     run = _session(package, upstream_session, regrtest_session, package_session).group(
         package, group
@@ -94,6 +95,8 @@ def test_upstream_suite(
     fact("counts", run.outcome.counts)
     fact("passed_digest", run.outcome.passed_digest)
     fact("left_out", run.left_out)
+    if run.outcome.moves is not None:  # each named collector move's outcomes: never counted
+        fact("collector_moves_outcomes", run.outcome.moves)
     if CONFIGS[package].runner == "regrtest":
         fact("states", run.outcome.states)
         fact("env_altered", run.outcome.env_altered)
@@ -118,19 +121,21 @@ def test_upstream_suite(
     ("package", "klass"), CLASSES, ids=[f"{k.group}-{k.id}" for _, k in CLASSES]
 )
 def test_upstream_class(
-    upstream_session, regrtest_session, package_session, package, klass
+    upstream_session, regrtest_session, package_session, fact, package, klass
 ) -> None:
     """The class's members are exactly its list, by node id: one finding each while the class has
     members, and `+id`/`-id` for each test admitted or released without an edit to the list. A
     node-limited class's list is its nodes, so a named test that no longer fails for its cause
-    shows as `-id`."""
+    shows as `-id`. The tests a class names as the collector's moves are left out, and the record
+    says which of them were members. The message's second line names every `+id` and `-id`."""
     _need(package)
     session = _session(package, upstream_session, regrtest_session, package_session)
     run = session.group(package, klass.group)
-    findings = upstream.class_findings(run.outcome.members[klass.id], upstream.class_list(klass))
-    if not run.outcome.finished:
-        findings.append(f"group {klass.group} did not finish")
-    assert not findings, scan.report(findings, f"class {klass.group}-{klass.id}")
+    moved_in = upstream.moves_in(klass, run.outcome)
+    if moved_in is not None:  # reported, never ratcheted
+        fact("collector_moves_in", moved_in)
+    findings, message = upstream.class_check(klass, run.outcome, upstream.class_list(klass))
+    assert not findings, message
 
 
 if TRAPS:  # an empty parametrization would be a skip that names no need, so a failure
