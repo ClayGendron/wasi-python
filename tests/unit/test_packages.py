@@ -436,6 +436,38 @@ def test_a_clock_stepped_group_with_two_outcomes_is_red() -> None:
     assert packages.clock_findings(cfg, "demo-a", two) == []  # no key, no rule
 
 
+def _drawn_stream(drawn: str, at: str, members: str) -> str:
+    return STREAM.format(code=0).replace(
+        "R passed tests/test_big.py::test_a --\n",
+        f"R passed tests/test_big.py::test_u[s11-{drawn}-False] --\n"
+        f"R passed tests/test_big.py::test_f[<function f at {at}>] --\n"
+        f"R passed tests/test_big.py::test_l[{members}-IsList(1, 2, 3)] --\n",
+    )
+
+
+def test_a_group_whose_ids_carry_values_drawn_each_run_digests_the_same_tests_the_same() -> None:
+    reason = 'drawn_ids = "a uuid drawn at import, a repr with its address, a set in its order"'
+    cfg = _cfg(BASE.replace("measured = 7\n", f"measured = 7\n{reason}\n", 1))
+    one = _drawn_stream("5014f79b-c917-4efc-96c4-e03022ddca5e", "0x7f7ea4f124b0", "{1, '3', 2}")
+    two = _drawn_stream("67628f28-1980-490a-85d7-c993cae4d083", "0x1c33eb8", "{1, 2, '3'}")
+    other = two.replace("::test_l[", "::test_m[")
+    d = {
+        n: packages.judge(cfg, "demo-1", s, _run(), {})[0]
+        for n, s in [(1, one), (2, two), (3, other)]
+    }
+    assert d[1].findings == [] and d[1].passes == 3
+    assert d[1].passed_digest == d[2].passed_digest != d[3].passed_digest
+    plain = [packages.judge(cfg, "demo-2", s, _run(), {})[0].passed_digest for s in (one, two)]
+    assert plain[0] != plain[1]  # a group without the key digests its ids as they are
+
+
+def test_drawn_ids_need_their_group_and_a_reason() -> None:
+    errors = packages.rule_errors(
+        "demo", _cfg(BASE.replace("measured = 7\n", 'measured = 7\ndrawn_ids = " "\n', 1)), None
+    )
+    assert "demo: group demo-1: drawn_ids without its reason" in errors
+
+
 def test_a_staged_init_imported_during_a_run_is_a_finding() -> None:
     cfg = _cfg(INITS)
     root = "/upstream-scipy/tree/"
