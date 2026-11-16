@@ -212,8 +212,11 @@ KEPT = Loose.model_validate_json('{"name": "a", "b": 1, "c": [2], "d": {"e": 3}}
 
 def _pydantic_image(guest_turns) -> bytes:
     """The starting image a prelude makes that validates JSON into a model that keeps extra keys,
-    whose map of them pydantic-core keys with ahash."""
-    t = guest_turns("snapshot")
+    whose map of them pydantic-core keys with ahash. The driver answers the clocks and each file's
+    inode number and times, as for any image that must repeat (each instance has its own copy of
+    the zip, whose metadata the import caches hold), and leaves entropy to the host, so a draw
+    that bypasses the wrap reads the host's own."""
+    t = guest_turns("snapshot", answered=True, host_entropy=True)
     made = t.prepare(PYDANTIC_PREPARE)
     assert (made.value, made.trapped) == (0, None), made.describe()
     return t.image()
@@ -226,4 +229,10 @@ def test_pydantic_core_reads_entropy_through_the_wrap(guest_turns) -> None:
     Without the shim's getrandom definition, the keys are the host's and the images differ."""
     first, second = _pydantic_image(guest_turns), _pydantic_image(guest_turns)
     assert len(first) == len(second), (len(first), len(second))
-    assert first == second, "the two prepared images differ"
+    if first != second:
+        pages = [
+            i // 65536
+            for i in range(0, len(first), 65536)
+            if first[i : i + 65536] != second[i : i + 65536]
+        ]
+        pytest.fail(f"the two prepared images differ: {len(pages)} pages, first {pages[:8]}")

@@ -559,10 +559,13 @@ def restore(store: wt.Store, memory: Any, image: bytes) -> None:
     memory.write(store, image, 0)
 
 
-def _answers(linker: wt.Linker, counted: bool, clock_step_ns: int) -> _FileCalls:
+def _answers(
+    linker: wt.Linker, counted: bool, clock_step_ns: int, entropy: bool = True
+) -> _FileCalls:
     """The driver's own answers, defined on `linker`: entropy from a counter, both clocks stepped
-    from fixed starts, each clock's resolution, and a file's inode number and times. The file
-    calls returned are bound to the instance once it exists, before it runs."""
+    from fixed starts, each clock's resolution, and a file's inode number and times. Without
+    `entropy`, `random_get` stays wasmtime's, the host's own. The file calls returned are bound to
+    the instance once it exists, before it runs."""
     i32, i64 = wt.ValType.i32(), wt.ValType.i64()
     take_random = _random_stream()
     ticks = itertools.count(1)
@@ -587,7 +590,8 @@ def _answers(linker: wt.Linker, counted: bool, clock_step_ns: int) -> _FileCalls
         caller.get("memory").write(caller, struct.pack("<Q", res), out & 0xFFFFFFFF)
         return 0
 
-    linker.define_func(P1, "random_get", wt.FuncType([i32, i32], [i32]), random_get, True)
+    if entropy:
+        linker.define_func(P1, "random_get", wt.FuncType([i32, i32], [i32]), random_get, True)
     linker.define_func(
         P1, "clock_time_get", wt.FuncType([i32, i64, i32], [i32]), clock_time_get, True
     )
@@ -823,6 +827,8 @@ class Turns:
     The door's host function, if any, is called with this object and the request, so a check can
     call back into the instance from the door. With `answered`, the driver answers entropy, the
     clocks and a file's inode number and times as `run` does, so an instance's memory repeats;
+    with `host_entropy` as well, entropy alone is left to the host, so a draw that bypasses the
+    guest's own pinning reads the host's and shows in the memory;
     `image` is a starting image copied in before the first call; `mpl_data` grants matplotlib's
     data as `run` does; `memory_limit` caps the linear memory's bytes, as `run`'s does."""
 
@@ -838,6 +844,7 @@ class Turns:
         argv: list[str] | None = None,
         env: Mapping[str, str] | None = None,
         answered: bool = False,
+        host_entropy: bool = False,
         image: bytes | None = None,
         mpl_data: bool = False,
         memory_limit: int | None = None,
@@ -893,7 +900,13 @@ class Turns:
             return 0
 
         linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
-        files = _answers(linker, True, CLOCK_STEP_NS) if answered else None
+        if host_entropy and not answered:
+            raise ValueError(
+                "host_entropy leaves entropy out of the driver's answers: it needs answered"
+            )
+        files = (
+            _answers(linker, True, CLOCK_STEP_NS, entropy=not host_entropy) if answered else None
+        )
         self.instance = linker.instantiate(self.store, self.mod)
         self.exports = self.instance.exports(self.store)
         if files is not None:

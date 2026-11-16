@@ -709,9 +709,22 @@ def is_version_of(file: str, pkg: str, version: str) -> bool:
     return rest == "" or rest.startswith(("-", ".tar", ".tgz", ".zip", ".whl", ".crate"))
 
 
+# The package lines pinned by a Rust crate. A crate may share a Python package's name (the Rust
+# library links the crate regex, and the zip holds the package regex), so every other package's
+# pin is its sdist, wheel or archive, never a `.crate`, and these are pinned by their crate alone.
+CRATE_PACKAGES = frozenset({"pyo3"})
+
+
 def _pin_for(pkg: str, pins: dict[str, str]) -> str | None:
+    """The pin a package line names: of its own kind, crate or not, and the package's name then a
+    dash and its version's first digit, so pydantic-core's file is never pydantic's."""
+    crate = norm(pkg) in CRATE_PACKAGES
+    prefix = norm(pkg) + "-"
     for f in sorted(pins):
-        if norm(f).startswith(norm(pkg) + "-"):
+        name = norm(f)
+        if f.endswith(".crate") != crate or not name.startswith(prefix):
+            continue
+        if name[len(prefix) : len(prefix) + 1].isdigit():
             return f
     return None
 
