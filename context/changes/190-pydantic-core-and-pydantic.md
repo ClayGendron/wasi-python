@@ -34,7 +34,8 @@ retired = [
 ]
 changed = []
 passes = []
-grows = []
+grows = ["tests/checks/*"]
+growth = "pydantic-core, compiled from Rust, is linked into both binaries beside orjson, and pydantic, annotated-types and typing-inspection join the zip. Measured on darwin arm64 in run 43789949275 against dev's accepted set, 187's orjson included: python.wasm 103,587,348 to 109,561,931 bytes (+5,974,583, of which 187 claims 422,605); python-snapshot.wasm 109,640,952 to 115,654,807 (+6,013,855); importing the dotted builtins 6,476,259,164 to 6,754,671,752 fuel (+4.30%); the cpython-fs suite 67,553,557,769 to 68,683,859,407 fuel (+1.67%). The larger module costs every check that loads it a little fuel"
 units = 10
 [claim.judge]
 "tests/harness/scan.py" = "the Rust lock holds each crate at exactly the highest version the packages' own locks name on its semver line, as 187's rule held orjson's, with two named crates the umbrella already held above them (portable-atomic 1.15.0, syn 2.0.119), and one PyO3, 0.30.1; the pydantic wheel requires the pinned core; modules.txt lists each Rust module; orjson carries its three patches"
