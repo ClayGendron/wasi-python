@@ -4,7 +4,7 @@
 
 ### For contributors
 
-- **pydantic's own tests run in the sandbox.** pydantic-core's, pydantic's, annotated-types' and typing-inspection's suites run in the guest from their sdists, a smoke group of each in every pull request's run, pydantic-core's and pydantic's on Windows too, and the rest in the release tier, so Rust panics are judged unwinding. [Adding a package](https://claygendron.github.io/wasi-python/contributing/adding-a-package/)
+- **pydantic's own tests run in the sandbox.** The suites of pydantic-core, pydantic, annotated-types and typing-inspection run in the guest from their sdists: a smoke group of each in every merge's run, pydantic-core's and pydantic's on Windows in the merge-grade run, and the rest in the release tier, so Rust panics are judged as they unwind. [Adding a package](https://claygendron.github.io/wasi-python/contributing/adding-a-package/)
 
 ## Package rows
 

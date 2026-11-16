@@ -39,12 +39,12 @@
 - §7: nothing tripped while 1.4 T and the estimates stay off `dev`.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
-1. —
-2. —
-3. —
-4. —
-5. —
-6. —
+1. Open until the measurement commit. The fix commit corrects the landing notes: a pull request's run never judges the release tier, so a release-shape dispatch on this branch's head, which the owner starts, measures `pydantic-core-r`, `pydantic-r` and their classes before the merge (no local run is possible here: no set with pydantic-core can be built or downloaded in this container). Choice 4 now says neither tier lands on estimates.
+2. Fixed in the round's fix commit: its message carries `citest:full`, so this pull request's run is whole and runs `upstream-windows-pydantic`; the review's sentences are in Decision 7 and the landing notes.
+3. Fixed in the same commit, with the review's text.
+4. Fixed in the same commit, with the review's text.
+5. Fixed in the same commit, in Decision 4, with the review's text and the metaschema named.
+6. Fixed in the same commit: the Status lines and The owner's choices record each pick, whose it is and what it waits on.
 
 ## Verdict
 Does not land yet: Medium 1 stands, since every fuel figure, the four budget caps, `SMOKE_TOTAL_BOUND` and the release groups' classes are estimates that only this verdict keeps off `dev`, and no pull-request run can measure the release groups.
