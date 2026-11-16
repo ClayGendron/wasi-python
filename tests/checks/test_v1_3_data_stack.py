@@ -786,7 +786,9 @@ def test_ctypes_stand_in_names_what_packages_import(guest, which) -> None:
 
 # The minimum coverage, set from the frozen set's 3,072 / 1,125 / 1,990
 # with room, so a toolchain change cannot make the scan pass by finding nothing.
-CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 1_000, "singles": 1_500}
+# The getset floor sits just under the 2,948 entries a set read before orjson
+# checks, so a narrower way of finding tables that loses real ones is red.
+CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 2_900, "singles": 1_500}
 
 
 def test_callbacks_have_the_types_cpython_calls(artifacts, note) -> None:
