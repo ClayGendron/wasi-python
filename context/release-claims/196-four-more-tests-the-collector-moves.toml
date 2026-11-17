@@ -1,0 +1,9 @@
+[[claim]]
+spec = "196"
+changed = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]"]
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[jinja2-r]"]
+fewer = "jinja2-r 548 to 546: TestExtensions::test_debug and TestModuleLoader::test_weak_references are now named collector moves, so their passes leave the count as 182's named tests' did; seen joining no-asyncio-loop in run 43982122112; the owner's choice, 2026-11-16, \"Stop counting them\""
+[claim.judge]
+"tests/upstream/jinja2.toml" = "no-asyncio-loop names four more collector moves, each seen moving in run 43982122112: test_debug and test_weak_references joined, test_groupby_tuple_index[<lambda>1] and test_simple_select_attr[<lambda>1] left; 182's \"What is inferred\" provides for it"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "the two named tests that left in run 43982122112 leave the list, since a named test may not also be listed"
+"tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop 102, ea1eb2ac4985 to 100, 3576e7515999: run 43982122112's members and the accepted list both give it once the four moves are left out"
