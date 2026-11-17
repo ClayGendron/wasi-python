@@ -1,0 +1,15 @@
+[package]
+name = "wp-bench"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+wasmtime = { version = "=50.0.2" }
+wasmtime-wasi = { version = "=50.0.2", default-features = false, features = ["p1"] }
+wasmparser = "0.263"
+wasm-encoder = "0.263"
+libc = "0.2"
+
+[profile.release]
+strip = true

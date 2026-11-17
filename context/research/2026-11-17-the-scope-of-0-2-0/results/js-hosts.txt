@@ -1,0 +1,8 @@
+# harness/js on the same machine, 2026-11-17, python-snapshot.wasm from the 0.1.4 wheel.
+compile.mjs, Node 22.23.4: {"compile_ms":373,"imports":43,"rss_mib":261}  (lazy: functions compile on first call)
+compile.mjs, Node 22.23.4 --experimental-wasm-exnref: {"compile_ms":205}
+compile.mjs, Bun 1.4.4: {"compile_ms":1159,"rss_mib":511}
+run.mjs node:wasi, Node 22.23.4, print('hi from node') x3: {"compile_ms":492,"first_ms":59,"med_ms":77,"rc":"0","rss_peak_mib":233}
+run.mjs node:wasi, Node 22.23.4, import pandas: Segmentation fault (exit 139), also with --experimental-wasm-exnref
+run.mjs, Bun 1.4.4: LinkError: import function wasi_snapshot_preview1:sock_accept must be callable (Bun's node:wasi is partial)
+Node 24 and 26 were not run: fetching their binaries in this session was refused by its permission layer.
