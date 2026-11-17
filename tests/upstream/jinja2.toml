@@ -47,7 +47,8 @@ closes_with = "docs/reference/limitations.md"
 # set's allocations choose which. collector_moves names each test seen joining or leaving the
 # class. Most of the error class's are members of no-asyncio-loop whose teardown the warning
 # sometimes reaches; the others move between the classes or to a pass. The class check leaves
-# them out and holds the rest exactly.
+# them out and holds the rest exactly. TestModuleLoader::test_weak_references calls gc.collect(),
+# so a loop no earlier pass freed is freed, and reported, there.
 [[expected]]
 id = "no-asyncio-loop-error"
 group = "jinja2-r"
@@ -76,11 +77,15 @@ reason = "an operation WASI does not support answers ENOTSUP: asyncio's event lo
 closes_with = "docs/reference/limitations.md"
 collector_moves = [
     "tests/test_async_filters.py::test_custom_async_iteratable_filter[asyncio-<lambda>0]",
+    "tests/test_async_filters.py::test_groupby_tuple_index[<lambda>1]",
+    "tests/test_async_filters.py::test_simple_select_attr[<lambda>1]",
     "tests/test_async_filters.py::test_sum[<lambda>1]",
+    "tests/test_ext.py::TestExtensions::test_debug",
     "tests/test_ext.py::TestExtensions::test_extend_late",
     "tests/test_ext.py::TestExtensions::test_streamfilter_extension",
     "tests/test_lexnparse.py::TestLexer::test_balancing",
     "tests/test_lexnparse.py::TestParser::test_line_syntax",
+    "tests/test_loader.py::TestModuleLoader::test_weak_references",
 ]
 
 [[expected]]

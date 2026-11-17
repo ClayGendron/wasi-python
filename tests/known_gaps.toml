@@ -1145,7 +1145,7 @@ closes_with = "docs/reference/limitations.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]"
-match = "102 finding(s), digest ea1eb2ac4985"
+match = "100 finding(s), digest 3576e7515999"
 reason = "an operation WASI does not support answers ENOTSUP: asyncio's event loop opens a socket pair for its self-pipe, and what a failed loop leaves behind is reported at teardown (README)"
 closes_with = "docs/reference/limitations.md"
 
