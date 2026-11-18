@@ -57,6 +57,39 @@ Until the review is written, both checks are red, so the pull request cannot mer
 
 The review file's own push runs only the `quick` job and the `review` check. Every other job's result is the run of the head it follows, which is re-used, since nothing but documentation changed. A run that is red only in `review` and `ci-status` counts as green for that re-use.
 
+## An independent GitHub approval
+
+The review file records a fresh reviewer's reasoning. An owner can also require GitHub to authenticate the approval of every pull request into `dev`, including documentation changes. This takes a reviewer with write access under an account controlled separately from the author. Two sessions using the owner's login share one identity. Arrange the second reviewer before activation, or ordinary pull requests will wait indefinitely.
+
+With the rule active, the author pushes the final review file. The independent reviewer checks the final diff and submits **Approve** through their own GitHub account. GitHub dismisses stale approvals when the reviewed diff changes and requires approval from someone other than the last pusher. The fresh-agent review and the required checks keep their existing roles.
+
+### Activate and verify the rule
+
+The repository owner runs these commands from the checkout. First read the existing policy and list the active rulesets:
+
+```sh
+rulesets=repos/ClayGendron/wasi-python/rulesets
+gh api "$rulesets/25925120" --jq '{name, enforcement, conditions, bypass_actors, rules}'
+gh api --paginate "$rulesets" --jq '.[] | [.id, .name, .enforcement] | @tsv'
+```
+
+Check that the existing rule for `dev` is active and that its sole bypass is the `DeployKey` actor in `always` mode. GitHub grants that bypass to write-enabled deploy keys as a class. Check **Settings → Deploy keys** and confirm the acceptance workflow holds the only write-enabled key. If the repository uses a different acceptance identity, update the proposed body before applying it.
+
+Review the [request body](dev-independent-review.json). When the list has no rule named **dev requires an independent approval**, the owner creates it once:
+
+```sh
+gh api -X POST "$rulesets" --input docs/contributing/dev-independent-review.json --jq .id
+```
+
+Use the printed ID, or the ID from the list if the rule already exists. Read both rules back:
+
+```sh
+gh api "$rulesets/25925120" --jq '{name, enforcement, conditions, bypass_actors, rules}'
+gh api "$rulesets/NEW_ID" --jq '{name, enforcement, conditions, bypass_actors, rules}'
+```
+
+The first rule should still require the same three checks and retain its acceptance bypass. The second should match the request body for the branch, activation, deploy-key bypass, approval count, stale approvals and last-push approval. On the next ordinary pull request, verify GitHub reports an approval is required, then verify the reviewed pull request merges and its green post-merge run pushes the acceptance commit. Publishing this request body alone leaves activation pending.
+
 ## Some changes are reviewed before they are built
 
 A few kinds of change are reviewed twice: once as a design, before any code is written, and once as code. A wrong design is cheaper to catch before it is built. These are:
