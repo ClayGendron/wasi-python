@@ -43,3 +43,7 @@ The Python runner, its API reference, user documentation and checks. Existing to
 The initial implementation validated an integer-like default but passed the original object to the door. A unit check using only the integer index protocol failed, then passed after the call started normalizing its default as it does an override. A goal check with the released artifacts now covers the default and explicit cap across all four public entry points.
 
 The pre-push unit run found the frozen-record check still expected 24 fields. It now requires all 25 fields, including the raw-request limit, and still rejects the absence of each one. The focused check passed. Rules (153 passed, 2 skipped), writing checks (14 passed), ruff and mypy passed in that pre-push run. The pull request reports the final clean-tree precheck.
+
+## Review round 2
+
+The session check now restores the process defaults after opening the session and before either turn. With a temporary change that read the current default on each turn, the original check passed and the revised check failed. After restoring the session's opening-time limit, the check passed alongside both raw-request unit checks and the function-length rule. The entry check explains why it reads the defaults once. Grouping the positional arguments to the instance's call brings its measured length from 157 to 147 lines.

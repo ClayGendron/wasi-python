@@ -48,7 +48,7 @@ Two exceptions:
 | fuel | The call ends with `trapped == "out of fuel"`. |
 | open files | The next open answers `EMFILE`, and the guest runs on. |
 | provider calls | The call that would pass the limit is not made; the run ends with `trapped == "out of file calls"`. |
-| raw host request | A request over the cap raises `OSError` in the guest. The host callback receives nothing. |
+| raw host request | A request over the cap raises the same `OSError` in the guest as a failure in the host callback. The callback receives nothing for an over-limit request. |
 | tool frames, tool request bytes | The guest gets `ToolBudgetExceeded` and runs on. |
 | session idle time | The session ends `"idle"`. |
 | session lifetime | No turn starts at or after it, and each turn's deadline is capped at what is left; then the session ends `"lifetime"`. |

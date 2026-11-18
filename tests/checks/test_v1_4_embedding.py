@@ -522,12 +522,13 @@ def test_each_entry_limits_raw_host_requests() -> None:
     saved = set_defaults(replace(defaults(), host_request_bytes=Index()))
     try:
         once = run(argv, host=echo)
-        awaited = asyncio.run(run_async(argv, host=echo, max_host_request_bytes=3))
-        with Session(host=echo) as session:
-            turn = session.run(code)
-            next_turn = asyncio.run(session.run_async(code))
+        session = Session(host=echo)
     finally:
         set_defaults(saved)
+    with session:
+        turn = session.run(code)
+        next_turn = asyncio.run(session.run_async(code))
+    awaited = asyncio.run(run_async(argv, host=echo, max_host_request_bytes=3))
     for done in (once, awaited, turn, next_turn):
         assert (done.exit_code, done.stdout, done.trapped) == (0, b"refused\nabc\n", None), done
     assert seen == [b"abc"] * 4

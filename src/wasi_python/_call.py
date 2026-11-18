@@ -534,18 +534,8 @@ def _instance(
             open_files=c.open_files,  # strict, as file_calls
             context=context,
         )
-        call = _Call(
-            store,
-            host,
-            waits,
-            origin_ns,
-            cancel,
-            stop_at,
-            admit,
-            table=table,
-            home=ht,
-            max_host_request_bytes=c.host_request_bytes,
-        )
+        call_args = (store, host, waits, origin_ns, cancel, stop_at, admit)
+        call = _Call(*call_args, table=table, home=ht, max_host_request_bytes=c.host_request_bytes)
         _watch(store)  # every call
         with _epoch_ticker(engine, True):
             image = None if c.start is None else c.start.image

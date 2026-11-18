@@ -283,10 +283,10 @@ def _checked(
     figures: Any = False,
     asynchronous: bool = False,
 ) -> _CheckedCall:
-    """Every argument a call's guest depends on, checked before any work, as one frozen record
-    built from its typed parts. Its entry point read the defaults once
-    (`async_workers` is `_submit`'s, read under the pool's lock); `asynchronous` says an event
-    loop awaits the call; `results` and `figures` set its mode."""
+    """Check the guest's arguments before any work and freeze them in one record. The entry
+    point reads defaults once so a concurrent `set_defaults` cannot mix limits from two sets.
+    `_submit` reads `async_workers` under the pool's lock. `asynchronous` says a loop awaits
+    the call; `results` and `figures` set its mode."""
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
     )
