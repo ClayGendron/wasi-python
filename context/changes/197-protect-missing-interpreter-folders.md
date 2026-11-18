@@ -15,5 +15,5 @@ None.
 ```toml
 [[claim]]
 spec = "197"
-units = 4
+units = 7
 ```

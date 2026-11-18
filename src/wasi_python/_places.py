@@ -273,19 +273,19 @@ def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mo
     return tuple(checked)
 
 
-def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
-    """A runtime folder's identity (None while it does not exist) and the identities of its
-    deepest existing ancestor and that one's ancestors, every link followed; never refuses."""
+def _resolved_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], tuple[str, ...]]:
+    """The resolved folder's identity, its existing chain (deepest first) and the missing
+    suffix from that same walk. A directory can appear between two walks."""
     here = Path(os.path.realpath(path))
-    exists = True
+    missing: list[str] = []
     while True:
         try:
             first = _platform.PLATFORM.identity_of(here)
             break
         except OSError:
-            exists = False
             if here.parent == here:
-                return None, ()
+                return None, (), ()
+            missing.append(here.name)
             here = here.parent
     chain = [first]
     for parent in here.parents:
@@ -293,7 +293,13 @@ def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
             chain.append(_platform.PLATFORM.identity_of(parent))
         except OSError:
             break
-    return (first if exists else None), tuple(chain)
+    return (None if missing else first), tuple(chain), tuple(reversed(missing))
+
+
+def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
+    """A runtime folder's identity and the chain of real folders on its resolved path."""
+    identity, chain, _ = _resolved_chain(path)
+    return identity, chain
 
 
 def _trusted_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], tuple[str, ...]]:
@@ -303,7 +309,7 @@ def _trusted_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], t
     Each prefix keeps its `..`, so its identity is the folder the system reaches by walking
     through a link and climbing from where it leads, never one a spelling collapses to. Third,
     the components not made yet, below the deepest existing ancestor (the chain's first)."""
-    identity, chain = _chain(path)
+    identity, chain, missing = _resolved_chain(path)
     written = Path(path).absolute()
     seen = list(chain)
     for prefix in [written, *written.parents]:
@@ -311,16 +317,7 @@ def _trusted_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], t
             seen.append(_platform.PLATFORM.identity_of(prefix))
         except OSError:
             continue
-    missing: list[str] = []
-    here = Path(os.path.realpath(path))
-    while identity is None and here.parent != here:
-        try:
-            _platform.PLATFORM.identity_of(here)
-            break
-        except OSError:
-            missing.insert(0, here.name)
-            here = here.parent
-    return identity, tuple(dict.fromkeys(seen)), tuple(missing)
+    return identity, tuple(dict.fromkeys(seen)), missing
 
 
 def _spelled(parts: tuple[str, ...]) -> tuple[str, ...]:
@@ -342,9 +339,8 @@ def _judge(
     inside or above one is refused; a folder not made yet holds nothing, so only a grant above
     its deepest existing ancestor is. `shared` is (name, chain) for each folder no grant,
     read-only included, may be at or above. `missing` is (name, deepest existing ancestor,
-    components not made yet) for each trusted path not made yet: a root still to be made from
-    the same ancestor, whose components lead the path's or follow from them, would hold it or
-    make it, and is refused."""
+    components not made yet) for each trusted path not made yet. A writable path that overlaps
+    those components below the same ancestor is refused, including a root still to be made."""
     judged = [("root", None, root)] if root is not None else []
     for where, _, w in [*judged, *grants]:  # root too: the temporary folder may have moved
         for name, chain in shared:
@@ -362,15 +358,19 @@ def _judge(
                     f"{where} is writable and {how} {name}, which later calls trust; grant a "
                     "folder apart from it"
                 )
-    if root is not None and root.missing:
-        made = _spelled(root.missing)
         for name, ancestor, parts in missing:
-            n = min(len(made), len(parts))
-            if root.chain[0] == ancestor and made[:n] == _spelled(parts)[:n]:
-                how = "hold" if len(made) <= len(parts) else "lie inside"
+            if ancestor not in w.chain:
+                continue
+            # A folder below the trusted path's anchor may have appeared since its inventory.
+            depth = w.chain.index(ancestor)
+            existing = Path(w.path).parts[-depth:] if depth else ()
+            relative = _spelled(existing + w.missing)
+            n = min(len(relative), len(parts))
+            if relative[:n] == _spelled(parts)[:n]:
+                how = "hold" if len(relative) <= len(parts) else "lie inside"
                 raise ValueError(
-                    f"root is still to be made and would {how} {name}, which later calls "
-                    "trust; grant a folder apart from it"
+                    f"{where} would {how} {name}, which later calls trust; grant a "
+                    "folder apart from it"
                 )
     for where, g, r in grants:
         if g.writable:
