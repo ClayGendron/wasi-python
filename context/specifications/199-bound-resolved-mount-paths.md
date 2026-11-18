@@ -32,3 +32,5 @@ The runner's provider-backed mounts, their tests and the mount guide. Wasmtime c
 ## Landing notes
 
 EXECUTED on Linux, Python 3.14.2. The three added unit cases failed against the original runner. Lookup returned the provider's missing-file answer and both rename cases reached the provider. The same cases pass on the change, including the write-back at the last valid path.
+
+The [independent review](../reviews/199-bound-resolved-mount-paths-pr-2026-11-17.md) read the green Windows and Linux judges and the gather in [run 44234604089](https://github.com/ClayGendron/wasi-python/actions/runs/44234604089).
