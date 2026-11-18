@@ -22,3 +22,7 @@
 
 - Both new unit checks failed against the original door and defaults, then passed with the bound. The existing tool-door tests, public API checks, recorded function lengths and news-file checks passed (58 tests in all).
 - With the 0.1.5 wheel's artifacts on Linux, a 3-byte cap refused a 4-byte request, then delivered a 3-byte request in the same guest. This passed through `run`, `run_async`, `Session.run` and `Session.run_async`.
+
+## Review round 1
+
+The initial implementation validated an integer-like default but passed the original object to the door. A unit check using only the integer index protocol failed, then passed after the call started normalizing its default as it does an override. A goal check with the released artifacts now covers the default and explicit cap across all four public entry points.

@@ -15,6 +15,7 @@
 ```toml
 [[claim]]
 spec = "198"
+new = ["tests/checks/test_v1_4_embedding.py::test_each_entry_limits_raw_host_requests"]
 units = 2
 [claim.judge]
 "tests/public_api.txt" = "run, run_async and Session take max_host_request_bytes; Defaults appends host_request_bytes"

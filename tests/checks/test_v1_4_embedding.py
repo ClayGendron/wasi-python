@@ -496,6 +496,43 @@ def test_runner_binds_a_host(guest_workdir) -> None:
     assert done.exit_code == 0 and "cba" in str(done.stdout), done
 
 
+def test_each_entry_limits_raw_host_requests() -> None:
+    import asyncio
+    from dataclasses import replace
+
+    run = _runner()
+    from wasi_python import Session, defaults, run_async, set_defaults
+
+    class Index:
+        def __index__(self) -> int:
+            return 3
+
+    code = (
+        "import _host\n"
+        "try:\n    _host.call(b'abcd')\nexcept OSError:\n    print('refused')\n"
+        "print(_host.call(b'abc').decode())"
+    )
+    argv = ["-c", code]
+    seen = []
+
+    def echo(frame: bytes) -> bytes:
+        seen.append(frame)
+        return frame
+
+    saved = set_defaults(replace(defaults(), host_request_bytes=Index()))
+    try:
+        once = run(argv, host=echo)
+        awaited = asyncio.run(run_async(argv, host=echo, max_host_request_bytes=3))
+        with Session(host=echo) as session:
+            turn = session.run(code)
+            next_turn = asyncio.run(session.run_async(code))
+    finally:
+        set_defaults(saved)
+    for done in (once, awaited, turn, next_turn):
+        assert (done.exit_code, done.stdout, done.trapped) == (0, b"refused\nabc\n", None), done
+    assert seen == [b"abc"] * 4
+
+
 def test_runner_stops_a_runaway_guest_by_fuel(guest_workdir) -> None:
     run = _runner()
     done = run(["-c", "while True: pass"], root=_root(guest_workdir), fuel=10**9)

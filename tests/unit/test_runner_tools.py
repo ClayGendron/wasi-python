@@ -948,7 +948,11 @@ def test_raw_request_limit_arguments() -> None:
             [], None, None, None, None, None, None, None, host=bytes, limits=defaults, **kw
         )
 
-    assert checked(replace(read, host_request_bytes=7)).host_request_bytes == 7
+    class Index:
+        def __index__(self) -> int:
+            return 7
+
+    assert checked(replace(read, host_request_bytes=Index())).host_request_bytes == 7
     assert checked(read, max_host_request_bytes=None).host_request_bytes is None
     assert checked(read, max_host_request_bytes=0).host_request_bytes == 0
     with pytest.raises(TypeError, match="max_host_request_bytes"):

@@ -336,11 +336,13 @@ def _checked(
 
 
 def _raw_request_limit(host: Any, value: Any, limits: Defaults) -> int | None:
-    if value is _UNSET:
-        return limits.host_request_bytes
     if host is None:
-        raise TypeError("max_host_request_bytes= requires host=")
-    return _limits._integer_limit("max_host_request_bytes", value)
+        if value is not _UNSET:
+            raise TypeError("max_host_request_bytes= requires host=")
+        return None
+    return _limits._integer_limit(
+        "max_host_request_bytes", limits.host_request_bytes if value is _UNSET else value
+    )
 
 
 class _ToolArgs(NamedTuple):
