@@ -224,3 +224,37 @@ def test_a_rewritten_manifest_gives_its_new_version_tag(tmp_path) -> None:
     assert _artifacts._version_tag(manifest) == "315"
     manifest.write_text("python 3.16.0\nrecipe one two\n")  # a reinstall rewrites it in place
     assert _artifacts._version_tag(manifest) == "316"
+
+
+@pytest.mark.parametrize("configured", ["user site", "scripts"])
+@pytest.mark.parametrize("place", ["grant", "new root"])
+def test_missing_host_python_folders_are_protected(found, tmp_path, monkeypatch, configured, place):
+    import site
+    import sysconfig
+
+    parent = tmp_path / "install"
+    parent.mkdir()
+    future = parent / "lib" / "python"
+    if configured == "user site":
+        monkeypatch.setattr(site, "ENABLE_USER_SITE", True)
+        monkeypatch.setattr(site, "getusersitepackages", lambda: str(future))
+    else:
+        paths = {**sysconfig.get_paths(), "scripts": str(future)}
+        monkeypatch.setattr(sysconfig, "get_paths", lambda: paths)
+
+    if place == "grant":
+
+        def run(writable):
+            return runner.run(
+                [], cache_dir=False, grants=[wasi_python.Grant(parent, "/data", writable=writable)]
+            )
+
+        assert run(False).exit_code == 101
+        with pytest.raises(ValueError, match="the host Python's own code"):
+            run(True)
+    else:
+        for root in (future.parent, future, future / "child"):
+            with pytest.raises(ValueError, match="the host Python's own code"):
+                runner.run([], root=root, cache_dir=False)
+        assert not future.parent.exists()
+        assert runner.run([], root=parent / "work", cache_dir=False).exit_code == 101
