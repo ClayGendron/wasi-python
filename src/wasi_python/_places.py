@@ -296,10 +296,10 @@ def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
     return (first if exists else None), tuple(chain)
 
 
-def _cache_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], tuple[str, ...]]:
-    """A module cache's identity and chain, as `_chain` gives them, the chain also holding every
+def _trusted_chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...], tuple[str, ...]]:
+    """A trusted folder's identity and chain, as `_chain` gives them, the chain also holding every
     existing folder on the path as written: a link on the path inside a writable grant is a
-    folder the guest could replace with its own, so the next call's cache would be the guest's.
+    folder the guest could replace before a later call uses the trusted path.
     Each prefix keeps its `..`, so its identity is the folder the system reaches by walking
     through a link and climbing from where it leads, never one a spelling collapses to. Third,
     the components not made yet, below the deepest existing ancestor (the chain's first)."""
@@ -342,8 +342,8 @@ def _judge(
     inside or above one is refused; a folder not made yet holds nothing, so only a grant above
     its deepest existing ancestor is. `shared` is (name, chain) for each folder no grant,
     read-only included, may be at or above. `missing` is (name, deepest existing ancestor,
-    components not made yet) for each cache not made yet: a root still to be made from the same
-    ancestor, whose components lead the cache's or follow from them, would come to hold it or
+    components not made yet) for each trusted path not made yet: a root still to be made from
+    the same ancestor, whose components lead the path's or follow from them, would hold it or
     make it, and is refused."""
     judged = [("root", None, root)] if root is not None else []
     for where, _, w in [*judged, *grants]:  # root too: the temporary folder may have moved
@@ -519,7 +519,7 @@ def _judge_snapshot_folders(root: _Walked | None, grants: list[tuple[str, Grant,
     writable = [("root", root)] if root is not None else []
     writable += [(where, w) for where, g, w in grants if g.writable]
     for folder in _snapshot_folders() if writable else []:
-        identity, chain, _ = _cache_chain(folder)
+        identity, chain, _ = _trusted_chain(folder)
         for where, w in writable if identity is not None else []:
             if w.identity is not None and w.identity in chain:
                 raise ValueError(
@@ -561,7 +561,7 @@ def _refuse_live_writable(folder: Path) -> None:
     """PermissionError when a call or session running now has a root or writable grant at or
     above `folder`, by identity, the folder judged as written: its guest could rewrite a snapshot
     file there, which every later call would run as code."""
-    _, chain, _ = _cache_chain(folder)
+    _, chain, _ = _trusted_chain(folder)
     p = process()
     with p.cache_lock:
         live = list(p.live_writable.items())
@@ -604,7 +604,7 @@ def _runtime_folders(
     """The folders later calls and processes trust: this zip's folder (or, before it is made, the
     temporary folder that will hold it), the artifact set's files, every module cache, and the
     runtime's own code (this package and wasmtime-py's, whose native library a guest must never
-    replace); and, for each cache not made yet, its deepest existing ancestor and the components
+    replace); and, for each cache or interpreter folder not made yet, its ancestor and components
     below it. This call's module cache is made first, if it can be, so it is judged as it will
     be; the others are never made by a call that does not use them."""
     import wasmtime
@@ -625,13 +625,6 @@ def _runtime_folders(
     parts = {found.manifest.parent, found.snapshot.parent, found.plain.parent}
     parts.add(found.stdlib_zip.parent)
     folders += [("the artifact set", *_chain(d)) for d in sorted(parts)]
-    missing: list[tuple[str, Identity, tuple[str, ...]]] = []
-    caches = ([("the module cache", cache)] if cache is not None else []) + list(others)
-    for name, path in caches:
-        identity, chain, below = _cache_chain(path)
-        folders.append((name, identity, chain))
-        if below and chain:
-            missing.append((name, chain[0], below))
     folders.append(("wasi_python's own code", *_chain(Path(__file__).resolve().parent)))
     folders.append(("wasmtime-py's own code", *_chain(Path(wasmtime.__file__).resolve().parent)))
     # The host's own interpreter, which the next host process runs: its stdlib,
@@ -641,10 +634,17 @@ def _runtime_folders(
 
     paths = sysconfig.get_paths()
     keys = ("stdlib", "platstdlib", "purelib", "platlib", "scripts")
-    own = {Path(paths[k]).resolve() for k in keys if k in paths}
+    own = {Path(paths[k]) for k in keys if k in paths}
     if site.ENABLE_USER_SITE:
-        own.add(Path(site.getusersitepackages()).resolve())
-    folders += [("the host Python's own code", *_chain(d)) for d in sorted(own) if d.is_dir()]
+        own.add(Path(site.getusersitepackages()))
+    trusted = ([("the module cache", cache)] if cache is not None else []) + list(others)
+    trusted.extend(("the host Python's own code", path) for path in sorted(own))
+    missing: list[tuple[str, Identity, tuple[str, ...]]] = []
+    for name, path in trusted:
+        identity, chain, below = _trusted_chain(path)
+        folders.append((name, identity, chain))
+        if below and chain:
+            missing.append((name, chain[0], below))
     return folders, missing
 
 
