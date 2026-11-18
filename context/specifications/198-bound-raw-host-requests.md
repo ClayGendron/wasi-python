@@ -1,6 +1,6 @@
 # 198: Bound raw host requests
 
-- **Status:** in build on `spec/198-bound-raw-host-requests` from `dev` at `a85cac7f`.
+- **Status:** built on `spec/198-bound-raw-host-requests` from `dev` at `a85cac7f`.
 - **Date:** 2026-11-17
 - **Owner:** Clay Gendron
 - **Kind:** parallel-safe runner change and judge change. The door keeps its existing import, arguments, and return codes. No new platform branch, module-level mutable, test seam, or private wasmtime API.
@@ -40,3 +40,5 @@ The Python runner, its API reference, user documentation and checks. Existing to
 ## Review round 1
 
 The initial implementation validated an integer-like default but passed the original object to the door. A unit check using only the integer index protocol failed, then passed after the call started normalizing its default as it does an override. A goal check with the released artifacts now covers the default and explicit cap across all four public entry points.
+
+The pre-push unit run found the frozen-record check still expected 24 fields. It now requires all 25 fields, including the raw-request limit, and still rejects the absence of each one. The focused check passed. Rules (153 passed, 2 skipped), writing checks (14 passed), ruff and mypy passed in that pre-push run. The pull request reports the final clean-tree precheck.

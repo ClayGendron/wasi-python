@@ -18,6 +18,7 @@ spec = "198"
 new = ["tests/checks/test_v1_4_embedding.py::test_each_entry_limits_raw_host_requests"]
 units = 2
 [claim.judge]
+"tests/unit/test_lifecycles.py" = "the checked call gains a required raw request limit; the frozen record check now counts all 25 fields"
 "tests/public_api.txt" = "run, run_async and Session take max_host_request_bytes; Defaults appends host_request_bytes"
 "tests/checks/test_rules.py" = "the existing run, run_async and Session opening each add five lines for the parameter, documentation and forwarding; the instance adds eleven to pass the checked bound to its call"
 ```
