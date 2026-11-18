@@ -1,34 +1,46 @@
 # 200: Authenticate independent approval on dev
 
-- **Status:** prepared for the owner to activate after assigning an independent reviewer.
+- **Status:** proposed; activation deferred while the agents share one GitHub identity.
 - **Date:** 2026-11-17
 - **Owner:** Clay Gendron
-- **Kind:** repository ruleset proposal and contributor documentation.
+- **Kind:** owner-applied repository ruleset proposal.
 - **Depends on:** 138 (pull requests and the acceptance identity), 160 (the three required checks).
 - **Research it stands on:** the live repository rulesets and GitHub's [ruleset semantics](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets) and [review rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets).
 
 ## Decisions
 
-Add an independent GitHub approval to the existing review file and checks. The owner chooses the reviewer and activates the rule. Ordinary changes, including documentation, need the approval. The acceptance workflow keeps its direct push of the progress record.
+Defer activation. The builder and fresh reviewer use one GitHub account today. GitHub prevents that account from approving its own pull request. Requiring another approval now would block ordinary merges. The owner can revisit this proposal when a reviewer has a separately controlled GitHub account with write access.
 
 ## Intent
 
-A review file written through the author's GitHub identity cannot authenticate an independent approver. GitHub can enforce this once a separately controlled account with write access is available.
+The current review file records a fresh reviewer's reasoning. A future GitHub approval can authenticate an independent reviewer in addition to that record.
 
 ## Design
 
-Add a branch ruleset for `refs/heads/dev` beside the existing ruleset. This avoids a read-modify-write of the existing checks, branch protections and bypass actors. Require one approval, dismiss stale approvals and require approval of the most recent reviewable push. Match the existing deploy-key bypass so the acceptance push satisfies both rulesets. The owner verifies which write-enabled keys exist before activation. A reviewer who pushed the last change cannot supply this approval.
+The proposed branch ruleset applies to every pull request into `dev`, including documentation changes. It adds one required approval, dismissal of stale approvals, and approval by someone other than the most recent pusher. The author can push the review file and the reviewer can approve the final diff separately. The existing ruleset supplies the three checks. Both rulesets grant the acceptance deploy key its direct push.
 
 ## Scope
 
-A request body and an owner procedure in the contributor guide. The request body is inert until submitted by the owner. The guide explains the account prerequisite, application, readback and first operational checks.
+This proposal and its [request body](200-authenticate-independent-review.json) are owner records. Branch administration and the instructions governing merges are separate activation steps.
 
 ## Acceptance criteria
 
-1. The proposed body targets only `dev`, asks for one independent approval, and carries the acceptance bypass.
-2. The contributor guide identifies who approves and when. The owner has the create request and a readback for both rulesets.
-3. After activation the next ordinary pull request shows the GitHub approval requirement. Its acceptance push succeeds on green.
+1. The body targets only `refs/heads/dev` and requests one independent approval, stale dismissal and last-push approval.
+2. The owner can verify the checks and the acceptance bypass before and after activation.
+3. After a future activation, the next ordinary pull request requires approval and its green post-merge run pushes its acceptance commit.
 
 ## Landing notes
 
-READ on 2026-11-17: live ruleset 25925120 targets `dev`, requires `ci-status`, `review` and the strict site build, asks for zero approving reviews, and has one bypass of type `DeployKey`, mode `always`. Live activation and its first pull request await the owner and a separately controlled reviewer.
+READ on 2026-11-17: active ruleset 25925120 requires `ci-status`, `review` and the strict site build on `dev`, requires zero approvals, and bypasses `DeployKey` in `always` mode.
+
+Before activation the owner must arrange an independently controlled reviewer account with write access and update the “Merge on green” instruction in `AGENTS.md` and the corresponding contributor guide. The builder may then merge only after the checks are green, the review verdict begins “Lands”, and GitHub shows a fresh independent approval covering the last reviewable push.
+
+For a future rollout, the owner reads the existing policy and lists the rulesets with `gh api repos/ClayGendron/wasi-python/rulesets/25925120` and `gh api --paginate repos/ClayGendron/wasi-python/rulesets --jq '.[] | [.id, .name, .enforcement] | @tsv'`. Confirm the target, checks and sole deploy-key bypass against the record above. In **Settings → Deploy keys**, verify the acceptance workflow holds the only write-enabled key; GitHub grants that bypass to deploy keys as a class. Reconcile a changed acceptance identity with the body first.
+
+If the list has no ruleset named **dev requires an independent approval**, the owner creates it once from the checkout and records the printed ID:
+
+```sh
+gh api -X POST repos/ClayGendron/wasi-python/rulesets --input context/specifications/200-authenticate-independent-review.json --jq .id
+```
+
+Read both rulesets back using `gh api repos/ClayGendron/wasi-python/rulesets/25925120` and `gh api repos/ClayGendron/wasi-python/rulesets/NEW_ID` with the created or listed ID. Verify the original checks and bypass, then compare the new rule's active state, target, eligibility for bypass and approval requirements with the request body. On the next ordinary pull request, verify GitHub waits for the independent approval and the post-merge acceptance push succeeds.
