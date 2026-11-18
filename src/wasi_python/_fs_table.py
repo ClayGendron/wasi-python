@@ -46,6 +46,7 @@ from wasi_python._fs_memory import (
     MASK32,
     MASK64,
     MAX_NAME,
+    MAX_PATH,
     METHODS,
     PROVIDER_BASE,
     REFUSED_KEPT,
@@ -574,6 +575,19 @@ class _Files:
         self.staged += len(entry.data) - entry.held
         entry.held = len(entry.data)
         entry.dirty = True
+
+    def _rename_fits(self, mount: _Mounted, src: str, dst: str) -> bool:
+        """Whether every live descendant can follow the rename, before the provider commits it.
+        Both endpoints already fit. Only a longer prefix can put a descendant over the limit."""
+        growth = len(dst.encode()) - len(src.encode())
+        if growth <= 0:
+            return True
+        prefix = src + "/"
+        for entry in (*self.table.values(), *self.owed.values()):
+            if entry.mount is mount and not entry.unlinked and entry.path.startswith(prefix):
+                if len(entry.path.encode()) + growth > MAX_PATH:
+                    return False
+        return True
 
     def _follow(self, mount: _Mounted, src: str, dst: str | None = None) -> None:
         """After `remove(src)` or `rmdir(src)` (no `dst`), or `rename(src, dst)`, succeeded,
