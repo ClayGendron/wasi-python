@@ -88,14 +88,10 @@ decay fit: a=2.97 k=0.70
 The program inside the sandbox is the guest. Your program is the host. Make two folders on the host, each with a file. Grant the guest one of them, then watch it try the other, the parent folder and a write.
 
 ```python
-import shutil
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from wasi_python import Grant, run
-
-for name in ("wasi_python_shared", "wasi_python_private"):
-    Path(name).mkdir(exist_ok=True)
-    (Path(name) / "hello.txt").write_text(f"hello from {name}\n")
 
 code = """
 for path in ("/shared/hello.txt", "/private/hello.txt", "/shared/../private/hello.txt"):
@@ -110,15 +106,19 @@ except OSError as e:
     print("write to /shared ->", type(e).__name__)
 """
 
-done = run(["-c", code], grants=[Grant("wasi_python_shared", "/shared")])
-print(done.stdout.decode())
+with TemporaryDirectory() as tmp:
+    base = Path(tmp).resolve()
+    for name in ("shared", "private"):
+        folder = base / name
+        folder.mkdir()
+        (folder / "hello.txt").write_text(f"hello from {name}\n", encoding="utf-8")
 
-shutil.rmtree("wasi_python_shared")
-shutil.rmtree("wasi_python_private")
+    done = run(["-c", code], grants=[Grant(base / "shared", "/shared")])
+    print(done.stdout.decode())
 ```
 
 ```
-/shared/hello.txt -> hello from wasi_python_shared
+/shared/hello.txt -> hello from shared
 /private/hello.txt -> FileNotFoundError
 /shared/../private/hello.txt -> PermissionError
 write to /shared -> PermissionError
