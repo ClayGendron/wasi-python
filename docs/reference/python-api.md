@@ -93,6 +93,7 @@ class Defaults:
     session_idle_s: float | None = 900.0
     session_lifetime_s: float | None = 3600.0
     session_shutdown_s: float = 5.0
+    host_request_bytes: int | None = 1048576
 ```
 
 The limits a call has when it names none: `defaults()` returns the ones in force, and `set_defaults()` replaces them.
@@ -110,6 +111,7 @@ The limits a call has when it names none: `defaults()` returns the ones in force
 - `session_idle_s`: The longest a `Session` may rest between turns before it ends "idle".
 - `session_lifetime_s`: How long after its opening a `Session`'s turns may run; then it ends "lifetime".
 - `session_shutdown_s`: The seconds a `Session`'s ending has to run Python's shutdown (`atexit` handlers, then finalization); past them the session is simply stopped. 0 skips the shutdown; it cannot be `None`.
+- `host_request_bytes`: The most bytes in one raw host request, checked before copying it.
 
 #### `wasi_python.Display`
 
@@ -357,6 +359,7 @@ class Session:
         tools: Iterable[Tool | Callable[..., Any]] | None = None,
         gate: Callable[[ToolCall], Any] | None = None,
         max_tool_calls: int | None = <default>,
+        max_host_request_bytes: int | None = <default>,
         max_tool_request_bytes: int | None = <default>,
         max_open_files: int | None = <default>,
         idle_s: float | None = <default>,
@@ -421,6 +424,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async: under `run` it is awaited on one loop of the session's own for all its turns, under `run_async` on the event loop that awaits it. Fixed for the session. Excludes `host`.
   - `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
   - `max_tool_calls`: The most tool-protocol frames each turn answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
+  - `max_host_request_bytes`: The most bytes in one raw request to `host`. A larger request raises `OSError` in the guest before copying or calling the host. Default: `defaults().host_request_bytes` (1 MiB). None removes the cap.
   - `max_tool_request_bytes`: The most bytes of tool-protocol requests each turn reads, counted from each frame's length before it is read; a frame that would pass it is refused unread. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
   - `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike, counted across the session's turns and its ending, since its store keeps them; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
   - `idle_s`: The longest the session may rest between turns; then it ends "idle". Default: `defaults().session_idle_s`, 900. `None` means no bound.
@@ -777,6 +781,7 @@ def run(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = <default>,
+    max_host_request_bytes: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
     max_open_files: int | None = <default>,
     on_output: Callable[[OutputChunk], object] | None = None,
@@ -810,6 +815,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async (an `async def`, or a function returning an awaitable): it is awaited on the event loop that awaits `run_async`, or, under `run`, on a loop of the call's own; it never starts once its call has been answered, and is cancelled when its call ends. Excludes `host`.
 - `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
 - `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
+- `max_host_request_bytes`: The most bytes in one raw request to `host`. A larger request raises `OSError` in the guest before copying or calling the host. Default: `defaults().host_request_bytes` (1 MiB). None removes the cap.
 - `max_tool_request_bytes`: The most bytes of tool-protocol requests a call reads, counted from each frame's length before it is read, whatever its answer; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
 - `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
 - `on_output`: Called with each `OutputChunk` of the guest's stdout and stderr while it runs: under `run`, on the thread that made the call, in turn with your `host` and providers, which wait while it runs; under `run_async`, on the event loop's thread. Keep it short. At most `output_bytes` of each stream are delivered, every chunk before the call returns. An `Exception` from it is warned as a `RuntimeWarning` and ends delivery for the call, which goes on; any other `BaseException` stops the call and is raised. It must be synchronous: an async one raises `TypeError`. An `OutputFeed` iterates the chunks under `run_async`, beside the call's task; `run` refuses one, and a feed serves one call.
@@ -854,6 +860,7 @@ async def run_async(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = <default>,
+    max_host_request_bytes: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
     max_open_files: int | None = <default>,
     on_output: Callable[[OutputChunk], object] | None = None,

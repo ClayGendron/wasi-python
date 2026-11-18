@@ -264,6 +264,7 @@ def _checked(
     cancel: Any,
     *,
     host: Any = None,
+    max_host_request_bytes: Any = _UNSET,
     tools: Any = None,
     gate: Any = None,
     max_tool_calls: Any = _UNSET,
@@ -283,10 +284,9 @@ def _checked(
     asynchronous: bool = False,
 ) -> _CheckedCall:
     """Every argument a call's guest depends on, checked before any work, as one frozen record
-    built from its typed parts. The `limits` are the defaults its entry point read, once, so a
-    `set_defaults` on another thread never gives a call a mix of the old and new limits
+    built from its typed parts. Its entry point read the defaults once
     (`async_workers` is `_submit`'s, read under the pool's lock); `asynchronous` says an event
-    loop awaits the call, as an `OutputFeed` needs; `results` and `figures` set its mode."""
+    loop awaits the call; `results` and `figures` set its mode."""
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
     )
@@ -321,6 +321,7 @@ def _checked(
         gate=tool_args.gate,
         tool_calls=tool_args.tool_calls,
         tool_request_bytes=tool_args.tool_request_bytes,
+        host_request_bytes=_raw_request_limit(host, max_host_request_bytes, limits),
         root=places.root,
         grants=places.grants,
         mounts=places.mounts,
@@ -332,6 +333,14 @@ def _checked(
         start=start,
         results=_results._check_results(results, figures, host, inputs.argv),
     )
+
+
+def _raw_request_limit(host: Any, value: Any, limits: Defaults) -> int | None:
+    if value is _UNSET:
+        return limits.host_request_bytes
+    if host is None:
+        raise TypeError("max_host_request_bytes= requires host=")
+    return _limits._integer_limit("max_host_request_bytes", value)
 
 
 class _ToolArgs(NamedTuple):
@@ -369,13 +378,13 @@ def _check_tools(
             )
         if max_tool_calls is not _UNSET:
             raise TypeError(
-                "max_tool_calls= without tools= limits nothing: the raw door has no limit; "
+                "max_tool_calls= without tools= limits nothing: the raw door has no frame count; "
                 "pass tools="
             )
         if max_tool_request_bytes is not _UNSET:
             raise TypeError(
-                "max_tool_request_bytes= without tools= limits nothing: the raw door has no "
-                "limit; pass tools="
+                "max_tool_request_bytes= without tools= limits nothing; pass tools= or use "
+                "max_host_request_bytes= with host="
             )
         return _ToolArgs(None, None, None, None)
     if host is not None:

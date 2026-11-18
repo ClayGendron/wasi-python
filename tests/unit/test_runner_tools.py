@@ -911,3 +911,55 @@ def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
         assert by_hand._max_bytes is None  # the stand-in says tool_request_bytes=None: no limit
     finally:
         by_hand.close()
+
+
+def test_raw_request_limit_precedes_the_copy() -> None:
+    memory = Memory()
+    caller = Caller(memory)
+    seen = []
+
+    def echo(frame: bytes) -> bytes:
+        seen.append(frame)
+        return frame
+
+    door = _call._door(echo, max_host_request_bytes=3)
+    memory.buf[100:104] = b"abcd"
+    assert door(caller, 100, 4, 16, 20) == _call.HOST_FAULT
+    assert (memory.reads, seen, caller.next) == (0, [], 2048)
+    assert door(caller, 100, 3, 16, 20) == 0
+    assert (seen, _answer(memory)) == ([b"abc"], b"abc")
+    zero = _call._door(echo, max_host_request_bytes=0)
+    assert zero(caller, 100, 1, 16, 20) == _call.HOST_FAULT
+    assert zero(caller, 100, 0, 16, 20) == 0
+    assert _call._door(echo, max_host_request_bytes=None)(caller, 100, 4, 16, 20) == 0
+    assert seen == [b"abc", b"", b"abcd"]
+
+
+def test_raw_request_limit_arguments() -> None:
+    from dataclasses import replace
+
+    import wasi_python
+
+    read = wasi_python.defaults()
+    assert read.host_request_bytes == 1 << 20
+
+    def checked(defaults, **kw):
+        return _entry._checked(
+            [], None, None, None, None, None, None, None, host=bytes, limits=defaults, **kw
+        )
+
+    assert checked(replace(read, host_request_bytes=7)).host_request_bytes == 7
+    assert checked(read, max_host_request_bytes=None).host_request_bytes is None
+    assert checked(read, max_host_request_bytes=0).host_request_bytes == 0
+    with pytest.raises(TypeError, match="max_host_request_bytes"):
+        checked(read, max_host_request_bytes=True)
+    with pytest.raises(ValueError, match="host_request_bytes"):
+        replace(read, host_request_bytes=-1)
+    with pytest.raises(TypeError, match="max_host_request_bytes"):
+        runner.run([], max_host_request_bytes=1)
+    with pytest.raises(ValueError, match="max_host_request_bytes"):
+        runner.run([], host=bytes, max_host_request_bytes=-1)
+    with pytest.raises(ValueError, match="max_host_request_bytes"):
+        asyncio.run(runner.run_async([], host=bytes, max_host_request_bytes=-1))
+    with pytest.raises(ValueError, match="max_host_request_bytes"):
+        runner.Session(host=bytes, max_host_request_bytes=-1)

@@ -37,8 +37,8 @@ from wasi_python import (
     _sessions,
 )
 from wasi_python._artifacts import Artifacts, ArtifactsMissing
+from wasi_python._call import RAW_REQUEST_BYTES, _CheckedCall
 from wasi_python._call import Completed as Completed  # re-exported: the public API names them here
-from wasi_python._call import _CheckedCall
 from wasi_python._limits import _UNSET
 from wasi_python._outputs import (
     OutputChunk as OutputChunk,  # re-exported: the public API names them here
@@ -89,6 +89,7 @@ class Defaults:
             refused unread, and the guest gets `ToolBudgetExceeded`.
         open_files: The most files and folders a guest holds open at once, in grants, the root
             and mounts alike; past it an open answers `EMFILE` and the guest runs on.
+        host_request_bytes: The most bytes in one raw host request, checked before copying it.
         session_idle_s: The longest a `Session` may rest between turns before it ends "idle".
         session_lifetime_s: How long after its opening a `Session`'s turns may run; then it
             ends "lifetime".
@@ -109,12 +110,14 @@ class Defaults:
     session_idle_s: float | None = 900.0  # 15 minutes, the owner's number
     session_lifetime_s: float | None = 3600.0
     session_shutdown_s: float = 5.0  # jupyter_client's shutdown_wait_time
+    host_request_bytes: int | None = RAW_REQUEST_BYTES
 
     def __post_init__(self) -> None:
         _limits._check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
         _limits._check_workers(self.async_workers)
         _limits._integer_limit("file_calls", self.file_calls)
         _limits._integer_limit("tool_calls", self.tool_calls)
+        _limits._integer_limit("host_request_bytes", self.host_request_bytes)
         _limits._integer_limit("tool_request_bytes", self.tool_request_bytes)
         _limits._integer_limit("open_files", self.open_files)
         _limits._seconds_limit("session_idle_s", self.session_idle_s)
@@ -153,6 +156,7 @@ def run(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
+    max_host_request_bytes: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
     max_open_files: int | None = _UNSET,
     on_output: Callable[[OutputChunk], object] | None = None,
@@ -229,6 +233,9 @@ def run(
         max_tool_calls: The most tool-protocol frames a call answers; the guest gets
             `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
             means no limit. Needs `tools`.
+        max_host_request_bytes: The most bytes in one raw request to `host`. A larger
+            request raises `OSError` in the guest before copying or calling the host.
+            Default: `defaults().host_request_bytes` (1 MiB). None removes the cap.
         max_tool_request_bytes: The most bytes of tool-protocol requests a call reads, counted
             from each frame's length before it is read, whatever its answer; a frame that would
             pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on.
@@ -298,6 +305,7 @@ def run(
         tools=tools,
         gate=gate,
         max_tool_calls=max_tool_calls,
+        max_host_request_bytes=max_host_request_bytes,
         max_tool_request_bytes=max_tool_request_bytes,
         root=root,
         grants=grants,
@@ -353,6 +361,7 @@ async def run_async(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
+    max_host_request_bytes: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
     max_open_files: int | None = _UNSET,
     on_output: Callable[[OutputChunk], object] | None = None,
@@ -429,6 +438,9 @@ async def run_async(
         max_tool_calls: The most tool-protocol frames a call answers; the guest gets
             `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
             means no limit. Needs `tools`.
+        max_host_request_bytes: The most bytes in one raw request to `host`. A larger
+            request raises `OSError` in the guest before copying or calling the host.
+            Default: `defaults().host_request_bytes` (1 MiB). None removes the cap.
         max_tool_request_bytes: The most bytes of tool-protocol requests a call reads, counted
             from each frame's length before it is read, whatever its answer; a frame that would
             pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on.
@@ -495,6 +507,7 @@ async def run_async(
             tools=tools,
             gate=gate,
             max_tool_calls=max_tool_calls,
+            max_host_request_bytes=max_host_request_bytes,
             max_tool_request_bytes=max_tool_request_bytes,
             root=root,
             grants=grants,
@@ -592,6 +605,7 @@ class Session:
         tools: Iterable[Tool | Callable[..., Any]] | None = None,
         gate: Callable[[ToolCall], Any] | None = None,
         max_tool_calls: int | None = _UNSET,
+        max_host_request_bytes: int | None = _UNSET,
         max_tool_request_bytes: int | None = _UNSET,
         max_open_files: int | None = _UNSET,
         idle_s: float | None = _UNSET,
@@ -659,6 +673,9 @@ class Session:
             max_tool_calls: The most tool-protocol frames each turn answers; the guest gets
                 `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000.
                 `None` means no limit. Needs `tools`.
+            max_host_request_bytes: The most bytes in one raw request to `host`. A larger
+                request raises `OSError` in the guest before copying or calling the host.
+                Default: `defaults().host_request_bytes` (1 MiB). None removes the cap.
             max_tool_request_bytes: The most bytes of tool-protocol requests each turn reads,
                 counted from each frame's length before it is read; a frame that would pass it
                 is refused unread. Default: `defaults().tool_request_bytes`, 16 MiB. `None`
@@ -715,6 +732,7 @@ class Session:
             tools=tools,
             gate=gate,
             max_tool_calls=max_tool_calls,
+            max_host_request_bytes=max_host_request_bytes,
             max_tool_request_bytes=max_tool_request_bytes,
             root=root,
             grants=grants,

@@ -16,6 +16,7 @@ A *limit* here is a bound the runner enforces on one guest: memory, time, output
 | open files | 1,024 | files and folders open at once | `max_open_files=` | `max_open_files=` | `--max-open-files` |
 | provider calls | 10,000 | calls to a mount's provider | `max_file_calls=` | `max_file_calls=` (each turn) | not offered |
 | tool frames | 1,000 | tool-protocol frames answered | `max_tool_calls=` | `max_tool_calls=` (each turn) | not offered |
+| raw host request | 1 MiB | bytes per request to `host=` | `max_host_request_bytes=` | `max_host_request_bytes=` | not offered |
 | tool request bytes | 16 MiB | bytes of tool requests read | `max_tool_request_bytes=` | `max_tool_request_bytes=` (each turn) | not offered |
 | session idle time | 900 | seconds between turns | not offered | `idle_s=` | not offered |
 | session lifetime | 3,600 | seconds from the opening | not offered | `lifetime_s=` | not offered |
@@ -47,6 +48,7 @@ Two exceptions:
 | fuel | The call ends with `trapped == "out of fuel"`. |
 | open files | The next open answers `EMFILE`, and the guest runs on. |
 | provider calls | The call that would pass the limit is not made; the run ends with `trapped == "out of file calls"`. |
+| raw host request | A request over the cap raises `OSError` in the guest. The host callback receives nothing. |
 | tool frames, tool request bytes | The guest gets `ToolBudgetExceeded` and runs on. |
 | session idle time | The session ends `"idle"`. |
 | session lifetime | No turn starts at or after it, and each turn's deadline is capped at what is left; then the session ends `"lifetime"`. |
