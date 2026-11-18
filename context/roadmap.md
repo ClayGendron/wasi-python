@@ -14,6 +14,31 @@ The runtime is embedder-neutral (constitution §4.5): its consumers are not on t
 
 **Direction agreed 2026-11-18.** A Python, Node or Rust application can deploy the same versioned Python runtime into its container or application directory and start offline. The release pipeline prepares the portable Wasm. The developer chooses the starting state and runs one installer in CI or during the image build. The [November 14 proposal](research/2026-11-14-what-0-2-0-could-be.md) describes the Rust core and Node binding. This plan settles how the large runtime reaches those hosts and broadens the startup work to the full package set.
 
+**Proposed Python quick start.** Install the host package with `pip install wasi-python`. Then choose either setup path.
+
+Prepare the runtime from the shell, for example during the container build:
+
+```sh
+wasi-python install --variant packages
+```
+
+```python
+from wasi_python import run
+
+output = run(["-c", "print(2 + 2)"])
+```
+
+Or prepare it from Python:
+
+```python
+from wasi_python import install, run
+
+install()
+output = run(["-c", "print(2 + 2)"])
+```
+
+Both installers default to `packages`, use the version pinned by the installed host package, and prepare the compiled runtime in a standard location that `run()` discovers across processes. Repeating `install()` reuses a compatible verified installation offline. A developer only supplies a destination when they need a custom layout.
+
 | Proposed variant | State on entry to a fresh sandbox |
 |---|---|
 | `plain` | CPython starts on entry. Packages see the call's environment when first imported. |
@@ -21,9 +46,9 @@ The runtime is embedder-neutral (constitution §4.5): its consumers are not on t
 | `packages` | CPython and the manifest's package imports are ready. Each guest gets its own writable state. |
 
 1. **Build once per release.** Generate the package image from the full manifest in release CI. Publish the portable variants, matching stdlib zip, notices, hashes and build attestations as versioned GitHub Release assets. Keep sources and recipes in Git. Prove that independent builds produce the same portable bytes. Check which package state is safe to freeze and which must be refreshed on entry, including [pydantic's hash keys](../docs/explanation/security-model.md#time-randomness-and-hashing).
-2. **Give pip, npm and Cargo one deployment workflow.** The language packages expose their host APIs and pin the expected runtime version and digest. An installer verifies the selected release assets and prepares a local directory, accepting an already downloaded archive for offline builds. Proposed CLI: `wasi-python install --version 0.2.0 --variant packages --compile --output /opt/wasi-python`. Compilation runs for the deployment target. Record the target architecture, required CPU features, Wasmtime version and engine settings, including metering, so each binding can select a compatible compiled module. A multi-architecture container prepares one per target.
+2. **Give pip, npm and Cargo one deployment workflow.** The language packages expose their host APIs and pin the expected runtime version and digest. An installer verifies the selected release assets and prepares a local directory, accepting an already downloaded archive for offline builds. The CLI and Python function use the same installer. It compiles for the deployment target as part of setup. Record the target architecture, required CPU features, Wasmtime version and engine settings, including metering, so each binding can select a compatible compiled module. A multi-architecture container prepares one per target.
 3. **Load the installed directory directly.** Each binding opens the same installation manifest. For the package variant, restore a fresh instance from file-backed, copy-on-write memory on validated platforms. The prepared module and verified metadata should suffice without decoding a second copy of the full image on application startup. Retain the current copy restore as a tested fallback where mapping is unavailable. A missing or incompatible install should name the command that prepares the right one.
-4. **Prove the deployment path.** Install during a clean image build, disable network access, then start a new process through each public binding and run a package workload. Verify that serving the request performs zero downloads, compilations or snapshot builds. Check per-request isolation, limits and outputs across the supported Linux, macOS and Windows targets. Benchmark fresh processes, warm requests and concurrent sandboxes separately, including private memory as guests write. The [all-packages benchmark](research/2026-11-18-package-snapshot-startup.md) gives the baseline and the prototype results. Wall-clock timings belong in the benchmark.
+4. **Prove the deployment path.** Exercise both Python quick starts with their default paths. Install during a clean image build, disable network access, then start a new process through each public binding and run a package workload. Verify that serving the request performs zero downloads, compilations or snapshot builds. Check per-request isolation, limits and outputs across the supported Linux, macOS and Windows targets. Benchmark fresh processes, warm requests and concurrent sandboxes separately, including private memory as guests write. The [all-packages benchmark](research/2026-11-18-package-snapshot-startup.md) gives the baseline and the prototype results. Wall-clock timings belong in the benchmark.
 
 **Python migration.** Today the wheel carries the runtime and `pip install wasi-python` suffices. Specify the upgrade path and release notes before switching to an installer-only wheel. Removing the bundled artifact also requires reconciling the wheel requirement in [constitution §2](constitution.md). The starting-state choice and shared installer can be implemented while the wheel still carries its current set.
 
