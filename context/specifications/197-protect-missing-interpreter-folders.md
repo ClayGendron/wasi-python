@@ -34,3 +34,5 @@ The host's configured library and scripts folders and enabled user site. The exi
 On the original runner, all four new parameter cases failed because no ValueError was raised. After the change, the public-runner cases, their file's existing checks and the writing-convention suite passed (30 checks on Linux, Python 3.12).
 
 The review found a change in directory depth between the inventory and the caller's walk. All three additional unit cases failed on the first change, then passed with the coherent inventory and ancestor-relative comparison.
+
+The [independent review](../reviews/197-protect-missing-interpreter-folders-pr-2026-11-17.md) read the Windows and Linux judges and the gather in [run 44235435012](https://github.com/ClayGendron/wasi-python/actions/runs/44235435012).
