@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import struct
 import threading
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 import wasmtime as wt
@@ -129,6 +129,42 @@ def test_a_path_is_normalized_before_the_provider_sees_it(placeholder) -> None:
         ("stat", "/d"),  # a folder open asks before it lists
         ("list", "/d"),
     ]
+
+
+def test_a_resolved_mount_path_counts_its_folder_in_utf8(placeholder) -> None:
+    base = ("/" + "a" * 255) * 15 + "/" + "b" * 251
+    assert len((base + "/€").encode()) == _fs_memory.MAX_PATH
+    provider = MemoryProvider({base: None, base + "/€": b""})
+    raw = Mounted(provider, placeholder).raw
+    errno, folder = raw.open(3, base[1:], files.O_DIRECTORY)
+    assert errno == 0
+    assert raw.path_filestat(folder, "./€")[0] == 0
+    before = provider.total()
+    assert raw.path_filestat(folder, "€x")[0] == ENAMETOOLONG
+    assert provider.total() == before
+
+
+@pytest.mark.parametrize("owed", [False, True], ids=["open", "pending"])
+def test_rename_bounds_the_path_of_a_staged_file(placeholder, owed) -> None:
+    suffix = ("/" + "a" * 255) * 15 + "/" + "b" * 252
+    assert len(("/é" + suffix).encode()) == _fs_memory.MAX_PATH
+    path = PurePosixPath("/d" + suffix)
+    provider = MemoryProvider({**{str(parent): None for parent in path.parents}, str(path): b"x"})
+    mounted = Mounted(provider, placeholder, writable=True)
+    raw = mounted.raw
+    errno, number = raw.open(3, "d" + suffix, 0, ALL)
+    assert errno == 0 and raw.write(number, b"y") == (0, 1)
+    if owed:
+        mounted.table._owe(number, mounted.table.table[number])
+    assert raw.rename(3, "d", 3, "é") == 0
+    before = provider.total()
+    assert raw.rename(3, "é", 3, "éx") == ENAMETOOLONG
+    assert provider.total() == before
+    if owed:
+        mounted.table.walk()
+    else:
+        assert raw("fd_close", number) == 0
+    assert provider.tree["/é" + suffix] == b"y"
 
 
 # Decision 10: the call's cancel and deadline are checked before every provider call.
