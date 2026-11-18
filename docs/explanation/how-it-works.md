@@ -44,7 +44,7 @@ Every program runs in a fresh `__main__`, but a call from a starting image runs 
 
 The guest has one import beyond WASI: `host::call`. Through it, guest code sends a request as bytes, and the host answers with bytes. The host writes its answer into memory it gets from `host_alloc`. The frames are opaque to wasi-python; their meaning is the embedder's.
 
-From Python you bind the door with `run(host=...)`, a function from request bytes to response bytes. On top of the door, wasi-python ships one optional *tool protocol*: guest code writes `from host import tools` and calls the host's functions by name. See [tools](../how-to/tools.md) and the [tool protocol](../reference/tool-protocol.md).
+From Python you bind the door with `run(host=...)`, a function from request bytes to response bytes. The runner checks a raw request's length before it copies any bytes out of the guest. The default is 1 MiB per request. Set `max_host_request_bytes=` to the largest request your function accepts. On top of the door, wasi-python ships one optional *tool protocol*: guest code writes `from host import tools` and calls the host's functions by name. See [tools](../how-to/tools.md) and the [tool protocol](../reference/tool-protocol.md).
 
 ## The snapshot
 

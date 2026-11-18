@@ -29,6 +29,7 @@ dataclass Defaults: frozen
   field session_idle_s: float | None = 900.0
   field session_lifetime_s: float | None = 3600.0
   field session_shutdown_s: float = 5.0
+  field host_request_bytes: int | None = 1048576
 dataclass Display: frozen
   field data: Mapping[str, str | bytes] = required
   field truncated: tuple[str, ...] = ()
@@ -120,6 +121,7 @@ class Session
     param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
     param gate: Callable[[ToolCall], Any] | None = None  keyword-only
     param max_tool_calls: int | None = <default>  keyword-only
+    param max_host_request_bytes: int | None = <default>  keyword-only
     param max_tool_request_bytes: int | None = <default>  keyword-only
     param max_open_files: int | None = <default>  keyword-only
     param idle_s: float | None = <default>  keyword-only
@@ -253,6 +255,7 @@ def run -> Completed
   param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
   param gate: Callable[[ToolCall], Any] | None = None  keyword-only
   param max_tool_calls: int | None = <default>  keyword-only
+  param max_host_request_bytes: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
   param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
@@ -280,6 +283,7 @@ async def run_async -> Completed
   param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
   param gate: Callable[[ToolCall], Any] | None = None  keyword-only
   param max_tool_calls: int | None = <default>  keyword-only
+  param max_host_request_bytes: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
   param max_open_files: int | None = <default>  keyword-only
   param on_output: Callable[[OutputChunk], object] | None = None  keyword-only
@@ -300,6 +304,7 @@ default open_files = 1024
 default session_idle_s = 900.0
 default session_lifetime_s = 3600.0
 default session_shutdown_s = 5.0
+default host_request_bytes = 1048576
 stats keys: compiled loaded sessions_open snapshots_made snapshots_restored tool_threads_running written
 environment WASI_PYTHON_ARTIFACTS
 environment WASI_PYTHON_CACHE
