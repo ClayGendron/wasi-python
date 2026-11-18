@@ -34,7 +34,7 @@ The Python runner, its API reference, user documentation and checks. Existing to
 
 ## Landing notes
 
-- The [independent review](../reviews/198-bound-raw-host-requests-pr-2026-11-17.md) reads [run 44235027050](https://github.com/ClayGendron/wasi-python/actions/runs/44235027050) on PR #126.
+- The [independent review](../reviews/198-bound-raw-host-requests-pr-2026-11-17.md) reads the [initial run](https://github.com/ClayGendron/wasi-python/actions/runs/44235027050) and the [feedback run](https://github.com/ClayGendron/wasi-python/actions/runs/44318019012) on PR #126. On `29981e7f`, all eleven Windows judges passed and the gather recorded zero goal failures.
 - Both new unit checks failed against the original door and defaults, then passed with the bound. The existing tool-door tests, public API checks, recorded function lengths and news-file checks passed (58 tests in all).
 - With the 0.1.5 wheel's artifacts on Linux, a 3-byte cap refused a 4-byte request, then delivered a 3-byte request in the same guest. This passed through `run`, `run_async`, `Session.run` and `Session.run_async`.
 
