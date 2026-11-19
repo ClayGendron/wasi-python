@@ -1,0 +1,9 @@
+# The copy-on-write pandas module (pandas-cow.wasm, made by harness/rust cowify) run through wasmtime-py 50.0.1,
+# the 0.1.4 wheel's engine, by harness/py/pycow.py: memory_init_cow on, epoch interruption on, 8 MiB wasm stack,
+# same preopens and environment as harness/rust. Same machine as rust-host.txt, 2026-11-18 13:2x UTC. n=20, medians.
+compile pandas-cow.wasm in wasmtime-py: 37,171 ms (first run, written to a cache file)
+groupby (first run):  {"load_ms": 21.7, "total_med_ms": 7.7,  "total_first_ms": 406.87, "out": "{1: 1, 2: 5}"}
+groupby (cached):     {"load_ms": 10.2, "total_med_ms": 7.47, "total_first_ms": 14.57, "out": "{1: 1, 2: 5}"}
+sum(range(10**5)):    {"load_ms": 10.4, "total_med_ms": 8.91, "total_first_ms": 10.63, "out": "4999950000"}
+# Compare: the same groupby on the wasmtime crate, 6.45 ms (rust-host.txt); through the 0.1.4 runner from a package
+# snapshot, 58 ms (python-package-snapshots.json). This script does only what a call needs; the runner does more per call.

@@ -1,0 +1,33 @@
+# wp-bench (harness/rust), wasmtime 50.0.2 crate, release build stripped (18,356,616 bytes).
+# Linux x86_64, Intel Xeon @ 2.10GHz, 4 vCPU, 15 GiB, 2026-11-17. Each line is the program's own JSON.
+# Config: epoch interruption on, fuel off unless FUEL=1, 8 MiB wasm stack; "ondemand" = default allocator, "pooling" = pooling allocator.
+# Guest code G = import pandas as pd; print(pd.DataFrame({'a':[1,2,2],'b':[1,2,3]}).groupby('a').b.sum().to_dict())
+
+compile python-snapshot.wasm: {"compile_ms":31127,"cwasm_bytes":298813544,"rss_peak_mib":2298}
+compile, native_unwind_info(false): {"compile_ms":31203,"cwasm_bytes":291915808,"rss_peak_mib":2238}
+compile, cranelift opt level none: {"compile_ms":27183,"cwasm_bytes":311732784,"rss_peak_mib":2360}
+compile pandas-cow.wasm (144,066,428 bytes): {"compile_ms":31555,"cwasm_bytes":325683288,"rss_peak_mib":2373}
+compile all-cow.wasm (314,394,484 bytes): {"compile_ms":31999,"cwasm_bytes":497322072,"rss_peak_mib":2896}
+cowify pandas.img: {"cow_wasm_bytes":144066428,"segments":4,"nonzero_bytes":51707904,"image_pages":1050}
+cowify all.img: {"cow_wasm_bytes":314394484,"segments":3,"nonzero_bytes":222035968,"image_pages":3669}
+
+pass, snapshot, ondemand x20: {"load_ms":13.1,"instance_pre_ms":0.01,"instantiate_med_ms":0.076,"run_med_ms":10.79,"drop_med_ms":0.17,"total_med_ms":11.03,"total_first_ms":13.33,"rss_peak_mib":46}
+pass, snapshot, pooling x20: {"load_ms":10.8,"instantiate_med_ms":0.032,"run_med_ms":10.23,"drop_med_ms":0.14,"total_med_ms":10.41,"total_first_ms":13.94,"rss_peak_mib":46}
+G cold (import pandas), snapshot, ondemand x3: {"run_med_ms":1254.98,"drop_med_ms":2.37,"total_med_ms":1257.42,"total_first_ms":1299.64,"rss_peak_mib":132}
+G, copy of pandas image, ondemand x10: {"instantiate_med_ms":0.176,"restore_med_ms":41.67,"run_med_ms":3.59,"drop_med_ms":3.09,"total_med_ms":48.41,"total_first_ms":57.73}
+G, mmap MAP_PRIVATE of pandas image, ondemand x20: {"restore_med_ms":0.01,"run_med_ms":6.53,"drop_med_ms":0.44,"total_med_ms":7.13,"total_first_ms":10.75}
+G, mmap MAP_PRIVATE of everything image, ondemand x20: {"restore_med_ms":0.01,"run_med_ms":7.66,"drop_med_ms":0.77,"total_med_ms":8.47,"total_first_ms":14.64}
+G, COW module pandas, ondemand x20: {"load_ms":11.2,"instantiate_med_ms":0.074,"run_med_ms":6.03,"drop_med_ms":0.36,"total_med_ms":6.45,"total_first_ms":10.08,"rss_peak_mib":97}
+G, COW module pandas, pooling x20: {"load_ms":10.7,"instantiate_med_ms":0.031,"run_med_ms":6.05,"drop_med_ms":0.34,"total_med_ms":6.39,"total_first_ms":9.51,"rss_peak_mib":96}
+G, COW module everything, ondemand x20: {"instantiate_med_ms":0.072,"run_med_ms":7.01,"total_med_ms":7.55,"total_first_ms":11.47,"rss_peak_mib":114}
+G, COW module everything, pooling x20: {"instantiate_med_ms":0.035,"run_med_ms":7.23,"total_med_ms":7.84,"total_first_ms":10.54,"rss_peak_mib":113}
+G, COW module pandas, FUEL=1 x3: {"run_med_ms":9.85,"total_med_ms":10.66,"fuel_med":7818966}
+sklearn DecisionTreeClassifier fit+predict, COW everything x10: {"run_med_ms":103.27,"total_med_ms":104.72}
+numpy (a*a).sum() over 2e6 floats x20, in-guest ms: default opt 96, opt level none 137
+
+# Sessions kept alive (30 stores held after G), per-session growth of /proc/self/status fields:
+copy of pandas image:      VmRSS 67.4  RssAnon 66.1  RssFile 1.4   MiB/session
+COW module pandas:         VmRSS 30.8  RssAnon 4.7   RssFile 26.1  MiB/session
+COW module everything:     VmRSS 45.9  RssAnon 5.6   RssFile 40.2  MiB/session
+mmap of everything image:  VmRSS 128.0 RssAnon 5.6   RssFile 122.4 MiB/session
+# RssFile counts shared page-cache pages once per mapping, so it overstates; RssAnon is each session's private memory.
