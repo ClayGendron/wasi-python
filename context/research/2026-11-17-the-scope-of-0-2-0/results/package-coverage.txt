@@ -19,3 +19,8 @@
 snap.cwasm        298813544   57018220
 pandas-cow.cwasm  325683288   65293972
 all-cow.cwasm     497322072  106675003
+
+# Added 2026-11-19: the metered (fuel) module and the copy-on-write binaries themselves, zstd level 19.
+pandas-cow-fuel.cwasm  382893456   77918432
+pandas-cow.wasm        144066428   24369736
+all-cow.wasm           314394484   65759821
