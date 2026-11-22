@@ -655,6 +655,7 @@ class Mounted(_OnStack):
         config = wasmtime.Config()
         config.epoch_interruption = True
         config.consume_fuel = fuel is not None
+        config.wasm_gc = False  # as the runner's engines
         self.engine = engine = wasmtime.Engine(config)
         self.store = store = wasmtime.Store(engine)
         store.set_epoch_deadline(2**40)
@@ -712,6 +713,7 @@ class Counted(_OnStack):
         config = wasmtime.Config()
         config.epoch_interruption = True
         config.consume_fuel = fuel is not None
+        config.wasm_gc = False  # as the runner's engines
         self.engine = engine = wasmtime.Engine(config)
         self.store = store = wasmtime.Store(engine)
         store.set_epoch_deadline(2**40)

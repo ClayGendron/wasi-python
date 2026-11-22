@@ -546,7 +546,7 @@ class RefusingStore(PublicStore):
 def test_the_public_api_is_preferred_where_the_object_has_it(monkeypatch) -> None:
     public = {"get_fuel", "set_fuel", "set_epoch_deadline"}
     assert public <= {n for n in dir(wt.Store) if callable(getattr(wt.Store, n))}
-    assert not public & set(dir(wt.Caller))  # on 50.0.1 a Caller takes the private path
+    assert not public & set(dir(wt.Caller))  # on 51.0.0 a Caller takes the private path
     bindings: list[tuple[str, object]] = []
 
     def record(name):

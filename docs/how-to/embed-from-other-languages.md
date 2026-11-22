@@ -69,7 +69,7 @@ The artifacts are plain `wasm32-wasip1` modules. Any engine that meets the requi
 
 ### Pick an engine
 
-The binaries use WebAssembly's exception-handling proposal in its standard form (`exnref`, part of WebAssembly 3.0), so C++ exceptions work. They also need multi-value and reference types (WebAssembly 2.0). The project runs only wasmtime 50 itself. The rest of this table is read from each engine's release notes and source:
+The binaries use WebAssembly's exception-handling proposal in its standard form (`exnref`, part of WebAssembly 3.0), so C++ exceptions work. They also need multi-value and reference types (WebAssembly 2.0). The project runs only wasmtime 51 itself (`wasmtime>=51,<52`). The rest of this table is read from each engine's release notes and source:
 
 | status | engines |
 |---|---|
@@ -90,7 +90,7 @@ The guest's import path holds only the stdlib zip. If you add entries, add read-
 
 ### Give the guest enough stack
 
-Set the engine's `max_wasm_stack` to 8 MiB. Above 2 MiB, wasmtime also needs `async_stack_size` at least as large, or it refuses the engine. wasmtime-py 50's `Config` has no property for it: call its declared binding first, or wasmtime-py's engine aborts the process on the refusal.
+Set the engine's `max_wasm_stack` to 8 MiB. Above 2 MiB, wasmtime also needs `async_stack_size` at least as large, or it refuses the engine. wasmtime-py 51's `Config` has no property for it: call its declared binding first, or wasmtime-py's engine aborts the process on the refusal.
 
 ```python
 wasmtime._ffi.wasmtime_config_async_stack_size_set(config.ptr(), size)
@@ -138,7 +138,7 @@ An instance the image is copied into resumes at its first `run` or `turn`: its i
 
 ### What you give up
 
-The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. The engine the runner pins, wasmtime 50, carries the fixes for a rename with a trailing `/` and for padding in directory listings in its own file calls. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them.
+The protections the Python runner adds are its own, not the artifacts'. An engine you drive yourself gets none of the runner's limits, folder checks or clean-up. The engine the runner pins, wasmtime 51, carries the fixes for a drive letter in a path on Windows, a rename with a trailing `/` and padding in directory listings in its own file calls. An embedder that drives the artifacts with its own wasmtime needs 51.0.0, or 50.0.3, 49.0.7, 48.0.10 or 36.0.22 on its line, to have them all.
 
 Do not pass a key that begins with `_PYTHON_` in the guest's environment: CPython's `sysconfig` reads these in isolated mode, and `_PYTHON_SYSCONFIGDATA_PATH` runs the module it names.
 

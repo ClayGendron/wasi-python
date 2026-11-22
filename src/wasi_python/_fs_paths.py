@@ -458,7 +458,9 @@ def _path_unlink_file(files: _Files, caller: Any, fd: int, ptr: int, length: int
 def _namespace(files: _Files, caller: Any, entry: _Open, ptr: int, length: int, method: str) -> int:
     """`mkdir`, `remove` or `rmdir`: one provider call after the path rules, or the answer
     the runner gives itself: the mount itself, a name ending in `/`, `.` or `..` (one `stat`
-    decides it), and an `rmdir` strictly above a more specific preopen (EBUSY)."""
+    decides it), and an `rmdir` strictly above a more specific preopen (EBUSY). An `rmdir` of a
+    folder named with a trailing slash goes on as its plain name's does, as a grant and Linux
+    remove it, so it never removes a folder the plain name's rules would keep."""
     if entry.kind != "dir":
         return EBADF
     texts = _texts(files, caller, ((ptr, length),))
@@ -470,7 +472,8 @@ def _namespace(files: _Files, caller: Any, entry: _Open, ptr: int, length: int, 
     if isinstance(resolved, int):
         return resolved
     path, folder_only = resolved
-    last, mount = texts[0].rsplit("/", 1)[-1], entry.mount
+    # The last component the name ends with, past any trailing slashes: `e/./` ends in `.`.
+    last, mount = texts[0].rstrip("/").rsplit("/", 1)[-1], entry.mount
     if path == "/":  # the mount itself, as a grant's own preopen answers
         return {"mkdir": EEXIST, "remove": EISDIR, "rmdir": EINVAL}[method]
     if folder_only and (method != "mkdir" or last in (".", "..")):
@@ -479,7 +482,8 @@ def _namespace(files: _Files, caller: Any, entry: _Open, ptr: int, length: int, 
             return errno
         if kind != "dir":
             return ENOTDIR
-        return {"mkdir": EEXIST, "remove": EISDIR, "rmdir": EINVAL}[method]
+        if method != "rmdir" or last in (".", ".."):
+            return {"mkdir": EEXIST, "remove": EISDIR, "rmdir": EINVAL}[method]
     if method == "rmdir" and _above(mount, path):
         return EBUSY  # the guest's view of other preopens stays where it was put
     errno, _ = files._change(caller, mount, method, "call", (path,))

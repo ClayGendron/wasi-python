@@ -68,6 +68,7 @@ def engine() -> wt.Engine:
 
         cfg = wt.Config()
         cfg.consume_fuel = True
+        cfg.wasm_gc = False  # as the runner's engines: the guest declares no GC type
         cfg.epoch_interruption = True
         _wasmtime_ffi.set_async_stack(cfg, WASM_STACK)  # the seam's three branches
         cfg.max_wasm_stack = WASM_STACK

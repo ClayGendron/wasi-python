@@ -244,9 +244,9 @@ STATED = 8 * 1024 * 1024
 
 
 def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
-    """The runner's engines are made
-    with an 8 MiB wasm stack, stated, beside fuel (for the metered one) and epoch interruption;
-    wasmtime's async stack size is raised to it first, through wasmtime-py's own binding."""
+    """The runner's engines are made with an 8 MiB wasm stack, stated, beside fuel (for the
+    metered one), the GC proposal off and epoch interruption; wasmtime's async stack size is
+    raised to it first, through wasmtime-py's own binding."""
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
@@ -260,17 +260,48 @@ def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
     assert [list(c.set.items()) for c in made] == [
         [
             ("consume_fuel", True),
+            ("wasm_gc", False),
             ("epoch_interruption", True),
             ("async_stack_size (binding)", STATED),
             ("max_wasm_stack", STATED),
         ],
         [
             ("consume_fuel", False),
+            ("wasm_gc", False),
             ("epoch_interruption", True),
             ("async_stack_size (binding)", STATED),
             ("max_wasm_stack", STATED),
         ],
     ]
+
+
+GC_TYPE = "(module (type (struct)))"
+EXCEPTIONS = """
+(module
+  (tag $e (param i32))
+  (func (export "caught") (result i32)
+    (block $h (result i32)
+      (try_table (catch $e $h) (throw $e (i32.const 7)))
+      (i32.const 0))))
+"""
+
+
+@pytest.mark.parametrize("metered", [True, False], ids=["metered", "unmetered"])
+def test_the_engines_refuse_gc_types(metered) -> None:
+    """Both of the runner's engines refuse a module that declares a GC struct type, since the
+    runtime uses none and an engine without the GC proposal keeps that code out of a guest's
+    reach; and both still accept the exception-handling proposal the runtime does use (a tag,
+    `throw` and `try_table`)."""
+    engine = _engines._engine(metered)
+    with pytest.raises(wt.WasmtimeError, match="gc"):
+        wt.Module(engine, wt.wat2wasm(GC_TYPE))
+    module = wt.Module(engine, wt.wat2wasm(EXCEPTIONS))
+    store = wt.Store(engine)
+    if metered:
+        store.set_fuel(10**6)
+    store.set_epoch_deadline(2**40)
+    caught = wt.Instance(store, module, []).exports(store)["caught"]
+    assert caught(store) == 7
 
 
 def test_the_async_stack_size_property_is_preferred(monkeypatch) -> None:
@@ -315,8 +346,8 @@ def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
 
 def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
     """The judge's driver
-    makes the runner's engine: fuel, epoch interruption and the same 8 MiB stack, the async stack
-    size first, so checks see the frames `run` gives."""
+    makes the runner's engine: fuel, the GC proposal off, epoch interruption and the same 8 MiB
+    stack, the async stack size first, so checks see the frames `run` gives."""
     from harness import guest
 
     made: list[RecordingConfig] = []
@@ -327,6 +358,7 @@ def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
     guest.engine()
     assert list(made[0].set.items()) == [
         ("consume_fuel", True),
+        ("wasm_gc", False),
         ("epoch_interruption", True),
         ("async_stack_size (binding)", STATED),
         ("max_wasm_stack", STATED),

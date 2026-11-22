@@ -2400,6 +2400,419 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
     assert os.readlink(grant / "s") == "d" and (grant / "f").read_text() == "f"
 
 
+# A name with a drive in it. Windows reads `C:name` against drive C's current folder, not the
+# folder it is joined to, so an engine that passed such a name to the host would let a guest
+# reach the host process's own working folder through any folder it is given, the runner's
+# read-only ones included. The check runs a raw guest in a child whose working folder holds a
+# canary, and drives every path call on every folder the call preopens through the host door,
+# one raw call per frame, so the names reach the engine exactly as written.
+
+DRIVE_CALLS = (
+    "fd_prestat_get",
+    "fd_prestat_dir_name",
+    "fd_read",
+    "fd_close",
+    "path_open",
+    "path_filestat_get",
+    "path_filestat_set_times",
+    "path_readlink",
+    "path_create_directory",
+    "path_remove_directory",
+    "path_unlink_file",
+    "path_rename",
+    "path_link",
+    "path_symlink",
+)
+# The guest's memory: the answer it sends (its errno at 1024, a call's results at 1032, a buffer
+# at 1152), the paths a command puts at 8192, and the command itself where host_alloc puts it.
+DRIVE_ERR, DRIVE_RES, DRIVE_BUF, DRIVE_PATH, DRIVE_COMMAND = 1024, 1032, 1152, 8192, 65536
+DRIVE_PUT = 88  # a command's header: call, where to put, how many bytes, answer length, 9 args
+WASI_ENOENT, WASI_EPERM = 44, 63  # WASI's own numbering, which the guest sees on every host
+CANARY_NS = 10**18  # the canary's times, set before the run: 2001-09-09
+GUEST_TIMES_NS = 7 * 10**9  # what the guest tries to set them to
+
+
+def _drive_guest() -> str:
+    """A command module whose `run` asks the door for a command, makes that one raw call, puts
+    its errno before the call's results and sends them back, until the answer is empty."""
+    from harness import files, wat
+
+    lines = ["(module", f"  {wat.DOOR_IMPORT}"]
+    for name in DRIVE_CALLS:
+        params = " ".join(files.RAW_SIGNATURES[name])
+        lines.append(
+            f'  (import "{files.WASI}" "{name}" (func ${name} (param {params}) (result i32)))'
+        )
+    lines.append('  (memory (export "memory") 4)')
+    lines.append(
+        f'  (func (export "host_alloc") (param i32) (result i32) (i32.const {DRIVE_COMMAND}))'
+    )
+    lines.append("  (func $dispatch (param $r i32) (result i32)")
+    lines.append("    (block $none")
+    lines += [f"    (block $c{i}" for i in reversed(range(len(DRIVE_CALLS)))]
+    table = " ".join(f"$c{i}" for i in range(len(DRIVE_CALLS)))
+    lines.append(f"      (br_table {table} $none (i32.load (local.get $r))))")
+    for name in DRIVE_CALLS:
+        args = []
+        for j, kind in enumerate(files.RAW_SIGNATURES[name]):
+            load = f"(i64.load offset={16 + 8 * j} (local.get $r))"
+            args.append(load if kind == "i64" else f"(i32.wrap_i64 {load})")
+        lines.append(f"      (return (call ${name} {' '.join(args)})))")
+    lines.append("    (i32.const 52))")  # ENOSYS, for a call the table does not hold
+    lines.append(
+        f"""  (func (export "run") (result i32) (local $back i32) (local $r i32)
+    (local.set $back (i32.const 4))
+    (loop $next
+      (if (i32.lt_s (call $door (i32.const {DRIVE_ERR}) (local.get $back)
+                                (i32.const 0) (i32.const 4)) (i32.const 0))
+        (then (return (i32.const 1))))
+      (if (i32.eqz (i32.load (i32.const 4))) (then (return (i32.const 0))))
+      (local.set $r (i32.load (i32.const 0)))
+      (memory.copy (i32.load offset=4 (local.get $r))
+                   (i32.add (local.get $r) (i32.const {DRIVE_PUT}))
+                   (i32.load offset=8 (local.get $r)))
+      (local.set $back (i32.load offset=12 (local.get $r)))
+      (i32.store (i32.const {DRIVE_ERR}) (call $dispatch (local.get $r)))
+      (br $next))
+    (i32.const 0)))"""
+    )
+    return "\n".join(lines)
+
+
+def _drive_rows(drive: str, token: str) -> list[list[Any]]:
+    """What each folder is asked, in order: a little setup, then every path call on each name
+    built on the drive (`./X:name`, `X:name`, `sub/X:name`, and a link whose target is `X:name`)
+    and on its plain twin, `X-name`. Each row is its key, its kind and its arguments. `{f}` in a
+    path is the folder's number, so no two folders' names can meet on one host folder."""
+    canary, folder, sub = f"canary-{token}", f"folder-{token}", f"sub-{token}"
+    fresh = files.O_CREAT | files.O_EXCL
+    rows: list[list[Any]] = [
+        ["setup sub", "mkdir", sub],
+        ["setup control", "open", f"control-{token}", fresh],
+        ["control read", "open", f"control-{token}", 0],
+    ]
+    for sep in (":", "-"):
+        on, tag = f"{drive}{sep}", "colon" if sep == ":" else "plain"
+        for kind, spelling in (("dot", f"./{on}"), ("bare", on), ("sub", f"{sub}/{on}")):
+            shown = spelling.replace(sub, "sub") + "x"
+
+            def new(op: str, spelling: str = spelling, kind: str = kind) -> str:
+                return f"{spelling}new-{token}-{{f}}-{kind}-{op}"
+
+            def plain(what: str, op: str, kind: str = kind, tag: str = tag) -> str:
+                return f"{what}-{token}-{{f}}-{kind}-{op}-{tag}"
+
+            rows += [
+                [f"setup {shown} rename", "open", plain("src", "rename"), fresh],
+                [f"setup {shown} link", "open", plain("src", "link"), fresh],
+                [f"{shown} read", "open", spelling + canary, 0],
+                [f"{shown} create", "open", new("create"), fresh],
+                [f"{shown} stat", "stat", spelling + canary, 0],
+                [f"{shown} stat, following", "stat", spelling + canary, 1],
+                [f"{shown} set times", "times", spelling + canary, 1],
+                [f"{shown} readlink", "readlink", spelling + canary],
+                [f"{shown} mkdir", "mkdir", new("mkdir")],
+                [f"{shown} rmdir", "rmdir", spelling + folder],
+                [f"{shown} unlink", "unlink", spelling + canary],
+                [f"{shown} rename from", "rename", spelling + canary, plain("got", "rename")],
+                [f"{shown} rename to", "rename", plain("src", "rename"), new("rename")],
+                [f"{shown} link from", "link", spelling + canary, plain("got", "link")],
+                [f"{shown} link to", "link", plain("src", "link"), new("link")],
+                [f"{shown} symlink", "symlink", "anywhere", new("symlink")],
+            ]
+        shown = f"a link to {on}x"
+
+        def link(op: str, tag: str = tag) -> str:
+            return f"lnk-{token}-{{f}}-{op}-{tag}"
+
+        rows += [
+            [f"{shown} made", "symlink", on + canary, link("canary")],
+            [f"{shown} made, to a folder", "symlink", on + folder, link("folder")],
+            [f"{shown} made, to a new name", "symlink", f"{on}new-{token}-{{f}}-link", link("new")],
+            [f"{shown} read", "open", link("canary"), 0],
+            [f"{shown} create", "open", link("new"), files.O_CREAT],
+            [f"{shown} open the folder", "open", link("folder"), files.O_DIRECTORY],
+            [f"{shown} stat, following", "stat", link("canary"), 1],
+            [f"{shown} set times", "times", link("canary"), 1],
+        ]
+    return rows
+
+
+DRIVE = r"""
+import json, struct, sys, tempfile, traceback
+from pathlib import Path
+temp, module, plan_file, where, mounted, tests = sys.argv[1:7]
+module = Path(module)
+tempfile.tempdir = temp  # the private root and the guest's HOME are made here, not in the cwd
+sys.path.insert(0, tests)
+import wasi_python
+from harness.files import MemoryProvider
+from wasi_python import Grant, Mount
+
+with open(plan_file) as f:
+    plan = json.load(f)
+ids = {name: i for i, name in enumerate(plan["calls"])}
+ERR, RES, BUF, PATH = plan["layout"]
+READ_RIGHTS, ALL_RIGHTS = plan["rights"]
+TIMES = plan["times"]
+
+
+def command(name, *args, put=b"", at=PATH, back=4):
+    head = struct.pack("<4I", ids[name], at, len(put), back)
+    return head + struct.pack("<9q", *args, *[0] * (9 - len(args))) + put
+
+
+def errno(answer):
+    return struct.unpack_from("<I", answer)[0]
+
+
+def word(answer, offset):  # a u32 the call wrote at RES + offset
+    return struct.unpack_from("<I", answer, RES - ERR + offset)[0]
+
+
+def text(answer, n):
+    return answer[BUF - ERR:BUF - ERR + n].decode("latin-1")
+
+
+def row(kind, fd, *rest):
+    # One row's raw calls; it answers "ok", ["ok", what was read] or the errno.
+    first = rest[0].encode()
+    if kind == "open":
+        oflags = rest[1]
+        rights = ALL_RIGHTS if oflags & 1 else READ_RIGHTS  # O_CREAT asks to write
+        a = yield command("path_open", fd, 1, PATH, len(first), oflags, rights, rights, 0, RES,
+                          put=first, back=RES - ERR + 4)
+        if errno(a):
+            return errno(a)
+        opened, got = word(a, 0), "ok"
+        if oflags == 0:
+            iov = struct.pack("<II", BUF, 256)
+            a = yield command("fd_read", opened, RES + 16, 1, RES, put=iov, at=RES + 16,
+                              back=BUF - ERR + 256)
+            got = ["ok", errno(a) or text(a, word(a, 0))]
+        yield command("fd_close", opened)
+        return got
+    if kind == "stat":
+        a = yield command("path_filestat_get", fd, rest[1], PATH, len(first), RES, put=first)
+        return errno(a) or "ok"
+    if kind == "times":
+        a = yield command("path_filestat_set_times", fd, rest[1], PATH, len(first), TIMES, TIMES,
+                          5, put=first)  # both times, to the guest's own values
+        return errno(a) or "ok"
+    if kind == "readlink":
+        a = yield command("path_readlink", fd, PATH, len(first), BUF, 256, RES, put=first,
+                          back=BUF - ERR + 256)
+        return errno(a) or ["ok", text(a, word(a, 0))]
+    one = {"mkdir": "path_create_directory", "rmdir": "path_remove_directory",
+           "unlink": "path_unlink_file"}
+    if kind in one:
+        a = yield command(one[kind], fd, PATH, len(first), put=first)
+        return errno(a) or "ok"
+    second = rest[1].encode()
+    both, at2 = first + second, PATH + len(first)
+    if kind == "rename":
+        a = yield command("path_rename", fd, PATH, len(first), fd, at2, len(second), put=both)
+    elif kind == "link":
+        a = yield command("path_link", fd, 0, PATH, len(first), fd, at2, len(second), put=both)
+    else:
+        a = yield command("path_symlink", PATH, len(first), fd, at2, len(second), put=both)
+    return errno(a) or "ok"
+
+
+def drive(out):
+    folders = []
+    for fd in range(3, 64):
+        a = yield command("fd_prestat_get", fd, RES, back=RES - ERR + 8)
+        if errno(a):
+            break
+        size = word(a, 4)
+        a = yield command("fd_prestat_dir_name", fd, BUF, size, back=BUF - ERR + size)
+        folders.append((fd, text(a, size)))
+    for i, (fd, name) in enumerate(folders):
+        if name == "/m":
+            continue  # a mount refuses a drive by its own rule, which another check holds
+        out[name] = answers = {}
+        for key, kind, *rest in plan["rows"]:
+            rest = [r.replace("{f}", str(i)) if isinstance(r, str) else r for r in rest]
+            answers[key] = yield from row(kind, fd, *rest)
+
+
+out, failed, started = {}, [], []
+steps = drive(out)
+
+
+def host(request):
+    try:
+        if not started:
+            started.append(True)
+            return next(steps)
+        return steps.send(request)
+    except StopIteration:
+        return b""
+    except Exception:
+        failed.append(traceback.format_exc())
+        raise
+
+
+places = {
+    "none": {},
+    "read-only": {"grants": [Grant(plan["grant"], "/g")]},
+    "writable": {"grants": [Grant(plan["grant"], "/g", writable=True)]},
+    "root": {"root": True},
+}[where]
+if mounted == "1":
+    places["mounts"] = [Mount(MemoryProvider(), "/m")]
+real = wasi_python.artifacts()
+found = wasi_python.Artifacts(module, module, real.stdlib_zip, real.manifest)
+done = wasi_python.run([], artifacts=found, snapshot=False, cache_dir=False, host=host, **places)
+print(json.dumps({
+    "ended": [done.exit_code, None if done.trapped is None else str(done.trapped)],
+    "stderr": done.stderr.decode("latin-1")[-1500:],
+    "failed": failed,
+    "folders": out,
+}))
+"""
+
+
+@pytest.mark.parametrize("mounted", [False, True], ids=["no-mount", "mount"])
+@pytest.mark.parametrize("where", ["none", "read-only", "writable", "root"])
+def test_a_drive_prefixed_name_stays_in_its_folder(tmp_path, where, mounted) -> None:
+    """Guards a change: a guest names files with a drive in them, such as `./C:canary`, in
+    every path call, on every folder its call preopens: the stdlib folder and the empty HOME
+    with no grants, a read-only grant, a writable grant, or a private root, each with and
+    without a mount. The child's working folder, outside every folder the guest is given, holds
+    a canary on that folder's drive: its bytes never reach the guest, its bytes and times are
+    unchanged, it is not removed, and nothing is made beside it. On Windows every such call is
+    refused (a link whose target has a drive may be made, but is never followed). On macOS and
+    Linux a colon is a plain character, so each call answers as its colon-free twin does and
+    whatever it makes is inside the folder."""
+    import json
+    import secrets
+
+    _run()
+    from harness import wat
+
+    cwd, temp, grant = tmp_path / "cwd", tmp_path / "temp", tmp_path / "grant"
+    for d in (cwd, temp, grant):
+        d.mkdir()
+    token = secrets.token_hex(8)
+    secret = f"CANARY-{token}"
+    canary, folder = cwd / f"canary-{token}", cwd / f"folder-{token}"
+    canary.write_text(secret)
+    folder.mkdir()
+    os.utime(canary, ns=(CANARY_NS, CANARY_NS))
+    (grant / f"sub-{token}").mkdir()
+    (grant / f"control-{token}").write_text("control")
+    drive = cwd.drive[:1] or "C"  # the working folder's own drive; POSIX has none
+    posix = sys.platform != "win32"
+    assert drive.isalpha(), cwd
+    module = wat.build(tmp_path / "module", "drive.wasm", _drive_guest())
+    plan = {
+        "calls": DRIVE_CALLS,
+        "layout": [DRIVE_ERR, DRIVE_RES, DRIVE_BUF, DRIVE_PATH],
+        "rights": [files.READ_RIGHTS, files.RIGHTS_ALL],
+        "times": GUEST_TIMES_NS,
+        "grant": str(grant),
+        "rows": _drive_rows(drive, token),
+    }
+    (tmp_path / "plan.json").write_text(json.dumps(plan))
+    tests = str(paths.REPO / "tests")
+    argv = [str(temp), str(module), str(tmp_path / "plan.json"), where, "1" if mounted else "0"]
+    out = subprocess.run(
+        [sys.executable, "-c", DRIVE, *argv, tests],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        cwd=cwd,  # the drive's current folder, for the child alone
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    seen = json.loads(out.stdout)
+    assert (seen["ended"], seen["failed"]) == ([0, None], []), seen
+
+    # On every system: the canary is never read, changed or removed, and nothing is made
+    # outside the guest's folders. Its last-access time is the host's to move (a scanner that
+    # reads it moves it), so only the guest's own value is refused there.
+    assert secret not in out.stdout
+    st = os.stat(canary)
+    assert (canary.read_text(), st.st_mtime_ns) == (secret, CANARY_NS)
+    assert st.st_atime_ns != GUEST_TIMES_NS
+    assert sorted(p.name for p in cwd.iterdir()) == sorted([canary.name, folder.name])
+    assert list(folder.iterdir()) == [] and list(temp.iterdir()) == []
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "cwd",
+        "grant",
+        "module",
+        "plan.json",
+        "temp",
+    ]
+
+    folders = seen["folders"]
+    want = {"none": ["/usr/local/lib"], "read-only": ["/g"], "writable": ["/g"], "root": ["/"]}
+    assert set(want[where]) <= set(folders), sorted(folders)
+    if where != "root":  # a private root holds HOME; elsewhere it is an empty folder of its own
+        assert any(name.startswith("/tmp/.home-") for name in folders), sorted(folders)
+    writable = {"writable": "/g", "root": "/"}.get(where)
+    if where in ("read-only", "writable"):
+        assert folders["/g"]["control read"] == ["ok", "control"], folders["/g"]
+    if writable is not None:  # the plain names show every call is made and answered
+        rows = folders[writable]
+        ops = ["create", "mkdir", "rename to"] + (["link to", "symlink"] if posix else [])
+        names = (f"./{drive}-x", f"{drive}-x", f"sub/{drive}-x")
+        made = {f"{s} {op}": rows[f"{s} {op}"] for s in names for op in ops}
+        assert made == dict.fromkeys(made, "ok"), made
+
+    wrong = {}
+    link = f"a link to {drive}:x"
+    # Which link each row that follows one goes through, by the row that made that link.
+    follows = {
+        "read": "made",
+        "stat, following": "made",
+        "set times": "made",
+        "create": "made, to a new name",
+        "open the folder": "made, to a folder",
+    }
+    for name, rows in folders.items():
+        for key, answer in rows.items():
+            if f"{drive}:" not in key:
+                continue
+            twin = rows[key.replace(f"{drive}:", f"{drive}-")]
+            if posix or key.startswith("setup "):
+                # A colon is a plain character on macOS and Linux; a setup row makes a plain
+                # name whatever its key says. Either answers as its twin does.
+                if answer != twin:
+                    wrong[f"{name} {key}"] = (answer, twin)
+            elif key.startswith(f"{link} "):
+                op = key[len(link) + 1 :]
+                if op in follows:
+                    # Through a link whose target names a drive: once such a link is made,
+                    # every call through it is refused. A link that was refused leaves only
+                    # a plain name behind, which the folder checks above already bound.
+                    if rows[f"{link} {follows[op]}"] == "ok" and not isinstance(answer, int):
+                        wrong[f"{name} {key}"] = (answer, twin)
+                elif answer != "ok" and not isinstance(answer, int):
+                    wrong[f"{name} {key}"] = (answer, twin)  # a link is made or refused
+            else:
+                # wasmtime refuses a colon in any path on Windows. A name that begins with the
+                # drive is refused as a path that leaves the folder, EPERM; a colon later in a
+                # name, or in the name of a new link, meets the rule against colons, which the
+                # guest sees as ENOENT. Where the folder refuses the call first, whatever the
+                # name (a write in a read-only folder), the answer is that refusal, as the
+                # twin's shows.
+                leaves = key.startswith(f"{drive}:") and not key.endswith(" symlink")
+                refused = WASI_EPERM if leaves else WASI_ENOENT
+                if answer != refused and not (isinstance(twin, int) and answer == twin):
+                    wrong[f"{name} {key}"] = (answer, twin)
+    assert wrong == {}, wrong
+    if posix and where == "writable":  # what a colon name made is in the grant, as its twin's
+        made = sorted(str(p.relative_to(grant)) for p in grant.rglob("*"))
+        colon = sorted(
+            n.replace(f"{drive}:", f"{drive}-").replace("-colon", "-plain")
+            for n in made
+            if f"{drive}:" in n or "-colon" in n
+        )
+        assert colon and colon == [n for n in made if f"{drive}-" in n or "-plain" in n], made
+
+
 # Writable mounts: a writable mount at / cannot reach the runtime's files, a
 # read-only grant inside it, another mount, or the host.
 

@@ -34,7 +34,7 @@ def _wasmtime() -> Any:
         import wasmtime as wt
     except (ImportError, RuntimeError, OSError) as e:
         raise ImportError(
-            "wasi_python.run needs wasmtime-py (wasmtime>=50,<51), which installs with "
+            "wasi_python.run needs wasmtime-py (wasmtime>=51,<52), which installs with "
             "wasi-python; reinstall it or install wasmtime directly"
         ) from e
     from wasi_python import _wasmtime_ffi  # noqa: F401  (its own ImportError names what moved)
@@ -144,6 +144,9 @@ def _engine(metered: bool) -> wasmtime.Engine:
             p.fork_used = True  # before the engine exists: a fork from here on is refused
             cfg = wt.Config()
             cfg.consume_fuel = metered
+            # The runtime throws exceptions but declares no GC struct, array or heap type, so
+            # an engine that refuses them keeps that part of wasmtime out of a guest's reach.
+            cfg.wasm_gc = False
             cfg.epoch_interruption = True
             ffi.set_async_stack(cfg, _WASM_STACK)  # first: an 8 MiB stack without it aborts
             cfg.max_wasm_stack = _WASM_STACK

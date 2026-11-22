@@ -1371,12 +1371,12 @@ def test_the_wasmtime_cli_is_the_lines_by_its_exact_name(tmp_path) -> None:
     """A build tree may still hold an older wasmtime beside the line's own (a step 10 that ran on
     the older pin left it there): the judge's CLI is the folder the line names, never the first
     one sorted, which would be the older."""
-    for folder in ("wasmtime-v49.0.3-aarch64-macos", "wasmtime-v50.0.1-aarch64-macos"):
+    for folder in ("wasmtime-v50.0.1-aarch64-macos", "wasmtime-v51.0.0-aarch64-macos"):
         (tmp_path / folder).mkdir()
         (tmp_path / folder / "wasmtime").write_bytes(b"")
-    found = paths.wasmtime_cli("wasmtime-v50.0.1-aarch64-macos", tools=tmp_path)
-    assert found == tmp_path / "wasmtime-v50.0.1-aarch64-macos" / "wasmtime"
-    assert paths.wasmtime_cli("wasmtime-v51.0.0-aarch64-macos", tools=tmp_path) is None
+    found = paths.wasmtime_cli("wasmtime-v51.0.0-aarch64-macos", tools=tmp_path)
+    assert found == tmp_path / "wasmtime-v51.0.0-aarch64-macos" / "wasmtime"
+    assert paths.wasmtime_cli("wasmtime-v52.0.0-aarch64-macos", tools=tmp_path) is None
 
 
 # The folder table in the stdlib zip's archive comment.
