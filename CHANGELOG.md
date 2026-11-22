@@ -4,7 +4,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 
 ## 0.1.6 — 2026-11-22
 
-0.1.6 moves the engine to wasmtime 51, which closes a sandbox escape on Windows: on 0.1.5 any guest could read host files outside its folders through a drive-prefixed name, even with no folders granted (GHSA-f2pq-268w-886c). The runner also turns off WebAssembly's GC proposal, which the runtime never used, and an `rmdir` of a folder named with a trailing slash now works on a mount. Act on one change: the wheel now requires wasmtime 51, which installs with it. The artifact set's bytes are unchanged.
+0.1.6 moves the engine to wasmtime 51, which closes a sandbox escape on Windows: on 0.1.5 and earlier any guest could read host files outside its folders through a drive-prefixed name, even with no folders granted (GHSA-f2pq-268w-886c). The runner also turns off WebAssembly's GC proposal, which the runtime never used, and an `rmdir` of a folder named with a trailing slash now works on a mount. Act on one change: the wheel now requires wasmtime 51, which installs with it. `python.wasm`, the snapshot and the stdlib zip are byte for byte 0.1.5's; only the manifest, which names the engine, changes.
 
 ### Security
 
@@ -18,7 +18,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 
 ### Upgrading
 
-- **wasmtime 51 is required.** The wheel requires `wasmtime>=51,<52`. Fuel figures change slightly, since fuel is counted by the new engine. [Support and versioning](https://claygendron.github.io/wasi-python/reference/support-and-versioning/)
+- **wasmtime 51 is required.** The wheel requires `wasmtime>=51,<52`, and the fix lives in that engine: an environment installed without dependencies, such as with `pip install --no-deps`, keeps its old wasmtime and the escape, so check that `pip show wasmtime` says 51. Fuel figures change slightly, since fuel is counted by the new engine. [Support and versioning](https://claygendron.github.io/wasi-python/reference/support-and-versioning/)
 
 ### For contributors
 
