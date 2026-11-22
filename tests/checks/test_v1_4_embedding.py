@@ -786,7 +786,7 @@ def test_package_imports_without_wasmtime() -> None:
 
 def test_a_plain_install_brings_wasmtime() -> None:
     """`pip install wasi-python` runs programs: wasmtime-py is the one required dependency,
-    `>=50,<51` with no marker; the `run` extra stays, empty; the dev group does not repeat the
+    `>=51,<52` with no marker; the `run` extra stays, empty; the dev group does not repeat the
     bound. Exactly one dependency also makes the rule that each dependency has a written reason
     mechanical: another one turns this red until a specification gives its reason."""
     import tomllib
@@ -801,7 +801,7 @@ def test_a_plain_install_brings_wasmtime() -> None:
     req = Requirement(deps[0])
     assert (req.name, req.specifier, req.marker, req.extras) == (
         "wasmtime",
-        SpecifierSet(">=50,<51"),
+        SpecifierSet(">=51,<52"),
         None,
         set(),
     ), deps
@@ -842,7 +842,7 @@ def test_a_wasmtime_that_cannot_load_is_named(error) -> None:
     assert out.returncode == 0, out.stderr
     got = json.loads(out.stdout)
     assert got[:2] == [error, "wasmtime cannot load: test"], got
-    assert "wasmtime>=50,<51" in got[2], got
+    assert "wasmtime>=51,<52" in got[2], got
 
 
 def test_a_failed_instantiation_reports_no_fuel(guest_workdir) -> None:
@@ -852,6 +852,32 @@ def test_a_failed_instantiation_reports_no_fuel(guest_workdir) -> None:
     done = run(["-c", "pass"], root=_root(guest_workdir), memory_bytes=1 << 20, fuel=10**9)
     assert done.exit_code is None and done.trapped, done
     assert done.fuel_used == 0, done
+
+
+@pytest.mark.parametrize("capture", ["the platform's", "callback"])
+def test_one_large_write_arrives_whole(guest_workdir, monkeypatch, capture) -> None:
+    """A guest that writes 8 MiB to stdout in one `os.write` gets the whole count back and the
+    embedder gets every byte, with no trap, on the platform's own capture and on the callback
+    one. wasmtime traps a write larger than an output stream's budget, which a guest could reach
+    only if the engine handed the stream its write whole; it hands it a few KiB at a time."""
+    from wasi_python import _platform
+    from wasi_python._process import process
+
+    run = _runner()
+    if capture == "callback":  # a platform with no channel of its own takes the callback
+        monkeypatch.setattr(_platform.PLATFORM, "output_channel", lambda: None)
+    kinds: list[str] = []
+    monkeypatch.setattr(process().observers, "on_capture", kinds.append)
+    size = 8 << 20
+    code = f"import os, sys\nn = os.write(1, b'x' * {size})\nsys.stderr.write(str(n))\n"
+    done = run(["-c", code], root=_root(guest_workdir), output_bytes=2 * size)
+    assert (done.exit_code, done.trapped, done.truncated) == (0, None, ()), done
+    assert (done.stderr, len(done.stdout)) == (str(size).encode(), size), done.stderr
+    assert done.stdout == b"x" * size
+    if capture == "callback":
+        assert kinds == ["callback"], kinds
+    else:
+        assert kinds == (["callback"] if sys.platform == "win32" else ["pipe"]), kinds
 
 
 def test_an_ordinary_sleep_still_works(guest_workdir) -> None:

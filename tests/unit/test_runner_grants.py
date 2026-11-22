@@ -784,6 +784,14 @@ SYSTEM_ROWS = {
     "read 100,000 at 2**63 - 100,000": {"linux"},
     "read 100,000 at 2**63 - 100,001": {"linux"},
 }
+# A pread of nothing at an offset of 2**63 or more: a deliberate difference. The mount answers
+# EINVAL, which is what the offset is, on every system. wasmtime 51's grant answers EINTR, from
+# its own early return for a read of no bytes before any host call; an EINTR invites a guest to
+# retry the same call forever. Both are asserted in the test of the deliberate differences.
+PAST_I64_ROWS = {
+    f"pread {what} at {at}" for what in ("nothing", "an empty buffer") for at in (2**63, -1)
+}
+GRANT_PAST_I64 = 27  # EINTR
 
 
 def _parity_script(r: files.Raw) -> dict[str, object]:
@@ -1038,6 +1046,7 @@ def test_raw_calls_answer_as_a_grant_does(tmp_path) -> None:
         label: (want[label], got[label])
         for label in want
         if want[label] != got[label]
+        and label not in PAST_I64_ROWS
         and (POSIX or label not in HOST_ROWS)
         and sys.platform in SYSTEM_ROWS.get(label, {sys.platform})
     }
@@ -1115,6 +1124,13 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
         assert m.read(mf, [size])[0] == errno, (at, size)
     m.seek(mf, top, 0)
     assert (m.read(mf, [0])[0], m.read(mf, [])[0]) == (0, 0)  # nothing to read: no refusal
+    # A pread of nothing at 2**63 or more: EINVAL on the mount, EINTR on the grant (the table).
+    for sizes in ([], [0]):
+        for at in (2**63, -1):
+            assert both(lambda r, s=sizes, a=at: r.pread(gf if r is g else mf, s, a)) == (
+                (GRANT_PAST_I64, 0, b""),
+                (28, 0, b""),
+            ), (sizes, at)
     # A trailing slash or slash-dot on a file names a folder: ENOTDIR, as macOS answers and as
     # an open of it answers everywhere (Linux's grant answers the file's stat to a stat).
     assert (m.path_filestat(3, "a.txt/")[0], m.path_filestat(3, "a.txt/.")[0]) == (54, 54)

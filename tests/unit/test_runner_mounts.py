@@ -1188,7 +1188,8 @@ def test_an_unlinked_folder_holds_nothing(placeholder) -> None:
 def test_the_runner_answers_namespace_calls_it_can(placeholder, tmp_path) -> None:
     """The calls the runner answers with no provider call: the mount
     itself (Linux's answers, wasmtime's reference), a rename into its own subfolder, a rename or
-    rmdir strictly above a more specific preopen (EBUSY), a rename or link to another
+    rmdir strictly above a more specific preopen (EBUSY; a slash-named rmdir, which removes a
+    folder by its plain name, after one `stat` finds the folder), a rename or link to another
     descriptor (EPERM when that side is read-only, EXDEV when both may be written), a link or
     symlink within (ENOTSUP); and a rename onto itself, one `stat`."""
     rw, ro = tmp_path / "rw", tmp_path / "ro"
@@ -1208,6 +1209,7 @@ def test_the_runner_answers_namespace_calls_it_can(placeholder, tmp_path) -> Non
         "rename onto the mount": r.rename(3, "a.txt", 3, "."),
         "rename into its own subfolder": r.rename(3, "e", 3, "e/sub"),
         "rmdir above a nested preopen": r.path_call("path_remove_directory", 3, "d"),
+        "rmdir above a nested preopen, slash-named": r.path_call("path_remove_directory", 3, "d/"),
         "rename above a nested preopen": r.rename(3, "d", 3, "q"),
         "rename onto a folder above one": r.rename(3, "e", 3, "d"),
         "rmdir at a nested preopen": r.path_call("path_remove_directory", 3, "d/inner"),
@@ -1227,6 +1229,7 @@ def test_the_runner_answers_namespace_calls_it_can(placeholder, tmp_path) -> Non
         "rename onto the mount": 10,
         "rename into its own subfolder": 28,
         "rmdir above a nested preopen": 10,
+        "rmdir above a nested preopen, slash-named": 10,
         "rename above a nested preopen": 10,
         "rename onto a folder above one": 10,
         "rmdir at a nested preopen": 63,
@@ -1238,9 +1241,9 @@ def test_the_runner_answers_namespace_calls_it_can(placeholder, tmp_path) -> Non
         "link within": 58,
         "symlink within": 58,
     }, rows
-    assert provider.total() == 0
+    assert (provider.total(), provider.calls["stat"]) == (1, 1)  # the slash-named rmdir's
     assert (r.rename(3, "a.txt", 3, "./a.txt"), r.rename(3, "nope", 3, "nope")) == (0, 44)
-    assert dict(provider.calls) == {**dict.fromkeys(provider.calls, 0), "stat": 2}
+    assert dict(provider.calls) == {**dict.fromkeys(provider.calls, 0), "stat": 3}
     assert sorted(p.name for p in rw.iterdir()) == ["w.txt"]
 
 
