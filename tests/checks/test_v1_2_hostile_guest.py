@@ -2792,13 +2792,15 @@ def test_a_drive_prefixed_name_stays_in_its_folder(tmp_path, where, mounted) -> 
                 elif answer != "ok" and not isinstance(answer, int):
                     wrong[f"{name} {key}"] = (answer, twin)  # a link is made or refused
             else:
-                # wasmtime refuses a colon in any path on Windows, before a folder's own
-                # refusal, so the answer is the same on every folder. A name that begins with
-                # the drive is refused as a path that leaves the folder, EPERM; a colon later
-                # in a name, or in the name of a new link, meets the rule against colons,
-                # which the guest sees as ENOENT.
+                # wasmtime refuses a colon in any path on Windows. A name that begins with the
+                # drive is refused as a path that leaves the folder, EPERM; a colon later in a
+                # name, or in the name of a new link, meets the rule against colons, which the
+                # guest sees as ENOENT. Where the folder refuses the call first, whatever the
+                # name (a write in a read-only folder), the answer is that refusal, as the
+                # twin's shows.
                 leaves = key.startswith(f"{drive}:") and not key.endswith(" symlink")
-                if answer != (WASI_EPERM if leaves else WASI_ENOENT):
+                refused = WASI_EPERM if leaves else WASI_ENOENT
+                if answer != refused and not (isinstance(twin, int) and answer == twin):
                     wrong[f"{name} {key}"] = (answer, twin)
     assert wrong == {}, wrong
     if posix and where == "writable":  # what a colon name made is in the grant, as its twin's
