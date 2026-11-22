@@ -56,17 +56,22 @@ A *guest* is the Python program running inside `python.wasm`. The *host* is your
 - A *trap* is the guest stopping on an error the wasm engine catches, such as running out of fuel or overflowing its stack. A trap ends the call, not your process.
 - On Linux, a trap could end or hang your process if wasmtime's signal handlers were replaced after the first call (by `faulthandler`, `signal.signal` or a crash reporter). So each entry into the guest is refused with `RuntimeError`, before guest code runs, when that has happened. Install `faulthandler` and crash reporters before your first call.
 
-### Three wasmtime fixes, in wasmtime itself
+### Four wasmtime fixes, in wasmtime itself
 
-The pinned wasmtime-py bundles wasmtime 50.0.0. Three advisories fixed in wasmtime 49 releases reach a guest, and wasmtime 50.0.0 carries each fix in its own calls; the runner adds none:
+The pinned wasmtime-py bundles wasmtime 51.0.0. Four advisories fixed in earlier wasmtime releases reach a guest, and wasmtime 51.0.0 carries each fix in its own calls; the runner adds none:
 
+- **GHSA-f2pq-268w-886c** (fixed in wasmtime 50.0.3): on Windows, a name such as `/usr/local/lib/C:secret` reached the current folder of drive C, outside every folder the guest was given. It reached every call of wasi-python 0.1.5 and earlier on Windows, even one with no folder granted, because the runner gives each call read-only folders of its own: the stdlib's and an empty `HOME`. A call with a writable folder or `root=True` could write there too. wasmtime now refuses a `:` in any path on Windows.
 - **GHSA-m9f7-9w4p-gv38** (fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a writable grant or root could rename a link that points out, with a trailing slash, and so move a host folder into its sandbox. wasmtime's rename refuses it.
 - **GHSA-96f6-r43r-8c24** (fixed in wasmtime 49.0.2): directory listings copied up to three bytes of host memory into the guest. wasmtime writes zeros.
 - **GHSA-m63x-6p34-q65x** (fixed in wasmtime 49.0.1): fuel did not count work inside a C++ call that ends in a caught exception, so a guest could run past its fuel cap. wasmtime counts it.
 
-wasmtime's advisories of 2026-10-19, fixed in wasmtime 49.0.4, do not reach the runner: wasmtime 50.0.0 is outside the critical GHSA-mghf-wjfp-p5xm's range, and the rest are in parts of wasmtime the runner does not use.
+wasmtime's other fixes since 50.0.0 are carried and do not reach the runner. GHSA-5m8g-xhq4-4h93 is about empty writes to a custom output stream, which the runner uses on Windows, but a guest's write never hands the stream an empty buffer. The rest are in the GC proposal's heap, in builds without a feature, in the component model or in `wasi-http`, or need a call the runner never makes. wasmtime's advisories of 2026-10-19, fixed in wasmtime 49.0.4, do not reach the runner either: wasmtime 51.0.0 is outside the critical GHSA-mghf-wjfp-p5xm's range, and the rest are in parts of wasmtime the runner does not use.
 
-These fixes live in the engine, not in the artifact set. An embedder that drives the artifacts with its own wasmtime before 49.0.3 does not get them all.
+These fixes live in the engine, not in the artifact set. An embedder that drives the artifacts with its own wasmtime needs 51.0.0, or 50.0.3, 49.0.7, 48.0.10 or 36.0.22 on its line, to get them all.
+
+### The engine refuses WebAssembly GC types
+
+The runtime uses WebAssembly's exception-handling proposal but none of the GC proposal's structs, arrays or heap types. So the runner's engines turn the GC proposal off, and a module that declares a GC type is refused when it is compiled. This keeps that part of wasmtime out of a guest's reach. wasmtime still keeps a small heap for exception objects. Turning the proposal off closes no open advisory; it narrows what a guest can reach.
 
 ## What is not protected
 

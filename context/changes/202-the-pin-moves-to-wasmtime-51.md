@@ -25,6 +25,24 @@ None.
 ```toml
 [[claim]]
 spec = "202"
-new = ["tests/checks/test_v1_2_hostile_guest.py::test_a_drive_prefixed_name_stays_in_its_folder"]
-units = 0
+new = [
+    "tests/checks/test_v1_2_hostile_guest.py::test_a_drive_prefixed_name_stays_in_its_folder",
+    "tests/checks/test_v1_4_embedding.py::test_one_large_write_arrives_whole",
+]
+# The pin's text rows, which now say >=51,<52, and the slash rows of the rename rule, whose
+# answers are re-derived on three systems under wasmtime 51 with their safety assertions kept.
+changed = [
+    "tests/checks/test_v1_4_embedding.py::test_a_plain_install_brings_wasmtime",
+    "tests/checks/test_v1_4_embedding.py::test_a_wasmtime_that_cannot_load_is_named",
+    "tests/checks/test_v1_2_hostile_guest.py::test_a_trailing_slash_rename_rule",
+    "tests/checks/test_v1_2_hostile_guest.py::test_a_trailing_slash_symlink_rename_cannot_escape",
+]
+grows = ["tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]"]
+growth = "the snapshot is made again by wasmtime wizer 51.0.0, the build's command line on the runner's new line, so its bytes change; python.wasm and the stdlib zip are not made by wasmtime and keep theirs. Every metered check's fuel is counted by wasmtime 51.0.0 and recorded fresh, not compared, as on every move of the engine"
+# Unit rows (tallied, not named): test_the_engines_refuse_gc_types, metered and not, is new;
+# the two engine-settings rows gain ("wasm_gc", False); the write parity's rmdir 'e/' and 'd/'
+# rows pass with the mount following the grant, and the namespace check gains a slash-named
+# rmdir above a nested preopen (EBUSY); the read parity's four pread rows past 2**63 are a
+# deliberate difference, the mount's EINVAL asserted on every system and the grant's EINTR.
+units = 2
 ```

@@ -1,6 +1,6 @@
 # Draft: a repository security advisory for wasi-python on Windows
 
-A draft for the owner to publish from the repository's Security tab (Advisories, "New draft security advisory"), once specification 202's check 3a has run on the Windows leg and 0.1.6 is out. Publish it only if 3a was red on wasmtime-py 50.0.1. The fields below are in the order GitHub's form asks for them. Fill in the bracketed fact from what check 3a found, then delete this paragraph and the notes at the end.
+A draft for the owner to publish from the repository's Security tab (Advisories, "New draft security advisory"), once specification 202's check 3a has run on the Windows leg and 0.1.6 is out. 3a was red on wasmtime-py 50.0.1 (pull request #129, run 45037617781, Windows leg `own-hostile`: all eight calls read the canary), so it applies; publishing it is the owner's call. The fields below are in the order GitHub's form asks for them; 3a's finding is written into the Impact. Delete this paragraph and the notes at the end before publishing.
 
 ---
 
@@ -22,7 +22,7 @@ A draft for the owner to publish from the repository's Security tab (Advisories,
 
 On Windows, any guest program run by `wasi_python.run`, a `Session` or the `wasi-python` command can name a host file outside the folders it was given. It uses a path component with a drive prefix, such as `/usr/local/lib/C:secret`. Windows reads `C:secret` relative to the current folder of drive C, not relative to the folder the guest named.
 
-This reaches every call, including one given no folders at all. Each call has folders of the runtime's own, among them the standard library's folder at `/usr/local/lib`, which is read-only. Through them, any guest can read files outside its folders. Through a writable folder, or with `root=True`, it can also create, change, rename or remove them. [Check 3a found: the calls that reached outside on 0.1.5.]
+This reaches every call, including one given no folders at all. Each call has folders of the runtime's own, among them the standard library's folder at `/usr/local/lib`, which is read-only. Through them, any guest can read files outside its folders. Through a writable folder, or with `root=True`, it can also create, change, rename or remove them. On 0.1.5 on Windows, a guest read a file outside its folders in every kind of call: with no folders given, with a read-only folder, with a writable folder, and with `root=True`, with or without a mount, through the runtime's own folders as well as the granted ones.
 
 Only Windows hosts are affected. macOS and Linux are not, since a colon is an ordinary character in a file name there. Folders given as the runner's own mounts are not affected either: the runner has always refused a `:` in their names. The flaw is in the engine, wasmtime, which the runner passes its host folders to. It is wasmtime's advisory [GHSA-f2pq-268w-886c](https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-f2pq-268w-886c).
 
@@ -54,6 +54,6 @@ An embedder who drives the artifact set (`python.wasm`, the snapshot) with their
 
 ## Notes for the owner (delete before publishing)
 
-- **Whether to publish at all depends on 3a.** If 3a's Windows leg was green on wasmtime-py 50.0.1, 0.1.5 was not reached. Then don't publish this; the release notes say the fix is carried, and that is all.
+- **3a was red, so publish.** Its Windows leg read the canary outside the guest's folders in all eight calls on wasmtime-py 50.0.1 (run 45037617781). 3a checked reads; that a writable folder or `root=True` could also write outside is inferred from the same resolution, not run.
 - **The empty-write advisory** (GHSA-5m8g-xhq4-4h93) did not reach the runner: WASIp1 never passes an empty write to the output stream. It belongs in no advisory of ours.
 - **Timing.** wasmtime's advisory has been public since 2026-11-19, so the flaw is already known. Publishing with 0.1.6, not before it, gives users the fix in the same message.
