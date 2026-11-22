@@ -2427,7 +2427,7 @@ DRIVE_CALLS = (
 # at 1152), the paths a command puts at 8192, and the command itself where host_alloc puts it.
 DRIVE_ERR, DRIVE_RES, DRIVE_BUF, DRIVE_PATH, DRIVE_COMMAND = 1024, 1032, 1152, 8192, 65536
 DRIVE_PUT = 88  # a command's header: call, where to put, how many bytes, answer length, 9 args
-WASI_ENOENT = 44  # WASI's own numbering, which the guest sees on every host
+WASI_EPERM = 63  # WASI's own numbering, which the guest sees on every host
 CANARY_NS = 10**18  # the canary's times, set before the run: 2001-09-09
 GUEST_TIMES_NS = 7 * 10**9  # what the guest tries to set them to
 
@@ -2762,18 +2762,38 @@ def test_a_drive_prefixed_name_stays_in_its_folder(tmp_path, where, mounted) -> 
         assert made == dict.fromkeys(made, "ok"), made
 
     wrong = {}
+    link = f"a link to {drive}:x"
+    # Which link each row that follows one goes through, by the row that made that link.
+    follows = {
+        "read": "made",
+        "stat, following": "made",
+        "set times": "made",
+        "create": "made, to a new name",
+        "open the folder": "made, to a folder",
+    }
     for name, rows in folders.items():
         for key, answer in rows.items():
             if f"{drive}:" not in key:
                 continue
             twin = rows[key.replace(f"{drive}:", f"{drive}-")]
-            if posix:  # a colon is a plain character there
+            if posix or key.startswith("setup "):
+                # A colon is a plain character on macOS and Linux; a setup row makes a plain
+                # name whatever its key says. Either answers as its twin does.
                 if answer != twin:
                     wrong[f"{name} {key}"] = (answer, twin)
-            elif key.startswith("a link to ") and " made" in key:
-                continue  # a link may be made; each row that follows one is still refused
-            elif not isinstance(answer, int) or answer not in (WASI_ENOENT, twin):
-                # ENOENT, or the refusal a folder gives whatever the name, as its twin shows
+            elif key.startswith(f"{link} "):
+                op = key[len(link) + 1 :]
+                if op in follows:
+                    # Through a link whose target names a drive: once such a link is made,
+                    # every call through it is refused. A link that was refused leaves only
+                    # a plain name behind, which the folder checks above already bound.
+                    if rows[f"{link} {follows[op]}"] == "ok" and not isinstance(answer, int):
+                        wrong[f"{name} {key}"] = (answer, twin)
+                elif answer != "ok" and not isinstance(answer, int):
+                    wrong[f"{name} {key}"] = (answer, twin)  # a link is made or refused
+            elif answer != WASI_EPERM:
+                # wasmtime refuses a colon in any path on Windows, and the guest sees EPERM;
+                # the refusal comes before a folder's own, so it is the same on every folder.
                 wrong[f"{name} {key}"] = (answer, twin)
     assert wrong == {}, wrong
     if posix and where == "writable":  # what a colon name made is in the grant, as its twin's
