@@ -2427,7 +2427,7 @@ DRIVE_CALLS = (
 # at 1152), the paths a command puts at 8192, and the command itself where host_alloc puts it.
 DRIVE_ERR, DRIVE_RES, DRIVE_BUF, DRIVE_PATH, DRIVE_COMMAND = 1024, 1032, 1152, 8192, 65536
 DRIVE_PUT = 88  # a command's header: call, where to put, how many bytes, answer length, 9 args
-WASI_EPERM = 63  # WASI's own numbering, which the guest sees on every host
+WASI_ENOENT, WASI_EPERM = 44, 63  # WASI's own numbering, which the guest sees on every host
 CANARY_NS = 10**18  # the canary's times, set before the run: 2001-09-09
 GUEST_TIMES_NS = 7 * 10**9  # what the guest tries to set them to
 
@@ -2791,10 +2791,15 @@ def test_a_drive_prefixed_name_stays_in_its_folder(tmp_path, where, mounted) -> 
                         wrong[f"{name} {key}"] = (answer, twin)
                 elif answer != "ok" and not isinstance(answer, int):
                     wrong[f"{name} {key}"] = (answer, twin)  # a link is made or refused
-            elif answer != WASI_EPERM:
-                # wasmtime refuses a colon in any path on Windows, and the guest sees EPERM;
-                # the refusal comes before a folder's own, so it is the same on every folder.
-                wrong[f"{name} {key}"] = (answer, twin)
+            else:
+                # wasmtime refuses a colon in any path on Windows, before a folder's own
+                # refusal, so the answer is the same on every folder. A name that begins with
+                # the drive is refused as a path that leaves the folder, EPERM; a colon later
+                # in a name, or in the name of a new link, meets the rule against colons,
+                # which the guest sees as ENOENT.
+                leaves = key.startswith(f"{drive}:") and not key.endswith(" symlink")
+                if answer != (WASI_EPERM if leaves else WASI_ENOENT):
+                    wrong[f"{name} {key}"] = (answer, twin)
     assert wrong == {}, wrong
     if posix and where == "writable":  # what a colon name made is in the grant, as its twin's
         made = sorted(str(p.relative_to(grant)) for p in grant.rglob("*"))
