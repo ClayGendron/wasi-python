@@ -73,6 +73,16 @@ Reserved (the owner, 2026-10-31, with pandas 3.1.0): scikit-learn's next release
 
 Reserved (carried by the next build-class specification that edits a file under `scripts/`): `scripts/assemble_artifacts.py`'s two `F402` (the loop variable `line` at `:587` and `:601`, which shadows the imported module `line`, renamed `text`) and its format, and `scripts/make_stdlib_zip.py`'s `E501` and `I001`; both leave `[tool.ruff] extend-exclude`, so ruff reads every build script; build-class, since `MANIFEST` hashes each tracked file under `scripts/` as a `recipe` line and `SHA256SUMS` hashes `MANIFEST`, so the change rides a run that compares the three artifacts anyway.
 
+## 0.1.6: wasmtime 51, a security release
+
+Decided by the owner on 2026-11-22 (`decisions.md`, "0.1.6 is a security release"): the move to wasmtime 51 first, because wasmtime-py 51 is the only wasmtime-py with the fix for GHSA-f2pq-268w-886c, a Windows sandbox escape that reached every call of 0.1.5's runner.
+
+**Built.** 202, the pin moves to wasmtime 51: landed 2026-11-22 by pull request #129 (`a0729a7`), accepted in `550f8ce`. The runner and the build's command line are on wasmtime 51.0.0; the GC proposal is off; a slash-named `rmdir` on a mount follows the grant. The artifact set is byte-identical to 0.1.5's.
+
+**The release.** As 0.1.5's: a fresh agent's structural review and another's security review, the preparation pull request with `bump --to 0.1.6` and `date`, the release pull request from `dev` to `main`, and the owner moves `main` and tags `v0.1.6`. The repository advisory draft, `research/2026-11-22-moving-to-wasmtime-51/advisory-draft.md`, is the owner's to publish with it.
+
+**Moved to 0.1.7** (the owner, 2026-11-22): 115's second half, which the roadmap had wanted before 0.1.6, and the rest of 0.1.6's planned work. Reserved from 202, each for a specification of its own: the module cache's file name leaves out the engine's features, so a future engine setting that changes them recompiles once without a warning; and an uncaught wasm exception ends a run with an unnamed trap, where the runner names `stack overflow` and `unreachable` (both seen by the GC probe, the same with GC on and off). And for upstream: wasmtime 51 answers EINTR for a zero-size `pread` at an offset out of range, an issue to draft under `upstream/` for the owner to send.
+
 ## 0.1.5: the Rust pipeline, pydantic and more packages
 
 Decided by the owner on 2026-11-14 (`decisions.md`, "0.1.5's scope"), from a scope proposal and two spikes run that day (pydantic-core on wasm32-wasip1, and unwinding Rust panics). Every specification is built by a pull request into `dev` under the nine steps of `AGENTS.md`.

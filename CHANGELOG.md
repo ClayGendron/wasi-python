@@ -2,6 +2,28 @@
 
 One section per release of the `wasi-python` artifact set and wheel, newest first. Each section is also the release's notes on GitHub. From 0.1.2 a section opens with what the release gives you, then lists its changes under New, Faster, Security, Fixed, Upgrading and For contributors, each with a link to the page that explains it. Earlier sections are kept as they were published.
 
+## 0.1.6 — 2026-11-22
+
+0.1.6 moves the engine to wasmtime 51, which closes a sandbox escape on Windows: on 0.1.5 any guest could read host files outside its folders through a drive-prefixed name, even with no folders granted (GHSA-f2pq-268w-886c). The runner also turns off WebAssembly's GC proposal, which the runtime never used, and an `rmdir` of a folder named with a trailing slash now works on a mount. Act on one change: the wheel now requires wasmtime 51, which installs with it. The artifact set's bytes are unchanged.
+
+### Security
+
+- **On Windows, a drive letter no longer reaches host files.** wasmtime 51 refuses a `:` in any path. Before, any guest could read a name such as `/usr/local/lib/C:secret` from drive C's current folder, with nothing granted, and write through a writable folder or `root=True` (GHSA-f2pq-268w-886c, High). Your own wasmtime needs 51.0.0, 50.0.3, 49.0.7, 48.0.10 or 36.0.22. [Security model](https://claygendron.github.io/wasi-python/explanation/security-model/)
+- **wasmtime's other fixes since 50.0.0 are carried.** None of them reached the runner. A guest's empty writes, for one, never reach the output stream that one of them is about. [Security model](https://claygendron.github.io/wasi-python/explanation/security-model/)
+- **The engine refuses WebAssembly GC types.** The runtime uses exceptions but none of the GC proposal's structs and arrays, so the runner now turns that proposal off. A module that declares one is refused. [Security model](https://claygendron.github.io/wasi-python/explanation/security-model/)
+
+### Fixed
+
+- **Removing a folder named with a trailing slash works on a mount.** `os.rmdir("logs/")` now removes an empty `logs` on a mount, as it does on a granted folder under wasmtime 51 and on Linux. It answered EINVAL before. [The guest's files](https://claygendron.github.io/wasi-python/reference/guest-filesystem/)
+
+### Upgrading
+
+- **wasmtime 51 is required.** The wheel requires `wasmtime>=51,<52`. Fuel figures change slightly, since fuel is counted by the new engine. [Support and versioning](https://claygendron.github.io/wasi-python/reference/support-and-versioning/)
+
+### For contributors
+
+- **Four more jinja2 tests the collector moves are named.** The 0.1.5 release run saw two tests join jinja2's asyncio-loop class and two leave it with no change to the code, so the four join the six already named, and the rest of the class is still held exactly. [Two tiers of tests](https://claygendron.github.io/wasi-python/contributing/release-process/#two-tiers-of-tests)
+
 ## 0.1.5 — 2026-11-16
 
 0.1.5 builds Rust into the runtime: orjson, and pydantic over pydantic-core, are compiled into both binaries with native's results, though a recursive pydantic model nests at most 49 levels. pydantic's suites run in the guest; a pydantic-core panic raises `PanicException`, which `except Exception` misses, and an orjson panic ends the run. It adds pytz, rich, Faker and folium, and soupsieve 4.1.1 fixes two advisories where a hostile page could keep `select()` busy for minutes. Act on three changes: soupsieve treats a `template` and an `iframe` differently, some selectors match as a browser does, and your own copy of a package the runtime carries, such as pydantic or pytz, is no longer imported. It is published on GitHub and on PyPI.
