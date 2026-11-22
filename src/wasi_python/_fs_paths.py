@@ -472,7 +472,8 @@ def _namespace(files: _Files, caller: Any, entry: _Open, ptr: int, length: int, 
     if isinstance(resolved, int):
         return resolved
     path, folder_only = resolved
-    last, mount = texts[0].rsplit("/", 1)[-1], entry.mount
+    # The last component the name ends with, past any trailing slashes: `e/./` ends in `.`.
+    last, mount = texts[0].rstrip("/").rsplit("/", 1)[-1], entry.mount
     if path == "/":  # the mount itself, as a grant's own preopen answers
         return {"mkdir": EEXIST, "remove": EISDIR, "rmdir": EINVAL}[method]
     if folder_only and (method != "mkdir" or last in (".", "..")):

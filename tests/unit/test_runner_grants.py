@@ -1307,6 +1307,7 @@ def _write_rows() -> dict[str, object]:
         for path in (
             "new", "new/", "d", "e", "a.txt", "missing", "missing/x", "a.txt/x", "a.txt/", "d/",
             "e/", ".", "..", "d/.", "e/.", "d/..", "new/.", "missing/.", "a.txt/.", "", "/x",
+            "e/./", "d/./", "e/.//",
         ):  # fmt: skip
             rows[f"{name} {path!r}"] = lambda r, c=call, p=path: r.path_call(c, 3, p)
     for src, dst in [
