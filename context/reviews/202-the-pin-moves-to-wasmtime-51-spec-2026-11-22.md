@@ -2,7 +2,7 @@
 
 - **Date:** 2026-11-22
 - **Reviewer:** an agent (Claude), a fresh sub-agent of https://claude.ai/code/session_01ThzDEVEoH7V2U4kpFD24Yy; not the author
-- **Reviewed:** the specification as drafted, `context/specifications/202-the-pin-moves-to-wasmtime-51.md`, at `c57bd95` on `claude/zen-meitner-1f2lmx`, with its memo `context/research/2026-11-22-moving-to-wasmtime-51.md`, the GC probe `context/research/2026-11-22-the-gc-proposal-off-under-wasmtime-51.md` and the advisory draft beside the memo
+- **Reviewed:** the specification as drafted, `context/specifications/202-the-pin-moves-to-wasmtime-51.md`, at `c57bd95` on `claude/zen-meitner-1f2lmx`, with its memo `context/research/2026-11-22-moving-to-wasmtime-51.md`, the GC probe `context/research/2026-11-22-the-gc-proposal-off-under-wasmtime-51.md` and the advisory draft beside the memo; the second round read the specification as amended on 2026-11-22 at `69bac2a`, its "Disposition of the pre-build review", the rewritten advisory draft and the decision on the red Windows leg (`context/decisions.md`, "0.1.6 is a security release")
 - **Run:** none: a specification review. Checklist items 1 and 2 (the CI run, the self-check) do not apply.
 - **Re-ran:**
   - Three parity rows on this machine's `.venv` (wasmtime-py 50.0.1): `tests/unit/test_runner_grants.py::test_raw_write_calls_answer_as_a_writable_grant_does`, `::test_the_write_differences_are_as_decided`, `::test_raw_calls_answer_as_a_grant_does` → 3 passed (EXECUTED). The same three with wasmtime-py 51.0.0 laid over it (`PYTHONPATH` to a folder linking the scratch venv's `wasmtime` package) → 2 failed, 1 passed, the same rows in three runs (EXECUTED; `build/review-202/parity-v51-vv.log`). Finding 2.
@@ -54,6 +54,28 @@ Labels: EXECUTED, I ran it; READ, I read the file or page cited; INFERRED, my re
 
 All eleven taken with the review's own fixes, in the specification as amended on 2026-11-22 (its "Disposition of the pre-build review"). Finding 8: the owner approved the one red Windows push by AskUserQuestion (`decisions.md`, "0.1.6 is a security release"). The `rmdir` line goes under Fixed, since the CHANGELOG has no Changed heading. Awaiting the reviewer's confirmation.
 
+Confirmed by the reviewer, second round, 2026-11-22 (READ, the amended specification line by line against each finding):
+
+1. The reach (High) — **confirmed**: the Problem, Decision 8, Intent, the first CHANGELOG line and the One line say every call on Windows; 3a gains the call with no grants (through `/usr/local/lib` and HOME's folder) and the one with `root=True`; the advisory draft's Impact says every call and its Workarounds say "None. Upgrade", with the narrowing kept as a note.
+2. The parity rows (Medium) — **confirmed**: 3d decides both; the Kind line, Intent, Design, Scope and criterion 5 name them. Fixed is the right heading: the news files' guide defines it as "something that did not work as the documentation says, and now does" (READ, `context/changes/README.md:11`). Two Lows on the wording follow (Findings 12, 14, 15).
+3. The empty write (Medium) — **confirmed**: 3b dropped with its three reasons; the Problem, criterion 4, Decision 8, the second CHANGELOG line and the draft's note say carried and not reached. One Low on an unlabelled version list (Finding 13).
+4. The rebuild evidence (Medium) — **confirmed**: Decision 2 and criterion 2 name the pull request's built set and the two hashes equal to `dev`'s; the rebuild and same-bytes are the release pull request's, and the lane says so; `00_download.sh` is named in the Kind line, Decision 2 and Design.
+5. `path_filestat_set_times` — **confirmed** (3a's list, and "its times").
+6. `path_symlink` — **confirmed**; one Low on the errno sentence (Finding 16).
+7. The safety design — **confirmed**: child process with `cwd=`, the folder's drive, random tokens, no `..` after the prefix, calls with and without a mount.
+8. The red push — **confirmed**: asked by AskUserQuestion and approved ("Yes, one red push"); the description names the leg and its mail before the push; the precheck passes for that commit.
+9. Decision 6's evidence — **confirmed**: the remaining evidence is named, the switch is its own commit (also in the lane's commit order), and the fallback is the owner's decision's.
+10. The flags and the file — **confirmed**: `--accept-judge` only with a verdict-bearing change; 3e's row in `tests/unit/test_runner_calls.py`.
+11. The document facts — **confirmed** for the embed page; the version list is Finding 13.
+
+## Second round: new findings, all Low, each with its fix text
+
+12. **The slash-named `rmdir` must keep the EBUSY rule and `_follow`** (Decision 3d, `_fs_paths._namespace`). Today a name ending in `/` takes the `folder_only` branch, which returns before `if method == "rmdir" and _above(mount, path): return EBUSY` (READ, `src/wasi_python/_fs_paths.py:458-494`). A new branch that calls the provider there would let `rmdir("d/")` remove a folder above a more specific preopen that `rmdir("d")` refuses with EBUSY, a deliberate difference the write parity asserts (READ, `tests/unit/test_runner_grants.py:1513-1530`). Fix text for 3d: "After its `stat` finds a folder, a slash-named `rmdir` goes on as the plain name's does: the EBUSY rule for a folder above a more specific preopen, one provider `rmdir`, and `_follow` on success. `test_the_runner_answers_namespace_calls_it_can` gains the row `rmdir above a nested preopen, slash-named` (`d/`), 10."
+13. **GHSA-5m8g-xhq4-4h93's patched versions carry no label** (Decision 8: "50.0.2, 49.0.6, 48.0.9 and 36.0.21"). The memo has only 50.0.2, and the advisory records in the scratch folder are API error bodies, not records (EXECUTED: each file holds a `message` field and nothing else), so this review could not read them either. Fix text: "(READ by the builder from the advisory's page before `SECURITY.md` is written; if it cannot be read, the sentence says "50.0.2 and later on the 50 line")".
+14. **The Fixed line's last clause reads as if Linux answered EINVAL.** Fix text: "`os.rmdir("logs/")` now removes an empty `logs` on a mount, as it does on a granted folder under wasmtime 51 and on Linux. It answered EINVAL before."
+15. **The `pread` rows' grant answer was seen on Linux only** (3d, criterion 5). The read parity compares most rows on Windows too (READ, `tests/unit/test_runner_grants.py:1036-1042`), and macOS and Windows may answer otherwise. Fix text for 3d: "The mount's EINVAL is asserted on every system; the grant's answer is recorded per system as the branch's run gives it."
+16. **ENOENT is expected for every refused call on Windows, not only the link** (3a). wasmtime maps the colon refusal, `ERROR_INVALID_NAME`, to `ErrorCode::NoEntry` wherever it is raised (READ, `crates/wasi/src/filesystem.rs:452` at `v51.0.0`). Fix text: "(ENOENT is expected for each refused call, READ, `filesystem.rs:452` at `v51.0.0`)".
+
 ## Verdict
 
-Does not land yet: Finding 1 (the escape's reach, stated and tested too narrowly, and an unsafe workaround in the advisory draft) and the Mediums of Findings 2 to 4 are to be answered in the specification before it is built; the Lows can be answered in writing.
+Fit to build, at `69bac2a`: the High and the three Mediums are answered in the specification, and Findings 12 to 16 are Lows with their fix texts, to be written in by the author with no further signing; the pull request's reviewer reads Finding 12's code. (First round: "Does not land yet: Finding 1 and the Mediums of Findings 2 to 4".)
