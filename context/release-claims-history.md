@@ -2,6 +2,24 @@
 
 `release/version.py date` moves each file of the ledger (`release-claims/NNN-<slug>.toml`, one per pull request) here, under the version it dates and under the file's name, in file-name order, before the release pull request, and removes the file; the ledger's folder keeps its README alone. The release pull request's gather and acceptance read the version's blocks, with any file written since, as their claims (`progress/README.md`, "The release tier" and "Acceptance from CI's record"). Until 0.1.0 the release acceptance moved them. Until 0.1.2 the ledger was `release-tier-claims.toml` and this file `release-tier-claims-history.md`, and they carried release-tier claims alone; the 0.1.2 block below names the ledger by its old name, as it was written. Until specification 177 the ledger was the single file `release-claims.toml`, whose blocks `date` moved as one fence; 0.1.2's section and those before it keep that shape.
 
+## 0.1.6
+
+Moved by `release/version.py date` on 2026-11-22, before the release pull request.
+
+`196-four-more-tests-the-collector-moves.toml`:
+
+```toml
+[[claim]]
+spec = "196"
+changed = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[jinja2-r-no-asyncio-loop]"]
+passes = ["tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[jinja2-r]"]
+fewer = "jinja2-r 548 to 546: TestExtensions::test_debug and TestModuleLoader::test_weak_references are now named collector moves, so their passes leave the count as 182's named tests' did; seen joining no-asyncio-loop in run 43982122112; the owner's choice, 2026-11-16, \"Stop counting them\""
+[claim.judge]
+"tests/upstream/jinja2.toml" = "no-asyncio-loop names four more collector moves, each seen moving in run 43982122112: test_debug and test_weak_references joined, test_groupby_tuple_index[<lambda>1] and test_simple_select_attr[<lambda>1] left; 182's \"What is inferred\" provides for it"
+"tests/upstream/expected/jinja2-r/no-asyncio-loop.txt" = "the two named tests that left in run 43982122112 leave the list, since a named test may not also be listed"
+"tests/known_gaps.toml" = "jinja2-r-no-asyncio-loop 102, ea1eb2ac4985 to 100, 3576e7515999: run 43982122112's members and the accepted list both give it once the four moves are left out"
+```
+
 ## 0.1.5
 
 Moved by `release/version.py date` on 2026-11-16, before the release pull request.

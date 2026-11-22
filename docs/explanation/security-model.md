@@ -71,7 +71,7 @@ These fixes live in the engine, not in the artifact set. An embedder that drives
 
 ### The engine refuses WebAssembly GC types
 
-The runtime uses WebAssembly's exception-handling proposal but none of the GC proposal's structs, arrays or heap types. So the runner's engines turn the GC proposal off, and a module that declares a GC type is refused when it is compiled. This keeps that part of wasmtime out of a guest's reach. wasmtime still keeps a small heap for exception objects. Turning the proposal off closes no open advisory; it narrows what a guest can reach.
+The runtime uses WebAssembly's exception-handling proposal but none of the GC proposal's structs, arrays or heap types. So the runner's engines turn the GC proposal off, and a module that declares a GC type is refused when it is compiled. This keeps that part of wasmtime out of a guest's reach. wasmtime still keeps a heap for exception objects, as it did before. Turning the proposal off closes no open advisory; it narrows what a guest can reach.
 
 ## What is not protected
 
