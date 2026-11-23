@@ -1,0 +1,68 @@
+# wp-bench (harness/rust) rebuilt on the wasmtime 51.0.0 crate, 2026-11-23. Release build stripped, 18,510,264 bytes.
+# The only change to harness/rust: in Cargo.toml, wasmtime and wasmtime-wasi pinned to "=51.0.0" instead of "=50.0.2". src/main.rs unchanged.
+# Same machine type as rust-host.txt: Linux x86_64, Intel Xeon @ 2.10GHz, 4 vCPU, 15 GiB, one cloud container. Each line is the program's own JSON, trimmed.
+# Guest code G = import pandas as pd; print(pd.DataFrame({'a':[1,2,2],'b':[1,2,3]}).groupby('a').b.sum().to_dict())
+# Inputs: "0.1.4" = the 0.1.4 wheel's python-snapshot.wasm and the pandas.img made on 2026-11-17 (same inputs as rust-host.txt);
+#         "0.1.6" = wasi_python-0.1.6-py3-none-any.whl from PyPI (sha256 checked against PyPI's listing), images made with it on wasmtime-py 51.0.0.
+
+## 1. A module compiled by one wasmtime does not load in another
+50-built snap.cwasm loaded by the 51 harness:  Error: failed deserialization ... Module was compiled with incompatible version '50'
+51-built snap.cwasm loaded by the 50 harness:  Error: failed deserialization ... Module was compiled with incompatible version '51'
+
+## 2. Compile (Module::from_file, unmetered unless FUEL=1)
+# Today's machine was slower than 2026-11-17's: the wasmtime 50 harness, re-run today on the same input, took 36.3 s (31.1 s on 2026-11-17).
+50, 0.1.4 snapshot (today):    {"compile_ms":36266,"cwasm_bytes":298813544,"rss_peak_mib":2299}
+51, 0.1.4 snapshot:            {"compile_ms":40918,"cwasm_bytes":299042920,"rss_peak_mib":2313}
+51, 0.1.4 snapshot (again):    {"compile_ms":38285,"cwasm_bytes":299042920,"rss_peak_mib":2291}
+51, 0.1.4 pandas-cow.wasm:     {"compile_ms":40650,"cwasm_bytes":325912664,"rss_peak_mib":2418}
+51, 0.1.4 pandas-cow, FUEL=1:  {"compile_ms":50494,"cwasm_bytes":383106440,"rss_peak_mib":2706}
+51, 0.1.6 snapshot (116,408,662 bytes):  {"compile_ms":40229,"cwasm_bytes":317597048,"rss_peak_mib":2448}
+51, 0.1.6 pandas-cow.wasm:     {"compile_ms":38792,"cwasm_bytes":346170728,"rss_peak_mib":2503}
+51, 0.1.6 all-cow.wasm:        {"compile_ms":39125,"cwasm_bytes":528950632,"rss_peak_mib":3021}
+51, 0.1.6 pandas-cow, FUEL=1:  {"compile_ms":51746,"cwasm_bytes":407632712,"rss_peak_mib":2875}
+
+## 3. Images and copy-on-write binaries made from 0.1.6 (make_package_snapshot on wasmtime-py 51.0.0, then cowify)
+pandas: image_bytes 70,516,736 -> {"cow_wasm_bytes":151121224,"segments":3,"nonzero_bytes":53411840,"image_pages":1076}
+all:    image_bytes 253,296,640 -> {"cow_wasm_bytes":333704512,"segments":2,"nonzero_bytes":235995136,"image_pages":3865}
+# (0.1.4: pandas 68.8 MB image, 144,066,428-byte cow wasm; all 240 MB image, 314,394,484-byte cow wasm.)
+
+## 4. Sizes, raw and zstd level 19 (zstandard, threads=-1)
+51, 0.1.4 snap.cwasm             299042920   56953841
+51, 0.1.4 pandas-cow.cwasm       325912664   65222096
+51, 0.1.4 pandas-cow-fuel.cwasm  383106440   77870973
+51, 0.1.6 snap.cwasm             317597048   61871289
+51, 0.1.6 pandas-cow.cwasm       346170728   70197258
+51, 0.1.6 pandas-cow-fuel.cwasm  407632712   83941333
+51, 0.1.6 all-cow.cwasm          528950632  114746431
+0.1.6 pandas-cow.wasm            151121224   25607177
+0.1.6 all-cow.wasm               333704512   70152586
+0.1.6 python-stdlib.zip as shipped (deflate)  73389030  70818197
+0.1.6 stdlib stored then zstd: {'entries': 10487, 'uncompressed_total': 196418110, 'stored_zip_bytes': 197904618, 'stored_zstd19_bytes': 46487534, 'decomp_s': 0.44}
+
+## 5. Calls, wasmtime 50 and 51 interleaved on the same inputs (0.1.4), medians, ms. Two rounds.
+# The first 50 runs of round 1 had their module out of the page cache (load 0.8 s, first call 1.2 to 4.0 s); their medians are unaffected.
+#                       round 1: 50 / 51        round 2: 50 / 51
+pass, snapshot, on demand x20:   10.95 / 10.76   10.35 / 10.19
+G, copy of pandas image x10:     49.17 / 48.83   51.38 / 46.15   (restore 42.7 / 42.7, 44.0 / 39.9)
+G, COW pandas, on demand x20:     9.50 /  6.32    8.74 /  7.29
+G, COW pandas, pooling x20:      10.47 /  6.70    7.93 /  7.12
+load of a precompiled module, 51: 11.2 to 12.9 ms
+# Earlier single 51 runs, before the interleaving: pass on demand 15.97, pass pooling 10.33, G cold (import pandas) 1,674 median, G mmap pandas 6.79, G COW pandas on demand 7.37, pooling 10.52.
+# Medians move by 2 to 4 ms between runs of one build on this machine; no change between 50 and 51 is larger than that.
+
+## 6. Calls on the 0.1.6 modules, wasmtime 51 (stdlib = 0.1.6's zip), two rounds
+G, COW pandas, on demand x20:   {"load_ms":16.6,"instantiate_med_ms":0.063,"total_med_ms":7.94,"total_first_ms":14.93}  {"total_med_ms":7.23,"total_first_ms":12.12}
+G, COW pandas, pooling x20:     {"load_ms":13.0,"instantiate_med_ms":0.030,"total_med_ms":6.88,"total_first_ms":9.75}   {"total_med_ms":7.71,"total_first_ms":11.80}
+pass, COW pandas, pooling x20:  {"run_med_ms":1.66,"total_med_ms":1.83,"total_first_ms":4.50,"rss_peak_mib":61}          {"total_med_ms":1.80,"total_first_ms":3.56}
+G, COW everything, pooling x20: {"total_med_ms":9.94,"total_first_ms":17.93,"rss_peak_mib":114}                         {"total_med_ms":10.66,"total_first_ms":12.62}
+pass, snapshot (no image), pooling x20: {"total_med_ms":12.44}  {"total_med_ms":12.34}
+G, COW pandas metered (FUEL=1) x5: total_med_ms 9.13, fuel_med 7,830,672 (0.1.4 on 50: 7,818,966)
+# On the 0.1.4 pandas COW module, wasmtime 51, on demand x3: pass 2.12 ms median.
+
+## 7. What a guest crash does to the host (0.1.4 pandas COW module, wasmtime 51, on demand, 3 calls each, 4 GiB store memory limit)
+# Each call is a fresh instance in one host process; the host printed the trap and went on to the next call. Host exit code 0 in every case.
+os.abort():                       3 of 3 calls: wasm trap: wasm `unreachable` instruction executed
+unbounded recursion (limit 1e8):  3 of 3 calls: wasm trap: call stack exhausted
+bytearray(6 << 30):               OverflowError inside the guest (32-bit address space), run 3.1 ms
+append 256 MiB until full:        MemoryError inside the guest at the 4 GiB limit; run 2,125 ms, teardown 167 ms; host peak RSS 3,906 MiB
+ctypes.string_at(0xFFFFFFF0, 64): Python exception inside the guest, no trap
