@@ -28,6 +28,7 @@ BASE_CALL = _call._CheckedCall(
     gate=None,
     tool_calls=None,
     tool_request_bytes=None,
+    host_request_bytes=None,
     root=False,
     grants=(),
     mounts=(),

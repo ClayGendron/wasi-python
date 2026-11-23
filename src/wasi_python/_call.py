@@ -58,6 +58,7 @@ NO_HOST = -1
 HOST_FAULT = -2
 MASK32 = 0xFFFFFFFF
 UNMETERED = 2**63 - 1  # the budget instantiation runs on, before the cap is set
+RAW_REQUEST_BYTES = 1 << 20  # one opaque request, before any host copy
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
 # The guest's environment before the caller's `env`. HOME is added per call: a fresh, empty
 # directory under /tmp that the runner removes afterwards, so nothing a call leaves in its HOME
@@ -131,6 +132,7 @@ class _CheckedCall:
     gate: Callable[[ToolCall], Any] | None  # may be async
     tool_calls: int | None
     tool_request_bytes: int | None
+    host_request_bytes: int | None
     root: str | bool | None  # `False` none, `None` a private one, else a host path
     grants: tuple[Grant, ...]
     mounts: tuple[Mount, ...]
@@ -532,7 +534,8 @@ def _instance(
             open_files=c.open_files,  # strict, as file_calls
             context=context,
         )
-        call = _Call(store, host, waits, origin_ns, cancel, stop_at, admit, table=table, home=ht)
+        call_args = (store, host, waits, origin_ns, cancel, stop_at, admit)
+        call = _Call(*call_args, table=table, home=ht, max_host_request_bytes=c.host_request_bytes)
         _watch(store)  # every call
         with _epoch_ticker(engine, True):
             image = None if c.start is None else c.start.image
@@ -733,6 +736,7 @@ class _Call:
         *,
         table: _Files,
         home: _Home | None = None,
+        max_host_request_bytes: int | None = RAW_REQUEST_BYTES,
     ) -> None:
         from wasi_python import _wasmtime_ffi as ffi
 
@@ -743,7 +747,7 @@ class _Call:
         self.home = home
         # admit: the frame host's, under tools= or results=, whose host is the runner's own code
         self.host = host  # read back for the result host's record
-        self.door = _door(host, admit, home if admit is None else None)
+        self.door = _door(host, admit, home if admit is None else None, max_host_request_bytes)
         self.poll = _poll_oneoff(origin_ns, waits, files=table)
         self.stopped: BaseException | None = None
         self.cancel = cancel
@@ -1274,13 +1278,14 @@ def _door(
     host: Host | None,
     admit: Callable[[int], bytes | None] | None = None,
     home: _Home | None = None,
+    max_host_request_bytes: int | None = RAW_REQUEST_BYTES,
 ) -> Callable[..., int]:
     """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2.
 
     With `admit` (the tool protocol's frame host), each frame's length is offered to
     it once the addresses are checked and before the frame is read: bytes it returns are the
     answer, and the frame is never copied out of guest memory, so a refused frame costs the
-    host the same whatever its length. The raw `host=` path passes no `admit`, as before."""
+    host the same whatever its length. The raw host bounds its request before copying it."""
 
     import wasmtime as wt
 
@@ -1313,6 +1318,8 @@ def _door(
         size = memory.data_len(caller)
         if ptr + length > size or out_ptr_ptr + 4 > size or out_len_ptr + 4 > size:
             return HOST_FAULT  # memory.read would clamp a frame that runs past memory
+        if admit is None and max_host_request_bytes is not None and length > max_host_request_bytes:
+            return HOST_FAULT
         response = None if admit is None else admit(length)
         if response is None:
             request = bytes(memory.read(caller, ptr, ptr + length))

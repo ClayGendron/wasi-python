@@ -722,7 +722,18 @@ def _arm(
     hosts = (c.results, state.host, tool_host, output_bytes, (out, err), state.capture.settle)
     host, admit = _results._door_hosts(*hosts)
     table.new_turn()
-    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, admit, table=table, home=home)
+    call = _Call(
+        store,
+        host,
+        waits,
+        state.origin_ns,
+        stop,
+        stop_at,
+        admit,
+        table=table,
+        home=home,
+        max_host_request_bytes=c.host_request_bytes,
+    )
     if obs.on_call is not None:
         obs.on_call(kind, call)
     return call, out, err, feed, tool_host
