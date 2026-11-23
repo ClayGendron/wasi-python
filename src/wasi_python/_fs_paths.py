@@ -37,6 +37,7 @@ from wasi_python._fs_memory import (
     MASK32,
     MAX_MOUNT_FILES,
     MAX_NAME,
+    MAX_PATH,
     MTIM,
     MTIM_NOW,
     NONBLOCK,
@@ -92,6 +93,8 @@ def _resolve(base: _Open, text: str) -> tuple[str, bool] | int:
         else:
             stack.append(part)
     path = "/" + "/".join(stack)
+    if len(path.encode()) > MAX_PATH:
+        return ENAMETOOLONG
     for nested in base.mount.nested:
         if path == nested or path.startswith(nested + "/"):
             return EPERM  # a more specific preopen's: the guest spelled it past wasi-libc
@@ -635,6 +638,8 @@ def _path_rename(
         return EBUSY  # the guest's view of other preopens stays where it was put
     if dst.startswith(src + "/"):
         return EINVAL  # into its own subfolder
+    if not files._rename_fits(mount, src, dst):
+        return ENAMETOOLONG
     if src == dst or needs_folder:
         # onto itself, or a source that must be a folder: one `stat` decides it
         errno, kind, _, _ = files._stat(caller, mount, src)

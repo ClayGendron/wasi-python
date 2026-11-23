@@ -94,7 +94,7 @@ A read-only mount answers as a read-only grant does: every write-type call is `E
 - `os.fstat` of an open file shows its kind and size but no times. There are no links: `os.readlink` answers `EINVAL`.
 - An open file's number (`f.fileno()`) is 2**30 or above, so `select.select` refuses it with `ValueError`. Use `selectors` or `select.poll`.
 - `..` is resolved by text, so `missing/../a.txt` opens `a.txt`. A climb above the folder the call starts from is `EPERM`, as on a grant.
-- A path over 4,096 bytes is `ENAMETOOLONG`.
+- The path passed by the guest and the resolved path passed to the provider each have a 4,096-byte limit in UTF-8. The resolved path includes the leading slash and the descriptor's folder. A rename that would take an open file or a pending write-back past the limit also returns `ENAMETOOLONG`, before the provider changes anything.
 
 Setting a missing file's times, a positioned read and opening a file as a folder answer as on a grant: `ENOENT`, the bytes asked for, and `ENOTDIR`.
 
