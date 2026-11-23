@@ -1861,3 +1861,38 @@ def test_a_look_that_meets_the_deadline_answers_and_the_next_call_ends(tmp_path)
     assert g.table.stop_fuel is None
     with pytest.raises(files.Ends):
         g.raw.path_filestat(3, "file", FOLLOW)
+
+
+@pytest.mark.parametrize("pending", [(), ("site", "child")], ids=["grant", "new root"])
+def test_changed_directory_depth_keeps_the_pending_folder_protected(tmp_path, pending):
+    parent = tmp_path.resolve()
+    library = parent / "lib"
+    library.mkdir()
+    anchor = _platform.PLATFORM.identity_of(parent)
+    walk = _platform.PLATFORM.walk("folder", str(library), judge=True)
+    try:
+        walk.missing = pending
+        missing = [("the host Python's own code", anchor, ("lib", "site"))]
+        grants = [] if pending else [("grant", Grant(library, "/data", writable=True), walk)]
+        with pytest.raises(ValueError, match="the host Python's own code"):
+            _places._judge(walk if pending else None, grants, [], missing=missing)
+    finally:
+        walk.close()
+
+
+def test_a_trusted_folders_missing_tail_matches_its_observed_ancestor(tmp_path, monkeypatch):
+    path = tmp_path.resolve() / "site"
+    path.mkdir()
+    identity_of = _platform.PLATFORM.identity_of
+    first = True
+
+    def observed(folder):
+        nonlocal first
+        if folder == path and first:
+            first = False
+            raise FileNotFoundError
+        return identity_of(folder)
+
+    monkeypatch.setattr(_platform.PLATFORM, "identity_of", observed)
+    identity, chain, tail = _places._trusted_chain(path)
+    assert (identity, chain[0], tail) == (None, identity_of(path.parent), ("site",))
