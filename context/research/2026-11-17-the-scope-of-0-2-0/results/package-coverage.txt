@@ -1,0 +1,26 @@
+# Which packages get the copy-on-write speedup. harness/rust bench mode, wasmtime 50.0.2 crate, on-demand allocator,
+# epoch interruption on, fuel off. Same machine as rust-host.txt, 2026-11-17 14:15 UTC. Medians, warm (module file in the OS cache).
+# Modules: snap.cwasm = the plain snapshot binary, no package image; pandas-cow = image made by make_package_snapshot(["pandas"]);
+# all-cow = image made by make_package_snapshot() with no names, which imports every package the set ships (0.1.4 set).
+# Each call: new instance, run the code, drop.
+#
+# code                                                  no image   pandas image   everything image   (median ms, n)
+# x=sum(range(10**5)); print(x)                          19.09      7.81           9.88               (10)
+# import numpy as np; print(int(np.arange(10**6).sum()))  287.73     9.24           11.14              (5)
+# import yaml, jinja2; print(yaml.safe_dump({"a":1}))    219.53     110.11         8.03               (5)
+# sklearn DecisionTreeClassifier fit + predict           4001.50    2827.57        121.99             (3, 3, 5)
+# pandas groupby (rust-host.txt)                         1257.42    6.45           7.55
+# pydantic: not in the 0.1.4 set (ImportError); skipped.
+#
+# First calls in this run were 0.1 to 7.3 s, because the module files had left the OS page cache since they were written;
+# rust-host.txt's first calls (10 to 15 ms) had them cached. A cold disk read of a 300 to 500 MB module costs seconds.
+#
+# Compiled module sizes, raw and zstd level 19 (zstandard, threads=-1):
+snap.cwasm        298813544   57018220
+pandas-cow.cwasm  325683288   65293972
+all-cow.cwasm     497322072  106675003
+
+# Added 2026-11-19: the metered (fuel) module and the copy-on-write binaries themselves, zstd level 19.
+pandas-cow-fuel.cwasm  382893456   77918432
+pandas-cow.wasm        144066428   24369736
+all-cow.wasm           314394484   65759821

@@ -1,0 +1,7 @@
+# wasi-python 0.1.4 wheel from PyPI (sha256 e34d6bf4c3c7…), wasmtime-py 50.0.1, CPython 3.12 host, same machine, 2026-11-17.
+first call, no module cache (compile): 40,326 ms; second call 22.5 ms
+new process, module cache warm, first call (import wasi_python + load .cwasm + run): 489 to 617 ms; second 21 to 23 ms; peak RSS 86 to 87 MiB
+cache files: 298,813,544 and 284,875,008 bytes (.cwasm, snapshot and plain binaries, unmetered)
+zstd of the .cwasm: level 3 71.6 / 73.6 MB, level 19 55.4 / 57.0 MB, decompress 0.3 to 0.5 s
+python-warm.json: medians of the calls; python-package-snapshots.json: make_package_snapshot and calls from it
+package snapshot images (raw): pandas 68,812,800 bytes; everything 240,451,584 bytes
